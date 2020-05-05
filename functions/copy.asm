@@ -117,7 +117,21 @@ copycont
 		ex de,hl
 		pop hl
 		add hl,de
-
+		push hl
+		inc hl
+		call find83
+		
+		call BUFF83			
+		
+		ld hl,(foundfile)
+		ld de,7
+		add hl,de
+		bit 7,(hl)
+		pop hl
+		jp nz,nekopiruj_adresar
+		
+		
+		
 		call openfile
 		call createfile
 		call readfile		
@@ -194,6 +208,34 @@ copyend
 		
 		call loadscr
 		jp loop0
+
+
+nodirtxt	defb "You cannot copy the directory.",0
+pressanykeytxt	defb "Press any key to continue.",0
+
+nekopiruj_adresar
+
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,nodirtxt
+		call print
+
+
+
+		ld hl,11*256+15
+		ld a,48
+		ld de,pressanykeytxt
+		call print
+
+
+		call INKEY
+		jp copyend
+
 
 morecopytxt	defb "Copy     files?",0
 moredeletetxt	defb "Delete     files?",0
