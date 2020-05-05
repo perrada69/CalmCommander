@@ -51,9 +51,10 @@ closefile
 		call 0109h 
 		call basicpage
 		ret
-
+konecread	defb 0
 readfile
-READ
+READ	xor a
+		ld (konecread),a
 		call dospage
 		call NOBUFF83
 read0	
@@ -72,28 +73,67 @@ CPPX4    ld   b,1
 CPPNE2
 
 
+DELKA	
+		ld hl,(LFNNAME+261)
+		ld de,(LFNNAME+261+2)
+		ld a,d
+		or e
+		jr z,bit16
+		push hl
+		ld hl,6*1024
+		ld (pocetbytu+1),hl
+		pop hl
+		ld bc,6*1024
+		call sub32
+		jr dalcti
+bit16	ld bc,6*1024
+		or a
+		sbc hl,bc
+		add hl,bc
+		jr c,posledniread
+		jr z,posledniread
+		or a
+		sbc hl,bc
+		push hl
+		ld hl,6*1024
+		ld (pocetbytu+1),hl
+		pop hl
+		jr dalcti
+		
+posledniread		
+		ld a,1
+		ld (konecread),a
+		ld (pocetbytu+1),hl
+		
+		
+		
+dalcti
+		ld (LFNNAME+261),hl
+		ld (LFNNAME+261+2),de
+			
 		ld b,0
 		ld c,3
-		ld de,blocklenght				;počet bytu
+pocetbytu ld de,blocklenght				;počet bytu
 		ld hl,FILEBUFF
-		call 0112h
-		jr nc, konec
+		call 0112h			;READ
+		
 
 		ld c,3
 		ld b,2
-		ld de,blocklenght
+		ld de,(pocetbytu+1)
 		ld hl,FILEBUFF
-		call 115h
+		call 115h			;WRITE
 
-
-		jr read0
+		ld a,(konecread)
+		or a
+		jr z,read0
 konec
 
-		ld c,3
-		ld b,2
-		ld de,blocklenght
-		ld hl,FILEBUFF
-		call 115h
+		; ld c,3
+		; ld b,2
+		; ld de,blocklenght
+		; ld hl,FILEBUFF
+		; call 115h			;WRITE
 
 		call basicpage
 		ret
@@ -111,7 +151,6 @@ openfile
 		pop hl
 		push hl
 		call FINDLFN
-		
 		ld hl,LFNNAME
 		ld de,bfname
 		ld bc,45
@@ -188,3 +227,17 @@ azapa	ld a,255
 
 		call basicpage
 		ret
+;DEHL - BC = DEHL
+;
+;
+sub32	xor	a
+		sbc	hl,bc
+		ret	nc
+		dec	de
+		ret
+
+
+size 	defs 4
+
+bufftoread	
+		defs 262

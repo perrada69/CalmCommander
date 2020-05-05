@@ -145,7 +145,7 @@ filename 	  ds   15
 typ 		  equ $-4
 pocetpolozek	equ 200
 virtmem		defb 0
-maxlen		equ 261
+maxlen		equ 261 + 4		;+4 je délka souboru
 maxline equ 37
 save_allfiles	defw 0	
 OKNO 	defb 0
@@ -290,7 +290,7 @@ loop0
 		ld (PROGS+1),hl
 
 		call gettime
-		nextreg $56,20
+		nextreg $56,24
 
 
 
@@ -1746,7 +1746,7 @@ find83
 		call mull
 		ld de,$a000
 		add hl,de
-
+		
 		call BUFF83
 		ld (foundfile),hl
 		ld de,TMP83
@@ -2416,13 +2416,14 @@ BufferName	ld de,bufftmp			;jmeno souboru
 			ld hl,stardstar
 			ld ix,(savehl)
 			ld bc,LFNNAME
-			call $01b7  
-			
+			call $01b7  			;zjisti LFN
+			ld (LFNNAME + 261),ix
+			ld (LFNNAME + 261 + 2),hl
 			call basicpage
 			
 Page		ld a,24
 			nextreg $57,a	;nastrankuj stranku s volnymi daty
-
+			
 InBuff		ld de,#e000		;ukazatel na pamet v bufferu			
 			ld hl,LFNNAME	;buffer pro LFN
 			ld bc,maxlen		;ulož 64 bytů
@@ -2489,7 +2490,7 @@ FINDLFN
 			
 			ld hl,LFNNAME
 			ld de,LFNNAME+1
-			ld bc,261
+			ld bc,maxlen
 			ld a,32
 			ld (hl),a
 			ldir
@@ -2535,7 +2536,14 @@ popop
 			ld a,b
 			or c
 			jr nz,popop
+			
 kon			
+			ld hl,(addrlfn)
+			ld de,261
+			add hl,de
+			ld de,LFNNAME+261
+			ld bc,4
+			ldir				;prenes velikost souboru
 			ld hl,LFNNAME
 			ld b,40
 F22222
@@ -2586,7 +2594,7 @@ ALLFILESL  defw ALLFILES, ALLFILES2
 ALLFILES    defw 0
 ALLFILES2	defw 0
 ALLFILESR	defw 0
-LFNNAME		defs 263
+LFNNAME		defs 270  ;263
 tmpname		ds 2
 BFT
 bufftmp		ds 15		 
