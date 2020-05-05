@@ -2444,7 +2444,7 @@ InBuff		ld de,#e000		;ukazatel na pamet v bufferu
 			ld de,maxlen
 			add hl,de
 			ld (InBuff+1),hl
-			ld de,#FFFF-128
+			ld de,#FFFF-261
 			or a
 			sbc hl,de
 			jr c,contin
@@ -2497,11 +2497,11 @@ FINDLFN
 
 			pop hl
 			or a
-			ld de,31
+			ld de,30
 			sbc hl,de
 			add hl,de
 			jr c,prvni
-			ld c,31
+			ld c,30
 			call deleno
 		    jr oddeleno
 prvni		ld a,l
