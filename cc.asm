@@ -237,14 +237,14 @@ start
 		ld bc,80*32*2
 		ld (hl),0
 		ldir
-		ld hl,text
+		ld hl,nadpis
 		ld de,#4000
 		ld bc,80
 menu0		
 		ld a,(hl)
 		ld (de),a
 		inc de
-		ld a,16
+		ld a,80
 		ld (de),a
 		inc de
 		inc hl
@@ -799,7 +799,7 @@ mmorekonec
 		call ROZHOD
 		xor a
 		ld (hl),a
-		;call loadscr	
+
 
 		ld hl,pozicel
 		call ROZHOD2
@@ -1773,11 +1773,29 @@ timeend
 hodiny	defb 0
 minuty	defb 0
 dostime	defw 0
-menu	call savescr
+menu	
+		ld hl,text
+		ld de,#4000
+		ld bc,80
+menu000		
+		ld a,(hl)
+		ld (de),a
+		inc de
+		ld a,16
+		ld (de),a
+		inc de
+		inc hl
+		dec bc
+		ld a,c
+		or b
+		jr nz,menu000
+
+		call savescr
 		
 		call show_menu
-		
-menu01	call INKEY
+menu01	
+
+		call INKEY
 
 		cp 1
 		jp z,menu_exit
@@ -1785,7 +1803,7 @@ menu01	call INKEY
 		cp 10
 		jr z,menudown
 		cp 11
-		jr z,menuup
+		jp z,menuup
 		cp 9
 		jr z,menu_right
 		cp 8
@@ -1794,6 +1812,23 @@ menu01	call INKEY
 		
 menu_exit 
 		call loadscr
+
+		ld hl,nadpis
+		ld de,#4000
+		ld bc,80
+menu001		
+		ld a,(hl)
+		ld (de),a
+		inc de
+		ld a,80
+		ld (de),a
+		inc de
+		inc hl
+		dec bc
+		ld a,c
+		or b
+		jr nz,menu001
+
 		jp loop0
 
 menu_right
@@ -1981,6 +2016,7 @@ curmen0		inc hl : inc hl
 
 
 text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                                                       ",0
+nadpis 		defb " Calm Commander 0.1                                                                         ",0
 menupos		defb 0, 18, 34, 50,66
 
 nummenu		defb 0				;jakou položku zobrazit v menu
@@ -3046,7 +3082,7 @@ info0
 		jr info0
 
 		
-calmcommander	defb "CALM COMMANDER 1.0",0		
+calmcommander	defb "CALM COMMANDER 0.1",0		
 breaktxt defb "BREAK: close this window",0		
 info1txt defb "File manager for ZX Spectrum Next. ",0
 info2txt defb "Main program: Shrek/MB Maniax",0
@@ -3721,7 +3757,7 @@ numLoop		defw 0
 FILES    defb 0
 dirNum	 defw 0
 tilemapPalette:
-                db  %000'000'11,1       ; 0 modra(paper)
+                db  %000'000'11,1       ; 0 modra(paper)					0
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
                 db  %101'101'11,0       ; 0 white-blueish (ink)
@@ -3729,7 +3765,7 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %000'000'00,0       ; 0 modra (paper)
+				db  %000'000'00,0       ; 0 modra (paper)					16
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %101'101'11,0       ; 0 white-blueish (ink)
@@ -3737,7 +3773,7 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %000'011'10,1       ; 0 modra (paper)
+				db  %000'011'10,1       ; 0 modra (paper)					32
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %101'101'11,0       ; 0 white-blueish (ink)
@@ -3745,7 +3781,7 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %111'111'11,1       ; 0 modra (paper)
+				db  %111'111'11,1       ; 0 modra (paper)					48
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %000'000'000,0       ; 0 white-blueish (ink)
@@ -3753,7 +3789,7 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %101'111'01,1       ; 0 zluta (paper)
+				db  %101'111'01,1       ; 0 zluta (paper)					64
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %000'000'00,0       ; 0 white-blueish (ink)
@@ -3761,10 +3797,10 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %000'101'10,1       ; 0 zluta (paper)
+				db  %000'000'00,0       ; 0 zluta (paper)					80
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
-				db  %000'000'00,0       ; 0 white-blueish (ink)
+				db  %111'111'11,1       ; 0 white-blueish (ink)
                 db  %110'001'00,1       ; 4 red
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
