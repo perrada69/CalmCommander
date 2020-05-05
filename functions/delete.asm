@@ -89,7 +89,8 @@ mdeletecont
         ld   (DPPX3+1),a
         ld   hl,0
         ld   (PROGPROM),hl
-
+		ld   hl,$4000+160*13+23 + 1 + 62
+		ld (hl),"|"
 		ld hl,0
 		
 deletenext
