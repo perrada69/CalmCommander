@@ -309,6 +309,7 @@ loop0
 		ld hl,11*256+31
 		ld a,16
 		ld de,NUMBUF
+		
 		call print
 
 		ld hl,(numsel+2)
@@ -317,6 +318,28 @@ loop0
 		ld a,16
 		ld de,NUMBUF
 		call print
+
+		ld a,"/"
+		ld ($4000+31*160+32),a
+		ld a,"/"
+		ld ($4000+31*160+112),a
+
+		ld hl,(ALLFILES)
+		call NUM
+		ld hl,17*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
+
+		ld hl,(ALLFILES + 2)
+		call NUM
+		ld hl,57*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
+
+
+
 ;*******************************
 
 		; ld a,(POSKURZL)
@@ -589,7 +612,7 @@ rightcur0
 		ld (AKT+1),hl
 		inc hl
 		
-		ld de,27 + 27
+		ld de,27 +27
 		add hl,de
 		push hl
 						;HL ... číslo souboru na kterém stojí kurzor + 26 (stránka)
@@ -1274,7 +1297,6 @@ AAAA
 		call ROZHOD
 		xor a
 		ld (hl),a
-		ld (virtmem),a
 		call reload_dir
 
 		ld hl,pozicel
@@ -2480,6 +2502,14 @@ atr9	ld (hl),0
 reload_dir
 			
 			di
+			ld hl,catbuff
+			ld (Count11+1),hl
+			ld hl,ALLFILES
+			call ROZHOD2
+			xor a
+			ld (hl),a
+			inc hl
+			ld (hl),a
 			
 			ld hl,numsel
 			call ROZHOD2
@@ -2487,8 +2517,8 @@ reload_dir
 			ld (hl),a
 			inc hl
 			ld (hl),a
-			
-			
+			ld (virtmem),a
+						
 			call BUFF83
 			ld hl,#a000
 			ld de,#a001
@@ -2496,7 +2526,6 @@ reload_dir
 			xor a
 			ld (hl),a
 			ldir
-            
 			
 			ld bc,port1       ;the horizontal ROM switch/RAM
                                 ;switch I/O ad dress
@@ -2530,70 +2559,58 @@ aNextDirItem
 NEXT0			  
 			 
 			  
-			  ld (savehl),hl
-			  ld (saveix),ix
-			  ld a,b
-			  cp pocetpolozek
-			  push af
-			
-			
-			
-			
-			  ld hl,ALLFILES
-			  call ROZHOD2
-			  ld a,(hl)
-			  inc hl
-			  ld h,(hl)
-			  ld l,a
-
-			  ld e,b
-			  ld d,0
-			  add hl,de
-			  dec hl
-			  push hl
-			  ld hl,ALLFILESL
-			  call ROZHOD2
-			  ld a,(hl)
-			  inc hl
-			  ld h,(hl)
-			  ld l,a
-			  ld (N0+1),hl
-			  pop hl
-N0			  ld (0),hl
-			
-			
+			ld (savehl),hl
+			ld (saveix),ix
+			ld a,b
+			cp pocetpolozek
+			push af
 			
 			push hl
 			push de
-			push bc
+			push bc			
 			
+			ld hl,ALLFILES
+			call ROZHOD2
+			ld a,(hl)
+			inc hl
+			ld h,(hl)
+			ld l,a
+ 		  	ld e,b
+			ld d,0
+			add hl,de
+			dec hl
+			push hl
+			ld hl,ALLFILESL
+			call ROZHOD2
+			ld a,(hl)
+			inc hl
+			ld h,(hl)
+			ld l,a
+			ld (N0+1),hl
+			pop hl
+N0			ld (0),hl
 			
 			ld hl,(dirNum)
 			add	hl,de
 			dec hl
 			ld 	(dirNum),hl
+
 			pop bc
 			pop de
 			pop hl
+			pop af
+			jr c,acont
 
-			  
-			  ld a,(FILES)
-			  add a,b
-			  dec a
-			  ld (FILES),a
-			  pop af
-			  jr c,acont
+			ld a,b
+			or a
+			jr z,acont
 
-			  ld a,b
-			  or a
-			  jr z,acont
+			ld a,(virtmem)
+			cp 2
+			jr z,acont
 
-			  ld a,(virtmem)
-			  cp 1
-			  jr z,acont
-
-			  call CountMemory
-			  ex de,hl
+			call CountMemory
+			ex de,hl
 			ld hl,virtmem
 			inc (hl)
 			jr aNextDirItem
@@ -2909,6 +2926,7 @@ NOBUFF83
 			nextreg $55,5
 			ret
 CountMemory
+
 			ld de,13*(pocetpolozek-1)
 Count11		ld hl,catbuff
 			add hl,de
