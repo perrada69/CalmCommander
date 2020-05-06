@@ -1,4 +1,3 @@
-
 			DEVICE ZXSPECTRUMNEXT
             OPT reset --zxnext --syntax=abfw              
             slot 3
@@ -6,7 +5,7 @@
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
-            DEFINE ORG_ADDRESS      $8000
+            DEFINE ORG_ADDRESS      $7000
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
@@ -426,8 +425,10 @@ leftcur
 		or a
 		jr z,leftcur0
 		ld a,0
+		
+		push hl
 		call writecur
-	
+		pop hl	
 		xor a
 		ld (hl),a
 		ld a,32
@@ -436,9 +437,91 @@ leftcur
 
 
 leftcur0
+LFT0
+		ld hl,0
+		push hl
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		pop hl
+		jr z,leftcur1
+		inc hl
+leftcur1
+		ld (leftcur_porovnej + 1),hl
 
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld (pocatekleft+1),hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		inc hl			;aktualni pozice v HL
+		ld (aktpos+1),hl
+
+leftcur_porovnej 
+		ld de,0
+		or a
+		sbc hl,de
+		add hl,de
+		jp z,loop0		;odskoc pokud jsi na prvni pozici
+		ld de,28
+		or a
+		sbc hl,de
+		add hl,de
+		jr c,mensi_nez_28
+		ld de,28
+aktpos	ld hl,0		
+		or a
+		sbc hl,de
+		ex de,hl
+		jr pocatekleft
+mensi_nez_28
+
+		ld de,(leftcur_porovnej + 1)
+pocatekleft	
+		ld hl,0
+		ld (hl),e
+		inc hl
+		ld (hl),d		
+								;vykresli znova okno
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
 		jp loop0
 
+souboru_na_radek	equ 26
+
+RGHT
 rightcur
 		ld hl,POSKURZL
 		call ROZHOD
@@ -447,6 +530,10 @@ rightcur
 		cp 26
 		jp z,rightcur0			;zobraz další stránku
 		
+
+
+
+
 		ld hl,ALLFILES
 		call ROZHOD2
 		ld a,(hl)
@@ -454,7 +541,6 @@ rightcur
 		ld d,(hl)
 		ld e,a
 		dec de
-		
 		push de
 		ld hl,pathl
 		call ROZHOD2
@@ -466,8 +552,9 @@ rightcur
 		add hl,de
 		ld a,(hl)
 		cp 255
-		jr z,aasw0
 		pop de
+		jr z,aasw0
+		
 		dec de
 aasw0
 		ld hl,26
@@ -494,17 +581,18 @@ rightcur0
 
 		ld hl,STARTWINL
 		call ROZHOD2
-		ld (rightsedi+1),hl	;ulož adresu 
+		ld (rightsedi+1),hl	;ulož adresu okna, které se bude vykreslovat
 		ld a,(hl)
 		inc hl
 		ld h,(hl)
 		ld l,a
-
+		ld (AKT+1),hl
 		inc hl
-		ld de,26 
+		
+		ld de,27 + 27
 		add hl,de
 		push hl
-						;HL ... číslo souboru na kterém stojí kurzor
+						;HL ... číslo souboru na kterém stojí kurzor + 26 (stránka)
 		ld hl,ALLFILES
 		call ROZHOD2
 		ld a,(hl)
@@ -516,12 +604,20 @@ rightcur0
 		dec de
 		pop hl
 						;DE ... počet všech souborů v aktuálním okně
-RRR
+
 		or a
+		ex de,hl
 		sbc hl,de
 		add hl,de
-		jr c,rightsedi
+
+		jr c,right12		;když se nesmí odstránkovat celých 26 souborů
 MAXR	ld hl,0
+AKT		ld hl,0
+		ld de,27
+		or a
+		add hl,de
+		
+		add hl,de
 		push hl
 
 		ld hl,pathl
@@ -534,15 +630,22 @@ MAXR	ld hl,0
 		add hl,de
 		ld a,(hl)
 		cp 255
-		jr z,asw0
 		pop hl
+		jr z,asw0
+		
 		dec hl
 asw0
 
 		;dec hl
-		ld de,26
+		ld de,27
 		or a
 		sbc hl,de
+		jr	rightsedi
+right12 ld hl,(MAXR+1)
+		ld de,27
+		or a
+		sbc hl,de
+
 rightsedi
   	    ld (0),hl
 
@@ -1171,6 +1274,7 @@ AAAA
 		call ROZHOD
 		xor a
 		ld (hl),a
+		ld (virtmem),a
 		call reload_dir
 
 		ld hl,pozicel
