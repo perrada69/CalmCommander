@@ -323,7 +323,7 @@ acopycont
 		ld de,spaces
 		call print	
 
-		ld   hl,$4000+160*13+23 + 1 + 62
+		ld   hl,$4000+160*15+23 + 1 + 62
 		ld (hl),"|"
 		ld   hl,$4000+160*14+23 + 1 + 62
 		ld (hl),"|"

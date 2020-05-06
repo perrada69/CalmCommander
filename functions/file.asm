@@ -115,7 +115,7 @@ dalcti
 			
 		ld b,0
 		ld c,PAGE_BUFF
-pocetbytu ld de,blocklenght				;počet bytu
+pocetbytu ld de,0				;počet bytu
 		ld hl,49152
 		call 0112h			;READ
 		
@@ -158,7 +158,7 @@ openfile
 		ld bc,45
 		ldir
 		
-		ld hl,11*256+15
+		ld hl,11*256+13
 		ld a,16
 		ld de,bfname
 		call print				

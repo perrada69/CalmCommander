@@ -12,20 +12,20 @@
                                                     ; = 6656 $1A00 -> fits into ULA classic VRAM
     
 	
-	DEFINE CFG_FILENAME     dspedge.defaultCfgFileName
-    STRUCT S_MARGINS        ; pixels of margin 0..31 (-1 = undefined margin)
+			DEFINE CFG_FILENAME     dspedge.defaultCfgFileName
+    		STRUCT S_MARGINS        ; pixels of margin 0..31 (-1 = undefined margin)
 L           BYTE    -1      ; left
 R           BYTE    -1      ; right
 T           BYTE    -1      ; top
 B           BYTE    -1      ; bottom
-    ENDS
-    STRUCT S_UI_DEFINITIONS
+			ENDS
+			STRUCT S_UI_DEFINITIONS
 labelDot    WORD    0       ; address where to write display dot
 cellAdr     WORD    0       ; address of big table cell on screen at [1,0] char inside
 nextMode    BYTE    0
 keyword     WORD    0       ; address of keyword used in the CFG file
-    ENDS
-    STRUCT S_MODE_EDGES
+			ENDS
+			STRUCT S_MODE_EDGES
         ; current margins values (must be first four bytes of the structure)
 cur         S_MARGINS
         ; original values (from file)
@@ -116,16 +116,6 @@ CSP_BREAK   MACRO : IFDEF TESTING : break : ENDIF : ENDM
     ; (turned out the DS/BLOCK does overwrite device memory always, so I'm reserving space
     ; here ahead of the real machine code is produced, the real code will later overwrite
     ; the memory as desired)
-            ORG tilemapFont_char24
-;EsxErrorBuffer:     DS      34
-;ReadMarginsArray:   DS      dspedge.S_MARGINS * dspedge.MODE_COUNT
-    ; parsing/writing buffers has to be 256B-aligned
- ;   ALIGN   256
-; ParsingBuffer:      DS      256
-; WritingBuffer:      DS      256
-; WritingBuffer2:     DS      256
-; BackupFilename:     DS      256
-;lastReserved:   ASSERT  lastReserved < $3D00 && last < $3D00
             org ORG_ADDRESS   
 
 
@@ -169,7 +159,7 @@ PATHLEFT	defb "C:",255
 PATHRIGHT   defb "C:",255
 			ds 261
 bottom		defb "                                                                                ",0			
-start       
+START       
 		ld a,3
 		ld (OKNO),a
 		ld a,1
@@ -243,7 +233,7 @@ menu0
 		ld a,(hl)
 		ld (de),a
 		inc de
-		ld a,80
+		ld a,16
 		ld (de),a
 		inc de
 		inc hl
@@ -276,7 +266,7 @@ STOP
 		ld a,(OKNO)
 		xor 16
 		ld (OKNO),a	
-III		
+
 		ld a,32
 		call writecur
 		ld a,16
@@ -284,8 +274,9 @@ III
 		ld hl,0*256+31
 		call print
 
+		
 loop0	
-		ld   hl,$4000+160*13+23
+		ld   hl,$4000+160*15+23
 		ld (PROGS+1),hl
 
 		;call gettime
@@ -826,7 +817,7 @@ TABPRO   db 16,8,5,4,3,2,2,2
 
 PRGRS1   ld   b,1
 PROGRES  push hl
-PROGS    ld   hl,$4000+160*13+25
+PROGS    ld   hl,$4000+160*15+25
          ld   a,36		;barva teploměru
 PROGRSM1 ld   (hl),a
          inc  hl
@@ -861,11 +852,12 @@ clearpr2
 
 
 
-blocklenght	equ 1024*6
-
+;blocklenght	equ 1024*6
+		include "functions/selected.asm"
 		include "functions/copy.asm"
 		include "functions/file.asm"
 		include "functions/delete.asm"
+
 gettime
 		call dospage
 		call $01cc		;načti čas a datum  DE = time, BC DATE	
@@ -1533,6 +1525,8 @@ savescr
 		ldir
 		nextreg $57,1				;Nastránkuj zpátky
 		ret
+
+
 
 ;Obnovení spodních dvou třetin obrazovky z 19 stárnky ZX Next.		
 loadscr	
@@ -2606,8 +2600,8 @@ N0			ld (0),hl
 			jr z,acont
 
 			ld a,(virtmem)
-			cp 1
-			jr acont
+			cp 2
+			jr z, acont
 
 			call CountMemory
 			ex de,hl
@@ -2711,7 +2705,7 @@ basicpage
 		ret
 
 
-lfnpage	defb 24,32
+lfnpage	defb 24,60
 			
 getAllLFN	
 			
@@ -2723,11 +2717,8 @@ getAllLFN
 			ld hl,lfnpage
 			call ROZHOD
 			ld a,(hl)
-		
-;			ld a,24
+	
 			ld (Page+1),a
-			
-			
 			call BUFF83
 			ld hl,catbuff+#d
 			ld de,bufftmp
@@ -2906,7 +2897,7 @@ setspace
 		ret
 
 buffl		defb 20
-buffr		defb 21
+buffr		defb 22
 
 BUFF83		
 			push hl
@@ -2995,10 +2986,10 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %000'000'00,0       ; 0 zluta (paper)					80
+				db  %100'100'10,0       ; 0 zluta (paper)					80
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
-				db  %111'111'11,1       ; 0 white-blueish (ink)
+				db  %000'000'00,0       ; 0 white-blueish (ink)
                 db  %110'001'00,1       ; 4 red
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
@@ -3020,7 +3011,7 @@ tilemapFont_char24:
 last:       
               
               CSPECTMAP player.map
-              savenex open "CalmCommander.nex",start,32766
+              savenex open "CalmCommander.nex",START,32766
               savenex core 2,0,0
               savenex auto
               savenex close

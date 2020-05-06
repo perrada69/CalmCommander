@@ -1,10 +1,17 @@
 
-SELDATA  equ  49152
+SELDATA  equ  $A000
 
-;Označí konkrétní bit - identifikace označeného souboru
+;poloha bitu, který se bude xorovat.
+TABBITS  db 1,2,4,8,16,32,64,128
+
+;Zjistí konkrétní bit a nastaví masku pro XOR 
 ;Vstup: HL = číslo souboru
-
-SELTED  ld   de,SELDATA
+;Po zavolání SELTED pak stačí udělat jen:
+;         ex   de,hl
+;         xor  (hl)
+;         ld   (hl),a
+SELTED  dec hl
+        ld   de,SELDATA
         xor  a
         srl  h
         rr   l
@@ -27,48 +34,79 @@ SELTED  ld   de,SELDATA
         ld   l,a
         jr   nc,SELC2
         inc  h
-SELC2   ld   a,(de)
-        and  (hl)
+SELC2   ld   a,(hl)
         ret 
 
-GETSELF ld   hl,numsel	;najde prvni oznacenou polozku, v pripade
-        call ROZHOD2	;ze neni oznacena, zadny soubor (adresar)
-        ld   a,(hl)		;tak to vyhodi pozici kurzoru
-        inc  hl			;vysledek je v registru ´hl´
-        or   (hl)
-        ld   hl,0
-        jr   nz,GETSELN3
-        ld   hl,KURZL
-        call ROZHOD2
-        ld   a,(hl)
-        inc  hl
-        ld   h,(hl)
-        ld   l,a
-        or   h
-        ret  
+;najde první označenou položku
+GETSELF ld hl,$a000         ;adresa prního
+        ld de,0             ;vynuluj  počítadlo
+        
+first1  dec de
+        ld a,(hl)      
+        ld b,8
+first0  inc de
+        rrca
+        jr c,nalezeno
+first2  djnz first0
+        inc de
+first3  inc hl
+        jr first1
+nalezeno
+        ld (GETSELN+1),hl
+        ld (getselde+1),de
+        ex de,hl
+        ld c,a
+        ld a,b
+        ld (selnb+1),a
+        ld a,c
+        ld (selna+1),a
+        ret
+;najde další označenou položku
 
-GETSELN3 
-        ld   hl,dirl
-        call rozhod
-        ld   a,(hl)
-        ld   hl,0
-        or   a
-        jr   nz,GETSELN
-        ld   hl,-1
-GETSELN inc  hl			;najde dalsi polozku, ktera je oznacena, v hl
-		push de			;musi byt posledni nalezena a vysledek je zase 
-        ld   de,65535	;v registru ´hl´
-        or   a
-        sbc  hl,de
-        add  hl,de
-        pop  de
-        ret  z
-        push hl
-        call SELTED
-        pop  hl
-        jp   z,GETSELN
-        ret  
+GETSELN ld hl,$a000
+getselde ld de,0
+
+selnb   ld b,8
+selna   ld a,0
+        jr first2
+
+;Nastránkuje stránku se select daty od adresy $A000
+GETSELPAGE
+        nextreg $55,19
+        ret
+
+INITSEL 
+        ld a,1
+        ld (selnb+1),a
+        ld hl,$a000-1
+        ld (GETSELN+1),hl
+        ld hl,$0
+        ld (getselde+1),hl
+        ld a,($a000)
+        ld (selna+1),a
+        ret
 
 
-TABBITS  db 1,2,4,8,16,32,64
-         db 128         
+
+		call GETSELPAGE
+		ld hl,$a000
+		ld de,$a001
+		ld bc,8*1024
+		xor a
+		ld (hl),a
+		ldir
+
+		ld hl,$134
+		call SELTED
+		ex de,hl
+		xor (hl)
+		ld (hl),a
+
+		call INITSEL
+
+III		
+		call GETSELN
+		call GETSELN
+		call GETSELN
+		call GETSELN
+		call GETSELN

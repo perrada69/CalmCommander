@@ -304,10 +304,7 @@ delete
 		call find83
 		pop hl
 		call FINDLFN
-		
-		
-		
-		
+
 		ld hl,LFNNAME
 		ld de,bfname
 		ld bc,45
@@ -355,126 +352,5 @@ CCCAC							;vynuluj všechny stavové bity v názvu (7.)
 		call $0124
 		
 		call basicpage
-;------------------------
-KON
-
-		ld hl,0
-		ld hl,ALLFILES
-		call ROZHOD2
-		xor a
-		ld (hl),a
-		inc hl
-		ld (hl),a
-		ld hl,POSKURZL
-		call ROZHOD
-		xor a
-		ld (hl),a
-
-		call dospage
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
+		jp mmorekonec
 		
-		xor a
-		call $01b1
-		call basicpage
-		
-		call reload_dir
-		call loadscr	
-
-		ld hl,pozicel
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		
-		ld bc,38 * 256 + 27
-		ld a,0
-		call window
-
-
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-		call getroot_reload
-		call showwin
-		ld a,32
-		call writecur
-;---------------------------		
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
-
-		call dospage
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		
-		xor a
-		call $01b1
-		call basicpage
-
-		ld hl,0
-		ld hl,ALLFILES
-		call ROZHOD2
-		xor a
-		ld (hl),a
-		inc hl
-		ld (hl),a
-		ld hl,POSKURZL
-		call ROZHOD
-		xor a
-		ld (hl),a
-		;call loadscr	
-
-		ld hl,pozicel
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		
-		ld bc,38 * 256 + 27
-		ld a,0
-		call window
-
-		
-		call reload_dir
-	
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-		call getroot_reload
-		call showwin
-	ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
-
-		call dospage
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		
-		xor a
-		call $01b1
-		call basicpage
-
-		jp loop0
