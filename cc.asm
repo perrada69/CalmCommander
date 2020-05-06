@@ -398,6 +398,8 @@ loop0
 		jp z,down
 		cp 11
 		jp z,up
+		cp 9
+		jp z,rightcur
 		cp 4		;true video
 		
 		jp z,changewin
@@ -413,6 +415,100 @@ loop0
 		jp z,select
 		
 		jp loop0
+
+rightcur
+RGHT
+		ld hl,POSKURZL
+		call ROZHOD
+		ld (smcur+1),hl
+		ld a,(hl)
+		cp 26
+		jp z,rightcur0			;zobraz další stránku
+		
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld d,(hl)
+		ld e,a
+		dec de
+		dec de
+		ld hl,26
+		or a
+		sbc hl,de
+		add hl,de
+		jr c,posledniradek
+		ld a,e
+		ld (kamcur+1),a
+		jr smcur
+posledniradek
+		ld a,26
+		ld (kamcur+1),a
+smcur	ld hl,0
+		ld a,0
+		call writecur
+krcur	ld hl,(smcur+1)		
+kamcur	ld (hl),26
+		ld a,32
+		call writecur
+
+		jp loop0
+rightcur0
+
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld (rightsedi+1),hl	;ulož adresu 
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+;		inc hl
+		ld de,26 +26
+		add hl,de
+		push hl
+						;HL ... číslo souboru na kterém stojí kurzor
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld d,(hl)
+		ld e,a
+		ld (MAXR+1),de
+		dec de
+		dec de
+		pop hl
+						;DE ... počet všech souborů v aktuálním okně
+RRR
+		or a
+		sbc hl,de
+		add hl,de
+		jr c,rightsedi
+MAXR	ld hl,0
+		dec hl
+		ld de,26
+		or a
+		sbc hl,de
+rightsedi
+  	    ld (0),hl
+
+
+						;vykresli znova okno
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+SED
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
+		jp loop0
+
 
 numsel	defw 0,0
 seltxt defb "Selected: ",0
@@ -1584,10 +1680,28 @@ showwin
 		ld l,a
 		ld b,h
 		ld c,l
-		
-		dec bc
+
 		ld h,b
 		ld l,c
+		push hl
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,sw0
+		dec bc
+sw0
+
+
+
+		pop hl
 		ld de,28
 		or a
 		sbc hl,de

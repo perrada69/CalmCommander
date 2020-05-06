@@ -1,3 +1,5 @@
+LENGHT_BUFFER	equ 6*1024
+PAGE_BUFF		equ 3
 createfile
 
 		ld a,(OKNO)
@@ -80,13 +82,13 @@ DELKA
 		or e
 		jr z,bit16
 		push hl
-		ld hl,6*1024
+		ld hl,LENGHT_BUFFER
 		ld (pocetbytu+1),hl
 		pop hl
-		ld bc,6*1024
+		ld bc,LENGHT_BUFFER
 		call sub32
 		jr dalcti
-bit16	ld bc,6*1024
+bit16	ld bc,LENGHT_BUFFER
 		or a
 		sbc hl,bc
 		add hl,bc
@@ -95,7 +97,7 @@ bit16	ld bc,6*1024
 		or a
 		sbc hl,bc
 		push hl
-		ld hl,6*1024
+		ld hl,LENGHT_BUFFER
 		ld (pocetbytu+1),hl
 		pop hl
 		jr dalcti
@@ -112,16 +114,16 @@ dalcti
 		ld (LFNNAME+261+2),de
 			
 		ld b,0
-		ld c,3
+		ld c,PAGE_BUFF
 pocetbytu ld de,blocklenght				;počet bytu
-		ld hl,FILEBUFF
+		ld hl,49152
 		call 0112h			;READ
 		
 
-		ld c,3
+		ld c,PAGE_BUFF
 		ld b,2
 		ld de,(pocetbytu+1)
-		ld hl,FILEBUFF
+		ld hl,49152
 		call 115h			;WRITE
 
 		ld a,(konecread)

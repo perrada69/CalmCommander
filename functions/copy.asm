@@ -3,7 +3,7 @@ onedeletetxt 	defb "Delete file: ",0
 yestxt		defb "ENTER = yes",0
 notxt 		defb "BREAK = no",0
 spaces 		defb "          ",0
-pleasewait	defb "Plase wait ",0
+pleasewait	defb "Please wait",0
 bfname		defs 45
 			defb 0
 copy 
@@ -94,7 +94,6 @@ copycont
 		ld a,16
 		ld de,pleasewait
 		call print		
-		
 
 		ld hl,60*256+15
 		ld a,16
@@ -332,9 +331,6 @@ acopycont
 		ld (hl),"|"
 
 		ld hl,0
-
-		
-
 
 moredalsi push hl
 		
