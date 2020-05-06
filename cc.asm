@@ -289,7 +289,7 @@ loop0
 		ld   hl,$4000+160*13+23
 		ld (PROGS+1),hl
 
-		call gettime
+		;call gettime
 		nextreg $56,24
 
 
@@ -396,10 +396,12 @@ loop0
 		call z,info
 		cp 10
 		jp z,down
-		cp 11
+		cp 11 
 		jp z,up
 		cp 9
 		jp z,rightcur
+		cp 8
+		jp z,leftcur
 		cp 4		;true video
 		
 		jp z,changewin
@@ -416,8 +418,28 @@ loop0
 		
 		jp loop0
 
+leftcur
+		ld hl,POSKURZL
+		call ROZHOD
+		ld (smcur+1),hl
+		ld a,(hl)
+		or a
+		jr z,leftcur0
+		ld a,0
+		call writecur
+	
+		xor a
+		ld (hl),a
+		ld a,32
+		call writecur
+		jp loop0
+
+
+leftcur0
+
+		jp loop0
+
 rightcur
-RGHT
 		ld hl,POSKURZL
 		call ROZHOD
 		ld (smcur+1),hl
@@ -432,7 +454,22 @@ RGHT
 		ld d,(hl)
 		ld e,a
 		dec de
+		
+		push de
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,aasw0
+		pop de
 		dec de
+aasw0
 		ld hl,26
 		or a
 		sbc hl,de
@@ -463,8 +500,8 @@ rightcur0
 		ld h,(hl)
 		ld l,a
 
-;		inc hl
-		ld de,26 +26
+		inc hl
+		ld de,26 
 		add hl,de
 		push hl
 						;HL ... číslo souboru na kterém stojí kurzor
@@ -485,7 +522,24 @@ RRR
 		add hl,de
 		jr c,rightsedi
 MAXR	ld hl,0
+		push hl
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,asw0
+		pop hl
 		dec hl
+asw0
+
+		;dec hl
 		ld de,26
 		or a
 		sbc hl,de
@@ -690,31 +744,86 @@ gettime
 		call dospage
 		call $01cc		;načti čas a datum  DE = time, BC DATE	
 		ld (dostime),de
+		ld (dosdate),bc
 		jr nc,timeend
+		ld ix,dostime
+        ld   a,(ix+1)
+        ld   b,(ix+0)
+        srl  a
+        rr   b
+        srl  a
+        rr   b
+        srl  a
+        rr   b
+        srl  b
+        srl  b
+        push bc
+		
+		ld l,a
+		ld h,0
+		call DECIMAL2
+		ld hl,50*256+0
+		ld a,16
+		ld de,NUMBUF
+		call print
 
-		ld a,d
-		and 00011111b
-		ld (hodiny),a
-		ld a,d
-		rra 
-		rra 
-		rra 
-		rra 
-		rra 
-		ld b,a
-		ld a,e
-		rla
-		rla
-		rla
-		or b
-		ld (minuty),a
+
+         ld   a,':'
+
+        pop  af
+
+		ld l,a
+		ld h,0
+		call DECIMAL2
+		ld hl,56*256+0
+		ld a,16
+		ld de,NUMBUF
+		call print
+
+		jr timeend
+        ld   h,b
+        ld   l,c
+
+;Zjištění datumu
+		ld ix,dosdate
+         ld   a,(ix + 0)
+         and  31
+;        call DEC8E
+         ld   h,b
+         ld   l,c
+         ld   a,'/'
+;        call CHAR
+         ld   a,(ix + 0)
+         ld   b,(ix+1)
+         srl  b
+         push bc
+         rra  
+         rra  
+         rra  
+         rra  
+         rra  
+         and  15
+;        call DEC8E
+         ld   h,b
+         ld   l,c
+         ld   a,'/'
+;        call CHAR
+         pop  af
+	 	;call DEC8E
+
 timeend		
 		call basicpage
 		ret
+den		defb 0
+mesic	defb 0
+rok		defb 0
 
 hodiny	defb 0
 minuty	defb 0
 dostime	defw 0
+dosdate	defw 0
+
+
 menu	
 		ld hl,text
 		ld de,#4000

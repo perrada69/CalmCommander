@@ -16,8 +16,6 @@ copy
 		or h
 		jp nz,morecopy
 		
-		
-		
 		call savescr
 		ld hl,10 * 256 + 10
 		ld bc,60 * 256 + 5

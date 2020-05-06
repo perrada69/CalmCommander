@@ -241,5 +241,3 @@ sub32	xor	a
 
 size 	defs 4
 
-bufftoread	
-		defs 262
