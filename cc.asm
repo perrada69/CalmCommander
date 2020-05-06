@@ -2606,8 +2606,8 @@ N0			ld (0),hl
 			jr z,acont
 
 			ld a,(virtmem)
-			cp 2
-			jr z,acont
+			cp 1
+			jr acont
 
 			call CountMemory
 			ex de,hl
@@ -2711,7 +2711,7 @@ basicpage
 		ret
 
 
-lfnpage	defb 24,30
+lfnpage	defb 24,32
 			
 getAllLFN	
 			
@@ -2744,7 +2744,7 @@ getAllLFN
 			inc hl
 			ld b,(hl)
 			ld c,a
-
+			
 LFN1		push bc
 			
 			ld hl,(numLoop)
@@ -2826,7 +2826,6 @@ addrlfn		dw 0
 FINDLFN
 			
 			push hl
-			
 			ld hl,lfnpage
 			call ROZHOD
 			ld a,(hl)
