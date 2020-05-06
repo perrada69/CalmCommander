@@ -1,4 +1,5 @@
 onecopytxt 	defb "Copy file: ",0
+onemovetxt	defb "Move file: ",0
 onedeletetxt 	defb "Delete file: ",0
 yestxt		defb "ENTER = yes",0
 notxt 		defb "BREAK = no",0
@@ -6,7 +7,17 @@ spaces 		defb "          ",0
 pleasewait	defb "Please wait",0
 bfname		defs 45
 			defb 0
-copy 
+
+ismove	defb 0
+
+
+move 	ld a,1
+		ld (ismove),a
+		jr contmov
+
+copy 	xor a
+		ld (ismove),a
+contmov
 		ld hl,numsel
 		call ROZHOD2
 		ld a,(hl)
@@ -23,8 +34,13 @@ copy
 		call window
 
 		ld hl,11*256+11
-		ld a,16
+		
 		ld de,onecopytxt
+		ld a,(ismove)
+		or a
+		jr z,$+4
+		ld de,onemovetxt
+		ld a,16
 		call print		
 		
 		ld hl,POSKURZL
@@ -128,7 +144,7 @@ copycont
 		jp nz,nekopiruj_adresar
 		
 		
-		
+		push hl
 		call openfile
 		call createfile
 		call readfile		
@@ -136,8 +152,34 @@ copycont
 		call closefile
 		ld b,2
 		call closefile
+		pop hl
+		ld a,(ismove)
+		or a
+		jr z,nenimove
+		inc hl
+		
+		call BUFF83
+		call find83
+		ld b,11
+		ld hl,TMP83
+CCCAC20							;vynuluj všechny stavové bity v názvu (7.)
+		res 7,(hl)
+		inc hl
+		djnz CCCAC20
+		ld a,$ff
+		ld (TMP83+11),a
+		
+		call dospage
+		
+		ld hl,TMP83
+		call $0124
+		
+		call basicpage
+		jp mmorekonec
 
 
+
+nenimove
 		ld a,(OKNO)
 		xor 16
 		ld (OKNO),a
@@ -235,6 +277,8 @@ nekopiruj_adresar
 
 
 morecopytxt	defb "Copy     files?",0
+moremovetxt	defb "Move     files?",0
+
 moredeletetxt	defb "Delete     files?",0
 
 nowcopy	defb "Copy     file from     files",0
@@ -250,8 +294,15 @@ morecopy
 		call window
 
 		ld hl,11*256+11
-		ld a,16
+
 		ld de,morecopytxt
+		ld a,(ismove)
+
+		or a
+		jr z,$+4
+		ld de,moremovetxt
+
+		ld a,16
 		call print		
 
 
@@ -401,6 +452,7 @@ moredalsi push hl
 		pop hl
 		push hl
 		dec hl
+		push hl
 		call openfile
 		call createfile
 		call readfile		
@@ -408,6 +460,32 @@ moredalsi push hl
 		call closefile
 		ld b,2
 		call closefile
+		pop hl
+		ld a,(ismove)
+		or a
+		jp z,nenimove11
+		inc hl
+
+		call BUFF83
+		call find83
+		ld b,11
+		ld hl,TMP83
+CCCAC21							;vynuluj všechny stavové bity v názvu (7.)
+		res 7,(hl)
+		inc hl
+		djnz CCCAC21
+		ld a,$ff
+		ld (TMP83+11),a
+		
+		call dospage
+		
+		ld hl,TMP83
+		call $0124
+		
+		call basicpage
+
+nenimove11
+
 NODIR   ld   hl,(PROGPROM)
         inc  hl
         ld   (PROGPROM),hl		
@@ -435,6 +513,13 @@ nekopirovat
 		inc hl
 		jp moredalsi
 morekonec
+
+		ld a,(ismove)
+		or a
+		jr z,nenimove2
+		jp mmorekonec
+
+nenimove2
 		ld a,(OKNO)
 		xor 16
 		ld (OKNO),a

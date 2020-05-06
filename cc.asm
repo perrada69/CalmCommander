@@ -426,6 +426,9 @@ loop0
 		jp z,menu
 		cp "5"
 		jp z,copy
+		cp "6"
+		jp z,move
+		
 		cp 32
 		jp z,select
 		
