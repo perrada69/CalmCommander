@@ -419,21 +419,30 @@ loop0
 		cp 4		;true video
 		
 		jp z,changewin
+		
 		cp 13
 		jp z,enter
+		
 		cp "8"
 		jp z,delete
+		
 		cp "0"
 		jp z,menu
+		
 		cp "5"
 		jp z,copy
+		
 		cp "6"
 		jp z,move
 		
 		cp 32
 		jp z,select
 		
+		cp "7"
+		jp z,MKDIR
+
 		jp loop0
+
 
 leftcur
 		ld hl,POSKURZL
@@ -862,6 +871,7 @@ clearpr2
 		include "functions/file.asm"
 		include "functions/delete.asm"
 		include "functions/input.asm"
+		include "functions/mkdir.asm"
 
 gettime
 		call dospage
@@ -1190,7 +1200,7 @@ curmen0		inc hl : inc hl
 
 
 text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                                                       ",0
-nadpis 		defb " Calm Commander 0.1                                                                         ",0
+nadpis 		defb " Calm Commander 0.1 (Development version)                                                   ",0
 menupos		defb 0, 18, 34, 50,66
 
 nummenu		defb 0				;jakou položku zobrazit v menu
@@ -2276,7 +2286,7 @@ info0
 		jr info0
 
 		
-calmcommander	defb "CALM COMMANDER 0.1",0		
+calmcommander	defb "CALM COMMANDER 0.1 (Development version)",0		
 breaktxt defb "BREAK: close this window",0		
 info1txt defb "File manager for ZX Spectrum Next. ",0
 info2txt defb "Main program: Shrek/MB Maniax",0
