@@ -5,7 +5,7 @@
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
-            DEFINE ORG_ADDRESS      $7000
+            DEFINE ORG_ADDRESS      $7200
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
