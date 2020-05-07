@@ -1,6 +1,6 @@
 onecopytxt 	defb "Copy file: ",0
 onemovetxt	defb "Move file: ",0
-onedeletetxt 	defb "Delete file: ",0
+onedeletetxt 	defb "Delete file/directory: ",0
 yestxt		defb "ENTER = yes",0
 createtxt	defb "ENTER = create",0
 notxt 		defb "BREAK = no",0

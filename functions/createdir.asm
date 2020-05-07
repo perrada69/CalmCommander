@@ -32,7 +32,7 @@ MKDIR
 
 
 		ld hx,59
-		ld hl,$4000 + 14*160 + 11*2
+		ld hl,$4000 + 15*160 + 11*2
 		ld a,80
 		call INPUT
 		cp 1                    ;testuj BREAK

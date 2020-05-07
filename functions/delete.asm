@@ -330,15 +330,12 @@ DA
 		pop hl
 		call FINDLFN
 		
-		
-		
-		
 		ld hl,LFNNAME
 		ld de,bfname
-		ld bc,45
+		ld bc,35
 		ldir
 		
-		ld hl,24*256+11
+		ld hl,34*256+11
 		ld a,16
 		ld de,bfname
 		call print		
@@ -553,8 +550,23 @@ edeletewait
 		jr z,smaz
 		jr edeletewait
 smaz
-SMAZ
+		ld hl,60*256+14
+		ld a,16
+		ld de,pleasewait
+		call print		
+		
+
+		ld hl,60*256+15
+		ld a,16
+		ld de,spaces
+		call print	
+
+
+
 		call dospage
+
+
+
 		xor a 			;change path
 		ld hl,TMP83
 		call $01b1		;změň adresář
