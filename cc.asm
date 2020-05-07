@@ -871,7 +871,7 @@ clearpr2
 		include "functions/file.asm"
 		include "functions/delete.asm"
 		include "functions/input.asm"
-		include "functions/mkdir.asm"
+		include "functions/createdir.asm"
 
 gettime
 		call dospage
