@@ -2,8 +2,7 @@
  File commander for ZX Spectrum Next. 
 
 ### Works:
-- browse
-- load directory
+- browse files ;)
 - copy file (no directory)
 - move file (no directory)
 - delete file/directory
