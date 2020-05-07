@@ -8,3 +8,5 @@
 - move file (no directory)
 - delete file/directory
 - create directory
+- rename file/directory
+- select multiple files
