@@ -267,6 +267,7 @@ menu0
 		ld a,c
 		or b
 		jr nz,menu0
+
 		call kresli		;NAKRESLI HLAVNI OBRAZOVKU
 STOP		
 		call reload_dir
@@ -295,9 +296,6 @@ STOP
 		ld a,32
 		call writecur
 		ld a,16
-		ld de,bottom
-		ld hl,0*256+31
-		call print
 
 		
 loop0	
@@ -309,48 +307,48 @@ loop0
 
 
 
-		ld hl,1*256+31
-		ld a,16
+		ld hl,1*256+30
+		ld a,0
 		ld de,seltxt
 		call print
 
-		ld hl,41*256+31
-		ld a,16
+		ld hl,41*256+30
+		ld a,0
 		ld de,seltxt
 		call print
 
 
 		ld hl,(numsel)
 		call NUM
-		ld hl,11*256+31
-		ld a,16
+		ld hl,11*256+30
+		ld a,0
 		ld de,NUMBUF
 		
 		call print
 
 		ld hl,(numsel+2)
 		call NUM
-		ld hl,51*256+31
-		ld a,16
+		ld hl,51*256+30
+		ld a,0
 		ld de,NUMBUF
 		call print
 
 		ld a,"/"
-		ld ($4000+31*160+32),a
+		ld ($4000+30*160+32),a
 		ld a,"/"
-		ld ($4000+31*160+112),a
+		ld ($4000+30*160+112),a
 
 		ld hl,(ALLFILES)
 		call NUM
-		ld hl,17*256+31
-		ld a,16
+		ld hl,17*256+30
+		ld a,0
 		ld de,NUMBUF
 		call print
 
 		ld hl,(ALLFILES + 2)
 		call NUM
-		ld hl,57*256+31
-		ld a,16
+		ld hl,57*256+30
+		ld a,0
 		ld de,NUMBUF
 		call print
 
@@ -466,6 +464,9 @@ loop0
 		
 		cp "7"
 		jp z,MKDIR
+
+		cp "+"
+		jp z,find_file
 
 		jp loop0
 
@@ -900,6 +901,7 @@ clearpr2
 		include "functions/input.asm"
 		include "functions/createdir.asm"
 		include "functions/rename.asm"
+		include "functions/search.asm"
 
 gettime
 		call dospage
@@ -1032,7 +1034,7 @@ menu001
 		ld a,(hl)
 		ld (de),a
 		inc de
-		ld a,80
+		ld a,16
 		ld (de),a
 		inc de
 		inc hl
@@ -2450,48 +2452,52 @@ kresli
 		ld bc,38 * 256 + 27
 		ld a,0
 		call window
+		ld a,0
+		ld de,bottom
+		ld hl,0*256+31
+		call print
 		
-		ld hl,2*256+30
+		ld hl,2*256+31
 		ld a,32
 		ld de,left_txt
 		call print
 		
-		ld hl,10*256+30
+		ld hl,10*256+31
 		ld a,32
 		ld de,right_txt
 		call print
 		
-		ld hl,19*256+30
+		ld hl,19*256+31
 		ld a,32
 		ld de,view_txt
 		call print
 		
-		ld hl,27*256+30
+		ld hl,27*256+31
 		ld a,32
 		ld de,edit_txt
 		call print
 		
-		ld hl,35*256+30
+		ld hl,35*256+31
 		ld a,32
 		ld de,copy_txt
 		call print
 		
-		ld hl,43*256+30
+		ld hl,43*256+31
 		ld a,32
 		ld de,move_txt
 		call print
 
-		ld hl,51*256+30
+		ld hl,51*256+31
 		ld a,32
 		ld de,mkdir_txt
 		call print
 		
-		ld hl,60*256+30
+		ld hl,60*256+31
 		ld a,32
 		ld de,delete_txt
 		call print
 
-		ld hl,70*256+30
+		ld hl,70*256+31
 		ld a,32
 		ld de,menu_txt
 		call print
@@ -3114,7 +3120,7 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %101'111'01,1       ; 0 zluta (paper)					64
+				db  %001'001'11,1       ; 0 zluta (paper)					64
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %000'000'00,0       ; 0 white-blueish (ink)

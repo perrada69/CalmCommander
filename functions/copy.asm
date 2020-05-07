@@ -4,7 +4,7 @@ onedeletetxt 	defb "Delete file/directory: ",0
 yestxt		defb "ENTER = yes",0
 createtxt	defb "ENTER = create",0
 renametxt	defb "ENTER = rename",0
-
+searchtxt	defb "ENTER = search",0
 notxt 		defb "BREAK = no",0
 spaces 		defb "           ",0
 pleasewait	defb "Please wait",0
