@@ -101,6 +101,18 @@ deletenext
 		jp z,nemazat
 		res 7,(hl)
 
+
+		ld ix,TMP83				;zjisti jestli se jedná o adresář
+		bit 7,(ix+7)
+		jr nz,isdirdelm
+		xor a
+		ld (smazdirm+1),a
+		jr dcm
+isdirdelm
+		ld a,1
+		ld (smazdirm+1),a
+dcm
+
 		ld b,11
 		ld hl,TMP83
 ACCCAC							;vynuluj všechny stavové bity v názvu (7.)
@@ -112,8 +124,21 @@ ACCCAC							;vynuluj všechny stavové bity v názvu (7.)
 		
 		call dospage
 		
+smazdirm	ld a,0
+		or a
+		jr z,nenidirm
+		
+		ld a,3
+		ld hl,TMP83
+		call $01b1
+		call nc,vymaz_vse_v_adresari
+		jr pokrm
+nenidirm
+	
 		ld hl,TMP83
 		call $0124
+
+pokrm
 		
 		call basicpage
 ;------------------------
@@ -323,9 +348,6 @@ DA
 		ld de,yestxt
 		call print		
 
-
-		
-
 		ld hl,60*256+15
 		ld a,16
 		ld de,notxt
@@ -340,7 +362,16 @@ deletewait
 		
 deletecont 
 DT
-		ld b,11
+		ld ix,TMP83
+		bit 7,(ix+7)
+		jr nz,isdirdel
+		xor a
+		ld (smazdir+1),a
+		jr dc
+isdirdel
+		ld a,1
+		ld (smazdir+1),a
+dc		ld b,11
 		ld hl,TMP83
 CCCAC							;vynuluj všechny stavové bity v názvu (7.)
 		res 7,(hl)
@@ -350,10 +381,21 @@ CCCAC							;vynuluj všechny stavové bity v názvu (7.)
 		ld (TMP83+11),a
 		
 		call dospage
+smazdir	ld a,0
+		or a
+		jr z,nenidir
 		
+		ld a,3
+		ld hl,TMP83
+ED		call $01b1
+		call nc,vymaz_vse_v_adresari
+		jr pokr
+nenidir
+	
 		ld hl,TMP83
 		call $0124
-		
+
+pokr	
 		call basicpage
 ;------------------------
 KON
@@ -478,3 +520,58 @@ KON
 		call basicpage
 
 		jp loop0
+
+errordel	defb "Directory is not empty. Delete?",0
+
+vymaz_vse_v_adresari	
+
+		call savescr
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,errordel
+		call print		
+
+		ld hl,60*256+14
+		ld a,48
+		ld de,yestxt
+		call print		
+
+		ld hl,60*256+15
+		ld a,16
+		ld de,notxt
+		call print		
+edeletewait		
+		call INKEY
+		cp 1
+		jp z,ecopyend
+		cp 13
+		jr z,smaz
+		jr edeletewait
+smaz
+SMAZ
+		call dospage
+		xor a 			;change path
+		ld hl,TMP83
+		call $01b1		;změň adresář
+
+		ld hl,vse
+		call $0124
+
+		xor a 			;change path
+		ld hl,parrentdir
+		call $01b1		;změň adresář
+
+
+		ld a,3			;zkus znova smazat
+		ld hl,TMP83
+		call $01b1		;změň adresář
+
+ecopyend	call loadscr
+		ret
+vse			defb "*.*",255
+parrentdir 	defb "..",255

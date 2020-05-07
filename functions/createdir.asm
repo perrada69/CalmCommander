@@ -35,7 +35,7 @@ MKDIR
 		ld hl,$4000 + 14*160 + 11*2
 		ld a,80
 		call INPUT
-		cp 7 ;testuj EDIT
+		cp 1                    ;testuj BREAK
 		jp z,end_mkdir
 		ld hl,23296 + 59		;najdi poslední znak
 mkdir1	

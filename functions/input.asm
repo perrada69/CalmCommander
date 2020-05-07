@@ -32,7 +32,7 @@ IN3 	ld a,l              ;testuj spodní byte adresy
 		ld a,"<"            ;znakem, pak bude
 		call z,CHAR         ;na řádku vypadat jinak
 		call INKEY          ;přečti si kód klávesy
-		cp 7                ;testuj EDIT (Caps Shift + 1)
+		cp 1                ;testuj EDIT (Caps Shift + 1)
 		ret z               ;a případně se vrať zpátky
 		cp 13               ;testuj ENTER a případné odskoč
 		ret z               ;jp z,INPCLEAR ;na smazání řádku z obrazovky
