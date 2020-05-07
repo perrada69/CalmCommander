@@ -4,7 +4,7 @@
 # Works:
 - browse
 - load directory
-- copy file
-- move file
+- copy file (no directory)
+- move file (no directory)
 - delete file
 - create directory
