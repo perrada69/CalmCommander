@@ -3,6 +3,8 @@ onemovetxt	defb "Move file: ",0
 onedeletetxt 	defb "Delete file/directory: ",0
 yestxt		defb "ENTER = yes",0
 createtxt	defb "ENTER = create",0
+renametxt	defb "ENTER = rename",0
+
 notxt 		defb "BREAK = no",0
 spaces 		defb "          ",0
 pleasewait	defb "Please wait",0
@@ -80,7 +82,7 @@ contmov
 		ld de,bfname
 		call print		
 
-		ld hl,60*256+14
+		ld hl,60*256+15
 		ld a,48
 		ld de,yestxt
 		call print		
@@ -88,7 +90,7 @@ contmov
 
 		
 
-		ld hl,60*256+15
+		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
 		call print		
@@ -344,13 +346,13 @@ morecopy
 
 		
 ;*****seem
-		ld hl,60*256+14
+		ld hl,60*256+15
 		ld a,48
 		ld de,yestxt
 		call print		
 		
 
-		ld hl,60*256+15
+		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
 		call print		

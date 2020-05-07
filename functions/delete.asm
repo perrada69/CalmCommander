@@ -52,7 +52,7 @@ moredelete
 		call print
 
 
-		ld hl,60*256+14
+		ld hl,60*256+15
 		ld a,48
 		ld de,yestxt
 		call print		
@@ -60,7 +60,7 @@ moredelete
 
 		
 
-		ld hl,60*256+15
+		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
 		call print		
@@ -127,7 +127,9 @@ ACCCAC							;vynuluj všechny stavové bity v názvu (7.)
 smazdirm	ld a,0
 		or a
 		jr z,nenidirm
-		
+		xor a
+		ld (vymaz_vse_v_adresari+1),a
+
 		ld a,3
 		ld hl,TMP83
 		call $01b1
@@ -340,12 +342,12 @@ DA
 		ld de,bfname
 		call print		
 
-		ld hl,60*256+14
+		ld hl,60*256+15
 		ld a,48
 		ld de,yestxt
 		call print		
 
-		ld hl,60*256+15
+		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
 		call print		
@@ -382,6 +384,9 @@ smazdir	ld a,0
 		or a
 		jr z,nenidir
 		
+		xor a
+		ld (vymaz_vse_v_adresari+1),a
+
 		ld a,3
 		ld hl,TMP83
 ED		call $01b1
@@ -521,7 +526,12 @@ KON
 errordel	defb "Directory is not empty. Delete?",0
 
 vymaz_vse_v_adresari	
-
+		ld a,0
+		or a
+		jr nz,smaz
+		ld a,1
+		ld (vymaz_vse_v_adresari+1),a
+	
 		call savescr
 		ld hl,10 * 256 + 10
 		ld bc,60 * 256 + 5
@@ -533,12 +543,12 @@ vymaz_vse_v_adresari
 		ld de,errordel
 		call print		
 
-		ld hl,60*256+14
+		ld hl,60*256+15
 		ld a,48
 		ld de,yestxt
 		call print		
 
-		ld hl,60*256+15
+		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
 		call print		

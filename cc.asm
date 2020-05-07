@@ -5,7 +5,7 @@
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
-            DEFINE ORG_ADDRESS      $7400
+            DEFINE ORG_ADDRESS      $7000
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
@@ -243,7 +243,6 @@ menu0
 		or b
 		jr nz,menu0
 		call kresli		;NAKRESLI HLAVNI OBRAZOVKU
-
 STOP		
 		call reload_dir
 		
@@ -425,6 +424,8 @@ loop0
 		
 		cp "8"
 		jp z,delete
+		cp "9"
+		jp z,RENAME
 		
 		cp "0"
 		jp z,menu
@@ -872,6 +873,7 @@ clearpr2
 		include "functions/delete.asm"
 		include "functions/input.asm"
 		include "functions/createdir.asm"
+		include "functions/rename.asm"
 
 gettime
 		call dospage
@@ -2536,18 +2538,7 @@ reload_dir
 			ld (hl),a
 			ldir
 			
-			ld bc,port1       ;the horizontal ROM switch/RAM
-                                ;switch I/O ad dress
-            ld a,(bankm)      ;sys tem vari able that holds cur rent
-                                ;switch state
-            res 4,a           ;move right to left in hor i zon tal
-                                ;ROM switch (3 to 2)
-              
-              or 7              ;switch in RAM page 7
-              ld (bankm),a      ;must keep sys tem vari able up to
-                                	                  ;date (very im por tant)
-              out (c),a         ;make the switch
-
+			call dospage
                                ;be low BFE0h
                               ;in ter rupts can now be en abled
 
@@ -2640,17 +2631,7 @@ acont
               di                ;about to ROM/RAM switch so be
                                 ;care ful
               push bc           ;save num ber of files
-              ld bc,port1       ;I/O ad dress of hor i zon tal ROM/RAM
-                                ;switch
-              ld a,(bankm)      ;get cur rent switch state
-              
-              
-              set 4,a           ;move left to right (ROM 2 to ROM
-                                ;3)
-              and #F8           ;also want RAM page 0
-              ld (bankm),a      ;up date the sys tem vari able (very
-                                ;im por tant)
-              out (c),a         ;make the switch
+			call basicpage
               pop bc            ;get back the saved num ber of files
               dec bc
               
@@ -3026,7 +3007,7 @@ tilemapFont_char24:
 last:       
               
               CSPECTMAP player.map
-              savenex open "CalmCommander.nex",START,32766
+              savenex open "CalmCommander.nex",START,$5fff
               savenex core 2,0,0
               savenex auto
               savenex close

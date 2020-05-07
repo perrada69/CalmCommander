@@ -10,7 +10,7 @@ INPUT 	ei
 IN1 	ld (hl),32          ;a nyní celou editační
 		inc hl              ;zónu vyplníme mezerami
 		djnz IN1            ;na konec editační zóny
-		ld (hl),b           ;přijde 0
+INZERO	ld (hl),b           ;přijde 0
 		res 5,(iy+1)        ;signál není stisknuta klávesa
 		xor a               ;nastav kurzor
 		ld (CURSOR+1),a     ;na začátek editační zóny
