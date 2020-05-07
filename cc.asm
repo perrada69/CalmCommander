@@ -159,6 +159,17 @@ PATHLEFT	defb "C:",255
 PATHRIGHT   defb "C:",255
 			ds 261
 bottom		defb "                                                                                ",0			
+
+ReadNextReg:
+    ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
+    push    bc
+    ld      bc,#243B
+    out     (c),a
+    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
+    in      a,(c)   ; read desired NextReg state
+    pop     bc
+    ret
+
 START       
 		ld a,3
 		ld (OKNO),a
@@ -189,24 +200,38 @@ START
 		ld bc,specialchar2-specialchar
 
 		ldir
-		
+		ld a,$7 : call ReadNextReg : ld (reg7+1),a
         nextreg TURBO_CONTROL_NR_07,3               ; 28Mhz mode
+		ld a,$15 : call ReadNextReg : ld (reg15+1),a
         nextreg SPRITE_CONTROL_NR_15,%000'100'00    ; layer priority: USL
+		ld a,$4a : call ReadNextReg : ld (reg4a+1),a
         nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0   ; black transparency fallback color
+		ld a,$4c : call ReadNextReg : ld (reg4c+1),a
         nextreg TILEMAP_TRANSPARENCY_I_NR_4C,$0F
+		ld a,$68 : call ReadNextReg : ld (reg68+1),a
         nextreg ULA_CONTROL_NR_68,$80               ; disable ULA layer
+		ld a,$69 : call ReadNextReg : ld (reg69+1),a
         nextreg DISPLAY_CONTROL_NR_69,0             ; layer2 off, bank 5, timex=0
+		ld a,$6b : call ReadNextReg : ld (reg6b+1),a
         nextreg TILEMAP_CONTROL_NR_6B,%1100'0011    ; 80x32x2, 4bpp, pal0, 512tile-mode, force tile-over-ULA
+		ld a,$6c : call ReadNextReg : ld (reg6c+1),a
         nextreg TILEMAP_DEFAULT_ATTR_NR_6C,$00      ; no pal offset, no mirror/rot, 0 bit8
+		ld a,$6e : call ReadNextReg : ld (reg6e+1),a
         nextreg TILEMAP_BASE_ADR_NR_6E,high TILE_MAP_ADR
+		ld a,$6f : call ReadNextReg : ld (reg6f+1),a
         nextreg TILEMAP_GFX_ADR_NR_6F,high TILE_GFX_ADR
+		ld a,$1c : call ReadNextReg : ld (reg1c+1),a
         nextreg CLIP_WINDOW_CONTROL_NR_1C,%0000'1000
+		ld a,$1b : call ReadNextReg : ld (reg1b+1),a
         nextreg CLIP_TILEMAP_NR_1B,0
         nextreg CLIP_TILEMAP_NR_1B,159
         nextreg CLIP_TILEMAP_NR_1B,0
         nextreg CLIP_TILEMAP_NR_1B,255
+		ld a,$2f : call ReadNextReg : ld (reg2f+1),a
         nextreg TILEMAP_XOFFSET_MSB_NR_2F,0
-        nextreg TILEMAP_XOFFSET_LSB_NR_30,0
+   		ld a,$30 : call ReadNextReg : ld (reg30+1),a
+		nextreg TILEMAP_XOFFSET_LSB_NR_30,0
+		ld a,$31 : call ReadNextReg : ld (reg31+1),a
         nextreg TILEMAP_YOFFSET_NR_31,0
         
 		
@@ -770,7 +795,8 @@ selcont
 		call getroot
 		
 		call showwin
-
+		ld a,32
+		call writecur
 		jp down
 
 
@@ -1261,14 +1287,82 @@ enter
 		ex de,hl
 		pop hl
 		add hl,de
+		push hl
 		inc hl
-e2		call BUFF83
+		call BUFF83
 		call find83
+		pop hl
+		call FINDLFN
 		ld ix,TMP83
 		bit 7,(ix+7)
-		jr nz,enter_directory
-
+		jp nz,enter_directory
 		jp loop0
+ 		ld hl,name
+		ld de,name+1
+		xor a
+		ld (hl),a
+		ld bc,60
+		ldir
+RUN
+		ld hl,LFNNAME+59
+
+run2    ld a,(hl)
+        dec hl
+        cp 32
+        jr z,run2
+        inc hl
+		inc hl
+		ld a,255
+		ld (hl),a
+		ld de,LFNNAME
+		or a
+		sbc hl,de
+		ld b,h
+		ld c,l
+		
+		ld hl,LFNNAME
+		ld de,name
+		ldir
+reg7	ld a,0
+		nextreg $7,a
+reg15	ld a,0
+		nextreg $15,a
+reg4a	ld a,0
+		nextreg $4a,a
+reg4c	ld a,0
+		nextreg $4c,a
+reg68	ld a,0
+		nextreg $68,a
+reg69	ld a,0
+		nextreg $69,a
+reg6b	ld a,0
+		nextreg $6b,a
+reg6c	ld a,0
+		nextreg $6c,a
+reg6e	ld a,0
+		nextreg $6e,a
+reg6f	ld a,0
+		nextreg $6f,a
+reg1c	ld a,0
+		nextreg $1c,a
+reg1b	ld a,0
+		nextreg $1b,a
+reg2f	ld a,0
+		nextreg $2f,a
+reg30	ld a,0
+		nextreg $30,a
+reg31	ld a,0
+		nextreg $31,a
+
+		call dospage
+		ld hl,LFNNAME
+		call $00fd
+		call basicpage
+		jp loop0
+
+cmd		defb "run "
+name   	defs 60
+
 
 enter_directory
 
@@ -1833,7 +1927,53 @@ klavesa	defb 0
 
 leftpos	defw	0
 
+;Test jestli je soubor označený nebo ne
+;Z - není označený
+;NZ - je označený
+
+CHECKSEL
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		inc hl
+		call BUFF83
+		call find83
+		ld hl,TMP83
+		bit 7,(hl)
+		ld a,(curcolor+1)
+		jr z,neni_oznacen
+		or a
+		ld a,80
+		ret z
+		ld a,96
+		ret
+
+
+neni_oznacen
+		or a
+		ld a,0
+		ret z
+		ld a,32
+		ret
+
+;Nakreslí kurzor
 writecur 
+		ld (curcolor+1),a
+		call CHECKSEL
 		ld (curcolor+1),a
 		ld hl,KURZL
 		call ROZHOD2
@@ -2983,6 +3123,14 @@ tilemapPalette:
                 db  %000'100'00,0       ; 6 green
 				ds 18
 				db  %100'100'10,0       ; 0 zluta (paper)					80
+                db  %100'100'10,1       ; 1 light grey (25% ink)
+                db  %010'010'01,1       ; 2 dark grey (75% ink)
+				db  %000'000'00,0       ; 0 white-blueish (ink)
+                db  %110'001'00,1       ; 4 red
+                db  %111'110'00,1       ; 5 yellow
+                db  %000'100'00,0       ; 6 green
+				ds 18
+				db  %101'101'10,1       ; 0 zluta (paper)					80
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %000'000'00,0       ; 0 white-blueish (ink)

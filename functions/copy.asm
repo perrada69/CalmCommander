@@ -6,7 +6,7 @@ createtxt	defb "ENTER = create",0
 renametxt	defb "ENTER = rename",0
 
 notxt 		defb "BREAK = no",0
-spaces 		defb "          ",0
+spaces 		defb "           ",0
 pleasewait	defb "Please wait",0
 bfname		defs 45
 			defb 0
