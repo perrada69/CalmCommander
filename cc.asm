@@ -226,6 +226,7 @@ START
 		ld bc,80*32*2
 		ld (hl),0
 		ldir
+
 		ld hl,nadpis
 		ld de,#4000
 		ld bc,80
@@ -860,6 +861,7 @@ clearpr2
 		include "functions/copy.asm"
 		include "functions/file.asm"
 		include "functions/delete.asm"
+		include "functions/input.asm"
 
 gettime
 		call dospage
