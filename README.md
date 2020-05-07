@@ -6,5 +6,5 @@
 - load directory
 - copy file (no directory)
 - move file (no directory)
-- delete file
+- delete file/directory
 - create directory
