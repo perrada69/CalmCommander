@@ -10,3 +10,4 @@
 - create directory
 - rename file/directory
 - select multiple files
+- search and select files
