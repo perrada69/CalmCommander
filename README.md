@@ -1,7 +1,7 @@
 # CalmCommander
  File commander for ZX Spectrum Next. 
 
-# Works:
+### Works:
 - browse
 - load directory
 - copy file (no directory)
@@ -12,7 +12,7 @@
 - select multiple files
 - search and select files
 
-# Some screenshots:
+### Some screenshots:
 
 ![CalmCommander](http://www.mb-maniax.cz/calmcommander/image5.png)
 
