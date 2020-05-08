@@ -11,6 +11,8 @@
 - select multiple files
 - search and select files
 - search and deselect files
+- switch between window
+- menu (now inactive)
 
 ### Some screenshots:
 
