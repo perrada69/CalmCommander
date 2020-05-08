@@ -27,6 +27,18 @@ RENAME
         pop hl
         call FINDLFN
 
+		call BUFF83
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,loop0
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,loop0
+
 
 
 		call savescr

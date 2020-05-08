@@ -95,12 +95,24 @@ mdeletecont
 deletenext
 		push hl
 		call find83
-		call BUFF83					
+		call BUFF83	
+
+		call BUFF83
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,nemazat
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,nemazat
+
 		ld hl,(foundfile)
 		bit 7,(hl)	
 		jp z,nemazat
 		res 7,(hl)
-
 
 		ld ix,TMP83				;zjisti jestli se jedná o adresář
 		bit 7,(ix+7)
@@ -298,17 +310,6 @@ DA
 		or h
 		jp nz,moredelete
 		
-		call savescr
-		ld hl,10 * 256 + 10
-		ld bc,60 * 256 + 5
-		ld a,16
-		call window
-
-		ld hl,11*256+11
-		ld a,16
-		ld de,onedeletetxt
-		call print		
-		
 		ld hl,POSKURZL
 		call ROZHOD
 		ld a,(hl)
@@ -331,7 +332,36 @@ DA
 		call find83
 		pop hl
 		call FINDLFN
+
 		
+		call BUFF83
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,loop0
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,loop0
+
+		call savescr
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,onedeletetxt
+		call print		
+		
+
+
+
+
+
 		ld hl,LFNNAME
 		ld de,bfname
 		ld bc,35
