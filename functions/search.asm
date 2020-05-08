@@ -247,7 +247,21 @@ find0   push hl
 
 		call BUFF83
 		call find83
+		call BUFF83
+
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,nesouhlasi
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,nesouhlasi
+		
 		pop hl
+
         push hl
         dec hl
 		call FINDLFN

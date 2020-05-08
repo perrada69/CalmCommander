@@ -160,6 +160,9 @@ PATHRIGHT   defb "C:",255
 			ds 261
 bottom		defb "                                                                                ",0			
 
+ban1		defb ".      ",$a0,"   ",0
+ban2		defb "..     ",$a0,"   ",0
+
 ReadNextReg:
     ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
     push    bc
@@ -289,7 +292,7 @@ loop0
 		ld (PROGS+1),hl
 
 		;call gettime
-		nextreg $56,24
+		nextreg $56,20
 
 
 
@@ -787,7 +790,18 @@ select
 		call find83
 		call BUFF83					
 		ld hl,(foundfile)
-
+		push hl
+		ld de,ban1
+		ld a,0
+		call specific_search
+		pop hl
+		jp z,down
+		push hl
+		ld de,ban2
+		ld a,0
+		call specific_search
+		pop hl
+		jp z,down
 		bit 7,(hl)
 		jr z,select_file
 		res 7,(hl)
