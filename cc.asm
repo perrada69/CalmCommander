@@ -416,7 +416,7 @@ loop0
 		ld (klavesa),a
 
 		cp ''
-		call z,info
+		jp z,info
 		cp 10
 		jp z,down
 		cp 11 
@@ -458,8 +458,57 @@ loop0
 		cp "-"
 		jp z,deselect
 
+		cp "1"
+		jp z,leftwin
 
+		cp "2"
+		jp z,rightwin
 
+		jp loop0
+
+leftwin
+		ld a,0
+		call writecur
+		ld a,3
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		jp loop0
+rightwin
+		ld a,0
+		call writecur
+		ld a,$13
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
 		jp loop0
 
 
