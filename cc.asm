@@ -2426,13 +2426,12 @@ help10 defb "9:          Rename files/directory",0
 help11 defb "0:          Menu (items is not activ",0
 help12 defb "+:          Search and select files/directory",0
 help13 defb "-:          Search and deselect files/directory",0
-help14 defb "BREAK:      Cancel operations (copy, move, delete...)",0
+help14 defb "BREAK:      Cancel operations (copy, move, delete, ",0
+help15 defb "            close this window...)",0
 
-help
-
-		call savescr
-		ld hl,10 * 256 + 10
-		ld bc,60 * 256 + 15
+help	call savescr
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 16
 		ld a,16
 		call window
 
@@ -2507,6 +2506,12 @@ help
 		call print
 
 
+		ld hl,11*256+26
+		ld a,16
+		ld de,help15
+		call print
+
+
 
 
 
@@ -2514,12 +2519,12 @@ help
 help0		
 		call INKEY
 		cp 1
-		jp z,loadscr
+		jp z,infoend
 		jr help0
 
 info	
 		call savescr
-		ld hl,10 * 256 + 10
+		ld hl,8 * 256 + 10
 		ld bc,60 * 256 + 10
 		ld a,16
 		call window
@@ -2550,7 +2555,7 @@ info
 		call print
 
 
-		ld hl,47*256+20
+		ld hl,43*256+20
 		ld a,32
 		ld de,breaktxt
 		call print
@@ -2558,9 +2563,10 @@ info
 info0		
 		call INKEY
 		cp 1
-		jp z,loadscr
+		jp z,infoend
 		jp info0
-
+infoend call loadscr
+		jp loop0
 		
 calmcommander	defb "CALM COMMANDER 0.1 (Development version 2020)",0		
 breaktxt defb "BREAK: close this window",0		
