@@ -2284,8 +2284,10 @@ INKEY
 		xor  a				           
          ld   (aLAST_KEY+1),a		 
 		ei
-		 halt
 
+		ld b,2
+CEKEJ	halt
+		djnz CEKEJ
 ahl0		 
 		 call KEYSCAN			       
 
