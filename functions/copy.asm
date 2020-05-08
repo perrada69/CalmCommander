@@ -13,6 +13,36 @@ bfname		defs 45
 
 ismove	defb 0
 
+nocopy	defb "I'm sorry, but you can't copy or move files to the same",0
+nocopy2 defb "directory.",0
+
+no_copy_move
+	
+		call savescr
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 3
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,nocopy
+		call print
+		ld hl,11*256+12
+		ld a,16
+		ld de,nocopy2
+		call print
+
+		ld hl,44*256+13
+		ld a,32
+		ld de,breaktxt
+		call print
+
+nocopy0
+		call INKEY
+		cp 1
+		jp z,infoend
+		jp nocopy0
 
 move 	ld a,1
 		ld (ismove),a
@@ -20,7 +50,26 @@ move 	ld a,1
 
 copy 	xor a
 		ld (ismove),a
+
 contmov
+		ld hl,PATHLEFT
+		ld a,255
+		ld bc,261
+		cpir
+		ld (hl),0
+
+		ld hl,PATHRIGHT
+		ld a,255
+		ld bc,261
+		cpir
+		ld (hl),0
+
+		ld hl,PATHLEFT
+		ld de,PATHRIGHT
+		ld a,0
+COPY		call specific_search
+		jp z,no_copy_move
+
 		ld hl,numsel
 		call ROZHOD2
 		ld a,(hl)

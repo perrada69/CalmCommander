@@ -1,11 +1,22 @@
 
+specific_search
+			ld (def_kon+1),a
+			ld (def_kon2+1),a
+			
+			call search
+			ld a,255
+			ld (def_kon+1),a
+			ld (def_kon2+1),a			
+			ret
+
+
 
 ; Vstup:
 ;         DE .... vstup hledaneho retezce (ukončený bytem 255)
 ;         HL .... vstup textu,kde budeme hledat (ukončený bytem 255)
 ; Výstup:
 ;         Z ... nalezeno
-;         C .. nenalezeno
+;         NZ .. nenalezeno
 search		ld (search0+1),de	
 search1		
 			
@@ -29,11 +40,11 @@ search_next
 search_next2			
 			
 			ld a,(de)
-			cp 255
+def_kon		cp 255
 			ret z		        ;konec, nasli jsme retezec
 
 			ld a,(hl)
-			cp 255
+def_kon2	cp 255
 			jr z,konec_textu
 					
 			ld a,(de)           ;porovnání
@@ -51,8 +62,6 @@ konec_textu ld a,1		        ;nastav nz - nic jsme nenasli
 			or a
 			ret
 
-
-	
 deselect
         call savescr
 
