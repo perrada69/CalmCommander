@@ -1,6 +1,6 @@
 			DEVICE ZXSPECTRUMNEXT
             OPT reset --zxnext --syntax=abfw              
-            slot 3
+            slot 4
                 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -171,12 +171,11 @@ ReadNextReg:
     ret
 
 START       
+	
 
 		ld a,3
 		ld (OKNO),a
-		ld a,1
-		out (254),a
-        nextreg MMU3_6000_NR_53,5*2+1
+		nextreg MMU3_6000_NR_53,5*2+1
         ld      hl,TILE_GFX_ADR
         ld      de,TILE_GFX_ADR+1
         ld      bc,16*32-1
@@ -463,7 +462,8 @@ loop0
 
 		cp "2"
 		jp z,rightwin
-
+		cp "h"
+		jp z,help
 		jp loop0
 
 leftwin
@@ -1369,12 +1369,14 @@ run2    ld a,(hl)
 		ld de,name
 		ldir
 
+  
   		call dospage
 		ld a,1
 		ld b,0
 		ld c,0
 		call $01d5
 		call basicpage 
+
 TADY		
 		rst $08
 		defw $8f
@@ -2409,6 +2411,112 @@ beepk1		djnz beepk1
 		out ($fe),a
 		ret
 BORDER   db 1				;okraj
+
+
+help1 defb "Controls:",0
+help2 defb "1:          switch to left panel",0
+help3 defb "2:          switch to right panel",0
+help4 defb "True Video: switch between panels",0
+help5 defb "SS+I:       Info about Calm Commander ",0
+help6 defb "5:          Copy files (directory is not not support",0
+help7 defb "6:          Move files (directory is not not support",0
+help8 defb "7:          Create directory",0
+help9 defb "8:          Delete files/directory",0
+help10 defb "9:          Rename files/directory",0
+help11 defb "0:          Menu (items is not activ",0
+help12 defb "+:          Search and select files/directory",0
+help13 defb "-:          Search and deselect files/directory",0
+help14 defb "BREAK:      Cancel operations (copy, move, delete...)",0
+
+help
+
+		call savescr
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 15
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,help1
+		call print
+
+		ld hl,11*256+13
+		ld a,16
+		ld de,help2
+		call print
+
+		ld hl,11*256+14
+		ld a,16
+		ld de,help3
+		call print
+
+		ld hl,11*256+15
+		ld a,16
+		ld de,help4
+		call print
+
+		ld hl,11*256+16
+		ld a,16
+		ld de,help5
+		call print
+
+		ld hl,11*256+17
+		ld a,16
+		ld de,help6
+		call print
+
+		ld hl,11*256+18
+		ld a,16
+		ld de,help7
+		call print
+
+		ld hl,11*256+19
+		ld a,16
+		ld de,help8
+		call print
+
+		ld hl,11*256+20
+		ld a,16
+		ld de,help9
+		call print
+
+		ld hl,11*256+21
+		ld a,16
+		ld de,help10
+		call print
+
+		ld hl,11*256+22
+		ld a,16
+		ld de,help11
+		call print
+
+		ld hl,11*256+23
+		ld a,16
+		ld de,help12
+		call print
+
+		ld hl,11*256+24
+		ld a,16
+		ld de,help13
+		call print
+
+		ld hl,11*256+25
+		ld a,16
+		ld de,help14
+		call print
+
+
+
+
+
+
+help0		
+		call INKEY
+		cp 1
+		jp z,loadscr
+		jr help0
+
 info	
 		call savescr
 		ld hl,10 * 256 + 10
@@ -2436,6 +2544,11 @@ info
 		ld de,info3txt
 		call print
 
+		ld hl,11*256+18
+		ld a,16
+		ld de,info5txt
+		call print
+
 
 		ld hl,47*256+20
 		ld a,32
@@ -2446,16 +2559,16 @@ info0
 		call INKEY
 		cp 1
 		jp z,loadscr
-		jr info0
+		jp info0
 
 		
-calmcommander	defb "CALM COMMANDER 0.1 (Development version)",0		
+calmcommander	defb "CALM COMMANDER 0.1 (Development version 2020)",0		
 breaktxt defb "BREAK: close this window",0		
 info1txt defb "File manager for ZX Spectrum Next. ",0
 info2txt defb "Main program: Shrek/MB Maniax",0
 info3txt defb "Big help: ped7g",0
 info4txt defb " ",0
-info5txt defb " ",0
+info5txt defb "Greetinx: Logout, z00m, mborik",0
 
 kresli	
 		ld hl,0 * 256 + 1
@@ -2527,8 +2640,8 @@ offset	equ 3
 		
 left_txt defb "1: LEFT",0
 right_txt defb "2: RIGHT",0
-view_txt defb "3: VIEW",0
-edit_txt defb "4: EDIT",0
+view_txt defb "3:     ",0
+edit_txt defb "4:     ",0
 copy_txt defb "5: COPY",0
 move_txt defb "6: MOVE",0
 mkdir_txt defb "7: MKDIR",0
@@ -3085,6 +3198,7 @@ Count11		ld hl,catbuff
 	
 			ret
 
+
 ALLFILESL  defw ALLFILES, ALLFILES2
 
 ALLFILES    defw 0
@@ -3177,10 +3291,11 @@ tilemapFont:    ds   16*32
 FILEBUFF	
 tilemapFont_char24:
             INCLUDE "tilemap_font_8x6.i.asm"
+
 last:       
               
               CSPECTMAP player.map
-              savenex open "CalmCommander.nex",START,$5fff
+              savenex open "CalmCommander.nex",START,$5ffe
               savenex core 2,0,0
               savenex auto
               savenex close
