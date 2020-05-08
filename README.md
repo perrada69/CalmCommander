@@ -10,6 +10,7 @@
 - rename file/directory
 - select multiple files
 - search and select files
+- search and deselect files
 
 ### Some screenshots:
 
