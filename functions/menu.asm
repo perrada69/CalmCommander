@@ -242,7 +242,7 @@ curmeny		ld e,1
 			inc hl
 curmencolor	ld a,16
 			ld (hl),a
-			ld b,16
+			ld b,18
 curmen0		inc hl : inc hl
 			ld (hl),a
 			djnz curmen0
@@ -263,7 +263,7 @@ menuenter
             ld a,(menucur)
             inc a
             ld e,a
-            ld d,20
+            ld d,22
             mul d,e
             dec de
             dec de
@@ -285,41 +285,43 @@ menupos		defb 0, 18, 34, 50,66
 nummenu		defb 0				;jakou položku zobrazit v menu
 ;definice položek horního menu
 menuitems	defw menuleft, menufile, menuutil, menuright, menuquit
-menulenght	defb 3, 5, 2, 3, 1	;počet položek v daném menu
+menulenght	defb 3, 5, 2, 3, 2	;počet položek v daném menu
 ;pozice kurzoru v menu
 menucur 	defb 0
-menuleft	defb " SELECT FILES (+)",0
+menuleft	defb " SELECT FILES   (+)",0
 			defw select_files_left
-			defb " DESEL. FILES (-)",0
+			defb " DESEL. FILES   (-)",0
 			defw deselect_files_left
-			defb " CHANGE DRIVE    ",0
+			defb " CHANGE DRIVE      ",0
 			defw notnow
 			defb 255
-menufile    defb " COPY            ",0
+menufile    defb " COPY              ",0
 			defw copy
-			defb " MOVE            ",0
+			defb " MOVE              ",0
 			defw move
-			defb " DELETE          ",0
+			defb " DELETE            ",0
 			defw delete
-			defb " RENAME          ",0
+			defb " RENAME            ",0
 			defw RENAME
-			defb " FILE INFO       ",0
+			defb " FILE INFO         ",0
 			defw notnow
 			defb 255
 
-menuright	defb " SELECT FILES (+)",0
+menuright	defb " SELECT FILES   (+)",0
 			defw select_files_right
-			defb " DESEL. FILES (-)",0
+			defb " DESEL. FILES   (-)",0
 			defw deselect_files_right
-			defb " CHANGE DRIVE    ",0
+			defb " CHANGE DRIVE      ",0
 			defw notnow
 			defb 255
-menuutil 	defb " HELP            ",0
+menuutil 	defb " HELP           (H)",0
 			defw help
-			defb " ABOUT CC        ",0
+			defb " ABOUT CC    (SS+I)",0
 			defw info
-			defb " SORT DIRECOTRY  ",0
+			defb " SORT DIRECTORY    ",0
 			defw notnow
 			defb 255
-menuquit	defb " QUIT CCommander ",0
+menuquit	defb " EXIT MENU  (BREAK)",0
+			defw menu_exit
+			defb " QUIT CCommander   ",0
 			defw notnow
