@@ -2389,7 +2389,7 @@ info0
 infoend call loadscr
 		jp loop0
 		
-calmcommander	defb "CALM COMMANDER 0.1 (Development version 2020)",0		
+calmcommander	defb "CALM COMMANDER 0.2 (Development version 2020)",0		
 breaktxt defb "BREAK: close this window",0		
 info1txt defb "File manager for ZX Spectrum Next. ",0
 info2txt defb "Main program: Shrek/MB Maniax",0
