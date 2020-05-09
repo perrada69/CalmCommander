@@ -324,4 +324,4 @@ menuutil 	defb " HELP           (H)",0
 menuquit	defb " EXIT MENU  (BREAK)",0
 			defw menu_exit
 			defb " QUIT CCommander   ",0
-			defw notnow
+			defw quit

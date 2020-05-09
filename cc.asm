@@ -344,6 +344,17 @@ loop0
 
 
 ;*******************************
+		; ld a,(klavesa)
+		; ld l,a
+		; xor a
+		; ld h,a
+
+		; call NUM
+		; ld hl,40*256+31
+		; ld a,16
+		; ld de,NUMBUF
+		; call print
+
 
 		; ld a,(POSKURZL)
 		; ld l,a
@@ -467,6 +478,10 @@ loop0
 		jp z,rightwin
 		cp "h"
 		jp z,help
+
+		cp 199
+		jp z,quit
+
 		jp loop0
 
 setleftwin
@@ -3138,6 +3153,43 @@ selcont
 		ld a,32
 		call writecur
 		jp down
+
+
+quittxt	defb "You want realy quit from Calm Commander?",0
+
+quit
+		call savescr
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,quittxt
+		call print		
+
+		ld hl,60*256+15
+		ld a,48
+		ld de,yestxt
+		call print		
+
+		ld hl,60*256+14
+		ld a,16
+		ld de,notxt
+		call print
+
+quit0		
+		call INKEY
+		cp 1
+		jp z,infoend
+		cp 13
+		jp z,softreset
+		jp quit0
+
+softreset 
+		nextreg 2,1		
+ss 		jr ss				
 
 		include "functions/menu.asm"
 		include "functions/search.asm"
