@@ -292,7 +292,7 @@ loop0
 		ld (PROGS+1),hl
 
 		;call gettime
-		nextreg $56,20
+		nextreg $56,0
 
 
 
@@ -576,345 +576,9 @@ rightwin
 		jp loop0
 
 
-leftcur
-		ld hl,POSKURZL
-		call ROZHOD
-		ld (smcur+1),hl
-		ld a,(hl)
-		or a
-		jr z,leftcur0
-		ld a,0
-		
-		push hl
-		call writecur
-		pop hl	
-		xor a
-		ld (hl),a
-		ld a,32
-		call writecur
-		jp loop0
-
-
-leftcur0
-LFT0
-		ld hl,0
-		push hl
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld de,3
-		add hl,de
-		ld a,(hl)
-		cp 255
-		pop hl
-		jr z,leftcur1
-		inc hl
-leftcur1
-		ld (leftcur_porovnej + 1),hl
-
-
-		ld hl,POSKURZL
-		call ROZHOD
-		ld a,(hl)
-		ld l,a
-		ld h,0
-
-		push hl
-		ld hl,STARTWINL
-		call ROZHOD2
-		ld (pocatekleft+1),hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-		ex de,hl
-		pop hl
-		add hl,de
-		inc hl			;aktualni pozice v HL
-		ld (aktpos+1),hl
-
-leftcur_porovnej 
-		ld de,0
-		or a
-		sbc hl,de
-		add hl,de
-		jp z,loop0		;odskoc pokud jsi na prvni pozici
-		ld de,28
-		or a
-		sbc hl,de
-		add hl,de
-		jr c,mensi_nez_28
-		ld de,28
-aktpos	ld hl,0		
-		or a
-		sbc hl,de
-		ex de,hl
-		jr pocatekleft
-mensi_nez_28
-
-		ld de,(leftcur_porovnej + 1)
-pocatekleft	
-		ld hl,0
-		ld (hl),e
-		inc hl
-		ld (hl),d		
-								;vykresli znova okno
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-
-		call getroot
-		
-		call showwin
-		ld a,32
-		call writecur
-		jp loop0
-
 souboru_na_radek	equ 26
 
-RGHT
-rightcur
-		ld hl,POSKURZL
-		call ROZHOD
-		ld (smcur+1),hl
-		ld a,(hl)
-		cp 26
-		jp z,rightcur0			;zobraz další stránku
-		
 
-
-
-
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld d,(hl)
-		ld e,a
-		dec de
-		push de
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld de,3
-		add hl,de
-		ld a,(hl)
-		cp 255
-		pop de
-		jr z,aasw0
-		
-		dec de
-aasw0
-		ld hl,26
-		or a
-		sbc hl,de
-		add hl,de
-		jr c,posledniradek
-		ld a,e
-		ld (kamcur+1),a
-		jr smcur
-posledniradek
-		ld a,26
-		ld (kamcur+1),a
-smcur	ld hl,0
-		ld a,0
-		call writecur
-krcur	ld hl,(smcur+1)		
-kamcur	ld (hl),26
-		ld a,32
-		call writecur
-
-		jp loop0
-rightcur0
-
-		ld hl,STARTWINL
-		call ROZHOD2
-		ld (rightsedi+1),hl	;ulož adresu okna, které se bude vykreslovat
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (AKT+1),hl
-		inc hl
-		
-		ld de,27 +27
-		add hl,de
-		push hl
-						;HL ... číslo souboru na kterém stojí kurzor + 26 (stránka)
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld d,(hl)
-		ld e,a
-		ld (MAXR+1),de
-		dec de
-		dec de
-		pop hl
-						;DE ... počet všech souborů v aktuálním okně
-
-		or a
-		ex de,hl
-		sbc hl,de
-		add hl,de
-
-		jr c,right12		;když se nesmí odstránkovat celých 26 souborů
-MAXR	ld hl,0
-AKT		ld hl,0
-		ld de,27
-		or a
-		add hl,de
-		
-		add hl,de
-		push hl
-
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld de,3
-		add hl,de
-		ld a,(hl)
-		cp 255
-		pop hl
-		jr z,asw0
-		
-		dec hl
-asw0
-
-		;dec hl
-		ld de,27
-		or a
-		sbc hl,de
-		jr	rightsedi
-right12 ld hl,(MAXR+1)
-		ld de,27
-		or a
-		sbc hl,de
-
-rightsedi
-  	    ld (0),hl
-
-
-						;vykresli znova okno
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-SED
-		call getroot
-		
-		call showwin
-		ld a,32
-		call writecur
-		jp loop0
-
-
-numsel	defw 0,0
-seltxt defb "Selected: ",0
-select
-		ld hl,POSKURZL
-		call ROZHOD
-		ld a,(hl)
-		ld l,a
-		ld h,0
-
-		push hl
-		ld hl,STARTWINL
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-		ex de,hl
-		pop hl
-		add hl,de
-		inc hl				;v HL máme číslo souboru
-		call BUFF83					
-		call find83
-		call BUFF83					
-		ld hl,(foundfile)
-		push hl
-		ld de,ban1
-		ld a,0
-		call specific_search
-		pop hl
-		jp z,down
-		push hl
-		ld de,ban2
-		ld a,0
-		call specific_search
-		pop hl
-		jp z,down
-		bit 7,(hl)
-		jr z,select_file
-		res 7,(hl)
-		
-		ld hl,numsel
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop de
-		dec hl
-		ex de,hl
-		ld (hl),e
-		inc hl
-		ld (hl),d
-		
-		jr deselect_file
-select_file
-		set 7,(hl)			;označ soubor
-		ld hl,numsel
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop de
-		inc hl
-		ex de,hl
-		ld (hl),e
-		inc hl
-		ld (hl),d
-
-deselect_file
-		
-selcont
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-
-		call getroot
-		
-		call showwin
-		ld a,32
-		call writecur
-		jp down
 
 
 					; CPPX1    ld   de,0
@@ -1010,15 +674,14 @@ clearpr2
 
 
 ;blocklenght	equ 1024*6
-		include "functions/selected.asm"
 		include "functions/copy.asm"
 		include "functions/file.asm"
 		include "functions/delete.asm"
 		include "functions/input.asm"
 		include "functions/createdir.asm"
 		include "functions/rename.asm"
-		include "functions/search.asm"
-		include "functions/menu.asm"
+
+
 
 gettime
 		call dospage
@@ -3035,18 +2698,18 @@ LFNNAME		defs 270  ;263
 tmpname		ds 2
 BFT
 bufftmp		ds 15		 
-M_P3DOS	equ $94		
+M_P3DOS		equ $94		
 savehl		defw 0
 saveix		defw 0	
 bankm       defb 0 ;  equ  #5B5C         ;sys tem vari able that holds the	
 
 stardstar:
-              defb "*.???",#FF  
+            defb "*.*",#FF  
 dosret:
-              defw 0          
+            defw 0          
 numLoop		defw 0
-FILES    defb 0
-dirNum	 defw 0
+FILES    	defb 0
+dirNum	 	defw 0
 tilemapPalette:
                 db  %000'000'11,1       ; 0 modra(paper)					0
                 db  %100'100'10,1       ; 1 light grey (25% ink)
@@ -3118,7 +2781,350 @@ tilemapFont:    ds   16*32
 FILEBUFF	
 tilemapFont_char24:
             INCLUDE "tilemap_font_8x6.i.asm"
+			org 49152
 
+
+leftcur
+		ld hl,POSKURZL
+		call ROZHOD
+		ld (smcur+1),hl
+		ld a,(hl)
+		or a
+		jr z,leftcur0
+		ld a,0
+		
+		push hl
+		call writecur
+		pop hl	
+		xor a
+		ld (hl),a
+		ld a,32
+		call writecur
+		jp loop0
+
+
+leftcur0
+LFT0
+		ld hl,0
+		push hl
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		pop hl
+		jr z,leftcur1
+		inc hl
+leftcur1
+		ld (leftcur_porovnej + 1),hl
+
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld (pocatekleft+1),hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		inc hl			;aktualni pozice v HL
+		ld (aktpos+1),hl
+
+leftcur_porovnej 
+		ld de,0
+		or a
+		sbc hl,de
+		add hl,de
+		jp z,loop0		;odskoc pokud jsi na prvni pozici
+		ld de,28
+		or a
+		sbc hl,de
+		add hl,de
+		jr c,mensi_nez_28
+		ld de,28
+aktpos	ld hl,0		
+		or a
+		sbc hl,de
+		ex de,hl
+		jr pocatekleft
+mensi_nez_28
+
+		ld de,(leftcur_porovnej + 1)
+pocatekleft	
+		ld hl,0
+		ld (hl),e
+		inc hl
+		ld (hl),d		
+								;vykresli znova okno
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
+		jp loop0
+
+RGHT
+rightcur
+		ld hl,POSKURZL
+		call ROZHOD
+		ld (smcur+1),hl
+		ld a,(hl)
+		cp 26
+		jp z,rightcur0			;zobraz další stránku
+		
+
+
+
+
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld d,(hl)
+		ld e,a
+		dec de
+		push de
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		pop de
+		jr z,aasw0
+		
+		dec de
+aasw0
+		ld hl,26
+		or a
+		sbc hl,de
+		add hl,de
+		jr c,posledniradek
+		ld a,e
+		ld (kamcur+1),a
+		jr smcur
+posledniradek
+		ld a,26
+		ld (kamcur+1),a
+smcur	ld hl,0
+		ld a,0
+		call writecur
+krcur	ld hl,(smcur+1)		
+kamcur	ld (hl),26
+		ld a,32
+		call writecur
+
+		jp loop0
+rightcur0
+
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld (rightsedi+1),hl	;ulož adresu okna, které se bude vykreslovat
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (AKT+1),hl
+		inc hl
+		
+		ld de,27 +27
+		add hl,de
+		push hl
+						;HL ... číslo souboru na kterém stojí kurzor + 26 (stránka)
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld d,(hl)
+		ld e,a
+		ld (MAXR+1),de
+		dec de
+		dec de
+		pop hl
+						;DE ... počet všech souborů v aktuálním okně
+
+		or a
+		ex de,hl
+		sbc hl,de
+		add hl,de
+
+		jr c,right12		;když se nesmí odstránkovat celých 26 souborů
+MAXR	ld hl,0
+AKT		ld hl,0
+		ld de,27
+		or a
+		add hl,de
+		
+		add hl,de
+		push hl
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		pop hl
+		jr z,asw0
+		
+		dec hl
+asw0
+
+		;dec hl
+		ld de,27
+		or a
+		sbc hl,de
+		jr	rightsedi
+right12 ld hl,(MAXR+1)
+		ld de,27
+		or a
+		sbc hl,de
+
+rightsedi
+  	    ld (0),hl
+
+
+						;vykresli znova okno
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+SED
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
+		jp loop0
+
+
+numsel	defw 0,0
+seltxt defb "Selected: ",0
+select
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		inc hl				;v HL máme číslo souboru
+		call BUFF83					
+		call find83
+		call BUFF83					
+		ld hl,(foundfile)
+		push hl
+		ld de,ban1
+		ld a,0
+		call specific_search
+		pop hl
+		jp z,down
+		push hl
+		ld de,ban2
+		ld a,0
+		call specific_search
+		pop hl
+		jp z,down
+		bit 7,(hl)
+		jr z,select_file
+		res 7,(hl)
+		
+		ld hl,numsel
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		dec hl
+		ex de,hl
+		ld (hl),e
+		inc hl
+		ld (hl),d
+		
+		jr deselect_file
+select_file
+		set 7,(hl)			;označ soubor
+		ld hl,numsel
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		inc hl
+		ex de,hl
+		ld (hl),e
+		inc hl
+		ld (hl),d
+
+deselect_file
+		
+selcont
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
+		jp down
+
+		include "functions/menu.asm"
+		include "functions/search.asm"
+		include "functions/selected.asm"
 last:       
               
               CSPECTMAP player.map
