@@ -469,6 +469,67 @@ loop0
 		jp z,help
 		jp loop0
 
+setleftwin
+		ld a,0
+		call writecur
+		ld a,3
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		ret
+
+setrightwin
+		ld a,0
+		call writecur
+		ld a,$13
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		ret
+select_files_left
+		call setleftwin
+		jp select_files
+
+deselect_files_left
+		call setleftwin
+		jp deselect
+
+select_files_right
+		call setrightwin
+		jp select_files
+
+deselect_files_right
+		call setrightwin
+		jp deselect
+
 leftwin
 		ld a,0
 		call writecur
@@ -2256,6 +2317,31 @@ help0
 		cp 1
 		jp z,infoend
 		jr help0
+
+notimplemented defb "This feature is not yet implemented.",0
+
+notnow
+		call savescr
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 3
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,notimplemented
+		call print
+		
+
+		ld hl,42*256+13
+		ld a,32
+		ld de,pressanykeytxt
+		call print
+
+		call INKEY
+		call loadscr
+		jp loop0
+
 
 info	
 		call savescr

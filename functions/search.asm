@@ -72,7 +72,7 @@ deselect
 
 		ld hl,11*256+11
 		ld a,16
-		ld de,SELTXT
+		ld de,DESELTXT
 		call print
 
 		ld hl,11*256+13
@@ -196,7 +196,7 @@ dfind_end
 
 SELTXT	defb "Search and select files.",0
 SELTXT2	defb "Please insert part of name:",0
-
+DESELTXT	defb "Search and deselect files.",0
 
 
 select_files

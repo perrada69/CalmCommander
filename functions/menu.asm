@@ -33,6 +33,8 @@ menu01
 		jr z,menu_right
 		cp 8
 		jr z,menu_left
+        cp 13
+        jp z,menuenter
 		jr menu01			
 		
 menu_exit 
@@ -70,6 +72,8 @@ menu_right
 		call show_menu
 		ld a,64
 		call writecurmenu
+        xor a
+        ld (menucur),a
 		jp menu01
 
 menu_left
@@ -86,6 +90,9 @@ menu_left
 		call show_menu
 		ld a,64
 		call writecurmenu
+        xor a
+        ld (menucur),a
+
 		jp menu01
 
 
@@ -106,6 +113,8 @@ menudown
 		ld (curmeny+1),a
 		ld a,64
 		call writecurmenu
+        ld hl,menucur
+        inc (hl)
 		jp menu01
 
 menuup 	ld hl,curmeny+1
@@ -123,6 +132,9 @@ menuup 	ld hl,curmeny+1
 		ld (curmeny+1),a
 		ld a,64
 		call writecurmenu
+        ld hl,menucur
+        dec (hl)
+
 		jp menu01
 		
 
@@ -223,12 +235,10 @@ writecurmenu
 			ld (curmencolor+1),a
 
 curmen		ld hl,0
-curmeny		ld b,1			
-			ld de,160
-curmen1		
-			add hl,de
-			djnz curmen1
-
+curmeny		ld e,1			
+			ld d,160
+            mul d,e
+            add hl,de
 			inc hl
 curmencolor	ld a,16
 			ld (hl),a
@@ -237,47 +247,79 @@ curmen0		inc hl : inc hl
 			ld (hl),a
 			djnz curmen0
 			ret
-
-
+MENUENTER
+menuenter
+            ld a,(nummenu)
+            ld e,a
+            ld d,2
+            mul d,e
+            ld hl,menuitems
+            add hl,de
+            ld a,(hl)
+            inc hl
+            ld h,(hl)
+            ld l,a
+            push hl     ;adresa polozky
+            ld a,(menucur)
+            inc a
+            ld e,a
+            ld d,20
+            mul d,e
+            dec de
+            dec de
+            pop hl          
+            add hl,de
+            push hl
+            call loadscr
+            pop hl
+            ld a,(hl)
+            inc hl
+            ld h,(hl)
+            ld l,a
+            jp (hl)
 
 text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                                                       ",0
 nadpis 		defb " Calm Commander 0.1 (Development version)                                                   ",0
 menupos		defb 0, 18, 34, 50,66
 
 nummenu		defb 0				;jakou položku zobrazit v menu
+;definice položek horního menu
 menuitems	defw menuleft, menufile, menuutil, menuright, menuquit
-menulenght	defb 3, 5, 2, 2, 1	;počet položek v daném menu
+menulenght	defb 3, 5, 2, 3, 1	;počet položek v daném menu
+;pozice kurzoru v menu
 menucur 	defb 0
-menuleft	defb " RELOAD DIR      ",0
-			defw 0
-			defb " CHANGE DISC     ",0
-			defw 0
-			defb " MENU ITEM       ",0
-			defw 0
+menuleft	defb " SELECT FILES (+)",0
+			defw select_files_left
+			defb " DESEL. FILES (-)",0
+			defw deselect_files_left
+			defb " CHANGE DRIVE    ",0
+			defw notnow
 			defb 255
 menufile    defb " COPY            ",0
-			defw 0
+			defw copy
 			defb " MOVE            ",0
-			defw 0
-			defb " MENU ITEM       ",0
-			defw 0
-			defb " MENU ITEM 1     ",0
-			defw 0
-			defb " MENU ITEM 2     ",0
-			defw 0
+			defw move
+			defb " DELETE          ",0
+			defw delete
+			defb " RENAME          ",0
+			defw RENAME
+			defb " FILE INFO       ",0
+			defw notnow
 			defb 255
 
-menuright	defb " RELOAD DIR      ",0
-			defw 0
-			defb " MENU ITEM       ",0
-			defw 0
+menuright	defb " SELECT FILES (+)",0
+			defw select_files_right
+			defb " DESEL. FILES (-)",0
+			defw deselect_files_right
+			defb " CHANGE DRIVE    ",0
+			defw notnow
 			defb 255
-menuutil 	defb " SORT DIRECTORY  ",0
-			defw 0
-			defb " MENU ITEM 1     ",0
-			defw 0
-			defb " MENU ITEM 2     ",0
-			defw 0
+menuutil 	defb " HELP            ",0
+			defw help
+			defb " ABOUT CC        ",0
+			defw info
+			defb " SORT DIRECOTRY  ",0
+			defw notnow
 			defb 255
 menuquit	defb " QUIT CCommander ",0
-			defw 0
+			defw notnow
