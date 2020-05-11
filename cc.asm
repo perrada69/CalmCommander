@@ -330,134 +330,134 @@ loop0
 		ld   hl,$4000+160*15+23
 		ld (PROGS+1),hl
 
-		;call gettime
+		call gettime
 		nextreg $56,0
 		nextreg $55,20
 
 
-		ld hl,1*256+30
-		ld a,0
-		ld de,seltxt
-		call print
+; 		ld hl,1*256+30
+; 		ld a,0
+; 		ld de,seltxt
+; 		call print
 
-		ld hl,41*256+30
-		ld a,0
-		ld de,seltxt
-		call print
+; 		ld hl,41*256+30
+; 		ld a,0
+; 		ld de,seltxt
+; 		call print
 
 
-		ld hl,(numsel)
-		call NUM
-		ld hl,11*256+30
-		ld a,0
-		ld de,NUMBUF
+; 		ld hl,(numsel)
+; 		call NUM
+; 		ld hl,11*256+30
+; 		ld a,0
+; 		ld de,NUMBUF
 		
-		call print
+; 		call print
 
-		ld hl,(numsel+2)
-		call NUM
-		ld hl,51*256+30
-		ld a,0
-		ld de,NUMBUF
-		call print
+; 		ld hl,(numsel+2)
+; 		call NUM
+; 		ld hl,51*256+30
+; 		ld a,0
+; 		ld de,NUMBUF
+; 		call print
 
-		ld a,"/"
-		ld ($4000+30*160+32),a
-		ld a,"/"
-		ld ($4000+30*160+112),a
+; 		ld a,"/"
+; 		ld ($4000+30*160+32),a
+; 		ld a,"/"
+; 		ld ($4000+30*160+112),a
 
-		ld hl,(ALLFILES)
-		call NUM
-		ld hl,17*256+30
-		ld a,0
-		ld de,NUMBUF
-		call print
+; 		ld hl,(ALLFILES)
+; 		call NUM
+; 		ld hl,17*256+30
+; 		ld a,0
+; 		ld de,NUMBUF
+; 		call print
 
-		ld hl,(ALLFILES + 2)
-		call NUM
-		ld hl,57*256+30
-		ld a,0
-		ld de,NUMBUF
-		call print
-
-
-
-;*******************************
-		ld a,(klavesa)
-		ld l,a
-		xor a
-		ld h,a
-
-		call NUM
-		ld hl,40*256+31
-		ld a,16
-		ld de,NUMBUF
-		call print
+; 		ld hl,(ALLFILES + 2)
+; 		call NUM
+; 		ld hl,57*256+30
+; 		ld a,0
+; 		ld de,NUMBUF
+; 		call print
 
 
-		ld a,(POSKURZL)
-		ld l,a
-		ld h,0
-		call NUM
-		ld hl,1*256+31
-		ld a,16
-		ld de,NUMBUF
-		call print
 
-		ld hl,(STARTWINL)
-		call NUM
-		ld hl,9*256+31
-		ld a,16
-		ld de,NUMBUF
-		call print
+; ;*******************************
+; 		ld a,(klavesa)
+; 		ld l,a
+; 		xor a
+; 		ld h,a
 
-		ld a,(POSKURZL)
-		ld l,a
-		ld h,0
-		ex de,hl
-		ld hl,(STARTWINL)
-		add hl,de
-		inc hl
-		call find83
-		xor a
-		ld (TMP83+11),a
-		ld hl,20*256+31
-		ld a,16
-		ld de,TMP83
+; 		call NUM
+; 		ld hl,40*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
+
+
+; 		ld a,(POSKURZL)
+; 		ld l,a
+; 		ld h,0
+; 		call NUM
+; 		ld hl,1*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
+
+; 		ld hl,(STARTWINL)
+; 		call NUM
+; 		ld hl,9*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
+
+; 		ld a,(POSKURZL)
+; 		ld l,a
+; 		ld h,0
+; 		ex de,hl
+; 		ld hl,(STARTWINL)
+; 		add hl,de
+; 		inc hl
+; 		call find83
+; 		xor a
+; 		ld (TMP83+11),a
+; 		ld hl,20*256+31
+; 		ld a,16
+; 		ld de,TMP83
 		
-		call print
+; 		call print
 
-		ld a,(POSKURZR)
-		ld l,a
-		ld h,0
-		call NUM
-		ld hl,41*256+31
-		ld a,16
-		ld de,NUMBUF
-		call print
+; 		ld a,(POSKURZR)
+; 		ld l,a
+; 		ld h,0
+; 		call NUM
+; 		ld hl,41*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
 
-		ld hl,(STARTWINR)
-		call NUM
-		ld hl,49*256+31
-		ld a,16
-		ld de,NUMBUF
-		call print
+; 		ld hl,(STARTWINR)
+; 		call NUM
+; 		ld hl,49*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
 
-		ld a,(POSKURZR)
-		ld l,a
-		ld h,0
-		ex de,hl
-		ld hl,(STARTWINR)
-		add hl,de
-		inc hl
-		call find83
-		xor a
-		ld (TMP83+11),a
-		ld hl,60*256+31
-		ld a,16
-		ld de,TMP83
+; 		ld a,(POSKURZR)
+; 		ld l,a
+; 		ld h,0
+; 		ex de,hl
+; 		ld hl,(STARTWINR)
+; 		add hl,de
+; 		inc hl
+; 		call find83
+; 		xor a
+; 		ld (TMP83+11),a
+; 		ld hl,60*256+31
+; 		ld a,16
+; 		ld de,TMP83
 		
-		call print
+; 		call print
 
 ;*******************************
 
@@ -748,71 +748,47 @@ gettime
 		ld (dostime),de
 		ld (dosdate),bc
 		jr nc,timeend
-		ld ix,dostime
-        ld   a,(ix+1)
-        ld   b,(ix+0)
-        srl  a
-        rr   b
-        srl  a
-        rr   b
-        srl  a
-        rr   b
-        srl  b
-        srl  b
-        push bc
-		
-		ld l,a
-		ld h,0
-		call DECIMAL2
-		ld hl,50*256+0
-		ld a,16
-		ld de,NUMBUF
-		call print
 
-
-         ld   a,':'
-
-        pop  af
-
-		ld l,a
-		ld h,0
-		call DECIMAL2
-		ld hl,56*256+0
-		ld a,16
-		ld de,NUMBUF
-		call print
-
-		jr timeend
-        ld   h,b
-        ld   l,c
-
-;Zjištění datumu
-		ld ix,dosdate
-         ld   a,(ix + 0)
-         and  31
-;        call DEC8E
-         ld   h,b
-         ld   l,c
-         ld   a,'/'
-;        call CHAR
-         ld   a,(ix + 0)
-         ld   b,(ix+1)
+		 ld   a,d
+         ld   b,e
+         srl  a
+         rr   b
+         srl  a
+         rr   b
+         srl  a
+         rr   b
+         srl  b
          srl  b
          push bc
-         rra  
-         rra  
-         rra  
-         rra  
-         rra  
-         and  15
-;        call DEC8E
-         ld   h,b
-         ld   l,c
-         ld   a,'/'
-;        call CHAR
-         pop  af
-	 	;call DEC8E
 
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,74*256+0
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+
+		ld hl,76*256+0
+		ld a,16
+		ld de,dvojt
+		call print
+
+         pop  af
+
+		ld l,a
+		ld h,0
+		call NUM
+		xor a
+		ld (NUMBUF+3+2),a
+		ld hl,77*256+0
+		ld a,16
+		ld de,NUMBUF+3
+
+		call print
+
+
+dvojt	defb ":",0
 timeend		
 		call basicpage
 		ret
@@ -3419,10 +3395,6 @@ rightcur
 		cp 26
 		jp z,rightcur0			;zobraz další stránku
 		
-
-
-
-
 		ld hl,ALLFILES
 		call ROZHOD2
 		ld a,(hl)
