@@ -134,13 +134,13 @@ filename 	  ds   15
 typ 		  equ $-4
 pocetpolozek	equ 200
 virtmem		defb 0
-maxlen		equ 261 + 4		;+4 je délka souboru
-maxline equ 37
+maxlen		equ 261 + 4 + 4		;+4 je délka souboru a 4 cas a datum
+maxline 	equ 37
 save_allfiles	defw 0	
-OKNO 	defb 0
+OKNO 		defb 0
 
-KURZL	defw $4002+160*2		;adresa kurzoru levého okna
-KURZR	defw $4002+160*2+80		;adresa kurzoru pravého okna
+KURZL		defw $4002+160*2		;adresa kurzoru levého okna
+KURZR		defw $4002+160*2+80		;adresa kurzoru pravého okna
 
 POSKURZL	defb 0				;pozice kurzoru v levém okně
 POSKURZR	defb 0				;pozice kurzoru v pravém okně
@@ -151,7 +151,7 @@ ALLPOSR		defw 0
 STARTWINL	defw 1				;pocatecni soubor na zacatku okna
 STARTWINR	defw 1
 ACTDISC
-actdisc	defb "C","C"
+actdisc		defb "C","C"
 
 pathl		defw PATHLEFT
 pathr       defw PATHRIGHT
@@ -519,6 +519,10 @@ loop0
 		jp z,help
 		cp "c"
 		jp z,CHNG_ATTR
+
+		cp "i"
+		jp z,info_file
+
 		cp 199
 		jp z,quit
 
@@ -2618,7 +2622,6 @@ basicpage
 lfnpage	defb 24,60
 			
 getAllLFN	
-			
 			ld hl,0
 			ld (numLoop),hl
 			ld hl,#e000
@@ -2663,8 +2666,11 @@ BufferName	ld de,bufftmp			;jmeno souboru
 			ld ix,(savehl)
 			ld bc,LFNNAME
 			call $01b7  			;zjisti LFN
-			ld (LFNNAME + 261),ix
+			ld (LFNNAME + 261),ix		;uloží delku
 			ld (LFNNAME + 261 + 2),hl
+			ld (LFNNAME + 261 + 4),bc	;uloží datum
+			ld (LFNNAME + 261 + 6),de	;uloží čas
+			
 			call basicpage
 			
 Page		ld a,24
@@ -2702,7 +2708,7 @@ contin		pop bc				;zopakuj to pro všechny soubory, které máme načtené...
 			dec bc
 			ld a,b
 			or c
-			jr nz,LFN1
+			jp nz,LFN1
 AAA
 			nextreg $57,1			;vráť zpátky stránku, kde se nachází data pro player
 			ret
@@ -2726,10 +2732,7 @@ de1			djnz de
 addrlfn		dw 0
 
 FINDLFN
-			
-			push hl
-
-		
+		push hl
 		ld hl,pathl
 		call ROZHOD2
 		ld a,(hl)
@@ -2747,34 +2750,33 @@ FINDLFN
 		inc hl
 findlfn830
 		push hl
-
-			ld hl,lfnpage
-			call ROZHOD
-			ld a,(hl)
-			ld (lfnroot+1),a
+		ld hl,lfnpage
+		call ROZHOD
+		ld a,(hl)
+		ld (lfnroot+1),a
 			
-			ld hl,LFNNAME
-			ld de,LFNNAME+1
-			ld bc,maxlen
-			ld a,32
-			ld (hl),a
-			ldir
+		ld hl,LFNNAME
+		ld de,LFNNAME+1
+		ld bc,maxlen
+		ld a,32
+		ld (hl),a
+		ldir
 
-			pop hl
-			or a
-			ld de,30
-			sbc hl,de
-			add hl,de
-			jr c,prvni
-			ld c,30
-			call deleno
-		    jr oddeleno
-prvni		ld a,l
-			ld l,0
+		pop hl
+		or a
+		ld de,30
+		sbc hl,de
+		add hl,de
+		jr c,prvni
+		ld c,30
+		call deleno
+	    jr oddeleno
+prvni	ld a,l
+		ld l,0
 			
 oddeleno	push af
-lfnroot		ld a,24
-			add a,l
+lfnroot	ld a,24
+		add a,l
 			nextreg $57,a
 			pop bc
 			ld de,maxlen
@@ -2807,7 +2809,7 @@ kon
 			ld de,261
 			add hl,de
 			ld de,LFNNAME+261
-			ld bc,4
+			ld bc,8
 			ldir				;prenes velikost souboru
 			ld hl,LFNNAME
 			ld b,40
@@ -3703,8 +3705,6 @@ softreset
 
 
 CHNG_ATTR
-
-
 		ld hl,POSKURZL
 		call ROZHOD
 		ld a,(hl)
@@ -3904,14 +3904,341 @@ archive
 		ld a,16
 		ld (hl),a
 		ret
+
+showattr_info	
+		ld ix,TMP83+7
+
+		bit 7,(ix+1)
+		jr z,ro_nulla
+		ld a,27
+		jr readonlya
+ro_nulla	ld a,25
+
+readonlya
+		ld hl,$4000 + 160 * 17 + 128
+		ld (hl),a
+		inc hl
+		ld a,16
+		ld (hl),a
+
+		bit 7,(ix+2)
+		jr z,sys_nulla
+		ld a,27
+		jr systema
+sys_nulla	ld a,25
+
+systema
+		ld hl,$4000 + 160 * 18 + 128
+		ld (hl),a
+		inc hl
+		ld a,16
+		ld (hl),a
+
+
+		bit 7,(ix+3)
+		jr z,arch_nulla
+		ld a,27
+		jr archivea
+arch_nulla	ld a,25
+
+archivea
+		ld hl,$4000 + 160 * 19 + 128
+		ld (hl),a
+		inc hl
+		ld a,16
+		ld (hl),a
+		ret
+
 namefile	defb "Name of file:",0
 attr_nadpis	defb "Edit file attribute",0
 readonlytxt	defb "[R]ead only",0
 systemfiletxt defb "[S]ystem file",0
 archivedtxt defb "[A]rchived",0
-DSC
+
+readonlytxt2	defb "Read only",0
+systemfiletxt2 defb "System file",0
+archivedtxt2 defb "Archived",0
+
+
+info_file
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		push hl
+        inc hl
+		call BUFF83
+		call find83
+        pop hl
+        call FINDLFN
+
+		call BUFF83
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,loop0
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,loop0
+
+
+		call savescr
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		push hl
+		inc hl
+		call BUFF83
+		call find83
+		pop hl
+		call FINDLFN
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 10
+		ld a,16
+		call window
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		push hl
+		inc hl
+		call BUFF83
+		call find83
+		pop hl
+		call FINDLFN
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 10
+		ld a,16
+
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,fileinfonadpis
+		call print
+
+		xor a
+		ld hl,LFNNAME+44
+		ld (hl),a
+		ld hl,25*256+13
+		ld a,16
+		ld de,LFNNAME
+		call print
+
+		ld hl,11*256+13
+		ld a,16
+		ld de,namefile
+		call print
+
+		ld de,filedate
+		ld hl,11*256+15
+		ld a,16
+		call print
+		ld de,filetime
+		ld hl,11*256+16
+		ld a,16
+		call print
+
+		ld de,(LFNNAME+261+4)
+
+		call showdate
+		ld de,(LFNNAME+261+6)
+		call showtime
+
+		ld hl,51*256+15
+		ld a,16
+		ld de,sysatrtxt
+		call print
+
+
+		ld hl,51*256+17
+		ld a,16
+		ld de,readonlytxt2
+		call print
+
+		ld hl,51*256+18
+		ld a,16
+		ld de,systemfiletxt2
+		call print
+
+		ld hl,51*256+19
+		ld a,16
+		ld de,archivedtxt2
+		call print
+
+		ld hl,11*256+20
+		ld a,16
+		ld de,pressanykeytxt
+		call print
+
+
+		call showattr_info
+		call INKEY
+		call loadscr
+		jp loop0
+
+;DE - datum
+showdate
+        ld   a,e
+        and  31
+        push de
+
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,17*256+15
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+
+		ld hl,19*256+15
+		ld a,16
+		ld de,tecka
+		call print
+
+		pop de
+		
+		ld   a,e
+        ld   b,d
+        srl  b
+        push bc
+        rra  
+        rra  
+        rra  
+        rra  
+        rra  
+        and  15
+
+		ld l,a
+		ld h,0
+		call NUM
+		;call smaznuly
+		ld hl,20*256+15
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+		ld hl,22*256+15
+		ld a,16
+		ld de,tecka
+		call print
+
+		pop af
+
+		ld l,a
+		ld h,0
+		ld de,1980
+		add hl,de
+		call NUM
+		call smaznuly
+		ld hl,23*256+15
+		ld a,16
+		ld de,NUMBUF+1
+		call print
+		ret
+;DE - čas ve formátu MSDOS
+showtime
+
+		 ld   a,d
+         ld   b,e
+         srl  a
+         rr   b
+         srl  a
+         rr   b
+         srl  a
+         rr   b
+         srl  b
+         srl  b
+         push bc
+
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,17*256+16
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+
+		ld hl,19*256+16
+		ld a,16
+		ld de,dvojtecka
+		call print
+
+         pop  af
+
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,20*256+16
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+		ret
+
+smaznuly
+		ld hl,NUMBUF
+
+		ld b,5
+snuly	ld a,(hl)		
+		cp "0"
+		ret nz
+		ld (hl)," "
+		inc hl
+		djnz snuly
+		ret
+
+sysatrtxt	defb "System attributes:",0
+fileinfonadpis
+			defb "File informations",0 
+filedate	defb "Date:",0
+filetime	defb "Time:",0
+tecka		defb ". ",0
+dvojtecka 	defb ":",0
 discdetail
-		defs 15
+			defs 15
 
 
 		include "functions/menu.asm"

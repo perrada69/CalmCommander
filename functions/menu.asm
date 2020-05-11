@@ -304,9 +304,9 @@ menufile    defb " COPY              ",0
 			defb " RENAME            ",0
 			defw RENAME
 			defb " FILE INFO         ",0
-			defw notnow
+			defw info_file
 			defb " CHANGE ATTRIBUTE  ",0
-			defw notnow
+			defw CHNG_ATTR
 			defb 255
 
 menuright	defb " SELECT FILES   (+)",0
