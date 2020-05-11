@@ -786,15 +786,14 @@ gettime
 		ld de,NUMBUF+3
 
 		call print
-
-
-dvojt	defb ":",0
 timeend		
 		call basicpage
 		ret
 den		defb 0
 mesic	defb 0
 rok		defb 0
+dvojt	defb ":",0
+
 
 hodiny	defb 0
 minuty	defb 0
@@ -1850,9 +1849,9 @@ find830
 FFF
 foundfile	defw 0		
 TMP83	ds 13
-INKEY 	
+INKEY 	call gettime
 		xor  a				           
-         ld   (aLAST_KEY+1),a		 
+        ld   (aLAST_KEY+1),a		 
 		ei
 
 		ld b,2
