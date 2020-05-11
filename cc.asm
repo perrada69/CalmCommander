@@ -325,7 +325,7 @@ STOP
 		call writecur
 		ld a,16
 
-		
+		call freespace
 loop0	
 		ld   hl,$4000+160*15+23
 		ld (PROGS+1),hl
@@ -335,53 +335,55 @@ loop0
 		nextreg $55,20
 
 
-; 		ld hl,1*256+30
-; 		ld a,0
-; 		ld de,seltxt
-; 		call print
+		ld hl,1*256+30
+		ld a,0
+		ld de,seltxt
+		call print
 
-; 		ld hl,41*256+30
-; 		ld a,0
-; 		ld de,seltxt
-; 		call print
+		ld hl,41*256+30
+		ld a,0
+		ld de,seltxt
+		call print
 
 
-; 		ld hl,(numsel)
-; 		call NUM
-; 		ld hl,11*256+30
-; 		ld a,0
-; 		ld de,NUMBUF
+		ld hl,(numsel)
+		call NUM
+		ld hl,11*256+30
+		ld a,0
+		ld de,NUMBUF
 		
-; 		call print
+		call print
 
-; 		ld hl,(numsel+2)
-; 		call NUM
-; 		ld hl,51*256+30
-; 		ld a,0
-; 		ld de,NUMBUF
-; 		call print
+		ld hl,(numsel+2)
+		call NUM
+		ld hl,51*256+30
+		ld a,0
+		ld de,NUMBUF
+		call print
 
-; 		ld a,"/"
-; 		ld ($4000+30*160+32),a
-; 		ld a,"/"
-; 		ld ($4000+30*160+112),a
+		ld a,"/"
+		ld ($4000+30*160+32),a
+		ld a,"/"
+		ld ($4000+30*160+112),a
 
-; 		ld hl,(ALLFILES)
-; 		call NUM
-; 		ld hl,17*256+30
-; 		ld a,0
-; 		ld de,NUMBUF
-; 		call print
+		ld hl,(ALLFILES)
+		call NUM
+		ld hl,17*256+30
+		ld a,0
+		ld (NUMBUF+5),a
+		ld de,NUMBUF
+		call print
 
-; 		ld hl,(ALLFILES + 2)
-; 		call NUM
-; 		ld hl,57*256+30
-; 		ld a,0
-; 		ld de,NUMBUF
-; 		call print
+		ld hl,(ALLFILES + 2)
+		call NUM
+		ld hl,57*256+30
+		ld a,0
+		ld (NUMBUF+5),a
+		ld de,NUMBUF
+		call print
 
 
-
+		
 ; ;*******************************
 ; 		ld a,(klavesa)
 ; 		ld l,a
@@ -528,6 +530,54 @@ loop0
 
 		jp loop0
 
+
+freespace
+		ld hl,24*256 + 30
+		ld de,freetxt
+		ld a,0
+		call print
+		ld hl,64*256 + 30
+		ld de,freetxt
+		ld a,0
+		call print
+
+		call dospage
+		ld hl,29*256 + 30
+		ld (dec32pos+1),hl
+		ld a,(actdisc)
+		call $121
+		ld h,b
+		ld l,c
+		ex de,hl
+		ld b,8
+		call DEC32
+		ld hl,37*256 + 30
+		ld de,kb
+		ld a,0
+		call print
+
+
+		ld hl,69*256 + 30
+		ld (dec32pos+1),hl
+		ld a,(actdisc)
+		call $121
+		ld h,b
+		ld l,c
+		ex de,hl
+		ld b,8
+		call DEC32
+		ld hl,77*256 + 30
+		ld de,kb
+		ld a,0
+		call print
+
+
+
+		call basicpage
+		ret
+
+freetxt	defb "Free:",0
+kb 		defb "kB",0
 setleftwin
 		ld a,0
 		call writecur
@@ -1063,8 +1113,76 @@ numadr	 ld hl,0
 		 pop hl
 		 ret 
 
+BUFF     defs   11
+NUMB      ds 	11				;temp pro vypis cisel 
+DEC32	 push iy
+		 ld c,32
+		 call D32B
+DEC32SP  ld   de,NUMB
+dec32pos ld   hl,1*256+1
+		 ld a,0
+         call  print
+		 pop iy
+		 ret
 
-
+D32B     xor  a
+         ld   iy,NUMB
+         push de
+         push bc
+         ld   de,BUFF
+         ld   b,10
+DCC1     ld   (de),a
+         inc  de
+         djnz DCC1
+         pop  bc
+         pop  de
+         push bc
+         ld   b,$20
+DCC2     add  hl,hl
+         ex   de,hl
+         adc  hl,hl
+         ex   de,hl
+         push bc
+         push de
+         ld   bc,$0A0A
+         ld   de,BUFF
+DCC3     ld   a,(de)
+         adc  a,a
+         cp   c
+         jr   c,DCC4
+         sub  c
+DCC4     ld   (de),a
+         ccf  
+         inc  de
+         djnz DCC3
+         pop  de
+         pop  bc
+         djnz DCC2
+         ld   d,b
+         pop  bc
+         ld   e,b
+         ld   hl,BUFF-1
+         add  hl,de
+         dec  b
+         jr   z,DCC8
+DCC5     ld   a,(hl)
+         or   a
+         jr   nz,DCC6
+         ld   a,c
+         db $11
+DCC6     ld   c,'0'
+DCC7     or   c
+         dec  hl
+         or   a
+         jr   z,DCC9
+         ld   (iy+0),a
+         inc  iy
+DCC9     djnz DCC5
+DCC8     ld   a,(hl)
+         or   '0'
+         ld   (iy+0),a
+         inc  iy
+         ret 
 
 getroot_reload
 		ld hl,pathl

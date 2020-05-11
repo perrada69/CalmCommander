@@ -291,6 +291,7 @@ mmorekonec
 		xor a
 		call $01b1
 		call basicpage
+		call freespace
 		jp loop0
 
 
@@ -542,7 +543,7 @@ KON
 		xor a
 		call $01b1
 		call basicpage
-
+  		call freespace
 		jp loop0
 
 errordel	defb "Directory is not empty. Delete?",0

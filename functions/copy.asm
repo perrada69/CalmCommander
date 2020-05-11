@@ -646,5 +646,5 @@ nenimove2
 
 
 
-
+		call freespace
 		jp loop0
