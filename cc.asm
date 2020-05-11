@@ -3703,6 +3703,45 @@ softreset
 
 
 CHNG_ATTR
+
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		push hl
+        inc hl
+		call BUFF83
+		call find83
+        pop hl
+        call FINDLFN
+
+		call BUFF83
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,loop0
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,loop0
+
+
 		call savescr
 
 		ld hl,POSKURZL
