@@ -5,6 +5,7 @@ yestxt		defb "ENTER = yes",0
 createtxt	defb "ENTER = create",0
 renametxt	defb "ENTER = rename",0
 searchtxt	defb "ENTER = search",0
+savetxt		defb "ENTER = save ",0
 notxt 		defb "BREAK = no",0
 spaces 		defb "           ",0
 pleasewait	defb "Please wait",0
@@ -232,9 +233,7 @@ CCCAC20							;vynuluj všechny stavové bity v názvu (7.)
 
 
 nenimove
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 		
 		ld hl,0
 		ld hl,ALLFILES
@@ -272,9 +271,7 @@ nenimove
 		call getroot_reload
 		call showwin
 
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl
@@ -572,9 +569,7 @@ morekonec
 		jp mmorekonec
 
 nenimove2
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 		
 		ld hl,0
 		ld hl,ALLFILES
@@ -612,9 +607,7 @@ nenimove2
 		call getroot_reload
 		call showwin
 
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 
 		ld hl,adrl

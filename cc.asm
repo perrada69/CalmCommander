@@ -150,7 +150,8 @@ ALLPOSR		defw 0
 
 STARTWINL	defw 1				;pocatecni soubor na zacatku okna
 STARTWINR	defw 1
-
+ACTDISC
+actdisc	defb "C","C"
 
 pathl		defw PATHLEFT
 pathr       defw PATHRIGHT
@@ -172,10 +173,45 @@ ReadNextReg:
     in      a,(c)   ; read desired NextReg state
     pop     bc
     ret
+bufferdisc	defs 18
 
+listdisc	defs 15
+pocetdisku defb 0
 START       
 	
+		call dospage
+disc	ld l,"A"
+		ld bc,bufferdisc
+		call $00F7
+		jr nc,neskenuj
+		jr z,dalsi	
+dscdet	ld hl,discdetail
+		ld (hl),a
+		inc hl
+		ld (dscdet+1),hl
 
+setdisc	ld hl,listdisc
+
+
+		ld a,(disc+1)
+		ld (hl),a
+		inc hl
+		ld (setdisc+1),hl
+		ld hl,pocetdisku
+		inc (hl)
+
+
+dalsi	
+		ld a,(disc+1)
+		cp "P"
+		jr z,neskenuj
+		inc a
+		ld (disc+1),a
+		jr disc
+
+neskenuj
+
+		call basicpage
 		ld a,3
 		ld (OKNO),a
 		nextreg MMU3_6000_NR_53,5*2+1
@@ -258,6 +294,15 @@ menu0
 		jr nz,menu0
 
 		call kresli		;NAKRESLI HLAVNI OBRAZOVKU
+
+		call dospage
+
+		ld a,255
+		call $012d		;zjisti z jakého disku je spouštěn calmcommander
+		ld (actdisc),a
+		ld (actdisc+1),a
+		call basicpage
+
 STOP		
 		call reload_dir
 		
@@ -268,20 +313,14 @@ STOP
 
 		call showwin
 		
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
-		
+		call PROHOD	
 		call reload_dir
 		
 		ld hl,$4000+2+80
 		ld (adrs+1),hl
 		call getroot_reload
 		call showwin
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a	
-
+		call PROHOD
 		ld a,32
 		call writecur
 		ld a,16
@@ -293,7 +332,7 @@ loop0
 
 		;call gettime
 		nextreg $56,0
-
+		nextreg $55,20
 
 
 		ld hl,1*256+30
@@ -344,81 +383,81 @@ loop0
 
 
 ;*******************************
-		; ld a,(klavesa)
-		; ld l,a
-		; xor a
-		; ld h,a
+		ld a,(klavesa)
+		ld l,a
+		xor a
+		ld h,a
 
-		; call NUM
-		; ld hl,40*256+31
-		; ld a,16
-		; ld de,NUMBUF
-		; call print
+		call NUM
+		ld hl,40*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
 
 
-		; ld a,(POSKURZL)
-		; ld l,a
-		; ld h,0
-		; call NUM
-		; ld hl,1*256+31
-		; ld a,16
-		; ld de,NUMBUF
-		; call print
+		ld a,(POSKURZL)
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,1*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
 
-		; ld hl,(STARTWINL)
-		; call NUM
-		; ld hl,9*256+31
-		; ld a,16
-		; ld de,NUMBUF
-		; call print
+		ld hl,(STARTWINL)
+		call NUM
+		ld hl,9*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
 
-		; ld a,(POSKURZL)
-		; ld l,a
-		; ld h,0
-		; ex de,hl
-		; ld hl,(STARTWINL)
-		; add hl,de
-		; inc hl
-		; call find83
-		; xor a
-		; ld (TMP83+11),a
-		; ld hl,20*256+31
-		; ld a,16
-		; ld de,TMP83
+		ld a,(POSKURZL)
+		ld l,a
+		ld h,0
+		ex de,hl
+		ld hl,(STARTWINL)
+		add hl,de
+		inc hl
+		call find83
+		xor a
+		ld (TMP83+11),a
+		ld hl,20*256+31
+		ld a,16
+		ld de,TMP83
 		
-		; call print
+		call print
 
-		; ld a,(POSKURZR)
-		; ld l,a
-		; ld h,0
-		; call NUM
-		; ld hl,41*256+31
-		; ld a,16
-		; ld de,NUMBUF
-		; call print
+		ld a,(POSKURZR)
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,41*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
 
-		; ld hl,(STARTWINR)
-		; call NUM
-		; ld hl,49*256+31
-		; ld a,16
-		; ld de,NUMBUF
-		; call print
+		ld hl,(STARTWINR)
+		call NUM
+		ld hl,49*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
 
-		; ld a,(POSKURZR)
-		; ld l,a
-		; ld h,0
-		; ex de,hl
-		; ld hl,(STARTWINR)
-		; add hl,de
-		; inc hl
-		; call find83
-		; xor a
-		; ld (TMP83+11),a
-		; ld hl,60*256+31
-		; ld a,16
-		; ld de,TMP83
+		ld a,(POSKURZR)
+		ld l,a
+		ld h,0
+		ex de,hl
+		ld hl,(STARTWINR)
+		add hl,de
+		inc hl
+		call find83
+		xor a
+		ld (TMP83+11),a
+		ld hl,60*256+31
+		ld a,16
+		ld de,TMP83
 		
-		; call print
+		call print
 
 ;*******************************
 
@@ -438,8 +477,8 @@ loop0
 		jp z,rightcur
 		cp 8
 		jp z,leftcur
-		cp 4		;true video
 		
+		cp 4		;true video
 		jp z,changewin
 		
 		cp 13
@@ -478,7 +517,8 @@ loop0
 		jp z,rightwin
 		cp "h"
 		jp z,help
-
+		cp "c"
+		jp z,CHNG_ATTR
 		cp 199
 		jp z,quit
 
@@ -860,8 +900,13 @@ name   	defs 60
 
 
 enter_directory
+		call dospage
+		ld hl,actdisc
+		call ROZHOD
+		ld a,(hl)
+		call $012d		;změna disku
 
-
+		call basicpage
 		ld b,11
 		ld hl,TMP83
 CCC							;vynuluj všechny stavové bity v názvu (7.)
@@ -1065,6 +1110,11 @@ ammm0
 DIRTMP  defb "C:",255
 
 getdir	
+		ld hl,actdisc
+		call ROZHOD
+		ld a,(hl)
+		ld (DIRTMP),a
+
 		ld hl,pathl
 		call ROZHOD2
 		ld a,(hl)
@@ -1094,17 +1144,31 @@ pozice2 defw 40* 256 + 1
 adrl	defw $4000+2
 adrr 	defw $4000+2+80
 
-changewin
-		ld a,0
-		call writecur
+PROHOD
 		ld a,(OKNO)
 		xor 16
 		ld (OKNO),a
+
+		call dospage
+		ld hl,actdisc
+		call ROZHOD
+		ld a,(hl)
+		call $012d
+		call basicpage		;změn aktualni disk
+		ret
+
+
+changewin
+CHANGEWIN		
+
+		ld a,0
+		call writecur
+		call PROHOD
 		ld a,32
 		call writecur
 
 		call dospage
-		
+	
 		ld hl,pathl
 		call ROZHOD2
 		ld a,(hl)
@@ -1116,13 +1180,10 @@ changewin
 		call $01b1
 		
 		call basicpage
-
-
 		jp loop0
 
 bufscr equ $e000
-;Uloží obrazovku do banky 19 ZX Next. Ukládají se spodní dvě třetiny obrazovky,
-;a celé atributy. Banka 19 se stránkuje od adresy $e000
+;Uloží obrazovku do banky 19 ZX Next.
 savescr	
 		nextreg $57,19				;Stránka na uložení VideoRam
 		ld hl,16384
@@ -1134,7 +1195,7 @@ savescr
 
 
 
-;Obnovení spodních dvou třetin obrazovky z 19 stárnky ZX Next.		
+;Obnovení obrazovky z 19 stárnky ZX Next.		
 loadscr	
 		nextreg $57,19
 		ld hl,bufscr
@@ -1145,6 +1206,16 @@ loadscr
 		ret
 DDDD
 down
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		jp z,loop0
+		
+		
+		
 		ld hl,POSKURZL
 		call ROZHOD
 		ld a,(hl)
@@ -1310,6 +1381,14 @@ DDD
 downall	defw 0, 0
 
 up
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		jp z,loop0
+
 		ld hl,POSKURZL
 		call ROZHOD
 		ld a,(hl)
@@ -1540,9 +1619,17 @@ ConvertRomCharTo4bpp:
 .pixelTable:
        DB      $00, $03, $30, $33
 
-
+SHWN
 showwin	
-		
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		ret z
+
+
 		ld hl,STARTWINL
 		call ROZHOD2
 		ld a,(hl)
@@ -1551,16 +1638,15 @@ showwin
 		ld l,a
 
 		ld a,2
-		ld (ypos+1),a
+		ld (ypos+1),a			;vynuluj Y pozici
+
 		push hl
 		ld hl,ALLFILES
 		call ROZHOD2
 		ld a,(hl)
 		inc hl
-		ld h,(hl)
-		ld l,a
-		ld b,h
-		ld c,l
+		ld b,(hl)
+		ld c,a
 
 		ld h,b
 		ld l,c
@@ -1572,15 +1658,27 @@ showwin
 		inc hl
 		ld h,(hl)
 		ld l,a
+
 		ld de,3
 		add hl,de
 		ld a,(hl)
 		cp 255
 		jr z,sw0
+		dec hl
+		ld a,(hl)
+		
+		cp 255
+		jr z,ssw0
+		ld hl,1
+
 		dec bc
+		jr sw0
+ssw0	pop de
+		pop hl
+		dec hl
+		push hl
+		push de
 sw0
-
-
 
 		pop hl
 		ld de,28
@@ -1594,7 +1692,9 @@ SSS		pop hl
 showloop
 		push hl
 		push bc
+
 		inc hl
+
 		call find83
 		call BUFF83					
 
@@ -1608,9 +1708,6 @@ nonselect
 		ld a,0
 		ld (inkcolor+1),a
 isselect		
-
-
-
 		ld hl,(TMP83+11)
 		ld (velikost+1),hl
 		pop bc
@@ -1737,6 +1834,23 @@ mull		ld d,l		;vynásob spodní byty
 
 ;HL ... pozice
 find83
+		push hl
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ld de,2
+		add hl,de
+		ld a,(hl)
+
+		pop hl
+		cp 255
+		jr nz,find830
+		dec hl
+find830
 		ld b,13
 		call mull
 		ld de,$a000
@@ -1749,6 +1863,10 @@ find83
 		ldir
 		call NOBUFF83
 		ret
+
+
+
+
 FFF
 foundfile	defw 0		
 TMP83	ds 13
@@ -2084,13 +2202,13 @@ info0
 infoend call loadscr
 		jp loop0
 		
-calmcommander	defb "CALM COMMANDER 0.2 (Development version 2020)",0		
-breaktxt defb "BREAK: close this window",0		
-info1txt defb "File manager for ZX Spectrum Next. ",0
-info2txt defb "Main program: Shrek/MB Maniax",0
-info3txt defb "Big help: ped7g",0
-info4txt defb " ",0
-info5txt defb "Greetinx: Logout, z00m, mborik",0
+calmcommander	defb "CALM COMMANDER 0.3 (Development version 2020)",0		
+breaktxt 		defb "BREAK: close this window",0		
+info1txt 		defb "File manager for ZX Spectrum Next. ",0
+info2txt 		defb "Main program: Shrek/MB Maniax",0
+info3txt 		defb "Big help: ped7g",0
+info4txt 		defb " ",0
+info5txt 		defb "Greetinx: Logout, z00m, mborik",0
 
 kresli	
 		ld hl,0 * 256 + 1
@@ -2351,14 +2469,12 @@ reload_dir
               ldir              ;make sure at least first en try is
               ld de,catbuff     ;the lo ca tion to be filled with the
 aNextDirItem
-              ld b,pocetpolozek ;the num ber of en tries in the
+            ld b,pocetpolozek ;the num ber of en tries in the
                                 ;buffer
-              ld c,%101            ;include sys tem files in the cata
-              ld hl,stardstar   ;the file name ("*.*")
-              call dos_catalog  ;call the DOS en try
+            ld c,%101            ;include sys tem files in the cata
+            ld hl,stardstar   ;the file name ("*.*")
+            call dos_catalog  ;call the DOS en try
 NEXT0			  
-			 
-			  
 			ld (savehl),hl
 			ld (saveix),ix
 			ld a,b
@@ -2421,22 +2537,20 @@ acont
 
 			
 
-              pop hl
-              ld (dosret),hl    ;put it where it can be seen from
+            pop hl
+            ld (dosret),hl    ;put it where it can be seen from
                                 ; NextBASIC
-              ld c,b            ;move num ber of files in cat a log to
+            ld c,b            ;move num ber of files in cat a log to
                                 ;low byte of BC
-              ld b,0            ;this will be re turned in NextBASIC
+            ld b,0            ;this will be re turned in NextBASIC
                   
-              di                ;about to ROM/RAM switch so be
-                                ;care ful
-              push bc           ;save num ber of files
-			call basicpage
+            di                ;about to ROM/RAM switch so be
+                               ;care ful
+            push bc           ;save num ber of files
+ 			call basicpage
               pop bc            ;get back the saved num ber of files
               dec bc
               
-              
-
 			 call BUFF83
 JKJK			 
 			 ld hl,catbuff+13
@@ -2531,7 +2645,8 @@ getAllLFN
 			inc hl
 			ld b,(hl)
 			ld c,a
-			
+			or b
+			ret z		
 LFN1		push bc
 			
 			ld hl,(numLoop)
@@ -2613,6 +2728,26 @@ addrlfn		dw 0
 FINDLFN
 			
 			push hl
+
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ld de,2
+		add hl,de
+		ld a,(hl)
+
+		pop hl
+		cp 255
+		jr nz,findlfn830
+		inc hl
+findlfn830
+		push hl
+
 			ld hl,lfnpage
 			call ROZHOD
 			ld a,(hl)
@@ -2719,7 +2854,348 @@ Count11		ld hl,catbuff
 			ld (Count11+1),hl
 	
 			ret
+changedrivetxt defb "Select drive:",0
 
+selecttxt	defb "ENTER = select",0
+
+changedrive	
+		ld hl,5 * 256 + 5
+		ld bc,30 * 256 + 17
+		ld a,16
+		call window
+
+		ld hl,6*256+6
+		ld a,16
+		ld de,changedrivetxt
+		call print					
+
+		ld hl,21*256+22
+		ld a,16
+		ld de,selecttxt
+		call print					
+		ld hl,25*256+21
+		ld a,16
+		ld de,notxt
+		call print					
+
+
+
+		ld a,(pocetdisku)
+		ld b,a
+		ld de,listdisc
+		exx
+		ld hl,discdetail
+		exx
+		ld hl,$4000 + 160*8 + 16
+CHNG
+chngdrv0
+
+		ld a,(de)
+		ld (hl),a
+		inc hl
+		ld (hl),16
+		inc hl
+		ld (hl),":"
+		inc hl
+		ld (hl),16
+		inc hl
+		push hl
+
+		exx
+		ld a,(hl)
+		pop hl
+		push hl
+		cp 4
+		call z,showramdisc
+		cp 255
+		call z,showimagedisc
+		exx
+		
+		pop hl
+		push de
+		ld de,160-4
+		add hl,de
+		pop de
+		inc de
+		djnz chngdrv0
+		ld a,64
+		call writecurdrv
+chng0	call INKEY
+		cp 10
+		jr z,curchngdown
+
+		cp 11
+		jr z,curchngup
+		cp 1
+		jp z,loop0
+		cp 13
+		jp z,enterdrv
+		jp chng0
+
+
+
+
+curchngup
+		ld a,(posdrv)
+		cp 0
+		jp z,chng0
+
+		ld a,16
+		call writecurdrv
+		ld a,(posdrv)
+		dec a
+		ld (posdrv),a
+		ld a,64
+		call writecurdrv
+
+		jp chng0
+
+
+curchngdown
+		ld a,(posdrv)
+		inc a
+		ld hl,pocetdisku
+		cp (hl)
+		jr z,chng0
+
+		ld a,16
+		call writecurdrv
+		ld a,(posdrv)
+		inc a
+		ld (posdrv),a
+		ld a,64
+		call writecurdrv
+		jp chng0
+
+showramdisc	
+		ld de,ramdisc
+		call showtyp
+		xor a
+		ret
+showimagedisc
+		ld de,image
+		call showtyp
+		xor a
+		ret
+
+showtyp	
+		ld a,(de)
+		or a
+		ret z
+shwtyp0	ld (hl),a
+		inc hl
+		ld (hl),16
+		inc hl
+		inc de
+		jr shwtyp0
+
+
+enterdrv
+		call dospage
+HNH		
+		ld a,(posdrv)
+		ld e,a
+		ld d,0	
+		ld hl,listdisc
+		add hl,de
+		ld a,(hl)
+		push af
+		call $012d
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		ld hl,actdisc
+		call ROZHOD
+	
+		pop af
+		ld (hl),a
+
+		call basicpage
+		call getdir
+
+
+		ld hl,0
+		ld hl,ALLFILES
+		call ROZHOD2
+		xor a
+		ld (hl),a
+		inc hl
+		ld (hl),a
+		ld hl,POSKURZL
+		call ROZHOD
+		xor a
+		ld (hl),a
+		
+RLD		call reload_dir
+
+		ld hl,pozicel
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		ld bc,38 * 256 + 27
+		ld a,0
+		call window
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,aroot
+		ld a,1
+		ld (astar+1),a
+		jr arcont
+aroot	xor a
+		ld (astar+1),a
+arcont	ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		
+		ld (adrs+1),hl
+astar	ld hl,1
+		push hl
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+
+		pop hl
+		jp z,loop0
+		call showwin
+		ld a,32
+		call writecur
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,asnula
+		ld hl,1
+		jr ascont
+asnula	ld hl,0
+ascont
+
+		ld hl,ALLPOSL
+		call ROZHOD2
+		ld (hl),0
+		ld hl,STARTWINL
+		call ROZHOD2
+		push hl
+		call getroot_reload
+		pop de
+		ex de,hl
+		
+		ld (hl),e
+		inc hl
+		ld (hl),d
+
+
+
+		jp loop0
+
+
+
+ramdisc	defb " (ramdisc)",0
+image	defb " (image)  ",0
+
+writecurdrv
+		ld (chngcol+1),a
+		ld a,(posdrv)
+		
+		ld e,a
+		ld d,160
+		mul d,e
+		ld hl,$4000 + 160*8 + 17
+		add hl,de
+		ld b,5
+wrcurdrv
+chngcol	ld (hl),64
+		inc hl
+		inc hl
+		djnz wrcurdrv		
+
+		ret
+
+
+chng_save	
+SAVE
+
+		call dospage
+		ld d,00000111b
+		ld e,0
+		ld ix,TMP83+7
+		bit 7,(ix+1)
+		call z,clr_ro
+		bit 7,(ix+2)
+		call z,clr_sys
+		bit 7,(ix+3)
+		call z,clr_arch
+		push de
+		ld hl,(foundfile)		
+		call BUFF83
+		ld de,8
+		add hl,de
+		ex de,hl
+		ld hl,TMP83+8
+		ld bc,3
+		ldir
+
+		call NOBUFF83
+		ld hl,TMP83
+		ld b,11
+		ld hl,TMP83
+c_save							;vynuluj všechny stavové bity v názvu (7.)
+		res 7,(hl)
+		inc hl
+		djnz c_save
+
+		ld hl,TMP83
+		ld a,255
+		ld (TMP83+11),a
+		pop de
+		call 0148h 
+		call basicpage
+
+		call loadscr
+		jp loop0
+
+clr_ro	
+		set 2,e
+		ret
+clr_sys	
+		set 1,e
+		ret
+clr_arch	
+		set 0,e
+		ret
+
+
+posdrv	defb 0
 
 ALLFILESL  defw ALLFILES, ALLFILES2
 
@@ -2757,7 +3233,7 @@ tilemapPalette:
 				db  %101'101'11,0       ; 0 white-blueish (ink)
                 db  %110'001'00,1       ; 4 red
                 db  %111'110'00,1       ; 5 yellow
-                db  %000'100'00,0       ; 6 green
+                db  %000'110'00,0       ; 6 green
 				ds 18
 				db  %000'011'10,1       ; 0 modra (paper)					32
                 db  %100'100'10,1       ; 1 light grey (25% ink)
@@ -2817,6 +3293,13 @@ tilemapFont_char24:
 
 
 leftcur
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		jp z,loop0
 		ld hl,POSKURZL
 		call ROZHOD
 		ld (smcur+1),hl
@@ -2920,6 +3403,13 @@ pocatekleft
 
 RGHT
 rightcur
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		jp z,loop0
 		ld hl,POSKURZL
 		call ROZHOD
 		ld (smcur+1),hl
@@ -3156,6 +3646,7 @@ selcont
 
 
 quittxt	defb "You want realy quit from Calm Commander?",0
+emul    defb "Sorry, you use emulator... ;) Reset not works.",0
 
 quit
 		call savescr
@@ -3189,7 +3680,200 @@ quit0
 
 softreset 
 		nextreg 2,1		
-ss 		jr ss				
+
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,emul
+		call print		
+
+		ld hl,11*256+15
+		ld a,16
+		ld de,pressanykeytxt
+		call print		
+
+
+		call INKEY
+		call loadscr
+		jp loop0
+
+
+CHNG_ATTR
+		call savescr
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		ld l,a
+		ld h,0
+
+		push hl
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ex de,hl
+		pop hl
+		add hl,de
+		push hl
+		inc hl
+		call BUFF83
+		call find83
+		pop hl
+		call FINDLFN
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 10
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,attr_nadpis
+		call print
+
+		ld hl,11*256+13
+		ld a,16
+		ld de,readonlytxt
+		call print
+
+		ld hl,11*256+14
+		ld a,16
+		ld de,systemfiletxt
+		call print
+
+		ld hl,11*256+15
+		ld a,16
+		ld de,archivedtxt
+		call print
+
+		xor a
+		ld hl,LFNNAME+44
+		ld (hl),a
+		ld hl,24*256+17
+		ld a,16
+		ld de,LFNNAME
+		call print
+
+		ld hl,11*256+17
+		ld a,16
+		ld de,namefile
+		call print
+
+		ld hl,55*256+20
+		ld a,48
+		ld de,savetxt
+		call print		
+
+		ld hl,55*256+19
+		ld a,16
+		ld de,notxt
+		call print		
+;vyhodnocení
+		
+chng00	call showattr
+		call INKEY
+		cp 1
+		jr z,chng_end
+		cp "r"
+		jp z,switch_ro
+		cp "s"
+		jp z,switch_sys
+		cp "a"
+		jp z,switch_arch
+		cp 13
+		jp z,chng_save
+		jr chng00
+chng_end
+		call loadscr
+		jp loop0
+
+
+switch_sys
+		ld ix,TMP83+7
+		bit 7,(ix+2)
+		jr z,set_sys
+		res 7,(ix+2)
+		jp chng00
+set_sys  set 7,(ix+2)
+		jp chng00
+
+switch_arch
+		ld ix,TMP83+7
+		bit 7,(ix+3)
+		jp z,set_arch
+		res 7,(ix+3)
+		jp chng00
+set_arch set 7,(ix+3)
+		jp chng00
+
+switch_ro
+		ld ix,TMP83+7
+		bit 7,(ix+1)
+		jr z,set_ro
+		res 7,(ix+1)
+		jp chng00
+set_ro  set 7,(ix+1)
+		jp chng00
+
+showattr	
+		ld ix,TMP83+7
+
+		bit 7,(ix+1)
+		jr z,ro_null
+		ld a,27
+		jr readonly
+ro_null	ld a,25
+
+readonly
+		ld hl,$4000 + 160 * 13 + 50
+		ld (hl),a
+		inc hl
+		ld a,16
+		ld (hl),a
+
+		bit 7,(ix+2)
+		jr z,sys_null
+		ld a,27
+		jr system
+sys_null	ld a,25
+
+system
+		ld hl,$4000 + 160 * 14 + 50
+		ld (hl),a
+		inc hl
+		ld a,16
+		ld (hl),a
+
+
+		bit 7,(ix+3)
+		jr z,arch_null
+		ld a,27
+		jr archive
+arch_null	ld a,25
+
+archive
+		ld hl,$4000 + 160 * 15 + 50
+		ld (hl),a
+		inc hl
+		ld a,16
+		ld (hl),a
+		ret
+namefile	defb "Name of file:",0
+attr_nadpis	defb "Edit file attribute",0
+readonlytxt	defb "[R]ead only",0
+systemfiletxt defb "[S]ystem file",0
+archivedtxt defb "[A]rchived",0
+DSC
+discdetail
+		defs 15
+
 
 		include "functions/menu.asm"
 		include "functions/search.asm"

@@ -177,9 +177,7 @@ REN3
 		call writecur
 
 
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl
@@ -227,9 +225,7 @@ REN3
 		ld (adrs+1),hl
 		call getroot_reload
 		call showwin
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl

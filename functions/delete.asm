@@ -228,9 +228,7 @@ mmorekonec
 
 
 ;---------------------------	
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl
@@ -280,9 +278,7 @@ mmorekonec
 		ld (adrs+1),hl
 		call getroot_reload
 		call showwin
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl
@@ -483,9 +479,7 @@ KON
 		ld a,32
 		call writecur
 ;---------------------------		
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl
@@ -535,9 +529,7 @@ KON
 		ld (adrs+1),hl
 		call getroot_reload
 		call showwin
-	ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 		call dospage
 		ld hl,pathl

@@ -279,13 +279,13 @@ menuenter
             jp (hl)
 
 text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                                                       ",0
-nadpis 		defb " Calm Commander 0.2 (Development version)                                                   ",0
+nadpis 		defb " Calm Commander 0.3 (Development version)                                                   ",0
 menupos		defb 0, 18, 34, 50,66
 
 nummenu		defb 0				;jakou položku zobrazit v menu
 ;definice položek horního menu
 menuitems	defw menuleft, menufile, menuutil, menuright, menuquit
-menulenght	defb 3, 5, 2, 3, 2	;počet položek v daném menu
+menulenght	defb 3, 6, 2, 3, 2	;počet položek v daném menu
 ;pozice kurzoru v menu
 menucur 	defb 0
 menuleft	defb " SELECT FILES   (+)",0
@@ -293,7 +293,7 @@ menuleft	defb " SELECT FILES   (+)",0
 			defb " DESEL. FILES   (-)",0
 			defw deselect_files_left
 			defb " CHANGE DRIVE      ",0
-			defw notnow
+			defw notnow						;changedrive
 			defb 255
 menufile    defb " COPY              ",0
 			defw copy
@@ -305,6 +305,8 @@ menufile    defb " COPY              ",0
 			defw RENAME
 			defb " FILE INFO         ",0
 			defw notnow
+			defb " CHANGE ATTRIBUTE  ",0
+			defw notnow
 			defb 255
 
 menuright	defb " SELECT FILES   (+)",0
@@ -312,7 +314,7 @@ menuright	defb " SELECT FILES   (+)",0
 			defb " DESEL. FILES   (-)",0
 			defw deselect_files_right
 			defb " CHANGE DRIVE      ",0
-			defw notnow
+			defw notnow    ;changedrive
 			defb 255
 menuutil 	defb " HELP           (H)",0
 			defw help

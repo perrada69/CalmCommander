@@ -2,9 +2,7 @@ LENGHT_BUFFER	equ 6*1024
 PAGE_BUFF		equ 3
 createfile
 
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 
 
 		call dospage
@@ -29,9 +27,7 @@ createfile
 
 
 
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		call PROHOD
 		call dospage
 		
 		ld hl,pathl
