@@ -295,17 +295,17 @@ menuleft	defb " SELECT FILES   (+)",0
 			defb " CHANGE DRIVE      ",0
 			defw notnow						;changedrive
 			defb 255
-menufile    defb " COPY              ",0
+menufile    defb " COPY           (5)",0
 			defw copy
-			defb " MOVE              ",0
+			defb " MOVE           (6)",0
 			defw move
-			defb " DELETE            ",0
+			defb " DELETE         (8)",0
 			defw delete
-			defb " RENAME            ",0
+			defb " RENAME         (9)",0
 			defw RENAME
-			defb " FILE INFO         ",0
+			defb " FILE INFO      (I)",0
 			defw info_file
-			defb " CHANGE ATTRIBUTE  ",0
+			defb " CHANGE ATTR.   (C)",0
 			defw CHNG_ATTR
 			defb 255
 

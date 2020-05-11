@@ -4232,7 +4232,7 @@ snuly	ld a,(hl)
 
 sysatrtxt	defb "System attributes:",0
 fileinfonadpis
-			defb "File informations",0 
+			defb "File/directory informations:",0 
 filedate	defb "Date:",0
 filetime	defb "Time:",0
 tecka		defb ". ",0
