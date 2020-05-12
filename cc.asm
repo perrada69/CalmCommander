@@ -326,6 +326,15 @@ STOP
 		ld a,16
 
 		call freespace
+
+		call GETDIR
+        ld de,emptydir
+		ld hl,48*256+1
+		call print
+
+		ld hl,50*256+1
+		ld de,LFNNAME
+		call print
 loop0	
 		ld   hl,$4000+160*15+23
 		ld (PROGS+1),hl
@@ -1103,6 +1112,9 @@ scont
 		ld (hl),e
 		inc hl
 		ld (hl),d
+
+		call GETDIR
+
 		jp loop0
 
 
@@ -3373,6 +3385,8 @@ dosret:
 numLoop		defw 0
 FILES    	defb 0
 dirNum	 	defw 0
+
+				include "functions/getdir.asm"
 tilemapPalette:
                 db  %000'000'11,1       ; 0 modra(paper)					0
                 db  %100'100'10,1       ; 1 light grey (25% ink)
