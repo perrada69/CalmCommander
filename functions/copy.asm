@@ -2,6 +2,9 @@ onecopytxt 	defb "Copy file: ",0
 onemovetxt	defb "Move file: ",0
 onedeletetxt 	defb "Delete file/directory: ",0
 yestxt		defb "ENTER = yes",0
+yesall		defb "SPACE = yes to all directory",0
+yesallsp	defb "                            ",0
+
 createtxt	defb "ENTER = create",0
 renametxt	defb "ENTER = rename",0
 searchtxt	defb "ENTER = search",0

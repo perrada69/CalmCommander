@@ -74,6 +74,12 @@ mdeletewait
 		
 mdeletecont 
 
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,deleting
+		call print	
+
 		ld hl,numsel
 		call ROZHOD2
 
@@ -297,7 +303,8 @@ mmorekonec
 
 
 delete
-DA
+		xor a
+		ld (yestoall),a
 		ld hl,numsel
 		call ROZHOD2
 		ld a,(hl)
@@ -354,11 +361,6 @@ DA
 		ld de,onedeletetxt
 		call print		
 		
-
-
-
-
-
 		ld hl,LFNNAME
 		ld de,bfname
 		ld bc,35
@@ -548,10 +550,16 @@ KON
 
 errordel	defb "Directory is not empty. Delete?",0
 
-vymaz_vse_v_adresari	
+vymaz_vse_v_adresari
+
 		ld a,0
 		or a
 		jr nz,smaz
+
+		ld a,(yestoall)
+		cp 1
+		jr z,smaz
+
 		ld a,1
 		ld (vymaz_vse_v_adresari+1),a
 	
@@ -571,6 +579,12 @@ vymaz_vse_v_adresari
 		ld de,yestxt
 		call print		
 
+		ld hl,11*256+15
+		ld a,16
+		ld de,yesall
+		call print		
+
+
 		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
@@ -581,7 +595,24 @@ edeletewait
 		jp z,ecopyend
 		cp 13
 		jr z,smaz
+		cp 32
+		jr z,toall
 		jr edeletewait
+toall	ld a,1
+		ld (yestoall),a		
+		ld hl,11*256+15
+		ld a,16
+		ld de,yesallsp
+		call print	
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,deleting
+		call print	
+
+		ld   hl,$4000+160*15+23 + 1 + 62
+		ld (hl),"|"
+
 smaz
 		ld hl,60*256+14
 		ld a,16
@@ -616,7 +647,13 @@ smaz
 		ld hl,TMP83
 		call $01b1		;změň adresář
 
-ecopyend	call loadscr
-		ret
+ecopyend	ld a,(yestoall)
+			or a
+			ret nz
+			call loadscr
+			ret
+
 vse			defb "*.*",255
 parrentdir 	defb "..",255
+yestoall	defb 0
+deleting	defb "Deleting...                      ",0
