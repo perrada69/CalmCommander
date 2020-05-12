@@ -814,12 +814,12 @@ gettime
 		ld l,a
 		ld h,0
 		call NUM
-		ld hl,74*256+0
+		ld hl,63*256+0
 		ld a,16
 		ld de,NUMBUF+3
 		call print
 
-		ld hl,76*256+0
+		ld hl,65*256+0
 		ld a,16
 		ld de,dvojt
 		call print
@@ -831,13 +831,75 @@ gettime
 		call NUM
 		xor a
 		ld (NUMBUF+3+2),a
-		ld hl,77*256+0
+		ld hl,66*256+0
 		ld a,16
 		ld de,NUMBUF+3
 
 		call print
 timeend		
 		call basicpage
+
+		ld de,(dosdate)
+        ld   a,e
+        and  31
+        push de
+
+		ld l,a
+		ld h,0
+		call NUM
+		ld hl,69*256+0
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+
+		ld hl,71*256+0
+		ld a,16
+		ld de,tecka
+		call print
+
+		pop de
+		
+		ld   a,e
+        ld   b,d
+        srl  b
+        push bc
+        rra  
+        rra  
+        rra  
+        rra  
+        rra  
+        and  15
+
+		ld l,a
+		ld h,0
+		call NUM
+		;call smaznuly
+		ld hl,72*256+0
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+		ld hl,74*256+0
+		ld a,16
+		ld de,tecka
+		call print
+
+		pop af
+
+		ld l,a
+		ld h,0
+		ld de,1980
+		add hl,de
+		call NUM
+		call smaznuly
+		ld hl,75*256+0
+
+		ld de,NUMBUF+1
+		xor a
+		ld (NUMBUF+1+4),a
+		ld a,16
+		call print
+
+
 		ret
 den		defb 0
 mesic	defb 0

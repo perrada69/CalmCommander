@@ -365,7 +365,9 @@ delete
 		ld de,bfname
 		ld bc,35
 		ldir
-		
+		ld hl,bfname+37
+		xor a
+		ld (hl),a
 		ld hl,34*256+11
 		ld a,16
 		ld de,bfname
