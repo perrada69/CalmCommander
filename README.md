@@ -13,6 +13,9 @@
 - search and deselect files
 - switch between window
 - menu
+- file/directory info (show date, time, size, attributes...)
+- change file/directory attributes
+- show date, time
 
 ### Some screenshots:
 
