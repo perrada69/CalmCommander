@@ -154,7 +154,13 @@ smazdirm	ld a,0
 		call nc,vymaz_vse_v_adresari
 		jr pokrm
 nenidirm
+		ld d,00000000b
+		ld e,0
+		ld hl,TMP83
+		set 1,e
+		call 0148h
 	
+
 		ld hl,TMP83
 		call $0124
 
@@ -424,9 +430,15 @@ ED		call $01b1
 		call nc,vymaz_vse_v_adresari
 		jr pokr
 nenidir
-	
+		ld d,00000000b
+		ld e,0
+		ld hl,TMP83
+		set 1,e
+		call 0148h
+
 		ld hl,TMP83
 		call $0124
+
 
 pokr	
 		call basicpage
@@ -636,6 +648,13 @@ smaz
 		xor a 			;change path
 		ld hl,TMP83
 		call $01b1		;změň adresář
+
+		ld d,00000000b
+		ld e,0
+		ld hl,vse
+		set 1,e
+		call 0148h
+
 
 		ld hl,vse
 		call $0124

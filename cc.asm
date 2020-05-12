@@ -3300,8 +3300,6 @@ chngcol	ld (hl),64
 
 
 chng_save	
-SAVE
-
 		call dospage
 		ld d,00000111b
 		ld e,0
