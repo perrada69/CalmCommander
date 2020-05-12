@@ -1120,7 +1120,7 @@ DEC32	 push iy
 		 call D32B
 DEC32SP  ld   de,NUMB
 dec32pos ld   hl,1*256+1
-		 ld a,0
+decink	 ld a,0
          call  print
 		 pop iy
 		 ret
@@ -4199,10 +4199,34 @@ info_file
 		ld de,archivedtxt2
 		call print
 
+		ld hl,11*256+18
+		ld a,16
+		ld de,sizetxt
+		call print
+
+
+		ld hl,16*256+18
+		ld (dec32pos+1),hl
+		ld hl,(LFNNAME+261)
+		ld de,(LFNNAME+261+2)
+		ld b,10
+		ld a,16
+		ld (decink+1),a
+		call DEC32
+		ld a,0
+		ld (decink+1),a
+
+		ld hl,27*256+18
+		ld a,16
+		ld de,bytestxt
+		call print
+
+
 		ld hl,11*256+20
 		ld a,16
 		ld de,pressanykeytxt
 		call print
+
 
 
 		call showattr_info
@@ -4210,6 +4234,8 @@ info_file
 		call loadscr
 		jp loop0
 
+sizetxt	defb "Size:",0
+bytestxt defb "bytes",0
 ;DE - datum
 showdate
         ld   a,e
