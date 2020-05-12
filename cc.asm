@@ -327,6 +327,34 @@ STOP
 
 		call freespace
 
+		ld hl,emptypos
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld de,emptydir
+        xor a
+		call print
+		ld a,(OKNO)
+		xor 16
+		ld (OKNO),a
+
+		ld hl,emptypos
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld de,emptydir
+        xor a
+		call print
+
+		ld a,(OKNO)
+		xor 16
+		ld (OKNO),a
+
+
 		call GETDIR
         ld de,emptydir
 		ld hl,48*256+1
@@ -1080,6 +1108,17 @@ rcont	ld hl,adrl
 		ld (adrs+1),hl
 star	ld hl,1
 		call showwin
+
+		ld hl,emptypos
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld de,emptydir
+        xor a
+		call print
+
 		ld a,32
 		call writecur
 
@@ -2533,7 +2572,7 @@ atr2	ld (hl),0
 		ld a,19
 		ld (hl),a
 		inc hl
-		
+
 atr3	ld (hl),0
 		ld de,160-1
 		add hl,de

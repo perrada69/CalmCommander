@@ -154,24 +154,15 @@ prk00							;vynuluj všechny stavové bity v názvu (7.)
         call basicpage
 PRK5		
         ld hl,LFNNAME
-        ld bc,15
+        ld bc,20
         ld a,255
         cpir
         dec hl
 
         xor a
 		ld (hl),a
-        ld (LFNNAME+15),a
+        ld (LFNNAME+19),a
 
-		ld hl,emptypos
-        call ROZHOD2
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
-        ld de,emptydir
-        xor a
-		call print
 
 		ld hl,dirpos
         call ROZHOD2
@@ -186,22 +177,12 @@ PRK5
 
 
 getdirroot	
-		ld a,32
+    	ld a,"/"
 		ld (LFNNAME),a
-		ld a,"/"
-		ld (LFNNAME+1),a
 		xor a
-		ld (LFNNAME+2),a
+		ld (LFNNAME+1),a
 		
-		ld hl,emptypos
-        call ROZHOD2
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
-        ld de,emptydir
-        xor a
-		call print
+
 
 		ld hl,dirpos
         call ROZHOD2
