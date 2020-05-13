@@ -282,6 +282,7 @@ neskenuj
 		ld hl,nadpis
 		ld de,#4000
 		ld bc,80
+
 menu0		
 		ld a,(hl)
 		ld (de),a
@@ -305,7 +306,6 @@ menu0
 		ld (actdisc+1),a
 		call basicpage
 
-STOP		
 		call reload_dir
 		
 		ld hl,$4000+2
@@ -370,7 +370,7 @@ loop0
 
 		call gettime
 		nextreg $56,0
-		nextreg $55,20
+		nextreg $55,20 
 
 
 		ld hl,1*256+30
@@ -838,7 +838,7 @@ gettime
 		push af
 		call basicpage
 		pop af
-		jp nc,timeend
+		jp nc,notimeend
 
 		 ld   a,d
          ld   b,e
@@ -942,6 +942,16 @@ gettime
 
 timeend
 		ret
+
+
+notimeend	
+		ld hl,63*256+0
+		ld a,16
+		ld de,notimetxt
+		call print	
+		ret
+notimetxt defb "                ",0
+istime	defb 0
 den		defb 0
 mesic	defb 0
 rok		defb 0
@@ -1581,9 +1591,11 @@ find830
 
 
 
-FFF
+
 foundfile	defw 0		
-TMP83	ds 13
+TMP83		ds 13
+
+
 INKEY 	call gettime
 		xor  a				           
         ld   (aLAST_KEY+1),a		 

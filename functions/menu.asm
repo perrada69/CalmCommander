@@ -1,24 +1,14 @@
 menu	
-		ld hl,text
-		ld de,#4000
-		ld bc,80
-menu000		
-		ld a,(hl)
-		ld (de),a
-		inc de
+		ld hl,0*256+0
+		ld de,text
 		ld a,16
-		ld (de),a
-		inc de
-		inc hl
-		dec bc
-		ld a,c
-		or b
-		jr nz,menu000
-
+		call print
+		call gettime
 		call savescr
 		
 		call show_menu
-menu01	
+menu01
+
 
 		call INKEY
 
@@ -26,7 +16,7 @@ menu01
 		jp z,menu_exit
 		
 		cp 10
-		jr z,menudown
+		jp z,menudown
 		cp 11
 		jp z,menuup
 		cp 9
@@ -66,6 +56,8 @@ menu_right
 		inc a
 		ld (nummenu),a
 		call loadscr
+		call gettime
+		call savescr
 		ld a,1
 		ld (curmeny+1),a
 		
@@ -84,6 +76,8 @@ menu_left
 		dec a
 		ld (nummenu),a
 		call loadscr
+		call gettime
+		call savescr
 		ld a,1
 		ld (curmeny+1),a
 		
@@ -172,34 +166,32 @@ sm0		add a,2
 		ld l,a
 		ld (adresa_polozky+1),hl		;uloz definované menu
 
-menux		ld hl,$4000+2
-			ld (curmen+1),hl
-			inc hl
-			ld a,48
-			ld (hl),a
+menux	ld hl,$4000+2
+		ld (curmen+1),hl
+		inc hl
+		ld a,48
+		ld (hl),a
 
-			inc hl : inc hl
-			ld (hl),a
+		inc hl : inc hl
+		ld (hl),a
+		inc hl : inc hl
+		ld (hl),a
+		inc hl : inc hl
+		ld (hl),a
 
-			inc hl : inc hl
-			ld (hl),a
+		inc hl : inc hl
+		ld (hl),a
 
-			inc hl : inc hl
-			ld (hl),a
-
-			inc hl : inc hl
-			ld (hl),a
-
-			inc hl : inc hl
-			ld (hl),a
+		inc hl : inc hl
+		ld (hl),a
 			
-			inc hl : inc hl
-			ld (hl),a
+		inc hl : inc hl
+		ld (hl),a
 
 			
 			
-			ld h,a
-			ld l,1
+		ld h,a
+		ld l,1
 	
 		ld a,16
 		
@@ -278,7 +270,7 @@ menuenter
             ld l,a
             jp (hl)
 
-text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                                                       ",0
+text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                ",0
 nadpis 		defb " Calm Commander 0.3 (Development version)                                                   ",0
 menupos		defb 0, 18, 34, 50,66
 
