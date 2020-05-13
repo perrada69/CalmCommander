@@ -1067,7 +1067,6 @@ AAAA
 		call $01b1		;změň adresář
 		
 		call basicpage
-		ld hl,0
 		ld hl,ALLFILES
 		call ROZHOD2
 		xor a
@@ -1113,13 +1112,25 @@ rcont	ld hl,adrl
 		inc hl
 		ld h,(hl)
 		ld l,a
-		
-		
+
+
+
 		ld (adrs+1),hl
+
+		ld hl,POSKURZL
+		call ROZHOD
+		xor a
+		ld (hl),a
+		
+		ld hl,ALLPOSL
+		call ROZHOD2
+		xor a
+		ld (hl),a
+		inc hl
+		ld (hl),a
 star	ld hl,1
-		call showwin
-		ld a,32
-		call writecur
+		call getroot
+
 
 		ld hl,pathl
 		call ROZHOD2
@@ -1150,7 +1161,9 @@ scont
 		ld (hl),e
 		inc hl
 		ld (hl),d
-
+		call showwin
+		ld a,32
+		call writecur
 		call GETDIR
 
 		jp loop0
@@ -1309,10 +1322,9 @@ getroot_reload
 		cp 255
 		jr z,amroot
 		ld hl,1
-		jr ammm0
+		ret
 amroot	
 		ld hl,0
-ammm0
 		ret
 
 
