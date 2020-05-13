@@ -835,8 +835,9 @@ gettime
 		call $01cc		;načti čas a datum  DE = time, BC DATE	
 		ld (dostime),de
 		ld (dosdate),bc
-		ld a,b
-		or c
+		push af
+		call basicpage
+		pop af
 		jp nc,timeend
 
 		 ld   a,d
@@ -940,7 +941,6 @@ gettime
 		call print
 
 timeend
-		call basicpage
 		ret
 den		defb 0
 mesic	defb 0
