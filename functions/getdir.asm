@@ -1,5 +1,5 @@
 
-GETDIR
+GETDIR  
 		ld hl,DIRTMP
 		ld de,modstart
 		ld bc,4

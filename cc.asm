@@ -212,6 +212,8 @@ dalsi
 neskenuj
 
 		call basicpage
+		
+		
 		ld a,3
 		ld (OKNO),a
 		nextreg MMU3_6000_NR_53,5*2+1
@@ -353,7 +355,6 @@ STOP
 		ld a,(OKNO)
 		xor 16
 		ld (OKNO),a
-
 
 		call GETDIR
         ld de,emptydir
@@ -834,7 +835,9 @@ gettime
 		call $01cc		;načti čas a datum  DE = time, BC DATE	
 		ld (dostime),de
 		ld (dosdate),bc
-		jr nc,timeend
+		ld a,b
+		or c
+		jp nc,timeend
 
 		 ld   a,d
          ld   b,e
@@ -861,7 +864,7 @@ gettime
 		ld de,dvojt
 		call print
 
-         pop  af
+        pop  af
 
 		ld l,a
 		ld h,0
@@ -873,8 +876,8 @@ gettime
 		ld de,NUMBUF+3
 
 		call print
-timeend		
-		call basicpage
+		
+		
 
 		ld de,(dosdate)
         ld   a,e
@@ -936,7 +939,8 @@ timeend
 		ld a,16
 		call print
 
-
+timeend
+		call basicpage
 		ret
 den		defb 0
 mesic	defb 0
@@ -950,8 +954,6 @@ dostime	defw 0
 dosdate	defw 0
 
 
-
-			
 enter
 		ld hl,POSKURZL
 		call ROZHOD
@@ -982,7 +984,7 @@ enter
 		
 		jp loop0		;**************************************
  		
-		 ld hl,name
+		ld hl,name
 		ld de,name+1
 		xor a
 		ld (hl),a
@@ -1024,8 +1026,6 @@ TADY
 		jp loop0
 
 cmd		defb "run "
-name   	defs 60
-
 
 enter_directory
 		call dospage
@@ -1079,7 +1079,7 @@ AAAA
 		
 		ld bc,38 * 256 + 27
 		ld a,0
-		call window
+		call draw.window
 
 		ld hl,pathl
 		call ROZHOD2
@@ -1108,17 +1108,6 @@ rcont	ld hl,adrl
 		ld (adrs+1),hl
 star	ld hl,1
 		call showwin
-
-		ld hl,emptypos
-        call ROZHOD2
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
-        ld de,emptydir
-        xor a
-		call print
-
 		ld a,32
 		call writecur
 
@@ -1414,298 +1403,9 @@ loadscr
 		ldir
 		nextreg $57,1
 		ret
-DDDD
-down
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		or h
-		jp z,loop0
-		
-		
-		
-		ld hl,POSKURZL
-		call ROZHOD
-		ld a,(hl)
-		cp 26
-		jr z,down0
-		push af
-		
-		ld hl,STARTWINL
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop af
-		ld e,a
-		ld d,0
-		add hl,de
-		push hl
-		ld hl,ALLFILES
-		
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		dec hl
-		pop de
-		or a
-		sbc hl,de
-		jp z,loop0
 
-
-
-		ld a,0
-		call writecur
-
-		ld hl,POSKURZL
-		call ROZHOD
-
-		inc (hl)
-		ld hl,ALLPOSL
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop de
-		ex de,hl
-		inc de
-		ld (hl),e
-		inc hl
-		ld (hl),d
-
-
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-
-		call getroot
-
-		call showwin
-		ld a,32
-		call writecur
-		jp loop0
-
-down0
-		push af
-		
-		ld hl,STARTWINL
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop af
-		ld e,a
-		ld d,0
-		add hl,de
-		push hl
-		ld hl,ALLFILES
-		
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		dec hl
-		pop de
-		or a
-		sbc hl,de
-		jp z,loop0
-
-
-
-
-
-		ld hl,ALLPOSL
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-		push hl
-		ld hl,downall
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop de
-		ex de,hl
-		
-		or a
-		sbc hl,de
-		add hl,de
-		pop de
-		jp z,loop0
-
-		ex de,hl
-		inc de
-		ld (hl),e
-		inc hl
-		ld (hl),d
-		
-		ld hl,STARTWINL
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop de
-		
-		ex de,hl
-		inc de
-		ld (hl),e
-		inc hl
-		ld (hl),d
-		
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-
-		call getroot
-		
-DDD		
-		call showwin
-		ld a,32
-		call writecur
-		jp loop0
 
 downall	defw 0, 0
-
-up
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		or h
-		jp z,loop0
-
-		ld hl,POSKURZL
-		call ROZHOD
-		ld a,(hl)
-		or a
-		jr z,up0
-
-		ld a,0
-		call writecur
-		ld hl,POSKURZL
-		call ROZHOD
-		dec (hl)
-		
-		
-		ld hl,ALLPOSL
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		pop de
-		ex de,hl
-		dec de
-		ld (hl),e
-		inc hl
-		ld (hl),d
-		
-
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-
-		call getroot
-		
-		
-		call showwin
-		ld a,32
-		call writecur
-		jp loop0
-
-up0
-UP0
-
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld de,3
-		add hl,de
-		ld a,(hl)
-		cp 255
-		jr z,upzero
-		ld a,1
-		ld (kolik+1),a
-		jr opcont
-upzero	xor a
-		ld (kolik+1),a
-
-opcont
-		ld hl,STARTWINL
-		call ROZHOD2
-		push hl
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-kolik	ld de,0
-		or a
-		ld (usavehl+1),hl
-		sbc hl,de
-		;add hl,de
-		pop de
-		ld a,l
-		or h
-		jp z,loop0
-usavehl	ld hl,0		
-		;or a
-		;sbc hl,bc
-		ex de,hl
-		dec de
-		ld (hl),e
-		inc hl
-		ld (hl),d
-		
-
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-
-		call getroot
-		
-		call showwin
-		ld a,32
-		call writecur
-
-
-		jp loop0
 KL
 klavesa	defb 0
 
@@ -1829,202 +1529,6 @@ ConvertRomCharTo4bpp:
 .pixelTable:
        DB      $00, $03, $30, $33
 
-SHWN
-showwin	
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		or h
-		ret z
-
-
-		ld hl,STARTWINL
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-		ld a,2
-		ld (ypos+1),a			;vynuluj Y pozici
-
-		push hl
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld b,(hl)
-		ld c,a
-
-		ld h,b
-		ld l,c
-		push hl
-
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-		ld de,3
-		add hl,de
-		ld a,(hl)
-		cp 255
-		jr z,sw0
-		dec hl
-		ld a,(hl)
-		
-		cp 255
-		jr z,ssw0
-		ld hl,1
-
-		dec bc
-		jr sw0
-ssw0	pop de
-		pop hl
-		dec hl
-		push hl
-		push de
-sw0
-
-		pop hl
-		ld de,28
-		or a
-		sbc hl,de
-		jr c,SSS
-		ld bc,27
-		
-		
-SSS		pop hl
-showloop
-		push hl
-		push bc
-
-		inc hl
-
-		call find83
-		call BUFF83					
-
-		ld hl,(foundfile)
-		bit 7,(hl)		;testuj jestli je soubor označený
-		jr z,nonselect
-		ld a,80
-		ld (inkcolor+1),a
-		jr isselect
-nonselect
-		ld a,0
-		ld (inkcolor+1),a
-isselect		
-		ld hl,(TMP83+11)
-		ld (velikost+1),hl
-		pop bc
-		pop hl
-		push hl
-		push bc
-		
-		call FINDLFN
-SSSS
-ypos	ld e,2
-		ld d,80 * 2
-		mul d,e
-adrs	ld hl,$4000 + 2
-
-		add hl,de
-		ex de,hl
-		ld hl,LFNNAME
-		
-		ld bc,31
-shw0	ld a,(hl)
-		cp 255
-		jr z,shw01
-		ld (de),a
-		inc de
-		inc hl
-inkcolor ld a,0
-		ld (de),a
-		inc de
-		dec bc
-		ld a,b
-		or c
-		jr nz,shw0
-		
-shw01		
-		ld hl,TMP83 +7
-		bit 7,(hl)
-		jr z,shw20
-		
-dir		ld hl,dirext
-		ld bc,5+2
-shw1	ld a,(hl)
-
-		ld (de),a
-		inc de
-		inc hl
-		ld a,(inkcolor+1)
-		ld (de),a
-		inc de
-		dec bc
-		ld a,b
-		or c
-		jr nz,shw1
-		jr shw3
-
-
-shw20
-velikost ld hl,0		
-			
-
-		push de
-		call NUM
-		ld hl,NUMBUF
-
-		ld b,5
-vel1	ld a,(hl)		
-		cp "0"
-		jr nz,vel2
-		ld (hl)," "
-		inc hl
-		djnz vel1		
-vel2	pop de
-		ld hl,NUMBUF
-shw2	ld b,5
-sh		ld a,(hl)
-		ld (de),a
-		ld a,(inkcolor+1)
-		inc de
-		ld (de),a
-		inc de
-		inc hl
-		djnz sh
-		
-		ld a,"k"
-		ld (de),a
-		inc de
-		ld a,(inkcolor+1)
-		ld (de),a
-		inc de
-		ld a,"B"
-		ld (de),a
-		inc de
-		ld a,(inkcolor+1)
-		ld (de),a
-shw3	pop bc
-		pop hl
-		inc hl
-		
-		ld a,(ypos+1)
-		inc a
-		ld (ypos+1),a
-		dec bc
-		ld a,b
-		or c
-		jp nz,showloop
-
-		
-		ret
 		
 dirext	defb "  <DIR>",0		
 		
@@ -2214,292 +1718,7 @@ beepk1		djnz beepk1
 		ret
 BORDER   db 1				;okraj
 
-
-help1 defb "Controls:",0
-help2 defb "1:          switch to left panel",0
-help3 defb "2:          switch to right panel",0
-help4 defb "True Video: switch between panels",0
-help5 defb "SS+I:       Info about Calm Commander ",0
-help6 defb "5:          Copy files (directory is not not support",0
-help7 defb "6:          Move files (directory is not not support",0
-help8 defb "7:          Create directory",0
-help9 defb "8:          Delete files/directory",0
-help10 defb "9:          Rename files/directory",0
-help11 defb "0:          Menu (items is not activ",0
-help12 defb "+:          Search and select files/directory",0
-help13 defb "-:          Search and deselect files/directory",0
-help14 defb "BREAK:      Cancel operations (copy, move, delete, ",0
-help15 defb "            close this window...)",0
-
-help	call savescr
-		ld hl,8 * 256 + 10
-		ld bc,60 * 256 + 16
-		ld a,16
-		call window
-
-		ld hl,11*256+11
-		ld a,16
-		ld de,help1
-		call print
-
-		ld hl,11*256+13
-		ld a,16
-		ld de,help2
-		call print
-
-		ld hl,11*256+14
-		ld a,16
-		ld de,help3
-		call print
-
-		ld hl,11*256+15
-		ld a,16
-		ld de,help4
-		call print
-
-		ld hl,11*256+16
-		ld a,16
-		ld de,help5
-		call print
-
-		ld hl,11*256+17
-		ld a,16
-		ld de,help6
-		call print
-
-		ld hl,11*256+18
-		ld a,16
-		ld de,help7
-		call print
-
-		ld hl,11*256+19
-		ld a,16
-		ld de,help8
-		call print
-
-		ld hl,11*256+20
-		ld a,16
-		ld de,help9
-		call print
-
-		ld hl,11*256+21
-		ld a,16
-		ld de,help10
-		call print
-
-		ld hl,11*256+22
-		ld a,16
-		ld de,help11
-		call print
-
-		ld hl,11*256+23
-		ld a,16
-		ld de,help12
-		call print
-
-		ld hl,11*256+24
-		ld a,16
-		ld de,help13
-		call print
-
-		ld hl,11*256+25
-		ld a,16
-		ld de,help14
-		call print
-
-
-		ld hl,11*256+26
-		ld a,16
-		ld de,help15
-		call print
-
-
-
-
-
-
-help0		
-		call INKEY
-		cp 1
-		jp z,infoend
-		jr help0
-
-notimplemented defb "This feature is not yet implemented.",0
-
-notnow
-		call savescr
-		ld hl,8 * 256 + 10
-		ld bc,60 * 256 + 3
-		ld a,16
-		call window
-
-		ld hl,11*256+11
-		ld a,16
-		ld de,notimplemented
-		call print
-		
-
-		ld hl,42*256+13
-		ld a,32
-		ld de,pressanykeytxt
-		call print
-
-		call INKEY
-		call loadscr
-	
-		ld hl,nadpis
-		ld de,#4000
-		ld bc,80
-not0		
-		ld a,(hl)
-		ld (de),a
-		inc de
-		ld a,16
-		ld (de),a
-		inc de
-		inc hl
-		dec bc
-		ld a,c
-		or b
-		jr nz,not0	
-	
-		jp loop0
-
-
-info	
-		call savescr
-		ld hl,8 * 256 + 10
-		ld bc,60 * 256 + 10
-		ld a,16
-		call window
-
-		ld hl,11*256+11
-		ld a,16
-		ld de,calmcommander
-		call print
-
-		ld hl,11*256+13
-		ld a,16
-		ld de,info1txt
-		call print
-
-		ld hl,11*256+15
-		ld a,16
-		ld de,info2txt
-		call print
-
-		ld hl,11*256+16
-		ld a,16
-		ld de,info3txt
-		call print
-
-		ld hl,11*256+18
-		ld a,16
-		ld de,info5txt
-		call print
-
-
-		ld hl,43*256+20
-		ld a,32
-		ld de,breaktxt
-		call print
-
-info0		
-		call INKEY
-		cp 1
-		jp z,infoend
-		jp info0
-infoend call loadscr
-		jp loop0
-		
-calmcommander	defb "CALM COMMANDER 0.3 (Development version 2020)",0		
-breaktxt 		defb "BREAK: close this window",0		
-info1txt 		defb "File manager for ZX Spectrum Next. ",0
-info2txt 		defb "Main program: Shrek/MB Maniax",0
-info3txt 		defb "Big help: ped7g",0
-info4txt 		defb " ",0
-info5txt 		defb "Greetinx: Logout, z00m, mborik",0
-
-kresli	
-		ld hl,0 * 256 + 1
-		;	  delka      vyska
-		ld bc,38 * 256 + 27
-		ld a,0
-		call window
-		
-		
-		
-		ld hl,40* 256 + 1
-		;	  delka      vyska
-		ld bc,38 * 256 + 27
-		ld a,0
-		call window
-		ld a,0
-		ld de,bottom
-		ld hl,0*256+31
-		call print
-		
-		ld hl,2*256+31
-		ld a,32
-		ld de,left_txt
-		call print
-		
-		ld hl,10*256+31
-		ld a,32
-		ld de,right_txt
-		call print
-		
-		ld hl,19*256+31
-		ld a,32
-		ld de,view_txt
-		call print
-		
-		ld hl,27*256+31
-		ld a,32
-		ld de,edit_txt
-		call print
-		
-		ld hl,35*256+31
-		ld a,32
-		ld de,copy_txt
-		call print
-		
-		ld hl,43*256+31
-		ld a,32
-		ld de,move_txt
-		call print
-
-		ld hl,51*256+31
-		ld a,32
-		ld de,mkdir_txt
-		call print
-		
-		ld hl,60*256+31
-		ld a,32
-		ld de,delete_txt
-		call print
-
-		ld hl,70*256+31
-		ld a,32
-		ld de,menu_txt
-		call print
-
-		
-		ret
 offset	equ 3		
-		
-left_txt defb "1: LEFT",0
-right_txt defb "2: RIGHT",0
-view_txt defb "3:     ",0
-edit_txt defb "4:     ",0
-copy_txt defb "5: COPY",0
-move_txt defb "6: MOVE",0
-mkdir_txt defb "7: MKDIR",0
-delete_txt defb "8: DELETE",0
-menu_txt defb "0: MENU",0
-
-
-
 
 ;vstup:
 ; HL .... XY
@@ -2635,7 +1854,165 @@ atr9	ld (hl),0
 		ret
 
 
+		module draw
+window
+UZZ
+		ld (atr1+1),a
+		ld (atr2+1),a
+		ld (atr3+1),a
+		ld (atr4+1),a
+		ld (atr5+1),a
+		ld (atr6+1),a
+		ld (atr7+1),a
+		ld (atr8+1),a
+		ld (atr9+1),a
+		ld (atr200+1),a
+		
 
+		ld e,l
+		ld d,160
+		mul d,e
+		ld a,h
+		add a,a
+		ld l,a
+		ld h,0
+		add hl,de
+		ld de,#4000
+		add hl,de		;adresa v tilemode
+window0	push hl		
+		
+		ld a,18
+		ld (hl),a
+		inc hl
+atr1	ld (hl),0
+		ld a,b
+
+		ld (w5+1),a
+
+		rra			;vyděl dvěma
+		ld b,12		;odečti 10
+		or a
+		sbc a,b
+		ld b,a		
+		ld (w20+1),a
+
+		ld a,16
+		inc hl
+		
+		
+w2		ld (hl),a
+		inc hl
+atr2	ld (hl),0
+		inc hl
+		djnz w2
+
+		ld a,"["
+		ld (hl),a
+		inc hl
+		ld a,(atr200+1)
+		ld (hl),a
+		inc hl
+		
+
+		ld b,21
+writmes
+		ld a," "
+		ld (hl),a
+		inc hl
+		ld a,(atr200+1)
+		ld (hl),a
+		inc hl
+		djnz writmes
+		ld a,"]"
+		ld (hl),a
+		inc hl
+		ld a,(atr200+1)
+		ld (hl),a
+		inc hl		
+
+		ld a,16
+		ld (hl),a
+		inc hl
+		ld a,(atr200+1)
+		ld (hl),a
+		inc hl		
+		ld a,16
+w20		ld b,0
+
+w2000	ld (hl),a
+		inc hl
+atr200	ld (hl),0
+		inc hl
+		djnz w2000
+
+
+
+		ld a,19
+		ld (hl),a
+		inc hl
+
+atr3	ld (hl),0
+		ld de,160-1
+		add hl,de
+		
+		ld (w3+1),hl	;uloz adresu
+		pop hl
+		ld de,160
+		add hl,de
+		ld (w4+1),hl
+
+w3		ld hl,0	
+		ld a,23
+		ld (hl),a
+		inc hl
+atr4	ld (hl),0
+		
+		ld de,160-1
+		add hl,de
+		ld (w3+1),hl
+w4		ld hl,0					;leva cast
+		ld a,22
+		ld (hl),a
+		inc hl
+atr5	ld (hl),0
+		push hl
+		inc hl
+		ld a,(w5+1)
+		ld b,a
+cisti	ld 	(hl),0
+		inc hl
+atr6	ld (hl),0
+		inc hl
+		djnz cisti
+		
+		pop hl
+		ld de,160-1
+		add hl,de
+		ld (w4+1),hl
+		dec c
+		ld a,c
+		or a
+		jr nz,w3
+		
+		ld a,21
+		ld (hl),a
+		inc hl
+atr7	ld (hl),0
+w5 		ld b,0		
+		ld a,17
+w6		inc hl
+		ld (hl),a
+		inc hl
+atr8	ld (hl),0
+		djnz w6
+		inc hl
+		ld a,20
+		ld (hl),a
+		inc hl
+atr9	ld (hl),0
+		ret
+
+		endmodule
 
 
 reload_dir
@@ -2937,99 +2314,6 @@ de1			djnz de
 
 addrlfn		dw 0
 
-FINDLFN
-		push hl
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-		ld de,2
-		add hl,de
-		ld a,(hl)
-
-		pop hl
-		cp 255
-		jr nz,findlfn830
-		inc hl
-findlfn830
-		push hl
-		ld hl,lfnpage
-		call ROZHOD
-		ld a,(hl)
-		ld (lfnroot+1),a
-			
-		ld hl,LFNNAME
-		ld de,LFNNAME+1
-		ld bc,maxlen
-		ld a,32
-		ld (hl),a
-		ldir
-
-		pop hl
-		or a
-		ld de,30
-		sbc hl,de
-		add hl,de
-		jr c,prvni
-		ld c,30
-		call deleno
-	    jr oddeleno
-prvni	ld a,l
-		ld l,0
-			
-oddeleno	push af
-lfnroot	ld a,24
-		add a,l
-			nextreg $57,a
-			pop bc
-			ld de,maxlen
-			ld a,b
-			or a
-			ld hl,$e000		
-			jr z,prvnizaznam
-lll			
-			add hl,de
-			djnz lll
-			
-prvnizaznam 
-			ld (addrlfn),hl
-			ld de,LFNNAME
-			ld bc,maxlen
-popop			
-			ld a,(hl)
-			cp 255
-			jr z,kon
-			ld (de),a
-			inc hl
-			inc de
-			dec bc
-			ld a,b
-			or c
-			jr nz,popop
-			
-kon			
-			ld hl,(addrlfn)
-			ld de,261
-			add hl,de
-			ld de,LFNNAME+261
-			ld bc,8
-			ldir				;prenes velikost souboru
-			ld hl,LFNNAME
-			ld b,40
-F22222
-			ld a,(hl)
-			cp 255
-			call z,setspace	
-			inc hl
-			djnz F22222
-lfnend		ld hl,LFNNAME
-		
-lfnat		ld de,20672+2
-			ld hl,LFNNAME
-			ret
 
 setspace
 		ld (hl),32
@@ -3404,7 +2688,7 @@ clr_arch
 posdrv	defb 0
 
 ALLFILESL  defw ALLFILES, ALLFILES2
-
+name   	defs 60
 ALLFILES    defw 0
 ALLFILES2	defw 0
 ALLFILESR	defw 0
@@ -3498,6 +2782,488 @@ FILEBUFF
 tilemapFont_char24:
             INCLUDE "tilemap_font_8x6.i.asm"
 			org 49152
+
+
+down
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		jp z,loop0
+		
+		
+		
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		cp 26
+		jr z,down0
+		push af
+		
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop af
+		ld e,a
+		ld d,0
+		add hl,de
+		push hl
+		ld hl,ALLFILES
+		
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		dec hl
+		pop de
+		or a
+		sbc hl,de
+		jp z,loop0
+
+		ld a,0
+		call writecur
+
+		ld hl,POSKURZL
+		call ROZHOD
+
+		inc (hl)
+		ld hl,ALLPOSL
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		ex de,hl
+		inc de
+		ld (hl),e
+		inc hl
+		ld (hl),d
+
+
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+
+		call showwin
+		ld a,32
+		call writecur
+		jp loop0
+
+down0
+		push af
+		
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop af
+		ld e,a
+		ld d,0
+		add hl,de
+		push hl
+		ld hl,ALLFILES
+		
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		dec hl
+		pop de
+		or a
+		sbc hl,de
+		jp z,loop0
+
+		ld hl,ALLPOSL
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		push hl
+		ld hl,downall
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		ex de,hl
+		
+		or a
+		sbc hl,de
+		add hl,de
+		pop de
+		jp z,loop0
+
+		ex de,hl
+		inc de
+		ld (hl),e
+		inc hl
+		ld (hl),d
+		
+		ld hl,STARTWINL
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		
+		ex de,hl
+		inc de
+		ld (hl),e
+		inc hl
+		ld (hl),d
+		
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
+		jp loop0
+
+
+up
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		jp z,loop0
+
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		or a
+		jr z,up0
+
+		ld a,0
+		call writecur
+		ld hl,POSKURZL
+		call ROZHOD
+		dec (hl)
+		
+		
+		ld hl,ALLPOSL
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		ex de,hl
+		dec de
+		ld (hl),e
+		inc hl
+		ld (hl),d
+		
+
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+		
+		
+		call showwin
+		ld a,32
+		call writecur
+		jp loop0
+
+up0
+UP0
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,upzero
+		ld a,1
+		ld (kolik+1),a
+		jr opcont
+upzero	xor a
+		ld (kolik+1),a
+
+opcont
+		ld hl,STARTWINL
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+kolik	ld de,0
+		or a
+		ld (usavehl+1),hl
+		sbc hl,de
+		;add hl,de
+		pop de
+		ld a,l
+		or h
+		jp z,loop0
+usavehl	ld hl,0		
+		;or a
+		;sbc hl,bc
+		ex de,hl
+		dec de
+		ld (hl),e
+		inc hl
+		ld (hl),d
+		
+
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+		
+		call showwin
+		ld a,32
+		call writecur
+
+
+		jp loop0
+
+
+showwin	
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		ret z
+
+
+		ld hl,STARTWINL
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ld a,2
+		ld (ypos+1),a			;vynuluj Y pozici
+
+		push hl
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld b,(hl)
+		ld c,a
+
+		ld h,b
+		ld l,c
+		push hl
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		jr z,sw0
+		dec hl
+		ld a,(hl)
+		
+		cp 255
+		jr z,ssw0
+		ld hl,1
+
+		dec bc
+		jr sw0
+ssw0	pop de
+		pop hl
+		dec hl
+		push hl
+		push de
+sw0
+
+		pop hl
+		ld de,28
+		or a
+		sbc hl,de
+		jr c,SSS
+		ld bc,27
+		
+		
+SSS		pop hl
+showloop
+		push hl
+		push bc
+
+		inc hl
+
+		call find83
+		call BUFF83					
+
+		ld hl,(foundfile)
+		bit 7,(hl)		;testuj jestli je soubor označený
+		jr z,nonselect
+		ld a,80
+		ld (inkcolor+1),a
+		jr isselect
+nonselect
+		ld a,0
+		ld (inkcolor+1),a
+isselect		
+		ld hl,(TMP83+11)
+		ld (velikost+1),hl
+		pop bc
+		pop hl
+		push hl
+		push bc
+		
+		call FINDLFN
+SSSS
+ypos	ld e,2
+		ld d,80 * 2
+		mul d,e
+adrs	ld hl,$4000 + 2
+
+		add hl,de
+		ex de,hl
+		ld hl,LFNNAME
+		
+		ld bc,31
+shw0	ld a,(hl)
+		cp 255
+		jr z,shw01
+		ld (de),a
+		inc de
+		inc hl
+inkcolor ld a,0
+		ld (de),a
+		inc de
+		dec bc
+		ld a,b
+		or c
+		jr nz,shw0
+		
+shw01		
+		ld hl,TMP83 +7
+		bit 7,(hl)
+		jr z,shw20
+		
+dir		ld hl,dirext
+		ld bc,5+2
+shw1	ld a,(hl)
+
+		ld (de),a
+		inc de
+		inc hl
+		ld a,(inkcolor+1)
+		ld (de),a
+		inc de
+		dec bc
+		ld a,b
+		or c
+		jr nz,shw1
+		jr shw3
+
+
+shw20
+velikost ld hl,0		
+			
+
+		push de
+		call NUM
+		ld hl,NUMBUF
+
+		ld b,5
+vel1	ld a,(hl)		
+		cp "0"
+		jr nz,vel2
+		ld (hl)," "
+		inc hl
+		djnz vel1		
+vel2	pop de
+		ld hl,NUMBUF
+shw2	ld b,5
+sh		ld a,(hl)
+		ld (de),a
+		ld a,(inkcolor+1)
+		inc de
+		ld (de),a
+		inc de
+		inc hl
+		djnz sh
+		
+		ld a,"k"
+		ld (de),a
+		inc de
+		ld a,(inkcolor+1)
+		ld (de),a
+		inc de
+		ld a,"B"
+		ld (de),a
+		inc de
+		ld a,(inkcolor+1)
+		ld (de),a
+shw3	pop bc
+		pop hl
+		inc hl
+		
+		ld a,(ypos+1)
+		inc a
+		ld (ypos+1),a
+		dec bc
+		ld a,b
+		or c
+		jp nz,showloop
+
+		
+		ret
 
 
 leftcur
@@ -4458,6 +4224,348 @@ snuly	ld a,(hl)
 		djnz snuly
 		ret
 
+help	call savescr
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 16
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,help1
+		call print
+
+		ld hl,11*256+13
+		ld a,16
+		ld de,help2
+		call print
+
+		ld hl,11*256+14
+		ld a,16
+		ld de,help3
+		call print
+
+		ld hl,11*256+15
+		ld a,16
+		ld de,help4
+		call print
+
+		ld hl,11*256+16
+		ld a,16
+		ld de,help5
+		call print
+
+		ld hl,11*256+17
+		ld a,16
+		ld de,help6
+		call print
+
+		ld hl,11*256+18
+		ld a,16
+		ld de,help7
+		call print
+
+		ld hl,11*256+19
+		ld a,16
+		ld de,help8
+		call print
+
+		ld hl,11*256+20
+		ld a,16
+		ld de,help9
+		call print
+
+		ld hl,11*256+21
+		ld a,16
+		ld de,help10
+		call print
+
+		ld hl,11*256+22
+		ld a,16
+		ld de,help11
+		call print
+
+		ld hl,11*256+23
+		ld a,16
+		ld de,help12
+		call print
+
+		ld hl,11*256+24
+		ld a,16
+		ld de,help13
+		call print
+
+		ld hl,11*256+25
+		ld a,16
+		ld de,help14
+		call print
+
+
+		ld hl,11*256+26
+		ld a,16
+		ld de,help15
+		call print
+
+
+
+
+
+
+help0		
+		call INKEY
+		cp 1
+		jp z,infoend
+		jr help0
+
+notimplemented defb "This feature is not yet implemented.",0
+
+notnow
+		call savescr
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 3
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,notimplemented
+		call print
+		
+
+		ld hl,42*256+13
+		ld a,32
+		ld de,pressanykeytxt
+		call print
+
+		call INKEY
+		call loadscr
+	
+		ld hl,nadpis
+		ld de,#4000
+		ld bc,80
+not0		
+		ld a,(hl)
+		ld (de),a
+		inc de
+		ld a,16
+		ld (de),a
+		inc de
+		inc hl
+		dec bc
+		ld a,c
+		or b
+		jr nz,not0	
+	
+		jp loop0
+
+
+info	
+		call savescr
+		ld hl,8 * 256 + 10
+		ld bc,60 * 256 + 10
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,calmcommander
+		call print
+
+		ld hl,11*256+13
+		ld a,16
+		ld de,info1txt
+		call print
+
+		ld hl,11*256+15
+		ld a,16
+		ld de,info2txt
+		call print
+
+		ld hl,11*256+16
+		ld a,16
+		ld de,info3txt
+		call print
+
+		ld hl,11*256+18
+		ld a,16
+		ld de,info5txt
+		call print
+
+
+		ld hl,43*256+20
+		ld a,32
+		ld de,breaktxt
+		call print
+
+info0		
+		call INKEY
+		cp 1
+		jp z,infoend
+		jp info0
+infoend call loadscr
+		jp loop0
+
+kresli	
+		ld hl,0 * 256 + 1
+		;	  delka      vyska
+		ld bc,38 * 256 + 27
+		ld a,0
+		call window
+		
+		
+		
+		ld hl,40* 256 + 1
+		;	  delka      vyska
+		ld bc,38 * 256 + 27
+		ld a,0
+		call window
+		ld a,0
+		ld de,bottom
+		ld hl,0*256+31
+		call print
+		
+		ld hl,2*256+31
+		ld a,32
+		ld de,left_txt
+		call print
+		
+		ld hl,10*256+31
+		ld a,32
+		ld de,right_txt
+		call print
+		
+		ld hl,19*256+31
+		ld a,32
+		ld de,view_txt
+		call print
+		
+		ld hl,27*256+31
+		ld a,32
+		ld de,edit_txt
+		call print
+		
+		ld hl,35*256+31
+		ld a,32
+		ld de,copy_txt
+		call print
+		
+		ld hl,43*256+31
+		ld a,32
+		ld de,move_txt
+		call print
+
+		ld hl,51*256+31
+		ld a,32
+		ld de,mkdir_txt
+		call print
+		
+		ld hl,60*256+31
+		ld a,32
+		ld de,delete_txt
+		call print
+
+		ld hl,70*256+31
+		ld a,32
+		ld de,menu_txt
+		call print
+
+		ret
+
+
+FINDLFN
+		push hl
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+		ld de,2
+		add hl,de
+		ld a,(hl)
+
+		pop hl
+		cp 255
+		jr nz,findlfn830
+		inc hl
+findlfn830
+		push hl
+		ld hl,lfnpage
+		call ROZHOD
+		ld a,(hl)
+		ld (lfnroot+1),a
+			
+		ld hl,LFNNAME
+		ld de,LFNNAME+1
+		ld bc,maxlen
+		ld a,32
+		ld (hl),a
+		ldir
+
+		pop hl
+		or a
+		ld de,30
+		sbc hl,de
+		add hl,de
+		jr c,prvni
+		ld c,30
+		call deleno
+	    jr oddeleno
+prvni	ld a,l
+		ld l,0
+			
+oddeleno	push af
+lfnroot	ld a,24
+		add a,l
+			nextreg $57,a
+			pop bc
+			ld de,maxlen
+			ld a,b
+			or a
+			ld hl,$e000		
+			jr z,prvnizaznam
+lll			
+			add hl,de
+			djnz lll
+			
+prvnizaznam 
+			ld (addrlfn),hl
+			ld de,LFNNAME
+			ld bc,maxlen
+popop			
+			ld a,(hl)
+			cp 255
+			jr z,kon
+			ld (de),a
+			inc hl
+			inc de
+			dec bc
+			ld a,b
+			or c
+			jr nz,popop
+			
+kon			
+			ld hl,(addrlfn)
+			ld de,261
+			add hl,de
+			ld de,LFNNAME+261
+			ld bc,8
+			ldir				;prenes velikost souboru
+			ld hl,LFNNAME
+			ld b,40
+F22222
+			ld a,(hl)
+			cp 255
+			call z,setspace	
+			inc hl
+			djnz F22222
+lfnend		ld hl,LFNNAME
+		
+lfnat		ld de,20672+2
+			ld hl,LFNNAME
+			ret
+
 sysatrtxt	defb "System attributes:",0
 fileinfonadpis
 			defb "File/directory informations:",0 
@@ -4472,6 +4580,7 @@ discdetail
 		include "functions/menu.asm"
 		include "functions/search.asm"
 		include "functions/selected.asm"
+		include "functions/texts.asm"
 last:       
               
               CSPECTMAP player.map
