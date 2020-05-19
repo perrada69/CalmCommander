@@ -1,0 +1,22 @@
+# file opened: hlavni.asm
+ 1    0000                      DEVICE ZXSPECTRUMNEXT
+ 2    0000                      OPT reset --zxnext --syntax=abfw
+ 3    0000
+ 4    0000                      org $c000-(hlavni_end-hlavni)
+ 5    9335              hlavni
+ 6    9335 21 43 93             ld hl,cc1
+ 7    9338 11 00 60             ld de,$6000
+ 8    933B 01 BD 2C             ld bc,cc1len
+ 9    933E ED B0                ldir
+10    9340 C3 00 60             jp $6000
+11    9343
+12    9343              cc1     incbin "cc1.bin"
+13    C000              cc1len  equ $-cc1
+14    C000              hlavni_end
+15    C000                      org $c000
+16    C000              cc2     incbin "cc2.bin"
+17    D745              cc3
+18    D745              cc2len  equ $-cc2
+19    D745                      SAVEBIN "cc.bin",hlavni,cc3-hlavni
+20    D745
+# file closed: hlavni.asm

@@ -21,7 +21,11 @@ info2txt 		defb "Main program: Shrek/MB Maniax",0
 info3txt 		defb "Big help: ped7g",0
 info4txt 		defb " ",0
 info5txt 		defb "Greetinx: Logout, z00m, mborik",0
-
+info6txt        defb "Available memory:",0
+kB              defb "kB",0
+rtc             defb "RTC:",0
+presenttxt      defb "present",0
+notpresenttxt   defb "not present",0
 left_txt        defb "1: LEFT",0
 right_txt       defb "2: RIGHT",0
 view_txt        defb "3:     ",0

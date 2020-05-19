@@ -117,7 +117,7 @@ CSP_BREAK   MACRO : IFDEF TESTING : break : ENDIF : ENDM
     ; here ahead of the real machine code is produced, the real code will later overwrite
     ; the memory as desired)
             org ORG_ADDRESS   
-
+S1			jp START
 
 CHARS         equ  15616-256              
 mystak        equ  24575         ;ar bi trary value picked to be be low
@@ -175,11 +175,18 @@ ReadNextReg:
     ret
 bufferdisc	defs 18
 
-listdisc	defs 15
-pocetdisku defb 0
+listdisc		defs 15
+pocetdisku 		defb 0
+pocetstranek	defb 0
 START       
 	
 		call dospage
+		ld l,0
+		ld h,0
+		call $01bd
+		ld a,e
+		ld (pocetstranek),a
+
 disc	ld l,"A"
 		ld bc,bufferdisc
 		call $00F7
@@ -282,6 +289,9 @@ neskenuj
 		ld hl,nadpis
 		ld de,#4000
 		ld bc,80
+
+
+
 
 menu0		
 		ld a,(hl)
@@ -828,7 +838,7 @@ clearpr2
 		include "functions/createdir.asm"
 		include "functions/rename.asm"
 
-
+rtcpresent	defb 0
 
 gettime
 		call dospage
@@ -839,7 +849,8 @@ gettime
 		call basicpage
 		pop af
 		jp nc,notimeend
-
+		ld a,1
+		ld (rtcpresent),a
 		 ld   a,d
          ld   b,e
          srl  a
@@ -945,6 +956,8 @@ timeend
 
 
 notimeend	
+		xor a
+		ld (rtcpresent),a
 		ld hl,63*256+0
 		ld a,16
 		ld de,notimetxt
@@ -2717,6 +2730,7 @@ ALLFILES    defw 0
 ALLFILES2	defw 0
 ALLFILESR	defw 0
 LFNNAME		defs 270  ;263
+LFNNAME2	defs 270		;buffer pro druhy stinovy záznam (např. pro copy, move atd...)
 tmpname		ds 2
 BFT
 bufftmp		ds 15		 
@@ -2805,9 +2819,12 @@ tilemapFont:    ds   16*32
 FILEBUFF	
 tilemapFont_char24:
             INCLUDE "tilemap_font_8x6.i.asm"
+
+
+E1			
 			org 49152
 
-
+S2
 down
 		ld hl,ALLFILES
 		call ROZHOD2
@@ -4400,17 +4417,58 @@ info
 		ld de,info1txt
 		call print
 
+		ld hl,11*256+14
+		ld a,16
+		ld de,info6txt
+		call print
+
+		ld a,(pocetstranek)
+		ld e,a
+		ld d,8
+		mul d,e
+		ex de,hl
+		call NUM
+		ld hl,30*256+14
+		ld a,16
+		ld de,NUMBUF+1
+		
+		call print
+
+		ld hl,34*256+14
+		ld a,16
+		ld de,kB
+		call print
+
 		ld hl,11*256+15
+		ld a,16
+		ld de,rtc
+		call print
+
+		ld de,presenttxt
+		ld a,(rtcpresent)
+		or a
+		jr nz,rtcje
+		ld de,notpresenttxt
+rtcje	
+		
+		ld hl,16*256+15
+		ld a,16
+
+		call print
+
+
+
+		ld hl,11*256+17
 		ld a,16
 		ld de,info2txt
 		call print
 
-		ld hl,11*256+16
+		ld hl,11*256+18
 		ld a,16
 		ld de,info3txt
 		call print
 
-		ld hl,11*256+18
+		ld hl,11*256+19
 		ld a,16
 		ld de,info5txt
 		call print
@@ -4590,6 +4648,10 @@ lfnat		ld de,20672+2
 			ld hl,LFNNAME
 			ret
 
+
+
+
+
 sysatrtxt	defb "System attributes:",0
 fileinfonadpis
 			defb "File/directory informations:",0 
@@ -4606,7 +4668,11 @@ discdetail
 		include "functions/selected.asm"
 		include "functions/texts.asm"
 last:       
-              
+E2
+ 			SAVEBIN "cc1.bin",S1,E1-S1
+ 			SAVEBIN "cc2.bin",S2,E2-S2
+
+
               CSPECTMAP player.map
               savenex open "CalmCommander.nex",START,$5ffe
               savenex core 2,0,0

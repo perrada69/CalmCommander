@@ -1,0 +1,7 @@
+hlavni_end: equ 0x0000C000
+hlavni: equ 0x00009335
+cc1: equ 0x00009343
+cc1len: equ 0x00002CBD
+cc2: equ 0x0000C000
+cc3: equ 0x0000D745
+cc2len: equ 0x00001745

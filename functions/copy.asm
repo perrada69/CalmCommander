@@ -651,3 +651,92 @@ nenimove2
 
 		call freespace
 		jp loop0
+
+
+
+isfile
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+;        dec hl
+isfile0   push hl
+
+
+		call BUFF83
+		call find83
+		call BUFF83
+
+		ld hl,(foundfile)
+		ld de,ban1
+		ld a,0
+		call specific_search
+		jp z,nesouhlasii
+		ld hl,(foundfile)
+		ld de,ban2
+		ld a,0
+		call specific_search
+		jp z,nesouhlasii
+		
+		pop hl
+
+        push hl
+        dec hl
+		call FINDLFN
+
+		ld hl,23296 + 59		;najdi poslední znak
+ifind1	
+		dec hl
+		ld a,(hl)
+		cp 32
+		jr z,ifind1
+		inc hl
+		ld a,255
+		ld (hl),a
+
+		ld hl,LFNNAME + 261		;najdi poslední znak
+ifind2	
+		dec hl
+		ld a,(hl)
+		cp 32
+		jr z,ifind2
+		inc hl
+		ld a,255
+		ld (hl),a
+
+
+        ld de,23296
+        ld hl,LFNNAME
+        call search
+        jr nz,nesouhlasii
+        ld hl,(foundfile)
+        call BUFF83
+        set 7,(hl)
+
+        ld hl,numsel
+    	call ROZHOD2
+        ld (adresaseli+1),hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        inc hl
+        ld a,l
+        ld (zvysi+1),a
+        ld a,h
+        ld (zvys2i+1),a
+adresaseli   ld hl,0
+zvysi    ld (hl),0
+        inc hl
+zvys2i   ld (hl),0        
+
+nesouhlasii
+        pop hl
+        dec hl
+        ld a,l
+        or h
+        jp nz,isfile0
+
+		ret
