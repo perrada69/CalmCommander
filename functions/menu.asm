@@ -271,7 +271,7 @@ menuenter
             jp (hl)
 
 text 		defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                ",0
-nadpis 		defb " Calm Commander 0.3 (Development version)                                                   ",0
+nadpis 		defb " Calm Commander " : VERSION : defb " (Development version)                                                   ",0
 menupos		defb 0, 18, 34, 50,66
 
 nummenu		defb 0				;jakou položku zobrazit v menu

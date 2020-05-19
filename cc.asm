@@ -1,7 +1,9 @@
 			DEVICE ZXSPECTRUMNEXT
             OPT reset --zxnext --syntax=abfw              
             slot 4
-                
+
+	        MACRO VERSION : defb "0.4" : ENDM
+
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
@@ -111,6 +113,10 @@ FA_READ                         equ $01
 ESXDOS      MACRO service? : push hl : pop ix : rst $08 : db service? : ENDM    ; copies HL into IX
 NEXTREG2A   MACRO nextreg? : ld a,nextreg? : call readNextReg2A : ENDM
 CSP_BREAK   MACRO : IFDEF TESTING : break : ENDIF : ENDM
+
+
+ 
+
     ;; reserved space for values (but not initialized, i.e. not part of the binary)
     ; actually in DISPLAYEDGE tool these re-use the same memory area where font was stored
     ; (turned out the DS/BLOCK does overwrite device memory always, so I'm reserving space

@@ -1,3 +1,5 @@
+
+
 help1           defb "Controls:",0
 help2           defb "1:          switch to left panel",0
 help3           defb "2:          switch to right panel",0
@@ -14,7 +16,7 @@ help13          defb "-:          Search and deselect files/directory",0
 help14          defb "BREAK:      Cancel operations (copy, move, delete, ",0
 help15          defb "            close this window...)",0
 
-calmcommander	defb "CALM COMMANDER 0.3 (Development version 2020)",0		
+calmcommander	defb "CALM COMMANDER " : VERSION : defb " (Development version 2020)",0		
 breaktxt 		defb "BREAK: close this window",0		
 info1txt 		defb "File manager for ZX Spectrum Next. ",0
 info2txt 		defb "Main program: Shrek/MB Maniax",0
