@@ -11,8 +11,6 @@
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
-                                                    ; = 6656 $1A00 -> fits into ULA classic VRAM
-    
 	
 			DEFINE CFG_FILENAME     dspedge.defaultCfgFileName
     		STRUCT S_MARGINS        ; pixels of margin 0..31 (-1 = undefined margin)
@@ -169,16 +167,17 @@ bottom		defb "                                                                  
 
 ban1		defb ".      ",$a0,"   ",0
 ban2		defb "..     ",$a0,"   ",0
-
+banlfn1 	defb ".",255,0
+banlfn2 	defb "..",255,0
 ReadNextReg:
     ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
-    push    bc
-    ld      bc,#243B
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    in      a,(c)   ; read desired NextReg state
-    pop     bc
-    ret
+			push    bc
+			ld      bc,#243B
+			out     (c),a
+			inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
+			in      a,(c)   ; read desired NextReg state
+			pop     bc
+			ret
 bufferdisc	defs 18
 
 listdisc		defs 15
@@ -562,7 +561,8 @@ loop0
 
 		cp "+"
 		jp z,select_files
-
+		cp "*"
+		jp z,invert_select_files
 		cp "-"
 		jp z,deselect
 
@@ -688,6 +688,14 @@ deselect_files_left
 select_files_right
 		call setrightwin
 		jp select_files
+
+invert_select_files_left
+		call setleftwin
+		jp invert_select_files
+
+invert_select_files_right
+		call setrightwin
+		jp invert_select_files
 
 deselect_files_right
 		call setrightwin

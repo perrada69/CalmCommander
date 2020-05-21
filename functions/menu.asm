@@ -277,13 +277,16 @@ menupos		defb 0, 18, 34, 50,66
 nummenu		defb 0				;jakou položku zobrazit v menu
 ;definice položek horního menu
 menuitems	defw menuleft, menufile, menuutil, menuright, menuquit
-menulenght	defb 3, 6, 2, 3, 2	;počet položek v daném menu
+menulenght	defb 4, 6, 2, 4, 2	;počet položek v daném menu
 ;pozice kurzoru v menu
 menucur 	defb 0
 menuleft	defb " SELECT FILES   (+)",0
 			defw select_files_left
 			defb " DESEL. FILES   (-)",0
 			defw deselect_files_left
+			defb " INVERT SELECT  (*)",0
+			defw invert_select_files_left
+			
 			defb " CHANGE DRIVE      ",0
 			defw notnow						;changedrive
 			defb 255
@@ -305,6 +308,8 @@ menuright	defb " SELECT FILES   (+)",0
 			defw select_files_right
 			defb " DESEL. FILES   (-)",0
 			defw deselect_files_right
+			defb " INVERT SELECT  (*)",0
+			defw invert_select_files_right
 			defb " CHANGE DRIVE      ",0
 			defw notnow    ;changedrive
 			defb 255

@@ -193,6 +193,109 @@ dfind_end
         jp loop0        
 
 
+invert_select_files
+
+        ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+idfind0   push hl
+
+
+		call BUFF83
+		call find83
+		pop hl
+        push hl
+        dec hl
+		call FINDLFN
+
+		ld hl,LFNNAME + 261		;najdi poslední znak
+idfind2	
+		dec hl
+		ld a,(hl)
+		cp 32
+		jr z,idfind2
+		inc hl
+		ld a,255
+		ld (hl),a
+		inc hl
+		xor a
+		ld (hl),a
+ID  
+		ld hl,LFNNAME
+		ld de,banlfn1
+		ld a,0
+		call specific_search
+		jp z,idnesouhlasi
+		ld hl,LFNNAME
+		ld de,banlfn2
+		ld a,0
+		call specific_search
+		jp z,idnesouhlasi
+  
+  
+        ld hl,(foundfile)
+  
+  
+  
+        call BUFF83
+		ld a,(hl)
+		xor 10000000b
+		ld (hl),a
+
+        ld hl,numsel
+    	call ROZHOD2
+        ld (adresasel+1),hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        inc hl
+        ld a,l
+        ld (dzvys+1),a
+        ld a,h
+        ld (dzvys2+1),a
+idadresasel   ld hl,0
+idzvys  ld (hl),0
+        inc hl
+idzvys2 ld (hl),0        
+
+idnesouhlasi
+        pop hl
+        dec hl
+        ld a,l
+        or h
+        jp nz,idfind0
+		
+
+
+
+idfind_end
+        ;call loadscr
+		ld hl,adrl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld (adrs+1),hl
+
+		call getroot
+
+		call showwin
+
+
+		ld a,32
+        call writecur
+        
+        
+        jp loop0        
+
+
+
 
 SELTXT	defb "Search and select files.",0
 SELTXT2	defb "Please insert part of name:",0

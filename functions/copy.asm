@@ -201,6 +201,9 @@ copycont
 		
 		
 		push hl
+		call isfile
+IS		pop hl
+		push hl
 		call openfile
 		call createfile
 		call readfile		
@@ -655,88 +658,74 @@ nenimove2
 
 
 isfile
+ISFILE
+
+
+
+		ld hl,LFNNAME+260
+is0		ld a,(hl)
+
+		dec hl
+		cp 32
+		jr z,is0
+		inc hl
+		inc hl
+		ld (hl),255		
+
+		inc hl
+		xor a
+		ld (hl),a
+		ld hl,LFNNAME
+		ld de,LFNNAME2
+		ld bc,261
+		ldir
+		ld a,(OKNO)
+		xor 16
+		ld (OKNO),a
+
 		ld hl,ALLFILES
 		call ROZHOD2
 		ld a,(hl)
 		inc hl
-		ld h,(hl)
-		ld l,a
-;        dec hl
-isfile0   push hl
-
-
+		ld b,(hl)
+		ld c,a
+isfile0
+		push bc
+		ld h,b
+		ld l,c
+		push hl
+        inc hl
 		call BUFF83
 		call find83
-		call BUFF83
-
-		ld hl,(foundfile)
-		ld de,ban1
-		ld a,0
-		call specific_search
-		jp z,nesouhlasii
-		ld hl,(foundfile)
-		ld de,ban2
-		ld a,0
-		call specific_search
-		jp z,nesouhlasii
-		
-		pop hl
-
-        push hl
-        dec hl
-		call FINDLFN
-
-		ld hl,23296 + 59		;najdi poslední znak
-ifind1	
-		dec hl
-		ld a,(hl)
-		cp 32
-		jr z,ifind1
-		inc hl
-		ld a,255
-		ld (hl),a
-
-		ld hl,LFNNAME + 261		;najdi poslední znak
-ifind2	
-		dec hl
-		ld a,(hl)
-		cp 32
-		jr z,ifind2
-		inc hl
-		ld a,255
-		ld (hl),a
-
-
-        ld de,23296
-        ld hl,LFNNAME
-        call search
-        jr nz,nesouhlasii
-        ld hl,(foundfile)
-        call BUFF83
-        set 7,(hl)
-
-        ld hl,numsel
-    	call ROZHOD2
-        ld (adresaseli+1),hl
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
-        inc hl
-        ld a,l
-        ld (zvysi+1),a
-        ld a,h
-        ld (zvys2i+1),a
-adresaseli   ld hl,0
-zvysi    ld (hl),0
-        inc hl
-zvys2i   ld (hl),0        
-
-nesouhlasii
         pop hl
-        dec hl
-        ld a,l
-        or h
-        jp nz,isfile0
+        call FINDLFN
 
+		ld hl,LFNNAME
+		ld de,LFNNAME2
+		ld a,0
+		call specific_search
+		pop bc
+		jp z,nalezeno_isfile
+
+		dec bc
+		ld a,b
+		or c
+		jr nz,isfile0
+		ld a,1
+		or a
+nalezeno_isfile
+		push af
+
+		ld hl,LFNNAME2	;vrat zpatky nalezeny soubor
+		ld de,LFNNAME
+		ld bc,261
+		ldir
+
+						;přepni okno zpátky
+		ld a,(OKNO)
+		xor 16
+		ld (OKNO),a
+		pop af
 		ret
+
+		
