@@ -2743,8 +2743,10 @@ name   	defs 60
 ALLFILES    defw 0
 ALLFILES2	defw 0
 ALLFILESR	defw 0
-LFNNAME		defs 270  ;263
-LFNNAME2	defs 270		;buffer pro druhy stinovy záznam (např. pro copy, move atd...)
+;Buffer pro LFN
+LFNNAME		defs 270
+;Pomocný buffer pro LFN - při porovnávání
+LFNNAME2	defs 270		
 tmpname		ds 2
 BFT
 bufftmp		ds 15		 
@@ -4685,7 +4687,7 @@ last:
 E2
  			SAVEBIN "cc1.bin",S1,E1-S1
  			SAVEBIN "cc2.bin",S2,E2-S2
-
+			SAVEBIN "cc.bin", S1, E2-S1
 
               CSPECTMAP player.map
               savenex open "CalmCommander.nex",START,$5ffe

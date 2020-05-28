@@ -1,3 +1,12 @@
+;Hledávní se specifickým koncem (default je 255)
+;Vstup:
+; Vstup:
+;         DE .... vstup hledaneho retezce (ukončený bytem 255)
+;         HL .... vstup textu,kde budeme hledat (ukončený bytem 255)
+;		  A ..... ukončující byte
+; Výstup:
+;         Z ... nalezeno
+;         NZ .. nenalezeno
 
 specific_search
 			ld (def_kon+1),a
@@ -287,15 +296,10 @@ idfind_end
 
 		call showwin
 
-
 		ld a,32
         call writecur
         
-        
         jp loop0        
-
-
-
 
 SELTXT	defb "Search and select files.",0
 SELTXT2	defb "Please insert part of name:",0
