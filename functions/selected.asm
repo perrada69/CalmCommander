@@ -86,27 +86,25 @@ INITSEL
         ld (selna+1),a
         ret
 
+; 		call GETSELPAGE
+; 		ld hl,$a000
+; 		ld de,$a001
+; 		ld bc,8*1024
+; 		xor a
+; 		ld (hl),a
+; 		ldir
 
+; 		ld hl,$134
+; 		call SELTED
+; 		ex de,hl
+; 		xor (hl)
+; 		ld (hl),a
 
-		call GETSELPAGE
-		ld hl,$a000
-		ld de,$a001
-		ld bc,8*1024
-		xor a
-		ld (hl),a
-		ldir
+; 		call INITSEL
 
-		ld hl,$134
-		call SELTED
-		ex de,hl
-		xor (hl)
-		ld (hl),a
-
-		call INITSEL
-
-III		
-		call GETSELN
-		call GETSELN
-		call GETSELN
-		call GETSELN
-		call GETSELN
+; III		
+; 		call GETSELN
+; 		call GETSELN
+; 		call GETSELN
+; 		call GETSELN
+; 		call GETSELN

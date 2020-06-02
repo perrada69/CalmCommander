@@ -201,6 +201,7 @@ copycont
 		
 		
 		push hl
+		;otestovat, jestli se tam již ten soubor nachází
 		call isfile
 IS		pop hl
 		push hl
@@ -659,9 +660,6 @@ nenimove2
 
 isfile
 ISFILE
-
-
-
 		ld hl,LFNNAME+260
 is0		ld a,(hl)
 
@@ -698,8 +696,22 @@ isfile0
 		call BUFF83
 		call find83
         pop hl
+		dec hl
         call FINDLFN
 
+		ld hl,LFNNAME+260
+is01	ld a,(hl)
+
+		dec hl
+		cp 32
+		jr z,is01
+		inc hl
+		inc hl
+		ld (hl),255		
+		inc hl
+		xor a
+		ld (hl),a
+		
 		ld hl,LFNNAME
 		ld de,LFNNAME2
 		ld a,0

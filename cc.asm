@@ -2,12 +2,13 @@
             OPT reset --zxnext --syntax=abfw              
             slot 4
 
-	        MACRO VERSION : defb "0.4" : ENDM
+	        MACRO VERSION : defb "0.5" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
-            DEFINE ORG_ADDRESS      $7000
+            
+			DEFINE ORG_ADDRESS      $7000
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
@@ -113,15 +114,15 @@ NEXTREG2A   MACRO nextreg? : ld a,nextreg? : call readNextReg2A : ENDM
 CSP_BREAK   MACRO : IFDEF TESTING : break : ENDIF : ENDM
 
 
- 
+            org ORG_ADDRESS   
+S1			jp START 
 
     ;; reserved space for values (but not initialized, i.e. not part of the binary)
     ; actually in DISPLAYEDGE tool these re-use the same memory area where font was stored
     ; (turned out the DS/BLOCK does overwrite device memory always, so I'm reserving space
     ; here ahead of the real machine code is produced, the real code will later overwrite
     ; the memory as desired)
-            org ORG_ADDRESS   
-S1			jp START
+
 
 CHARS         equ  15616-256              
 mystak        equ  24575         ;ar bi trary value picked to be be low
@@ -1019,7 +1020,7 @@ enter
 		bit 7,(ix+7)
 		jp nz,enter_directory
 		
-		jp loop0		;**************************************
+		;jp loop0		;**************************************
  		
 		ld hl,name
 		ld de,name+1
@@ -4685,12 +4686,14 @@ discdetail
 		include "functions/texts.asm"
 last:       
 E2
- 			SAVEBIN "cc1.bin",S1,E1-S1
- 			SAVEBIN "cc2.bin",S2,E2-S2
+ 		;	SAVEBIN "cc1.bin",S1,E1-S1
+ 		;	SAVEBIN "cc2.bin",S2,E2-S2
 			SAVEBIN "cc.bin", S1, E2-S1
 
+
+
               CSPECTMAP player.map
-              savenex open "CalmCommander.nex",START,$5ffe
+              savenex open "CalmCommander.nex",START,START-1
               savenex core 2,0,0
               savenex auto
               savenex close
