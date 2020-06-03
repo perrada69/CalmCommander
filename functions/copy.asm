@@ -202,8 +202,9 @@ copycont
 		
 		push hl
 		;otestovat, jestli se tam již ten soubor nachází
+		ld de,norr
 		call isfile
-IS		pop hl
+		pop hl
 		push hl
 		call openfile
 		call createfile
@@ -212,7 +213,7 @@ IS		pop hl
 		call closefile
 		ld b,2
 		call closefile
-		pop hl
+norr	pop hl
 		ld a,(ismove)
 		or a
 		jr z,nenimove
@@ -237,10 +238,56 @@ CCCAC20							;vynuluj všechny stavové bity v názvu (7.)
 		call basicpage
 		jp mmorekonec
 
-
+NN
 
 nenimove
+		call obnov_okna
+
+
+		call dospage
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		xor a
+		call $01b1
+		call basicpage
+
+		jp loop0
+
+
+obnov_okna
+		call prekresli_prazdne_okna
 		call PROHOD
+		call obnov_jedno_okno
+		call GETDIR
+
+		call PROHOD
+		call obnov_jedno_okno
+		call GETDIR
+		ld a,32
+		call writecur
+		ret	
+
+prekresli_prazdne_okna
+		ld hl,0 * 256 + 1
+		ld bc,38 * 256 + 27
+		ld a,0
+		call window
+		
+		
+		
+		ld hl,40* 256 + 1
+		;	  delka      vyska
+		ld bc,38 * 256 + 27
+		ld a,0
+		call window
+
+		ret
+
+obnov_jedno_okno
 		
 		ld hl,0
 		ld hl,ALLFILES
@@ -266,8 +313,19 @@ nenimove
 		call $01b1
 		call basicpage
 		
+		ld hl,pozicel
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		ld bc,38 * 256 + 27
+		ld a,0
+		call draw.window
+
 		call reload_dir
-		call loadscr	
+		
 		ld hl,adrl
 		call ROZHOD2
 		ld a,(hl)
@@ -276,23 +334,10 @@ nenimove
 		ld l,a
 		ld (adrs+1),hl
 		call getroot_reload
-		call showwin
-
-		call PROHOD
-
-		call dospage
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		xor a
-		call $01b1
-		call basicpage
-
-		jp loop0
+		call showwin	
 		
+		ret
+
 copyend	
 			ld hl,numsel
 			call ROZHOD2
@@ -397,8 +442,7 @@ morecopy
 		ld de,NUMBUF
 		call print
 
-		
-;*****seem
+
 		ld hl,60*256+15
 		ld a,48
 		ld de,yestxt
@@ -436,9 +480,9 @@ acopycont
 		ld (hl),"|"
 
 		ld hl,0
-
+MMM
 moredalsi push hl
-		
+		ld (cislo_souboru+1),hl
 		call find83
 		call BUFF83					
 		ld hl,(foundfile)
@@ -509,6 +553,19 @@ moredalsi push hl
 		push hl
 		dec hl
 		push hl
+
+		;otestovat, jestli se tam již ten soubor nachází
+
+cislo_souboru
+		ld hl,0		
+		dec hl
+		call FINDLFN
+		ld de,norr2
+		call isfile
+		call BUFF83
+		pop hl
+		push hl
+
 		call openfile
 		call createfile
 		call readfile		
@@ -516,6 +573,7 @@ moredalsi push hl
 		call closefile
 		ld b,2
 		call closefile
+norr2	call BUFF83
 		pop hl
 		ld a,(ismove)
 		or a
@@ -576,58 +634,9 @@ morekonec
 		jp mmorekonec
 
 nenimove2
-		call PROHOD
 		
-		ld hl,0
-		ld hl,ALLFILES
-		call ROZHOD2
-		xor a
-		ld (hl),a
-		inc hl
-		ld (hl),a
-		ld hl,POSKURZL
-		call ROZHOD
-		xor a
-		ld (hl),a
+		call obnov_okna
 
-		call dospage
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		
-		xor a
-		call $01b1
-		call basicpage
-		
-		call reload_dir
-		call loadscr	
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-		call getroot_reload
-		call showwin
-
-		call PROHOD
-
-
-		ld hl,adrl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld (adrs+1),hl
-		call getroot_reload
-		call showwin
-		ld a,32
-		call writecur
 
 		call dospage
 		ld hl,pathl
@@ -639,8 +648,6 @@ nenimove2
 		xor a
 		call $01b1
 		call basicpage
-
-
 
 		ld hl,numsel
 		call ROZHOD2
@@ -649,17 +656,13 @@ nenimove2
 		inc hl
 		ld (hl),a
 
-
-
-
-
 		call freespace
 		jp loop0
 
 
-
 isfile
-ISFILE
+		ld (isfilee+1),de
+		
 		ld hl,LFNNAME+260
 is0		ld a,(hl)
 
@@ -711,7 +714,7 @@ is01	ld a,(hl)
 		inc hl
 		xor a
 		ld (hl),a
-		
+
 		ld hl,LFNNAME
 		ld de,LFNNAME2
 		ld a,0
@@ -725,19 +728,89 @@ is01	ld a,(hl)
 		jr nz,isfile0
 		ld a,1
 		or a
+		jp cont_isfile0
 nalezeno_isfile
-		push af
 
+
+		call savescr
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,file_exists_txt
+		call print		
+		
+		ld hl,11*256+13
+		ld a,16
+		ld de,overwrite_txt
+		call print		
+
+		ld hl,11*256+15
+		ld a,16
+		ld de,namefile
+		call print		
+
+		
+		ld hl,LFNNAME2
+		ld de,bfname
+		ld bc,35
+		ldir
+
+		ld hl,bfname
+		ld bc,35
+		ld a,255
+		cpir
+		dec hl
+		ld (hl),32
+TTT
+		ld hl,bfname+37
+		xor a
+		ld (hl),a
+		ld hl,25*256+15
+		ld a,16
+		ld de,bfname
+		call print		
+
+		ld hl,60*256+15
+		ld a,48
+		ld de,yestxt
+		call print		
+
+		ld hl,60*256+14
+		ld a,16
+		ld de,notxt
+		call print		
+.wait		
+		call INKEY
+		cp 1
+		jp z,norewrite
+		cp 13
+		jr z,cont_isfile
+		jr .wait
+
+cont_isfile call loadscr
+cont_isfile0
 		ld hl,LFNNAME2	;vrat zpatky nalezeny soubor
 		ld de,LFNNAME
 		ld bc,261
 		ldir
-
 						;přepni okno zpátky
 		ld a,(OKNO)
 		xor 16
 		ld (OKNO),a
-		pop af
+
 		ret
+norewrite
+		pop af			;zrus ze  zasobníku návratovou adresu z CALL
+						;přepni okno zpátky
+		ld a,(OKNO)
+		xor 16
+		ld (OKNO),a
+
+		call loadscr
+isfilee	jp 0
 
 		

@@ -135,41 +135,7 @@ port1         equ  #7FFD         ;ad dress of ROM/RAM switch ing port
                                 ;in I/O map
 catbuff       equ  #A000         ;some where for DOS to put its catalog
 dos_catalog   equ  #011E         ;the DOS routine to call
-filename 	  ds   15
-typ 		  equ $-4
-pocetpolozek	equ 200
-virtmem		defb 0
-maxlen		equ 261 + 4 + 4		;+4 je délka souboru a 4 cas a datum
-maxline 	equ 37
-save_allfiles	defw 0	
-OKNO 		defb 0
 
-KURZL		defw $4002+160*2		;adresa kurzoru levého okna
-KURZR		defw $4002+160*2+80		;adresa kurzoru pravého okna
-
-POSKURZL	defb 0				;pozice kurzoru v levém okně
-POSKURZR	defb 0				;pozice kurzoru v pravém okně
-
-ALLPOSL		defw 0				;celková pozice na souboru
-ALLPOSR		defw 0
-
-STARTWINL	defw 1				;pocatecni soubor na zacatku okna
-STARTWINR	defw 1
-ACTDISC
-actdisc		defb "C","C"
-
-pathl		defw PATHLEFT
-pathr       defw PATHRIGHT
-PATHLEFT	defb "C:",255
-			ds 261
-PATHRIGHT   defb "C:",255
-			ds 261
-bottom		defb "                                                                                ",0			
-
-ban1		defb ".      ",$a0,"   ",0
-ban2		defb "..     ",$a0,"   ",0
-banlfn1 	defb ".",255,0
-banlfn2 	defb "..",255,0
 ReadNextReg:
     ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
 			push    bc
@@ -852,7 +818,7 @@ clearpr2
 		include "functions/input.asm"
 		include "functions/createdir.asm"
 		include "functions/rename.asm"
-
+		include "functions/texts.asm"
 rtcpresent	defb 0
 
 gettime
@@ -1020,7 +986,7 @@ enter
 		bit 7,(ix+7)
 		jp nz,enter_directory
 		
-		;jp loop0		;**************************************
+		jp loop0		;**************************************
  		
 		ld hl,name
 		ld de,name+1
@@ -3584,6 +3550,7 @@ SED
 
 numsel	defw 0,0
 seltxt defb "Selected: ",0
+SES
 select
 		ld hl,POSKURZL
 		call ROZHOD
@@ -4505,19 +4472,7 @@ infoend call loadscr
 		jp loop0
 
 kresli	
-		ld hl,0 * 256 + 1
-		;	  delka      vyska
-		ld bc,38 * 256 + 27
-		ld a,0
-		call window
-		
-		
-		
-		ld hl,40* 256 + 1
-		;	  delka      vyska
-		ld bc,38 * 256 + 27
-		ld a,0
-		call window
+		call prekresli_prazdne_okna
 		ld a,0
 		ld de,bottom
 		ld hl,0*256+31
@@ -4683,7 +4638,6 @@ discdetail
 		include "functions/menu.asm"
 		include "functions/search.asm"
 		include "functions/selected.asm"
-		include "functions/texts.asm"
 last:       
 E2
  		;	SAVEBIN "cc1.bin",S1,E1-S1
