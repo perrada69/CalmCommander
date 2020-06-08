@@ -678,7 +678,7 @@ is0		ld a,(hl)
 		ld (hl),a
 		ld hl,LFNNAME
 		ld de,LFNNAME2
-		ld bc,261
+		ld bc,270
 		ldir
 		ld a,(OKNO)
 		xor 16
@@ -729,15 +729,86 @@ is01	ld a,(hl)
 		ld a,1
 		or a
 		jp cont_isfile0
+
+
+
 nalezeno_isfile
-
-
 		call savescr
 		ld hl,10 * 256 + 10
-		ld bc,60 * 256 + 5
+		ld bc,60 * 256 + 11
 		ld a,16
 		call window
 
+;zobraz datum a cas u obou souboru
+
+		ld hl,11*256+17
+		ld a,16
+		ld de,origin
+		call print	
+
+		ld hl,11*256+18
+		ld a,16
+		ld de,newfile
+		call print	
+
+		ld de,(LFNNAME+261+4)
+		ld hl,21*256+17
+		call showdate
+		ld hl,32*256+17
+		ld de,(LFNNAME+261+6)
+		call showtime
+
+		ld de,(LFNNAME2+261+4)
+		ld hl,21*256+18
+		call showdate
+		ld hl,32*256+18
+		ld de,(LFNNAME2+261+6)
+		call showtime
+
+
+		ld hl,39*256+17
+		ld a,16
+		ld de,sizetxt
+		call print
+		ld hl,39*256+18
+		ld a,16
+		ld de,sizetxt
+		call print
+
+		ld hl,46*256+17
+		ld (dec32pos+1),hl
+		ld hl,(LFNNAME+261)
+		ld de,(LFNNAME+261+2)
+		ld b,10
+		ld a,16
+		ld (decink+1),a
+		call DEC32
+		ld a,0
+		ld (decink+1),a
+
+		ld hl,57*256+17
+		ld a,16
+		ld de,bytestxt
+		call print
+
+
+		ld hl,46*256+18
+		ld (dec32pos+1),hl
+		ld hl,(LFNNAME2+261)
+		ld de,(LFNNAME2+261+2)
+		ld b,10
+		ld a,16
+		ld (decink+1),a
+		call DEC32
+		ld a,0
+		ld (decink+1),a
+
+		ld hl,57*256+18
+		ld a,16
+		ld de,bytestxt
+		call print
+
+;***************************************
 		ld hl,11*256+11
 		ld a,16
 		ld de,file_exists_txt
@@ -774,12 +845,12 @@ TTT
 		ld de,bfname
 		call print		
 
-		ld hl,60*256+15
+		ld hl,60*256+21
 		ld a,48
 		ld de,yestxt
 		call print		
 
-		ld hl,60*256+14
+		ld hl,60*256+20
 		ld a,16
 		ld de,notxt
 		call print		
@@ -795,7 +866,7 @@ cont_isfile call loadscr
 cont_isfile0
 		ld hl,LFNNAME2	;vrat zpatky nalezeny soubor
 		ld de,LFNNAME
-		ld bc,261
+		ld bc,270
 		ldir
 						;přepni okno zpátky
 		ld a,(OKNO)

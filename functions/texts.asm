@@ -34,6 +34,9 @@ ban2		defb 	"..     ",$a0,"   ",0
 banlfn1 	defb 	".",255,0
 banlfn2 	defb 	"..",255,0
 
+origin		defb "Original:",0
+newfile		defb "New file:",0
+
 help1           defb    "Controls:",0
 help2           defb    "1:          switch to left panel",0
 help3           defb    "2:          switch to right panel",0

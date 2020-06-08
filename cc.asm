@@ -4077,8 +4077,9 @@ info_file
 		call print
 
 		ld de,(LFNNAME+261+4)
-
+		ld hl,17*256+15
 		call showdate
+		ld hl,17*256+16
 		ld de,(LFNNAME+261+6)
 		call showtime
 
@@ -4141,7 +4142,19 @@ info_file
 sizetxt	defb "Size:",0
 bytestxt defb "bytes",0
 ;DE - datum
+;HL - pozice
 showdate
+		ld (shdt1+1),hl
+		inc h
+		inc h
+		ld (shdt2+1),hl
+		inc h
+		ld (shdt3+1),hl
+		inc h
+		inc h
+		ld (shdt4+1),hl
+		inc h
+		ld (shdt5+1),hl
         ld   a,e
         and  31
         push de
@@ -4149,12 +4162,12 @@ showdate
 		ld l,a
 		ld h,0
 		call NUM
-		ld hl,17*256+15
+shdt1	ld hl,17*256+15
 		ld a,16
 		ld de,NUMBUF+3
 		call print
 
-		ld hl,19*256+15
+shdt2	ld hl,19*256+15
 		ld a,16
 		ld de,tecka
 		call print
@@ -4176,11 +4189,11 @@ showdate
 		ld h,0
 		call NUM
 		;call smaznuly
-		ld hl,20*256+15
+shdt3	ld hl,20*256+15
 		ld a,16
 		ld de,NUMBUF+3
 		call print
-		ld hl,22*256+15
+shdt4 	ld hl,22*256+15
 		ld a,16
 		ld de,tecka
 		call print
@@ -4193,14 +4206,20 @@ showdate
 		add hl,de
 		call NUM
 		call smaznuly
-		ld hl,23*256+15
+shdt5	ld hl,23*256+15
 		ld a,16
 		ld de,NUMBUF+1
 		call print
 		ret
 ;DE - čas ve formátu MSDOS
+;HL - pozice
 showtime
-
+		ld (shtm1+1),hl
+		inc h
+		inc h
+		ld (shtm2+1),hl
+		inc h
+		ld (shtm3+1),hl
 		 ld   a,d
          ld   b,e
          srl  a
@@ -4216,12 +4235,12 @@ showtime
 		ld l,a
 		ld h,0
 		call NUM
-		ld hl,17*256+16
+shtm1	ld hl,17*256+16
 		ld a,16
 		ld de,NUMBUF+3
 		call print
 
-		ld hl,19*256+16
+shtm2	ld hl,19*256+16
 		ld a,16
 		ld de,dvojtecka
 		call print
@@ -4231,7 +4250,7 @@ showtime
 		ld l,a
 		ld h,0
 		call NUM
-		ld hl,20*256+16
+shtm3	ld hl,20*256+16
 		ld a,16
 		ld de,NUMBUF+3
 		call print
