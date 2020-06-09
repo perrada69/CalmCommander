@@ -4155,6 +4155,7 @@ showdate
 		ld (shdt4+1),hl
 		inc h
 		ld (shdt5+1),hl
+
         ld   a,e
         and  31
         push de
@@ -4220,6 +4221,16 @@ showtime
 		ld (shtm2+1),hl
 		inc h
 		ld (shtm3+1),hl
+		inc h
+		inc h
+		ld (shtm4+1),hl
+		inc h
+		ld (shtm5+1),hl
+							;zjisti vteriny
+		ld a,e
+		and 00011111b
+		add a,a
+		ld (vteriny+1),a
 		 ld   a,d
          ld   b,e
          srl  a
@@ -4254,6 +4265,21 @@ shtm3	ld hl,20*256+16
 		ld a,16
 		ld de,NUMBUF+3
 		call print
+
+shtm4	ld hl,19*256+16
+		ld a,16
+		ld de,dvojtecka
+		call print
+
+
+vteriny	ld l,0		
+		ld h,0
+		call NUM
+shtm5	ld hl,20*256+16
+		ld a,16
+		ld de,NUMBUF+3
+		call print
+
 		ret
 
 smaznuly

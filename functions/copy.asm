@@ -766,16 +766,16 @@ nalezeno_isfile
 		call showtime
 
 
-		ld hl,39*256+17
+		ld hl,42*256+17
 		ld a,16
 		ld de,sizetxt
 		call print
-		ld hl,39*256+18
+		ld hl,42*256+18
 		ld a,16
 		ld de,sizetxt
 		call print
 
-		ld hl,46*256+17
+		ld hl,49*256+17
 		ld (dec32pos+1),hl
 		ld hl,(LFNNAME+261)
 		ld de,(LFNNAME+261+2)
@@ -786,13 +786,13 @@ nalezeno_isfile
 		ld a,0
 		ld (decink+1),a
 
-		ld hl,57*256+17
+		ld hl,60*256+17
 		ld a,16
 		ld de,bytestxt
 		call print
 
 
-		ld hl,46*256+18
+		ld hl,49*256+18
 		ld (dec32pos+1),hl
 		ld hl,(LFNNAME2+261)
 		ld de,(LFNNAME2+261+2)
@@ -803,7 +803,7 @@ nalezeno_isfile
 		ld a,0
 		ld (decink+1),a
 
-		ld hl,57*256+18
+		ld hl,60*256+18
 		ld a,16
 		ld de,bytestxt
 		call print
