@@ -203,6 +203,7 @@ copycont
 		push hl
 		;otestovat, jestli se tam již ten soubor nachází
 		ld de,norr
+		ld bc,nalezeno_isfile
 		call isfile
 		pop hl
 		push hl
@@ -561,6 +562,7 @@ cislo_souboru
 		dec hl
 		call FINDLFN
 		ld de,norr2
+		ld bc,nalezeno_isfile
 		call isfile
 		call BUFF83
 		pop hl
@@ -662,7 +664,7 @@ nenimove2
 
 isfile
 		ld (isfilee+1),de
-		
+		ld (iskam+1),bc
 		ld hl,LFNNAME+260
 is0		ld a,(hl)
 
@@ -720,7 +722,7 @@ is01	ld a,(hl)
 		ld a,0
 		call specific_search
 		pop bc
-		jp z,nalezeno_isfile
+iskam	jp z,nalezeno_isfile
 
 		dec bc
 		ld a,b
