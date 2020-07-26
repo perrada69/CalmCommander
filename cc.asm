@@ -16,7 +16,7 @@
 			DEFINE CFG_FILENAME     dspedge.defaultCfgFileName
     		STRUCT S_MARGINS        ; pixels of margin 0..31 (-1 = undefined margin)
 L           BYTE    -1      ; left
-R           BYTE    -1      ; right
+R           BYTE    -1      ; right 
 T           BYTE    -1      ; top
 B           BYTE    -1      ; bottom
 			ENDS
