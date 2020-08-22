@@ -349,16 +349,16 @@ loop0
 
 		
 ; ;*******************************
-		; ld a,(klavesa)
-		; ld l,a
-		; xor a
-		; ld h,a
+		ld a,(klavesa)
+		ld l,a
+		xor a
+		ld h,a
 
-		; call NUM
-		; ld hl,40*256+31
-		; ld a,16
-		; ld de,NUMBUF
-		; call print
+		call NUM
+		ld hl,40*256+31
+		ld a,16
+		ld de,NUMBUF
+		call print
 
 
 ; 		ld a,(POSKURZL)
@@ -469,6 +469,13 @@ loop0
 		
 		cp "7"
 		jp z,MKDIR
+		cp 7
+		jp z,newdisc_left
+
+		cp 6
+		jp z,newdisc_right
+
+
 
 		cp "+"
 		jp z,select_files
@@ -610,6 +617,31 @@ deselect_files_right
 		call setrightwin
 		jp deselect
 
+newdisc_left
+		ld a,0
+		call writecur
+		ld a,3
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		jp changedrive
+
+
+
 leftwin
 		ld a,0
 		call writecur
@@ -654,6 +686,31 @@ rightwin
 		
 		call basicpage
 		jp loop0
+
+
+newdisc_right
+		ld a,0
+		call writecur
+		ld a,$13
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		jp changedrive
+
 
 
 souboru_na_radek	equ 26
@@ -2403,18 +2460,32 @@ ascont
 
 
 
-ramdisc	defb " (ramdisc)",0
+ramdisc	defb " (ramdisc)",0		;v současné verzi se nebude vypisovat
 image	defb " (disc image)  ",0
 sdcard defb " (SD card)",0
-
+;Vypis kurzoru pri vyberu disku
 writecurdrv
+		push af
+		ld hl,lftw
+		call ROZHOD
+		ld a,(hl)
+		or a
+		jr z,levy_panel
+		ld hl,$4000 + 160*8 + 17 + 78	
+		ld (kkam +1),hl
+		jr pravy_panel
+levy_panel
+		ld hl,$4000 + 160*8 + 15
+		ld (kkam +1),hl
+pravy_panel
+		pop af
 		ld (chngcol+1),a
 		ld a,(posdrv)
 		
 		ld e,a
 		ld d,160
 		mul d,e
-		ld hl,$4000 + 160*8 + 17
+kkam	ld hl,0
 		add hl,de
 		ld b,15
 wrcurdrv
@@ -2717,29 +2788,37 @@ tilemapPalette:
 				
 				
 				
-tilemapPalette_SZ:  EQU $ - tilemapPalette            
-changedrive	
+tilemapPalette_SZ:  EQU $ - tilemapPalette   
+
+lftw	defb 0
+		defb 1
+
+changedrive
+		call savescr
 		call NOBUFF83
-		ld hl,5 * 256 + 5
+		ld hl,lftw
+		call ROZHOD
+		ld a,(hl)
+		or a
+		jr nz,chngright
+		ld hl, 4 * 256 + 5
 		ld bc,30 * 256 + 17
 		ld a,16
 		call window
 
-		ld hl,6*256+6
+		ld hl,5*256+6
 		ld a,16
 		ld de,changedrivetxt
 		call print					
 
-		ld hl,21*256+22
+		ld hl,20*256+22
 		ld a,16
 		ld de,selecttxt
 		call print					
-		ld hl,25*256+21
+		ld hl,24*256+21
 		ld a,16
 		ld de,notxt
 		call print					
-
-
 
 		ld a,(pocetdisku)
 		ld b,a
@@ -2747,10 +2826,37 @@ changedrive
 		exx
 		ld hl,discdetail
 		exx
-		ld hl,$4000 + 160*8 + 16
-CHNG
-chngdrv0
+		ld hl,$4000 + 160*8 + 14
+		jr chngdrv0
+chngright
+		ld hl,44 * 256 + 5
+		ld bc,30 * 256 + 17
+		ld a,16
+		call window
 
+		ld hl,45*256+6
+		ld a,16
+		ld de,changedrivetxt
+		call print					
+
+		ld hl,60*256+22
+		ld a,16
+		ld de,selecttxt
+		call print					
+		ld hl,64*256+21
+		ld a,16
+		ld de,notxt
+		call print					
+
+		ld a,(pocetdisku)
+		ld b,a
+		ld de,listdisc
+		exx
+		ld hl,discdetail
+		exx
+		ld hl,$4000 + 160*8 + 16 + 78
+
+chngdrv0
 		ld a,(de)
 		ld (hl),a
 		inc hl
@@ -2798,11 +2904,12 @@ chng0	call INKEY
 		cp 11
 		jr z,curchngup
 		cp 1
-		jp z,loop0
+		jr z,cancel
 		cp 13
 		jp z,enterdrv
 		jp chng0
-
+cancel	call loadscr
+		jp loop0
 curchngup
 		ld a,(posdrv)
 		cp 0
@@ -4351,85 +4458,95 @@ snuly	ld a,(hl)
 		ret
 
 help	call savescr
-		ld hl,8 * 256 + 10
-		ld bc,60 * 256 + 16
+		ld hl,8 * 256 + 4
+		ld bc,60 * 256 + 18
 		ld a,16
 		call window
 
-		ld hl,11*256+11
+		ld hl,11*256+5
 		ld a,16
 		ld de,help1
 		call print
 
-		ld hl,11*256+13
+		ld hl,11*256+7
 		ld a,16
 		ld de,help2
 		call print
 
-		ld hl,11*256+14
+		ld hl,11*256+8
 		ld a,16
 		ld de,help3
 		call print
 
-		ld hl,11*256+15
+		ld hl,11*256+9
 		ld a,16
 		ld de,help4
 		call print
 
-		ld hl,11*256+16
+		ld hl,11*256+10
 		ld a,16
 		ld de,help5
 		call print
 
-		ld hl,11*256+17
+		ld hl,11*256+11
 		ld a,16
 		ld de,help6
 		call print
 
-		ld hl,11*256+18
+		ld hl,11*256+12
 		ld a,16
 		ld de,help7
 		call print
 
-		ld hl,11*256+19
+		ld hl,11*256+13
 		ld a,16
 		ld de,help8
 		call print
 
-		ld hl,11*256+20
+		ld hl,11*256+14
 		ld a,16
 		ld de,help9
 		call print
 
-		ld hl,11*256+21
+		ld hl,11*256+15
 		ld a,16
 		ld de,help10
 		call print
 
-		ld hl,11*256+22
+		ld hl,11*256+16
 		ld a,16
 		ld de,help11
 		call print
 
-		ld hl,11*256+23
+		ld hl,11*256+17
 		ld a,16
 		ld de,help12
 		call print
 
-		ld hl,11*256+24
+		ld hl,11*256+18
 		ld a,16
 		ld de,help13
 		call print
 
-		ld hl,11*256+25
+		ld hl,11*256+19
 		ld a,16
 		ld de,help14
 		call print
 
 
-		ld hl,11*256+26
+		ld hl,11*256+20
 		ld a,16
 		ld de,help15
+		call print
+
+		ld hl,11*256+21
+		ld a,16
+		ld de,help16
+		call print
+
+		ld hl,11*256+22
+		ld a,16
+		ld de,help17
 		call print
 
 

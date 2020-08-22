@@ -52,6 +52,8 @@ help12          defb    "+:          Search and select files/directory",0
 help13          defb    "-:          Search and deselect files/directory",0
 help14          defb    "BREAK:      Cancel operations (copy, move, delete, ",0
 help15          defb    "            close this window...)",0
+help16			defb    "CAPS+1      Change drive in left window",0
+help17			defb    "CAPS+2      Change drive in right window",0
 
 calmcommander	defb    "CALM COMMANDER " : VERSION : defb " (Development version 2020)",0		
 breaktxt 		defb    "BREAK: close this window",0		
