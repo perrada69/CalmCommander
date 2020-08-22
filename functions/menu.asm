@@ -288,7 +288,7 @@ menuleft	defb " SELECT FILES   (+)",0
 			defw invert_select_files_left
 			
 			defb " CHANGE DRIVE      ",0
-			defw notnow						;changedrive
+			defw changedrive ;notnow	;changedrive
 			defb 255
 menufile    defb " COPY           (5)",0
 			defw copy
@@ -311,7 +311,7 @@ menuright	defb " SELECT FILES   (+)",0
 			defb " INVERT SELECT  (*)",0
 			defw invert_select_files_right
 			defb " CHANGE DRIVE      ",0
-			defw notnow    ;changedrive
+			defw changedrive ;notnow    ;changedrive
 			defb 255
 menuutil 	defb " HELP           (H)",0
 			defw help

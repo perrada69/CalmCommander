@@ -137,7 +137,8 @@ REN3
 		call basicpage
 		;call loadscr
 
-;---------------- KONEC --------------------	
+;---------------- KONEC --------------------
+KONEC_OPERACE	
 	    ld hl,0
 		ld hl,ALLFILES
 		call ROZHOD2

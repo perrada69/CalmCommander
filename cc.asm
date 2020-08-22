@@ -1,3 +1,13 @@
+;	Souborový manažer pro ZX Spectrum Next			
+;	======================================
+;
+;	Naprogramoval: Shrek/MB Maniax
+;	Za vydatné pomoci: ped75g
+;
+;	
+			
+			
+			
 			DEVICE ZXSPECTRUMNEXT
             OPT reset --zxnext --syntax=abfw              
             slot 4
@@ -8,7 +18,7 @@
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
             
-			DEFINE ORG_ADDRESS      $7000
+			DEFINE ORG_ADDRESS      $7000 + 128
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
@@ -16,7 +26,7 @@
 			DEFINE CFG_FILENAME     dspedge.defaultCfgFileName
     		STRUCT S_MARGINS        ; pixels of margin 0..31 (-1 = undefined margin)
 L           BYTE    -1      ; left
-R           BYTE    -1      ; right 
+R           BYTE    -1      ; right  
 T           BYTE    -1      ; top
 B           BYTE    -1      ; bottom
 			ENDS
@@ -112,6 +122,8 @@ FA_READ                         equ $01
 ESXDOS      MACRO service? : push hl : pop ix : rst $08 : db service? : ENDM    ; copies HL into IX
 NEXTREG2A   MACRO nextreg? : ld a,nextreg? : call readNextReg2A : ENDM
 CSP_BREAK   MACRO : IFDEF TESTING : break : ENDIF : ENDM
+DET
+
 
 
             org ORG_ADDRESS   
@@ -145,11 +157,7 @@ ReadNextReg:
 			in      a,(c)   ; read desired NextReg state
 			pop     bc
 			ret
-bufferdisc	defs 18
 
-listdisc		defs 15
-pocetdisku 		defb 0
-pocetstranek	defb 0
 START       
 	
 		call dospage
@@ -160,10 +168,13 @@ START
 		ld (pocetstranek),a
 
 disc	ld l,"A"
+		cp "M"
+		jr z,dalsi
 		ld bc,bufferdisc
 		call $00F7
-		jr nc,neskenuj
+		//jr nc,neskenuj
 		jr z,dalsi	
+DSCDET
 dscdet	ld hl,discdetail
 		ld (hl),a
 		inc hl
@@ -187,80 +198,13 @@ dalsi
 		inc a
 		ld (disc+1),a
 		jr disc
-
+NES
 neskenuj
 
 		call basicpage
+		call VSE_NASTAV
 		
-		
-		ld a,3
-		ld (OKNO),a
-		nextreg MMU3_6000_NR_53,5*2+1
-        ld      hl,TILE_GFX_ADR
-        ld      de,TILE_GFX_ADR+1
-        ld      bc,16*32-1
-        ld      (hl),0
-        ldir
-		ld hl,$6000
-		ld de,$6001
-		ld bc,32*16
-		ld (hl),l
-		ldir
-		ld		de,$6000 + 32*32
-
-   ; convert ROM font to 4bpp tiles by code
-        ld      hl,MEM_ROM_CHARS_3C00 + 32*8
-        ld      b,128-' '
-.RomCharsLoop
-        call    ConvertRomCharTo4bpp
-        djnz    .RomCharsLoop
-		
-		ld hl,specialchar
-		ld de,$6000+32*16
-		ld bc,specialchar2-specialchar
-
-		ldir
-
-        nextreg TURBO_CONTROL_NR_07,3               ; 28Mhz mode
-        nextreg SPRITE_CONTROL_NR_15,%000'100'00    ; layer priority: USL
-        nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0   ; black transparency fallback color
-        nextreg TILEMAP_TRANSPARENCY_I_NR_4C,$0F
-        nextreg ULA_CONTROL_NR_68,$80               ; disable ULA layer
-        nextreg DISPLAY_CONTROL_NR_69,0             ; layer2 off, bank 5, timex=0
-        nextreg TILEMAP_CONTROL_NR_6B,%1100'0011    ; 80x32x2, 4bpp, pal0, 512tile-mode, force tile-over-ULA
-        nextreg TILEMAP_DEFAULT_ATTR_NR_6C,$00      ; no pal offset, no mirror/rot, 0 bit8
-        nextreg TILEMAP_BASE_ADR_NR_6E,high TILE_MAP_ADR
-        nextreg TILEMAP_GFX_ADR_NR_6F,high TILE_GFX_ADR
-        nextreg CLIP_WINDOW_CONTROL_NR_1C,%0000'1000
-        nextreg CLIP_TILEMAP_NR_1B,0
-        nextreg CLIP_TILEMAP_NR_1B,159
-        nextreg CLIP_TILEMAP_NR_1B,0
-        nextreg CLIP_TILEMAP_NR_1B,255
-        nextreg TILEMAP_XOFFSET_MSB_NR_2F,0
-		nextreg TILEMAP_XOFFSET_LSB_NR_30,0
-        nextreg TILEMAP_YOFFSET_NR_31,0
-        
-		
-		; set tilemap palette
-        nextreg PALETTE_CONTROL_NR_43,%0'011'0000   ; tilemap pal0
-        nextreg PALETTE_INDEX_NR_40,0
-
-        ld      hl,tilemapPalette
-        ld      b,tilemapPalette_SZ
-.setPalLoop:
-        ld      a,(hl)
-        inc     hl
-        nextreg PALETTE_VALUE_9BIT_NR_44,a
-        djnz    .setPalLoop           
-		ld hl,$4000
-		ld de,$4001
-		ld bc,80*32*2
-		ld (hl),0
-		ldir
-
-		ld hl,nadpis
-		ld de,#4000
-		ld bc,80
+	
 
 
 
@@ -405,16 +349,16 @@ loop0
 
 		
 ; ;*******************************
-; 		ld a,(klavesa)
-; 		ld l,a
-; 		xor a
-; 		ld h,a
+		; ld a,(klavesa)
+		; ld l,a
+		; xor a
+		; ld h,a
 
-; 		call NUM
-; 		ld hl,40*256+31
-; 		ld a,16
-; 		ld de,NUMBUF
-; 		call print
+		; call NUM
+		; ld hl,40*256+31
+		; ld a,16
+		; ld de,NUMBUF
+		; call print
 
 
 ; 		ld a,(POSKURZL)
@@ -592,8 +536,6 @@ freespace
 		ld a,0
 		call print
 
-
-
 		call basicpage
 		ret
 
@@ -717,17 +659,6 @@ rightwin
 souboru_na_radek	equ 26
 
 
-
-
-					; CPPX1    ld   de,0
-							 ; or   a
-							 ; sbc  hl,de
-							 ; jr   c,CPPNE1
-					; CPPX3    ld   b,1
-							 ; ld   (PROGPROM),hl
-							 ; call PROGRES
-					; CPPNE1
-
 PROGPROM	defw 0
 PROGPROM2	defw 0
 
@@ -808,17 +739,14 @@ clearpr2
 		djnz clearpr2
 		ret
 
-
-
-
+LA
+bufferdisc	defs 18
+LD
+listdisc		defs 15
+pocetdisku 		defb 0
+pocetstranek	defb 0
+			
 ;blocklenght	equ 1024*6
-		include "functions/copy.asm"
-		include "functions/file.asm"
-		include "functions/delete.asm"
-		include "functions/input.asm"
-		include "functions/createdir.asm"
-		include "functions/rename.asm"
-		include "functions/texts.asm"
 rtcpresent	defb 0
 
 gettime
@@ -1071,6 +999,7 @@ AAAA
 		call ROZHOD
 		xor a
 		ld (hl),a
+
 		call reload_dir
 
 		ld hl,pozicel
@@ -1107,8 +1036,6 @@ rcont	ld hl,adrl
 		ld h,(hl)
 		ld l,a
 
-
-
 		ld (adrs+1),hl
 
 		ld hl,POSKURZL
@@ -1124,7 +1051,6 @@ rcont	ld hl,adrl
 		ld (hl),a
 star	ld hl,1
 		call getroot
-
 
 		ld hl,pathl
 		call ROZHOD2
@@ -1430,7 +1356,6 @@ leftpos	defw	0
 ;Test jestli je soubor označený nebo ne
 ;Z - není označený
 ;NZ - je označený
-
 CHECKSEL
 		ld hl,POSKURZL
 		call ROZHOD
@@ -1516,37 +1441,10 @@ ROZHOD2  ld   a,(OKNO)
          ret  
 
 
-ConvertRomCharTo4bpp:
-        push    bc
-        ld      bc,$08FF
-.lineLoop:
-        ld      a,(hl)
-        inc     hl
-        push    hl
-        call    .convert8pixels
-        pop     hl
-        djnz    .lineLoop
-        pop     bc
-        ret
-.convert8pixels:
-        call    .convert4pixels
-.convert4pixels:
-        call    .convert2pixels
-.convert2pixels:
-        rlca
-        rlca
-        push    af
-        and     3
-        ld      hl,.pixelTable
-        add     hl,a
-        ldi
-        pop     af
-        ret
-.pixelTable:
-       DB      $00, $03, $30, $33
+
 
 		
-dirext	defb "  <DIR>",0		
+	
 		
 ; Násobení HL x B
 ; Vysledek HL
@@ -1718,7 +1616,7 @@ NORMTAB  db "bhy65tgv"
          db "p01qa"
          db 0
 
-beepk		ld a,(keysound)		;Busyho nahradni rutina,kratsi
+beepk	ld a,(keysound)		;Busyho nahradni rutina,kratsi
 		or a
 		ret nz
 		ld a,(BORDER)
@@ -1728,7 +1626,7 @@ beepk		ld a,(keysound)		;Busyho nahradni rutina,kratsi
 ;		ld a,$10+border
 		out ($fe),a
 		ld b,$1c
-beepk1		djnz beepk1
+beepk1	djnz beepk1
 		ld a,$08
 		add a,e
 ;		ld a,$08+border
@@ -2157,7 +2055,7 @@ acont
               dec bc
               
 			 call BUFF83
-JKJK			 
+			 
 			 ld hl,catbuff+13
 askon		
 			call getAllLFN	
@@ -2219,6 +2117,8 @@ basicpage
         out (c),a  
 		ret
 
+DETT
+discdetail		defs 30
 
 lfnpage	defb 24,60
 			
@@ -2368,136 +2268,6 @@ changedrivetxt defb "Select drive:",0
 
 selecttxt	defb "ENTER = select",0
 
-changedrive	
-		ld hl,5 * 256 + 5
-		ld bc,30 * 256 + 17
-		ld a,16
-		call window
-
-		ld hl,6*256+6
-		ld a,16
-		ld de,changedrivetxt
-		call print					
-
-		ld hl,21*256+22
-		ld a,16
-		ld de,selecttxt
-		call print					
-		ld hl,25*256+21
-		ld a,16
-		ld de,notxt
-		call print					
-
-
-
-		ld a,(pocetdisku)
-		ld b,a
-		ld de,listdisc
-		exx
-		ld hl,discdetail
-		exx
-		ld hl,$4000 + 160*8 + 16
-CHNG
-chngdrv0
-
-		ld a,(de)
-		ld (hl),a
-		inc hl
-		ld (hl),16
-		inc hl
-		ld (hl),":"
-		inc hl
-		ld (hl),16
-		inc hl
-		push hl
-
-		exx
-		ld a,(hl)
-		pop hl
-		push hl
-		cp 4
-		call z,showramdisc
-		cp 255
-		call z,showimagedisc
-		exx
-		
-		pop hl
-		push de
-		ld de,160-4
-		add hl,de
-		pop de
-		inc de
-		djnz chngdrv0
-		ld a,64
-		call writecurdrv
-chng0	call INKEY
-		cp 10
-		jr z,curchngdown
-
-		cp 11
-		jr z,curchngup
-		cp 1
-		jp z,loop0
-		cp 13
-		jp z,enterdrv
-		jp chng0
-
-
-
-
-curchngup
-		ld a,(posdrv)
-		cp 0
-		jp z,chng0
-
-		ld a,16
-		call writecurdrv
-		ld a,(posdrv)
-		dec a
-		ld (posdrv),a
-		ld a,64
-		call writecurdrv
-
-		jp chng0
-
-
-curchngdown
-		ld a,(posdrv)
-		inc a
-		ld hl,pocetdisku
-		cp (hl)
-		jr z,chng0
-
-		ld a,16
-		call writecurdrv
-		ld a,(posdrv)
-		inc a
-		ld (posdrv),a
-		ld a,64
-		call writecurdrv
-		jp chng0
-
-showramdisc	
-		ld de,ramdisc
-		call showtyp
-		xor a
-		ret
-showimagedisc
-		ld de,image
-		call showtyp
-		xor a
-		ret
-
-showtyp	
-		ld a,(de)
-		or a
-		ret z
-shwtyp0	ld (hl),a
-		inc hl
-		ld (hl),16
-		inc hl
-		inc de
-		jr shwtyp0
 
 
 enterdrv
@@ -2540,7 +2310,7 @@ HNH
 		call ROZHOD
 		xor a
 		ld (hl),a
-		
+		;jp vol_reload
 RLD		call reload_dir
 
 		ld hl,pozicel
@@ -2624,14 +2394,18 @@ ascont
 		inc hl
 		ld (hl),d
 
-
+		call showwin
+		ld a,32
+		call writecur
+		call GETDIR
 
 		jp loop0
 
 
 
 ramdisc	defb " (ramdisc)",0
-image	defb " (image)  ",0
+image	defb " (disc image)  ",0
+sdcard defb " (SD card)",0
 
 writecurdrv
 		ld (chngcol+1),a
@@ -2642,7 +2416,7 @@ writecurdrv
 		mul d,e
 		ld hl,$4000 + 160*8 + 17
 		add hl,de
-		ld b,5
+		ld b,15
 wrcurdrv
 chngcol	ld (hl),64
 		inc hl
@@ -2730,7 +2504,158 @@ numLoop		defw 0
 FILES    	defb 0
 dirNum	 	defw 0
 
-				include "functions/getdir.asm"
+
+		include "functions/copy.asm"
+		include "functions/file.asm"
+		include "functions/delete.asm"
+		include "functions/input.asm"
+		include "functions/createdir.asm"
+		include "functions/rename.asm"
+		include "functions/texts.asm"
+		include "functions/getdir.asm"
+              
+                                                                    ; 24 chars skipped (3*256)
+                                                                    ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
+
+FILEBUFF	
+
+
+
+
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+;*****************************************************************************************
+
+
+E1			
+			org 49152
+
+S2
+tilemapFont_char24:
+            INCLUDE "tilemap_font_8x6.i.asm"
+tilemapFont:    ds   16*32
+
+ConvertRomCharTo4bpp:
+        push    bc
+        ld      bc,$08FF
+.lineLoop:
+        ld      a,(hl)
+        inc     hl
+        push    hl
+        call    .convert8pixels
+        pop     hl
+        djnz    .lineLoop
+        pop     bc
+        ret
+.convert8pixels:
+        call    .convert4pixels
+.convert4pixels:
+        call    .convert2pixels
+.convert2pixels:
+        rlca
+        rlca
+        push    af
+        and     3
+        ld      hl,.pixelTable
+        add     hl,a
+        ldi
+        pop     af
+        ret
+.pixelTable:
+       DB      $00, $03, $30, $33
+
+VSE_NASTAV
+	ld a,3
+		ld (OKNO),a
+		nextreg MMU3_6000_NR_53,5*2+1
+        ld      hl,TILE_GFX_ADR
+        ld      de,TILE_GFX_ADR+1
+        ld      bc,16*32-1
+        ld      (hl),0
+        ldir
+		ld hl,$6000
+		ld de,$6001
+		ld bc,32*16
+		ld (hl),l
+		ldir
+		ld		de,$6000 + 32*32
+
+   ; convert ROM font to 4bpp tiles by code
+        ld      hl,MEM_ROM_CHARS_3C00 + 32*8
+        ld      b,128-' '
+.RomCharsLoop
+        call    ConvertRomCharTo4bpp
+        djnz    .RomCharsLoop
+		
+		ld hl,specialchar
+		ld de,$6000+32*16
+		ld bc,specialchar2-specialchar
+
+		ldir
+
+        nextreg TURBO_CONTROL_NR_07,3               ; 28Mhz mode
+        nextreg SPRITE_CONTROL_NR_15,%000'100'00    ; layer priority: USL
+        nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0   ; black transparency fallback color
+        nextreg TILEMAP_TRANSPARENCY_I_NR_4C,$0F
+        nextreg ULA_CONTROL_NR_68,$80               ; disable ULA layer
+        nextreg DISPLAY_CONTROL_NR_69,0             ; layer2 off, bank 5, timex=0
+        nextreg TILEMAP_CONTROL_NR_6B,%1100'0011    ; 80x32x2, 4bpp, pal0, 512tile-mode, force tile-over-ULA
+        nextreg TILEMAP_DEFAULT_ATTR_NR_6C,$00      ; no pal offset, no mirror/rot, 0 bit8
+        nextreg TILEMAP_BASE_ADR_NR_6E,high TILE_MAP_ADR
+        nextreg TILEMAP_GFX_ADR_NR_6F,high TILE_GFX_ADR
+        nextreg CLIP_WINDOW_CONTROL_NR_1C,%0000'1000
+        nextreg CLIP_TILEMAP_NR_1B,0
+        nextreg CLIP_TILEMAP_NR_1B,159
+        nextreg CLIP_TILEMAP_NR_1B,0
+        nextreg CLIP_TILEMAP_NR_1B,255
+        nextreg TILEMAP_XOFFSET_MSB_NR_2F,0
+		nextreg TILEMAP_XOFFSET_LSB_NR_30,0
+        nextreg TILEMAP_YOFFSET_NR_31,0
+        
+		
+		; set tilemap palette
+        nextreg PALETTE_CONTROL_NR_43,%0'011'0000   ; tilemap pal0
+        nextreg PALETTE_INDEX_NR_40,0
+
+        ld      hl,tilemapPalette
+        ld      b,tilemapPalette_SZ
+.setPalLoop:
+        ld      a,(hl)
+        inc     hl
+        nextreg PALETTE_VALUE_9BIT_NR_44,a
+        djnz    .setPalLoop           
+		ld hl,$4000
+		ld de,$4001
+		ld bc,80*32*2
+		ld (hl),0
+		ldir
+
+		ld hl,nadpis
+		ld de,#4000
+		ld bc,80
+		ret
+
 tilemapPalette:
                 db  %000'000'11,1       ; 0 modra(paper)					0
                 db  %100'100'10,1       ; 1 light grey (25% ink)
@@ -2793,21 +2718,152 @@ tilemapPalette:
 				
 				
 tilemapPalette_SZ:  EQU $ - tilemapPalette            
+changedrive	
+		call NOBUFF83
+		ld hl,5 * 256 + 5
+		ld bc,30 * 256 + 17
+		ld a,16
+		call window
 
-              
-tilemapFont:    ds   16*32
-                                                                    ; 24 chars skipped (3*256)
-                                                                    ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
+		ld hl,6*256+6
+		ld a,16
+		ld de,changedrivetxt
+		call print					
 
-FILEBUFF	
-tilemapFont_char24:
-            INCLUDE "tilemap_font_8x6.i.asm"
+		ld hl,21*256+22
+		ld a,16
+		ld de,selecttxt
+		call print					
+		ld hl,25*256+21
+		ld a,16
+		ld de,notxt
+		call print					
 
 
-E1			
-			org 49152
 
-S2
+		ld a,(pocetdisku)
+		ld b,a
+		ld de,listdisc
+		exx
+		ld hl,discdetail
+		exx
+		ld hl,$4000 + 160*8 + 16
+CHNG
+chngdrv0
+
+		ld a,(de)
+		ld (hl),a
+		inc hl
+		ld (hl),16
+		inc hl
+		ld (hl),":"
+		inc hl
+		ld (hl),16
+		inc hl
+		push hl
+
+		exx
+		ld a,(hl)
+		inc hl
+		exx
+		cp 4
+		pop hl
+		push hl
+		push de
+		push af
+		call z,showramdisc
+		pop af
+		push af
+		cp 255
+		call z,showimagedisc
+		pop af
+		cp 5
+		call z,showsdcard
+		cp 6
+		call z,showsdcard
+		pop de
+		pop hl
+		push de
+		ld de,160-4
+		add hl,de
+		pop de
+		inc de
+		djnz chngdrv0
+		ld a,64
+		call writecurdrv
+chng0	call INKEY
+		cp 10
+		jr z,curchngdown
+
+		cp 11
+		jr z,curchngup
+		cp 1
+		jp z,loop0
+		cp 13
+		jp z,enterdrv
+		jp chng0
+
+curchngup
+		ld a,(posdrv)
+		cp 0
+		jp z,chng0
+
+		ld a,16
+		call writecurdrv
+		ld a,(posdrv)
+		dec a
+		ld (posdrv),a
+		ld a,64
+		call writecurdrv
+
+		jp chng0
+
+
+curchngdown
+		ld a,(posdrv)
+		inc a
+		ld hl,pocetdisku
+		cp (hl)
+		jr z,chng0
+
+		ld a,16
+		call writecurdrv
+		ld a,(posdrv)
+		inc a
+		ld (posdrv),a
+		ld a,64
+		call writecurdrv
+		jp chng0
+
+showramdisc	
+		ld de,ramdisc
+		call showtyp
+		xor a
+		ret
+showimagedisc
+		ld de,image
+		call showtyp
+		xor a
+		ret
+
+showsdcard 
+		ld de,sdcard
+		call showtyp
+		xor a
+		ret
+
+showtyp	
+		ld a,(de)
+		or a
+		ret z
+shwtyp0	ld (hl),a
+		inc hl
+		ld (hl),16
+		inc hl
+		inc de
+		jr showtyp
+
+
 down
 		ld hl,ALLFILES
 		call ROZHOD2
@@ -4676,8 +4732,8 @@ filedate	defb "Date:",0
 filetime	defb "Time:",0
 tecka		defb ". ",0
 dvojtecka 	defb ":",0
-discdetail
-			defs 15
+DISC
+
 
 
 		include "functions/menu.asm"

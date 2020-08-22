@@ -1,6 +1,6 @@
 ;Hledávní se specifickým koncem (default je 255)
 ;Vstup:
-; Vstup:
+;Vstup:
 ;         DE .... vstup hledaneho retezce (ukončený bytem 255)
 ;         HL .... vstup textu,kde budeme hledat (ukončený bytem 255)
 ;		  A ..... ukončující byte
@@ -301,8 +301,8 @@ idfind_end
         
         jp loop0        
 
-SELTXT	defb "Search and select files.",0
-SELTXT2	defb "Please insert part of name:",0
+SELTXT		defb "Search and select files.",0
+SELTXT2		defb "Please insert part of name:",0
 DESELTXT	defb "Search and deselect files.",0
 
 

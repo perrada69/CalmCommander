@@ -1,5 +1,5 @@
 moredelete
-
+ 
 
 		call savescr
 
@@ -12,9 +12,6 @@ moredelete
 		ld a,16
 		ld de,moredeletetxt
 		call print		
-
-
-
 
 		ld hl,numsel
 		call ROZHOD2

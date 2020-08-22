@@ -77,3 +77,5 @@ menu_txt        defb    "0: MENU",0
 
 file_exists_txt defb    "This file already exists!",0
 overwrite_txt   defb    "Do you want to overwrite it?",0
+
+dirext	defb "  <DIR>",0	
