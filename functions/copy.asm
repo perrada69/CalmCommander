@@ -1,25 +1,3 @@
-onecopytxt 	defb "Copy file: ",0
-onemovetxt	defb "Move file: ",0
-onedeletetxt 	defb "Delete file/directory: ",0
-yestxt		defb "ENTER = yes",0
-yesall		defb "SPACE = yes to all directory",0
-yesallsp	defb "                            ",0
-
-createtxt	defb "ENTER = create",0
-renametxt	defb "ENTER = rename",0
-searchtxt	defb "ENTER = search",0
-savetxt		defb "ENTER = save ",0
-notxt 		defb "BREAK = no",0
-spaces 		defb "           ",0
-pleasewait	defb "Please wait",0
-bfname		defs 45
-			defb 0
-
-ismove	defb 0
-
-nocopy	defb "I'm sorry, but you can't copy or move files to the same",0
-nocopy2 defb "directory.",0
-
 no_copy_move
 	
 		call savescr
@@ -51,7 +29,7 @@ nocopy0
 move 	ld a,1
 		ld (ismove),a
 		jr contmov
-
+CCCC
 copy 	xor a
 		ld (ismove),a
 
@@ -71,7 +49,7 @@ contmov
 		ld hl,PATHLEFT
 		ld de,PATHRIGHT
 		ld a,0
-COPY		call specific_search
+COPY	call specific_search
 		jp z,no_copy_move
 
 		ld hl,numsel
@@ -190,9 +168,9 @@ copycont
 		inc hl
 		call find83
 		
-		call BUFF83			
+		;call BUFF83			
 		
-		ld hl,(foundfile)
+		ld hl,TMP83
 		ld de,7
 		add hl,de
 		bit 7,(hl)
@@ -220,7 +198,7 @@ norr	pop hl
 		jr z,nenimove
 		inc hl
 		
-		call BUFF83
+		;call BUFF83
 		call find83
 		ld b,11
 		ld hl,TMP83
@@ -485,8 +463,8 @@ MMM
 moredalsi push hl
 		ld (cislo_souboru+1),hl
 		call find83
-		call BUFF83					
-		ld hl,(foundfile)
+		;call BUFF83					
+		ld hl,TMP83
 		bit 7,(hl)	
 		jp z,nekopirovat
 		push hl
@@ -516,8 +494,6 @@ moredalsi push hl
 		ld a,16
 		ld de,NUMBUF
 		call print
-
-
 
 		ld hl,numsel
 		call ROZHOD2
@@ -564,7 +540,7 @@ cislo_souboru
 		ld de,norr2
 		ld bc,nalezeno_isfile
 		call isfile
-		call BUFF83
+		;call BUFF83
 		pop hl
 		push hl
 
@@ -575,14 +551,14 @@ cislo_souboru
 		call closefile
 		ld b,2
 		call closefile
-norr2	call BUFF83
+norr2	;call BUFF83
 		pop hl
 		ld a,(ismove)
 		or a
 		jp z,nenimove11
 		inc hl
 
-		call BUFF83
+		;call BUFF83
 		call find83
 		ld b,11
 		ld hl,TMP83
@@ -662,6 +638,7 @@ nenimove2
 		jp loop0
 
 
+
 isfile
 		ld (isfilee+1),de
 		ld (iskam+1),bc
@@ -698,7 +675,7 @@ isfile0
 		ld l,c
 		push hl
         inc hl
-		call BUFF83
+		;call BUFF83
 		call find83
         pop hl
 		dec hl
@@ -722,6 +699,8 @@ is01	ld a,(hl)
 		ld a,0
 		call specific_search
 		pop bc
+
+;Adresa kam se skače když soubor je stejný
 iskam	jp z,nalezeno_isfile
 
 		dec bc

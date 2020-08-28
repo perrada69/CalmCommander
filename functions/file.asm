@@ -144,7 +144,7 @@ openfile
 		
 		inc hl
 		
-		call BUFF83
+;		call BUFF83
 		call find83
 		pop hl
 		push hl
@@ -160,7 +160,7 @@ openfile
 		call print				
 		
 		
-		call BUFF83
+		;call BUFF83
 		ld hl,(TMP83+11)
 ZDE
 		ld c,6

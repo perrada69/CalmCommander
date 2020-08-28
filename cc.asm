@@ -129,13 +129,6 @@ DET
             org ORG_ADDRESS   
 S1			jp START 
 
-    ;; reserved space for values (but not initialized, i.e. not part of the binary)
-    ; actually in DISPLAYEDGE tool these re-use the same memory area where font was stored
-    ; (turned out the DS/BLOCK does overwrite device memory always, so I'm reserving space
-    ; here ahead of the real machine code is produced, the real code will later overwrite
-    ; the memory as desired)
-
-
 CHARS         equ  15616-256              
 mystak        equ  24575         ;ar bi trary value picked to be be low
                                 ;BFE0h and above 4000h
@@ -290,6 +283,7 @@ menu0
 		ld hl,50*256+1
 		ld de,LFNNAME
 		call print
+L0
 loop0	
 		ld   hl,$4000+160*15+23
 		ld (PROGS+1),hl
@@ -349,16 +343,16 @@ loop0
 
 		
 ; ;*******************************
-		ld a,(klavesa)
-		ld l,a
-		xor a
-		ld h,a
+		; ld a,(klavesa)
+		; ld l,a
+		; xor a
+		; ld h,a
 
-		call NUM
-		ld hl,40*256+31
-		ld a,16
-		ld de,NUMBUF
-		call print
+		; call NUM
+		; ld hl,40*256+31
+		; ld a,16
+		; ld de,NUMBUF
+		; call print
 
 
 ; 		ld a,(POSKURZL)
@@ -428,7 +422,7 @@ loop0
 ;*******************************
 
 	
-	
+	call NOBUFF83
 		call INKEY
 
 		ld (klavesa),a
@@ -1516,7 +1510,7 @@ mull		ld d,l		;vynásob spodní byty
 			ld h,a		;konečný výsledek je v HL
 			ret
 
-
+;Najde podle pozice souboru nazev 8.3, se kterým dále pracujeme
 ;HL ... pozice
 find83
 		push hl
@@ -1548,10 +1542,6 @@ find830
 		ldir
 		call NOBUFF83
 		ret
-
-
-
-
 
 foundfile	defw 0		
 TMP83		ds 13
@@ -2153,7 +2143,8 @@ nenitoroot
 			ld hl,STARTWINL
 			call ROZHOD2
 pocatek		ld (hl),0
-			
+			call NOBUFF83
+
 			ret
 			
 dospage		
@@ -2576,7 +2567,7 @@ FILES    	defb 0
 dirNum	 	defw 0
 
 
-		include "functions/copy.asm"
+
 		include "functions/file.asm"
 		include "functions/delete.asm"
 		include "functions/input.asm"
@@ -2620,6 +2611,11 @@ FILEBUFF
 
 
 E1			
+			org $a000
+			include "functions/copy.asm"
+			include "functions/compare.asm"
+
+
 			org 49152
 
 S2
@@ -3449,7 +3445,7 @@ shw3	pop bc
 		or c
 		jp nz,showloop
 
-		
+		call NOBUFF83
 		ret
 
 
@@ -3710,6 +3706,64 @@ SED
 		call writecur
 		jp loop0
 
+;Označí soubor dle HL
+OZNA
+oznac_soubor_dle_pozice_v_hl
+		call BUFF83					
+		call find83
+		call BUFF83					
+		ld hl,(foundfile)
+		push hl
+		ld de,ban1
+		ld a,0
+		call specific_search
+		pop hl
+		jr z,odeselect_file
+		push hl
+		ld de,ban2
+		ld a,0
+		call specific_search
+		pop hl
+		jr z,odeselect_file
+		bit 7,(hl)
+		jr z,oselect_file
+		res 7,(hl)
+		
+		ld hl,numsel
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		dec hl
+		ex de,hl
+		ld (hl),e
+		inc hl
+		ld (hl),d
+		
+		jr odeselect_file
+
+oselect_file
+		set 7,(hl)			;označ soubor
+		ld hl,numsel
+		call ROZHOD2
+		push hl
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		pop de
+		inc hl
+		ex de,hl
+		ld (hl),e
+		inc hl
+		ld (hl),d
+
+odeselect_file
+		call NOBUFF83
+		ret	
 
 numsel	defw 0,0
 seltxt defb "Selected: ",0

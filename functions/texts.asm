@@ -81,3 +81,25 @@ file_exists_txt defb    "This file already exists!",0
 overwrite_txt   defb    "Do you want to overwrite it?",0
 
 dirext	defb "  <DIR>",0	
+
+onecopytxt 	defb "Copy file: ",0
+onemovetxt	defb "Move file: ",0
+onedeletetxt 	defb "Delete file/directory: ",0
+yestxt		defb "ENTER = yes",0
+yesall		defb "SPACE = yes to all directory",0
+yesallsp	defb "                            ",0
+
+createtxt	defb "ENTER = create",0
+renametxt	defb "ENTER = rename",0
+searchtxt	defb "ENTER = search",0
+savetxt		defb "ENTER = save ",0
+notxt 		defb "BREAK = no",0
+spaces 		defb "           ",0
+pleasewait	defb "Please wait",0
+bfname		defs 45
+			defb 0
+
+ismove	defb 0
+please_wait	defb "Please wait...",0
+nocopy	defb "I'm sorry, but you can't copy or move files to the same",0
+nocopy2 defb "directory.",0

@@ -277,7 +277,7 @@ menupos		defb 0, 18, 34, 50,66
 nummenu		defb 0				;jakou položku zobrazit v menu
 ;definice položek horního menu
 menuitems	defw menuleft, menufile, menuutil, menuright, menuquit
-menulenght	defb 4, 6, 2, 4, 2	;počet položek v daném menu
+menulenght	defb 4, 6, 3, 4, 2	;počet položek v daném menu
 ;pozice kurzoru v menu
 menucur 	defb 0
 menuleft	defb " SELECT FILES   (+)",0
@@ -313,7 +313,10 @@ menuright	defb " SELECT FILES   (+)",0
 			defb " CHANGE DRIVE(CS+2)",0
 			defw newdisc_right ;notnow
 			defb 255
-menuutil 	defb " HELP           (H)",0
+menuutil
+			defb " COMPARE DIRS      ",0
+			defw compare_dirs
+			defb " HELP           (H)",0
 			defw help
 			defb " ABOUT CC    (SS+I)",0
 			defw info
@@ -324,3 +327,4 @@ menuquit	defb " EXIT MENU  (BREAK)",0
 			defw menu_exit
 			defb " QUIT CCommander   ",0
 			defw quit
+			defb 255

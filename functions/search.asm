@@ -200,9 +200,7 @@ dfind_end
         
         
         jp loop0        
-
-
-invert_select_files
+invert_body
 
         ld hl,ALLFILES
 		call ROZHOD2
@@ -279,7 +277,10 @@ idnesouhlasi
         or h
         jp nz,idfind0
 		
+		ret
 
+invert_select_files
+		call invert_body
 
 
 idfind_end

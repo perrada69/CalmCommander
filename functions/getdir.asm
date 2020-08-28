@@ -173,6 +173,7 @@ PRK5
         xor a
 		ld de,LFNNAME
 		call print
+		call NOBUFF83
 		ret
 
 
@@ -194,7 +195,7 @@ getdirroot
 		ld de,LFNNAME
 		call print
 
-
+		call NOBUFF83
 		ret
 
 dirpos      defw 10*256+1
