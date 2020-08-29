@@ -12,7 +12,7 @@
             OPT reset --zxnext --syntax=abfw              
             slot 4
 
-	        MACRO VERSION : defb "0.5" : ENDM
+	        MACRO VERSION : defb "0.4" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -2155,8 +2155,8 @@ dospage
         ld (bankm),a 
         out (c),a   
 		ret
-		
-basicpage
+	
+basicpage				;Nastránkuje základní stránku ZXOS	
 		ld bc,port1  
         ld a,(bankm)      
         set 4,a           
@@ -2446,7 +2446,7 @@ ascont
 		ld a,32
 		call writecur
 		call GETDIR
-
+		call zobraz_nadpis
 		jp loop0
 
 
@@ -2905,6 +2905,7 @@ chng0	call INKEY
 		jp z,enterdrv
 		jp chng0
 cancel	call loadscr
+		call zobraz_nadpis
 		jp loop0
 curchngup
 		ld a,(posdrv)

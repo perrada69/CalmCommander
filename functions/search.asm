@@ -177,9 +177,6 @@ dnesouhlasi
         or h
         jp nz,dfind0
 		
-
-
-
 dfind_end
         call loadscr
 		ld hl,adrl

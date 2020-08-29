@@ -67,6 +67,7 @@ comp0   push hl
         call showwin
         call prohod_okno
         call invert_body
+
         ld hl,adrl
 		call ROZHOD2
 		ld a,(hl)
@@ -80,6 +81,7 @@ comp0   push hl
 
         ld a,32
 		call writecur
+		call zobraz_nadpis
         jp loop0
 
 PROO

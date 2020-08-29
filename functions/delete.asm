@@ -54,9 +54,6 @@ moredelete
 		ld de,yestxt
 		call print		
 
-
-		
-
 		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
@@ -70,7 +67,6 @@ mdeletewait
 		jr mdeletewait
 		
 mdeletecont 
-
 
 		ld hl,11*256+11
 		ld a,16

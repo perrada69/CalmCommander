@@ -48,6 +48,27 @@ menu001
 
 		jp loop0
 
+zobraz_nadpis
+
+
+		ld hl,nadpis
+		ld de,#4000
+		ld bc,80
+nadpis111		
+		ld a,(hl)
+		ld (de),a
+		inc de
+		ld a,16
+		ld (de),a
+		inc de
+		inc hl
+		dec bc
+		ld a,c
+		or b
+		jr nz,nadpis111
+		ret
+
+
 menu_right
 		ld a,(nummenu)
 		cp 4
