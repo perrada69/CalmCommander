@@ -276,7 +276,7 @@ idnesouhlasi
         ld a,l
         or h
         jp nz,idfind0
-		
+		call NOBUFF83
 		ret
 
 invert_select_files
@@ -299,7 +299,7 @@ idfind_end
 
 		ld a,32
         call writecur
-        
+		
         jp loop0        
 
 SELTXT		defb "Search and select files.",0

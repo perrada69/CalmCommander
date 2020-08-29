@@ -96,7 +96,7 @@ other_window
 		inc hl
 		ld h,(hl)
 		ld l,a
-;       dec hl
+
 other0  push hl
         ld (second_window+1),hl
 		call find83
