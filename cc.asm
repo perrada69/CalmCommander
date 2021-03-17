@@ -2575,7 +2575,7 @@ dirNum	 	defw 0
 		include "functions/rename.asm"
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
-              
+     
                                                                     ; 24 chars skipped (3*256)
                                                                     ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
 
@@ -2613,7 +2613,7 @@ FILEBUFF
 E1			
 			org $a000
 			include "functions/copy.asm"
-			include "functions/compare.asm"
+
 
 
 			org 49152
@@ -2788,6 +2788,9 @@ tilemapPalette_SZ:  EQU $ - tilemapPalette
 
 lftw	defb 0
 		defb 1
+
+
+					include "functions/compare.asm"
 
 changedrive
 		call savescr
