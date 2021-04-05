@@ -16,6 +16,8 @@
 - file/directory info (show date, time, size, attributes...)
 - change file/directory attributes
 - show date, time
+- compare directory (left and right window)
+- support second disc
 
 ### Some screenshots:
 
