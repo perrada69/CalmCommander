@@ -18,7 +18,7 @@
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
             
-			DEFINE ORG_ADDRESS      $7000 + 128
+			DEFINE ORG_ADDRESS      $7000 + 128 + 128
             DEFINE TEST_CODE_PAGE   223         ; using the last page of 2MiB RAM (in emulator)
             DEFINE TILE_MAP_ADR     $4000           ; 80*32 = 2560 (10*256)
             DEFINE TILE_GFX_ADR     $6000;$5400           ; 128*32 = 4096
@@ -965,7 +965,7 @@ enter
 		bit 7,(ix+7)
 		jp nz,enter_directory
 		
-		jp loop0		;**************************************
+		;jp loop0		;**************************************
  		
 		ld hl,name
 		ld de,name+1
@@ -4909,15 +4909,13 @@ tecka		defb ". ",0
 dvojtecka 	defb ":",0
 DISC
 
-
-
 		include "functions/menu.asm"
 		include "functions/search.asm"
 		include "functions/selected.asm"
 last:       
 E2
- 		;	SAVEBIN "cc1.bin",S1,E1-S1
- 		;	SAVEBIN "cc2.bin",S2,E2-S2
+ 			SAVEBIN "cc1.bin",S1,E1-S1
+ 			SAVEBIN "cc2.bin",S2,E2-S2
 			SAVEBIN "cc.bin", S1, E2-S1
 
 

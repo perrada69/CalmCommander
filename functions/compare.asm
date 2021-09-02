@@ -222,7 +222,7 @@ dfind2
 
         ld hl,numsel
     	call ROZHOD2
-        ld (adresasel+1),hl
+        ld (dadresasel+1),hl
         ld a,(hl)
         inc hl
         ld h,(hl)
