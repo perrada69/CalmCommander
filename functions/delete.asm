@@ -61,11 +61,10 @@ moredelete
 mdeletewait		
 		call INKEY
 		cp 1
-		jp z,copyend
+		jp z,deleteend		;nic nekopiruj - obnov obrazovku
 		cp 13
 		jr nz,mdeletewait
 		 
-		
 mdeletecont 
 
 		ld hl,11*256+11
@@ -666,6 +665,10 @@ ecopyend	ld a,(yestoall)
 			ret nz
 			call loadscr
 			ret
+
+deleteend
+		call loadscr
+		jp loop0
 
 vse			defb "*.*",255
 parrentdir 	defb "..",255
