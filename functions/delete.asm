@@ -20,18 +20,18 @@ moredelete
 		inc hl
 		ld h,(hl)
 		ld l,a
-		push hl
+		push hl			;uloz pocet označených souborů
 		
 		ex de,hl
 
-		call PROVYP
-		add a,a
+		call PROVYP		;vypočet pro progress bar
+		add a,a			;zapsani hodnot pro progres bar
 		ld   (CPPX1+1),hl
         ld   (CPPX3+1),a
         ld   hl,0
         ld   (PROGPROM),hl
 		
-		ld hl,NUMBUF
+		ld hl,NUMBUF	;smazání buferu pro INPUT
 		ld de,NUMBUF+1
 		ld bc,5
 		ld a,32
@@ -63,8 +63,8 @@ mdeletewait
 		cp 1
 		jp z,copyend
 		cp 13
-		jr z,mdeletecont
-		jr mdeletewait
+		jr nz,mdeletewait
+		 
 		
 mdeletecont 
 
