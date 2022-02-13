@@ -4921,7 +4921,7 @@ E2
 
 
               CSPECTMAP player.map
-              savenex open "CalmCommander.nex",START,START-1
+              savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
               savenex core 2,0,0
               savenex auto
               savenex close
