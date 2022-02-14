@@ -631,11 +631,7 @@ smaz
 		ld de,spaces
 		call print	
 
-
-
 		call dospage
-
-
 
 		xor a 			;change path
 		ld hl,TMP83

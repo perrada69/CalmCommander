@@ -965,7 +965,7 @@ enter
 		bit 7,(ix+7)
 		jp nz,enter_directory
 		
-		;jp loop0		;**************************************
+		jp loop0		;**************************************
  		
 		ld hl,name
 		ld de,name+1
