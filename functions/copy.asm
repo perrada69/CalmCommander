@@ -361,6 +361,10 @@ moremovetxt	defb "Move     files?",0
 
 moredeletetxt	defb "Delete     files?",0
 
+runtxt	defb "Can you run this file?",0
+
+unsuptxt	defb "Unsuported file!",0
+
 nowcopy	defb "Copy     file from     files",0
 actcount defw 0
 morecopy

@@ -55,7 +55,7 @@ help15          defb    "            close this window...)",0
 help16			defb    "CAPS+1      Change drive in left window",0
 help17			defb    "CAPS+2      Change drive in right window",0
 
-calmcommander	defb    "CALM COMMANDER " : VERSION : defb " (Development version 2020)",0		
+calmcommander	defb    "CALM COMMANDER " : VERSION : defb " (Development version 2022)",0		
 breaktxt 		defb    "BREAK: close this window",0		
 info1txt 		defb    "File manager for ZX Spectrum Next. ",0
 info2txt 		defb    "Main program: Shrek/MB Maniax",0
@@ -86,6 +86,8 @@ onecopytxt 	defb "Copy file: ",0
 onemovetxt	defb "Move file: ",0
 onedeletetxt 	defb "Delete file/directory: ",0
 yestxt		defb "ENTER = yes",0
+conttxt		defb "ENTER = continue",0
+norun 		defb "This file type cannot be executed.",0
 yesall		defb "SPACE = yes to all directory",0
 yesallsp	defb "                            ",0
 
@@ -94,6 +96,8 @@ renametxt	defb "ENTER = rename",0
 searchtxt	defb "ENTER = search",0
 savetxt		defb "ENTER = save ",0
 notxt 		defb "BREAK = no",0
+
+
 spaces 		defb "           ",0
 pleasewait	defb "Please wait",0
 bfname		defs 45

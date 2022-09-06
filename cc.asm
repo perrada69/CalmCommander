@@ -12,7 +12,7 @@
             OPT reset --zxnext --syntax=abfw              
             slot 4
 
-	        MACRO VERSION : defb "0.5" : ENDM
+	        MACRO VERSION : defb "0.6" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -153,6 +153,11 @@ ReadNextReg:
 
 START       
 	
+		ld hl,23296
+		ld de,sysvars
+		ld bc,512
+		ldir
+
 		call dospage
 		ld l,0
 		ld h,0
@@ -196,12 +201,6 @@ neskenuj
 
 		call basicpage
 		call VSE_NASTAV
-		
-	
-
-
-
-
 menu0		
 		ld a,(hl)
 		ld (de),a
@@ -339,8 +338,6 @@ loop0
 		ld (NUMBUF+5),a
 		ld de,NUMBUF
 		call print
-
-
 		
 ; ;*******************************
 		; ld a,(klavesa)
@@ -936,8 +933,40 @@ minuty	defb 0
 dostime	defw 0
 dosdate	defw 0
 
+unsup
+
+		call savescr
+
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,12*256+11
+		ld a,16
+		ld de,unsuptxt
+		call print		
+
+		ld hl,12*256+13
+		ld a,16
+		ld de,norun
+		call print		
+
+
+		ld hl,54*256+15
+		ld a,48
+		ld de,conttxt
+		call print		
+enterwait		
+		call INKEY
+		cp 13
+		jp z,enterno2		
+		jr enterwait
 
 enter
+
+
+
 		ld hl,POSKURZL
 		call ROZHOD
 		ld a,(hl)
@@ -965,13 +994,25 @@ enter
 		bit 7,(ix+7)
 		jp nz,enter_directory
 		
-		jp loop0		;**************************************
+		;jp loop0		;**************************************
  		
+		push hl
+		push de
+		ld hl,cmd2
+		ld de,cmd2+1
+		ld bc,99
+		xor a
+		ld (hl),a
+		ldir
+
+		pop de
+		pop hl
+
 		ld hl,name
 		ld de,name+1
 		xor a
 		ld (hl),a
-		ld bc,60
+		ld bc,50
 		ldir
 RUN
 		ld hl,LFNNAME+59
@@ -989,27 +1030,404 @@ run2    ld a,(hl)
 		sbc hl,de
 		ld b,h
 		ld c,l
-		
+xxx		
 		ld hl,LFNNAME
-		ld de,name
+		ld de,cmd2
 		ldir
 
-  
-  		call dospage
-		ld a,1
-		ld b,0
-		ld c,0
-		call $01d5
+		ld hl,cmd2
+		ld de,ext_nex
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_NEX
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_tap
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_TAP
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_z80
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_Z80
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_snx
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_sna
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_SNX
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_SNA
+		call pripony
+		jp z,rrrun
+
+
+		ld hl,cmd2
+		ld de,ext_bas
+		call pripony
+		jp z,rrrun
+
+		ld hl,cmd2
+		ld de,ext_BAS
+		call pripony
+		jp z,rrrun
+		jp unsup
+
+rrrun	
+		
+;  		call dospage
+;		ld a,1
+;		ld b,0
+;		ld c,0
+;		call $01d5
 		call basicpage 
 
-TADY		
+		ld hl,cmd2
+		ld de,ext_nex
+		call pripony
+		jp z,RUN_NEX_FILE
+		
+		ld hl,cmd2
+		ld de,ext_NEX
+		call pripony
+		jp z,RUN_NEX_FILE
+		
+		ld hl,cmd2
+		ld de,ext_tap
+		call pripony
+		jp z,RUN_TAP		
+
+		ld hl,cmd2
+		ld de,ext_TAP
+		call pripony
+		jp z,RUN_TAP	
+
+		ld hl,cmd2
+		ld de,ext_z80
+		call pripony
+		jp z,RUN_SNAP		
+
+		ld hl,cmd2
+		ld de,ext_Z80
+		call pripony
+		jp z,RUN_SNAP	
+
+		ld hl,cmd2
+		ld de,ext_snx
+		call pripony
+		jp z,RUN_SNAP	
+
+		ld hl,cmd2
+		ld de,ext_sna
+		call pripony
+		jp z,RUN_SNAP	
+
+		ld hl,cmd2
+		ld de,ext_SNX
+		call pripony
+		jp z,RUN_SNAP	
+
+		ld hl,cmd2
+		ld de,ext_SNA
+		call pripony
+		jp z,RUN_SNAP
+
+		ld hl,cmd2
+		ld de,ext_BAS
+		call pripony
+		jp z,RUN_BAS
+
+		ld hl,cmd2
+		ld de,ext_bas
+		call pripony
+		jp z,RUN_BAS
+		jp loop0
+
+
+RUN_BAS
+
+		call potvrd
+		
+		call layer0
+		
+		ld de,23296
+		ld hl,sysvars
+		ld bc,512
+		ldir
+
+ 		ld   iy,23610
+        ld   hl,10072
+		exx
+		 im   1
+         ld   a,63
+         ld   i,a
+         ld   a,16
+         ld   bc,32765
+         out  (c),a
+bass		
+		ld hl,cmd2
+		ld bc,100
+		ld a,0
+		cpir
+
+		dec hl
+		ld a,$22
+		ld (hl),a
+		ld de,cmd2
+		;ex de,hl
+		or a
+		sbc hl,de
+					;v HL mame delku retezce
+		ld b,h
+		ld c,l
+
+		push hl
+
+		ld hl,cmd2	
+		ld de,$5d1f
+		ldir
+		ex de,hl
+		ld a,$22
+		ld (hl),a
+		inc hl
+		ld a,$d
+		ld (hl),a
+		pop hl
+		ld de,4
+		add hl,de
+		ld ($5d1b),hl
+		ret
+
+RUN_SNAP
+
+		call potvrd
+		
+		call layer0
+		
+		ld de,23296
+		ld hl,sysvars
+		ld bc,512
+		ldir
+
+ 		ld   iy,23610
+        ld   hl,10072
+		exx
+		 im   1
+         ld   a,63
+         ld   i,a
+         ld   a,16
+         ld   bc,32765
+         out  (c),a
+		
+		ld hl,tapein
+		ld de,cmd
+		ld bc,cmd-tapein
+		ldir
+		
+		nextreg TURBO_CONTROL_NR_07,0
+
+	    ld ix,cmd
+
 		rst $08
-		defw $8f
+		defb $8f
+		ret
+
+layer0
+		nextreg PALETTE_CONTROL_NR_43,%0'000'0000  
+		nextreg TILEMAP_BASE_ADR_NR_6E,44
+        nextreg TILEMAP_GFX_ADR_NR_6F,12
+		nextreg $6B, 0
+		nextreg $68, 0
+		ld hl,16384
+		ld de,16385
+		ld bc,6143
+		xor a
+		ld (hl),a
+		ldir
+		
+		ret
+
+RUN_TAP
+		call potvrd
+		
+		call layer0
+		
+		ld de,23296
+		ld hl,sysvars
+		ld bc,512
+		ldir
+
+ 		ld   iy,23610
+        ld   hl,10072
+		exx
+		 im   1
+         ld   a,63
+         ld   i,a
+         ld   a,16
+         ld   bc,32765
+         out  (c),a
+		
+		ld hl,tapein
+		ld de,cmd
+		ld bc,cmd-tapein
+		ldir
+
+	    ld ix,cmd
+
+		rst $08
+		defb $8f
+		nextreg TURBO_CONTROL_NR_07,0
+		ld a,0
+		rst $08
+		defb $90
+		di : halt
+
+		nextreg $03,%10101010
+		ret
+RUN_NEX_FILE
+
+		call potvrd
+		ld de,23296
+		ld hl,sysvars
+		ld bc,512
+		ldir
+		call layer0
+		ld ix,cmd
+
+		rst $08
+		defb $8f
 
 		jp loop0
 
-cmd		defb "run "
+potvrd
 
+		call savescr
+
+		ld hl,10 * 256 + 10
+		ld bc,60 * 256 + 5
+		ld a,16
+		call window
+
+		ld hl,11*256+11
+		ld a,16
+		ld de,runtxt
+		call print		
+
+
+		ld hl,60*256+15
+		ld a,48
+		ld de,yestxt
+		call print		
+
+		ld hl,60*256+14
+		ld a,16
+		ld de,notxt
+		call print		
+enterwait2		
+		call INKEY
+		cp 1
+		jp z,enterno		;nic nekopiruj - obnov obrazovku
+		cp 13
+		jr nz,enterwait2
+		ret
+enterno	pop hl
+enterno2
+		call loadscr
+
+		jp loop0
+
+;HL ... adresa nazvu
+;DE ... pripona
+pripony
+
+
+		push de
+;		ld hl,cmd2
+		ld bc,50
+hledej	ld a,0
+		cpir
+		pop de
+		dec hl
+		dec hl
+		ld bc,3
+		
+		ex de,hl
+		
+		add hl,bc
+		ld a,(de)
+		cp (hl)
+
+		ret nz
+
+		dec hl
+		dec de
+		ld a,(de)
+		cp (hl)
+		ret nz
+
+		dec hl
+		dec de
+		ld a,(de)
+		cp (hl)
+		ret nz
+
+		dec hl
+		dec de
+		ld a,(de)
+		cp (hl)
+		ret
+
+
+
+ext_nex defb ".nex"
+ext_NEX defb ".NEX"
+
+ext_tap defb ".tap"
+ext_TAP defb ".TAP"
+
+ext_z80 defb ".z80"
+ext_Z80 defb ".Z80"
+
+ext_snx defb ".snx"
+ext_SNX defb ".SNX"
+
+
+ext_sna defb ".sna"
+ext_SNA defb ".SNA"
+
+ext_bas defb ".bas"
+ext_BAS defb ".BAS"
+
+cmdload	defb	$ef		;LOAD
+		;defb	$22			;uvozovky
+		
+tapein  defb "run     "
+cmd		defb "nexload "
+cmd2	defs 100
 enter_directory
 		call dospage
 		ld hl,actdisc
@@ -2565,7 +2983,7 @@ dosret:
 numLoop		defw 0
 FILES    	defb 0
 dirNum	 	defw 0
-
+sysvars 	defs 513
 
 
 		include "functions/file.asm"
@@ -2653,7 +3071,7 @@ ConvertRomCharTo4bpp:
        DB      $00, $03, $30, $33
 
 VSE_NASTAV
-	ld a,3
+		ld a,3
 		ld (OKNO),a
 		nextreg MMU3_6000_NR_53,5*2+1
         ld      hl,TILE_GFX_ADR
@@ -2706,12 +3124,16 @@ VSE_NASTAV
         nextreg PALETTE_INDEX_NR_40,0
 
         ld      hl,tilemapPalette
-        ld      b,tilemapPalette_SZ
+        ld      bc,tilemapPalette_SZ
 .setPalLoop:
         ld      a,(hl)
         inc     hl
         nextreg PALETTE_VALUE_9BIT_NR_44,a
-        djnz    .setPalLoop           
+
+		ld a,b
+		or c
+		dec bc
+		jr nz,.setPalLoop           
 		ld hl,$4000
 		ld de,$4001
 		ld bc,80*32*2
@@ -2772,7 +3194,7 @@ tilemapPalette:
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
 				ds 18
-				db  %101'101'10,1       ; 0 zluta (paper)					80
+				db  %101'101'10,1       ; 0 zluta (paper)					96
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
 				db  %000'000'00,0       ; 0 white-blueish (ink)
@@ -2781,6 +3203,23 @@ tilemapPalette:
                 db  %000'100'00,0       ; 6 green
 				ds 18
 				
+                db  %000'000'11,1       ; 0 modra(paper)					112
+                db  %100'100'10,1       ; 1 light grey (25% ink)
+                db  %010'010'01,1       ; 2 dark grey (75% ink)
+                db  %111'111'00,0       ; 0 white-blueish (ink)
+                db  %110'001'00,1       ; 4 red
+                db  %111'110'00,1       ; 5 yellow
+                db  %000'100'00,0       ; 6 green
+				ds 18
+				
+                db  %000'000'11,1       ; 0 modra(paper)					128
+                db  %100'100'10,1       ; 1 light grey (25% ink)
+                db  %010'010'01,1       ; 2 dark grey (75% ink)
+                db  %111'111'11,1       ; 0 white-blueish (ink)
+                db  %110'001'00,1       ; 4 red
+                db  %111'110'00,1       ; 5 yellow
+                db  %000'100'00,0       ; 6 green
+				ds 18
 				
 				
 				
@@ -3334,6 +3773,7 @@ showloop
 		call find83
 		call BUFF83					
 
+
 		ld hl,(foundfile)
 		bit 7,(hl)		;testuj jestli je soubor označený
 		jr z,nonselect
@@ -3351,8 +3791,102 @@ isselect
 		push hl
 		push bc
 		
+		push hl
+		push af
+		
+								;obarveni adresaru
+		ld hl,TMP83 +7
+		bit 7,(hl)
+		jr z,neni_to_adresar
+		ld a,(inkcolor+1)
+		cp 80
+		jr z,neni_to_adresar
+		ld a,112
+		ld (inkcolor+1),a
+
+
+neni_to_adresar
+
+
+
+
+		pop af
+		pop hl
 		call FINDLFN
+
+TUU
+		ld hl,LFNNAME
+		ld de,ext_tap
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_TAP
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_nex
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_NEX
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_sna
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_SNA
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_snx
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_SNX
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_z80
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_Z80
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_bas
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+		ld hl,LFNNAME
+		ld de,ext_BAS
+		call pripony
+		jp z,obarvi_spustitelny_soubor
+
+
+		jr SSSS
+obarvi_spustitelny_soubor
+
+		ld hl,(foundfile)
+		bit 7,(hl)		;testuj jestli je soubor označený
+		jr nz,SSSS
+
+		ld a,128
+		ld (inkcolor+1),a
 SSSS
+
 ypos	ld e,2
 		ld d,80 * 2
 		mul d,e
@@ -4829,7 +5363,7 @@ findlfn830
 		ld hl,LFNNAME
 		ld de,LFNNAME+1
 		ld bc,maxlen
-		ld a,32
+		ld a,0
 		ld (hl),a
 		ldir
 
@@ -4921,7 +5455,7 @@ E2
 
 
               CSPECTMAP player.map
-              savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
-              savenex core 2,0,0
-              savenex auto
-              savenex close
+              ;savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
+              ;savenex core 2,0,0
+              ;savenex auto
+              ;savenex close
