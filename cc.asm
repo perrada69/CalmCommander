@@ -3346,7 +3346,7 @@ wr00	ld (hl),a
 		djnz wr00
 		ret
 adr_cur defw $4002+160*8 + 63		;adresa prvni polozky ve vyberu
-;cursorComp	defb 0
+
 
 
 vyberTxt defb "Select computer:",0
