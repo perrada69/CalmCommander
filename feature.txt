@@ -1,0 +1,8 @@
+Zde budu davat napady, ktere chci realizovat
+
+- ukladat si pozici kde se nachazi levy a pravy panel a pri spusteni, tuto informaci nacist aby se pokracovalo tam, kde jsme skoncili pred vypnutim
+- podpora mysi
+- podpora joysticku
+- view txt souboru
+- view grafiky (zx i specialni nextovske)
+- moduly (napr. na prehravani hudeb - modul pro pt3, modul pro sqt...)

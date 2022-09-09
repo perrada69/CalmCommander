@@ -120,7 +120,7 @@ F_RENAME                        equ $B0
 FA_READ                         equ $01
 ;; helper macros
 ESXDOS      MACRO service? : push hl : pop ix : rst $08 : db service? : ENDM    ; copies HL into IX
-NEXTREG2A   MACRO nextreg? : ld a,nextreg? : call readNextReg2A : ENDM
+NEXTREG2A   MACRO nextreg? : ld a,nextreg? : call ReadNextReg2A : ENDM
 CSP_BREAK   MACRO : IFDEF TESTING : break : ENDIF : ENDM
 DET
 
@@ -141,7 +141,7 @@ port1         equ  #7FFD         ;ad dress of ROM/RAM switch ing port
 catbuff       equ  #A000         ;some where for DOS to put its catalog
 dos_catalog   equ  #011E         ;the DOS routine to call
 
-ReadNextReg:
+ReadNextReg2A:
     ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
 			push    bc
 			ld      bc,#243B
@@ -159,6 +159,9 @@ START
 		ldir
 
 		call dospage
+
+		call createCfg
+
 		ld l,0
 		ld h,0
 		call $01bd
@@ -218,11 +221,27 @@ menu0
 
 		call dospage
 
-		ld a,255
-		call $012d		;zjisti z jakého disku je spouštěn calmcommander
+		;ld a,255
+		;call $012d		;zjisti z jakého disku je spouštěn calmcommander
+
+		ld a,(PATHLEFT)
 		ld (actdisc),a
+
+		ld a,(PATHRIGHT)
 		ld (actdisc+1),a
+
 		call basicpage
+		call dospage
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+
 
 		call reload_dir
 		
@@ -234,6 +253,19 @@ menu0
 		call showwin
 		
 		call PROHOD	
+		
+		call dospage
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+
 		call reload_dir
 		
 		ld hl,$4000+2+80
@@ -241,6 +273,19 @@ menu0
 		call getroot_reload
 		call showwin
 		call PROHOD
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+
+		call basicpage
 		ld a,32
 		call writecur
 		ld a,16
@@ -270,18 +315,39 @@ menu0
         xor a
 		call print
 
-		ld a,(OKNO)
-		xor 16
-		ld (OKNO),a
+		;ld a,(OKNO)
+		;xor 16
+		;ld (OKNO),a
+stop
+		call PROHOD
+		call GETDIR
+		call PROHOD
+		call dospage
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		call basicpage        
+
 
 		call GETDIR
-        ld de,emptydir
-		ld hl,48*256+1
-		call print
-
-		ld hl,50*256+1
-		ld de,LFNNAME
-		call print
+		call PROHOD
+		call dospage
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		call basicpage        
 L0
 loop0	
 		ld   hl,$4000+160*15+23
@@ -989,6 +1055,12 @@ enter
 		call BUFF83
 		call find83
 		pop hl
+
+		xor a
+		ld (vypln+1),a
+		ld a,$20
+		ld (vypln+1),a
+
 		call FINDLFN
 		ld ix,TMP83
 		bit 7,(ix+7)
@@ -1171,7 +1243,9 @@ rrrun
 RUN_BAS
 
 		call potvrd
-		
+		call dospage
+		call zapisCfg
+		call basicpage			
 		call layer0
 		
 		ld de,23296
@@ -1225,7 +1299,9 @@ bass
 RUN_SNAP
 
 		call potvrd
-		
+		call dospage
+		call zapisCfg
+		call basicpage	
 		call layer0
 		
 		ld de,23296
@@ -1271,9 +1347,14 @@ layer0
 		
 		ret
 
+loadTap	defb $ef, $22,"t:",$22,":",$ef,$22,$22,$d
+loadTapLen	equ $-loadTap
+
 RUN_TAP
 		call potvrd
 		
+		call vyberPocitace
+
 		call layer0
 		
 		ld de,23296
@@ -1296,21 +1377,37 @@ RUN_TAP
 		ld bc,cmd-tapein
 		ldir
 
+		ld hl,loadTap
+		ld de,$5d1d
+		ld bc,loadTapLen
+		ldir
+
+		ld hl,loadTapLen
+		ld ($5d1b),hl
+        
+st
+		call dospage
+		call zapisCfg
+		call basicpage		
 	    ld ix,cmd
 
 		rst $08
 		defb $8f
-		nextreg TURBO_CONTROL_NR_07,0
-		ld a,0
-		rst $08
-		defb $90
-		di : halt
 
-		nextreg $03,%10101010
+
+		;ld a,0
+		;rst $08
+		;defb $90
+		;di : halt
 		ret
 RUN_NEX_FILE
 
 		call potvrd
+
+		call dospage
+		call zapisCfg
+		call basicpage	
+
 		ld de,23296
 		ld hl,sysvars
 		ld bc,512
@@ -1354,6 +1451,7 @@ enterwait2
 		cp 13
 		jr nz,enterwait2
 		ret
+
 enterno	pop hl
 enterno2
 		call loadscr
@@ -1430,6 +1528,7 @@ cmd		defb "nexload "
 cmd2	defs 100
 enter_directory
 		call dospage
+
 		ld hl,actdisc
 		call ROZHOD
 		ld a,(hl)
@@ -1554,7 +1653,9 @@ scont
 		ld a,32
 		call writecur
 		call GETDIR
-
+		call dospage
+		call zapisCfg
+		call basicpage
 		jp loop0
 
 
@@ -2425,6 +2526,8 @@ reload_dir
 			ldir
 			
 			call dospage
+
+		
                                ;be low BFE0h
                               ;in ter rupts can now be en abled
 
@@ -2957,6 +3060,85 @@ clr_arch
 		ret
 
 
+zapisCfg
+
+		ld hl,pathCfg
+
+		xor a
+		call $01b1			;nastaveni cesty
+
+		ld b,1 				;soubor číslo 1
+		ld c,3				;exclusive WRITE
+		ld d,1
+		ld e,1
+		ld hl,nameCfg
+		
+		call 0106h			;create file
+
+		ld c,PAGE_BUFF
+		ld b,1
+		ld de,DelkaCfg
+		ld hl,Cfg
+		call 115h			;WRITE
+
+		ld b,1
+		call $0109			;zavreni souboru
+
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		ret	
+
+createCfg
+		
+		call dospage
+		
+		ld hl,pathCfg
+
+		xor a
+		call $01b1			;nastaveni cesty
+
+		ld b,1 				;soubor číslo 1
+		ld c,3				;exclusive WRITE
+		ld d,1
+		ld e,1
+		ld hl,nameCfg
+		
+		call 0106h			;create file
+
+		jr nz,NactiKonfiguraci
+VytvorKonfiguraci
+
+		ld c,PAGE_BUFF
+		ld b,1
+		ld de,DelkaCfg
+		ld hl,Cfg
+		call 115h			;WRITE
+
+zavriSoubor
+		ld b,1
+		call $0109			;zavreni souboru
+		ret
+
+NactiKonfiguraci
+
+		ld b,1
+		ld c,PAGE_BUFF
+        ld de,DelkaCfg
+		ld hl,Cfg
+		call 0112h			;READ
+
+		jr zavriSoubor
+
+
+pathCfg	defb "c:/sys",255
+nameCfg	defb "cc.cfg",255
 posdrv	defb 0
 
 ALLFILESL  defw ALLFILES, ALLFILES2
@@ -3037,6 +3219,141 @@ E1
 			org 49152
 
 S2
+
+vyberPocitace
+		ld hl,30 * 256 + 5
+		ld bc,20 * 256 + 15
+		ld a,16
+		call window
+
+		ld hl,32*256+6
+		ld a,16
+		ld de,vyberTxt
+		call print	
+
+		ld hl,32*256+8
+		ld a,16
+		ld de,txt128
+		call print	
+
+		ld hl,32*256+9
+		ld a,16
+		ld de,txt48
+		call print	
+
+		ld hl,32*256+10
+		ld a,16
+		ld de,Pentagontxt
+		call print	
+
+		ld hl,32*256+11
+		ld a,16
+		ld de,NextTxt
+		call print	
+		ld a,64
+		call kreslicurcomp
+
+comp00	call INKEY
+		cp 10
+		jr z,compdown
+
+		cp 11
+		jr z,compup
+		cp 1
+		jr z,cancelComp
+		cp 13
+		jp z,entercomp
+		jp comp00
+
+v0		
+		di
+		halt
+		jr v0
+		ret
+entercomp
+		ld a,(cursorComp)
+		ld e,a
+		ld d,0
+		ld hl,tabComp
+		add hl,de
+		ld a,(hl)
+
+		nextreg TURBO_CONTROL_NR_07,0
+		nextreg MACHINE_TYPE_NR_03,a	
+
+		NEXTREG2A $8
+		res 6,a
+		nextreg $8,a
+		ret
+
+tabComp
+		defb  $A0 ;128k/2
+		defb  $90 ;48k
+		defb  $C0 ;Pentagon		
+		defb  $B0 ;+2A/+3/Next
+
+cancelComp
+		pop hl
+		pop hl
+		call loadscr
+
+		jp loop0
+compup
+		ld a,(cursorComp)
+		cp 0
+		jp z,comp00
+
+		ld a,16
+		call kreslicurcomp
+		ld a,(cursorComp)
+		dec a
+		ld (cursorComp),a
+		ld a,64
+		call kreslicurcomp
+
+		jp comp00
+
+compdown
+		ld a,(cursorComp)
+		cp 3
+		jp z,comp00
+
+		ld a,16
+		call kreslicurcomp
+		ld a,(cursorComp)
+		inc a
+		ld (cursorComp),a
+		ld a,64
+		call kreslicurcomp
+
+		jp comp00
+
+		
+
+kreslicurcomp
+		ld (clrComp+1),a
+		ld a,(cursorComp)
+		ld e,a
+		ld d,160
+		mul d,e
+		ld hl,(adr_cur)
+		add hl,de
+clrComp ld a,32
+		ld b,18
+wr00	ld (hl),a
+		inc hl
+		inc hl
+		djnz wr00
+		ret
+adr_cur defw $4002+160*8 + 63		;adresa prvni polozky ve vyberu
+cursorComp	defb 0
+
+
+vyberTxt defb "Select computer:",0
+txt128	defb "128k/+2",0
+txt48	defb	"48k",0
+Pentagontxt	defb	"Pentagon",0
+NextTxt		defb "+2A/+3/Next",0
 tilemapFont_char24:
             INCLUDE "tilemap_font_8x6.i.asm"
 tilemapFont:    ds   16*32
@@ -3203,7 +3520,7 @@ tilemapPalette:
                 db  %000'100'00,0       ; 6 green
 				ds 18
 				
-                db  %000'000'11,1       ; 0 modra(paper)					112
+                db  %000'000'11,1       ; 0 modra(paper)					112 - barva adresare
                 db  %100'100'10,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
                 db  %111'111'00,0       ; 0 white-blueish (ink)
@@ -3212,10 +3529,10 @@ tilemapPalette:
                 db  %000'100'00,0       ; 6 green
 				ds 18
 				
-                db  %000'000'11,1       ; 0 modra(paper)					128
-                db  %100'100'10,1       ; 1 light grey (25% ink)
+                db  %000'000'11,1       ; 0 modra(paper)					128 - spustitelné soubory
+                db  %100'111'00,1       ; 1 light grey (25% ink)
                 db  %010'010'01,1       ; 2 dark grey (75% ink)
-                db  %111'111'11,1       ; 0 white-blueish (ink)
+                db  %000'111'00,1       ; 0 white-blueish (ink)
                 db  %110'001'00,1       ; 4 red
                 db  %111'110'00,1       ; 5 yellow
                 db  %000'100'00,0       ; 6 green
@@ -3812,8 +4129,13 @@ neni_to_adresar
 
 		pop af
 		pop hl
+		xor a
+		ld (vypln+1),a
+		
 		call FINDLFN
 
+		ld a,$20
+		ld (vypln+1),a
 TUU
 		ld hl,LFNNAME
 		ld de,ext_tap
@@ -5363,7 +5685,7 @@ findlfn830
 		ld hl,LFNNAME
 		ld de,LFNNAME+1
 		ld bc,maxlen
-		ld a,0
+vypln	ld a,32
 		ld (hl),a
 		ldir
 

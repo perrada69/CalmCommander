@@ -10,6 +10,8 @@ GETDIR
 		ld a,1				;get path
 		ld hl,modstart
 		call $01b1
+
+
 		jr c,ok1
     	ld a,2
 		out (254),a
@@ -101,7 +103,7 @@ PRK2
 		set 7,(hl)
 
         call dospage
-
+fa
 		xor a 		
 		ld hl,parrent
 		call $01b1				;skoc do nadrizeneho adresare
@@ -116,7 +118,10 @@ FF		ld de,$a000
         ld b,pocetpolozek 
         ld hl,stardstar   
 		ld c,%101         
-		call dos_catalog  
+		ld a,%1000
+		call dos_catalog 
+		ld (savehl),hl
+		ld (saveix),ix
 		ld a,pocetpolozek
 		xor b
 		jr nz,PRK4
@@ -131,6 +136,11 @@ FF		ld de,$a000
 		jr z,PRK4
 		jr FF
 PRK4		
+		ld a,1				;get path
+		ld hl,pks
+		call $01b1
+
+
 		ld de,DIRBUFF			;jmeno souboru
 		ld hl,stardstar
 		ld ix,(savehl)
@@ -138,7 +148,6 @@ PRK4
 		call	$01b7  
 						;skoc zpatky do adresare
 		
-
         ld b,11
 		ld hl,DIRBUFF
 prk00							;vynuluj všechny stavové bity v názvu (7.)
@@ -176,7 +185,8 @@ PRK5
 		call NOBUFF83
 		ret
 
-
+directoryHandle defw 0
+pks 	defs 100
 getdirroot	
     	ld a,"/"
 		ld (LFNNAME),a

@@ -10,6 +10,18 @@ OKNO 		defb 0
 KURZL		defw $4002+160*2		;adresa kurzoru levého okna
 KURZR		defw $4002+160*2+80		;adresa kurzoru pravého okna
 
+ACTDISC
+actdisc		defb "C","C"
+
+pathl		defw 	PATHLEFT
+pathr       defw 	PATHRIGHT
+
+Cfg
+PATHLEFT	defb 	"C:",255
+			ds 		261
+PATHRIGHT   defb 	"C:",255
+			ds 		261
+
 POSKURZL	defb 0				;pozice kurzoru v levém okně
 POSKURZR	defb 0				;pozice kurzoru v pravém okně
 
@@ -18,15 +30,10 @@ ALLPOSR		defw 0
 
 STARTWINL	defw 1				;pocatecni soubor na zacatku okna
 STARTWINR	defw 1
-ACTDISC
-actdisc		defb "C","C"
+cursorComp	defb 0
 
-pathl		defw 	PATHLEFT
-pathr       defw 	PATHRIGHT
-PATHLEFT	defb 	"C:",255
-			ds 		261
-PATHRIGHT   defb 	"C:",255
-			ds 		261
+DelkaCfg	equ $-PATHLEFT
+
 bottom		defb 	"                                                                                ",0			
 
 ban1		defb 	".      ",$a0,"   ",0
