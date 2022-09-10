@@ -1291,9 +1291,15 @@ bass
 		ld c,l
 
 		push hl
+		ld a,$ef
+		ld (cmd2-2),a
+		ld a,$22
+		ld (cmd2-1),a
 
-		ld hl,cmd2	
-		ld de,$5d1f
+		inc bc
+		inc bc
+		ld hl,cmd2-2	
+		ld de,$5d23
 		ldir
 		ex de,hl
 		ld a,$22
@@ -1302,8 +1308,8 @@ bass
 		ld a,$d
 		ld (hl),a
 		pop hl
-		ld de,4
-		add hl,de
+		
+		;add hl,de
 		ld (delkaRadku),hl
 
 		ld a,$ea		;REM token
