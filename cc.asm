@@ -3365,10 +3365,19 @@ entercomp
 
 		nextreg TURBO_CONTROL_NR_07,0
 		nextreg MACHINE_TYPE_NR_03,a	
-
+		ld a,(cursorComp)
+		cp 2
+		jr z,pentagon
 		NEXTREG2A $8
 		res 6,a
 		nextreg $8,a
+		ret
+
+pentagon
+		NEXTREG2A $8
+		set 6,a
+		nextreg $8,a
+		
 		ret
 
 tabComp
