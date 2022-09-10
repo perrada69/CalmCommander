@@ -1,0 +1,1 @@
+#program cc#autostart  10 CLEAR 28927  20 LOAD "cc.bin" CODE 28928  30 RANDOMIZE USR 28928  35 CLEAR 65367  40 SPECTRUM   50 OUT 9275,003: OUT 9531,000:.tapein ""                                                                                                                                                                
