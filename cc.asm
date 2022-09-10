@@ -1304,9 +1304,12 @@ bass
 		pop hl
 		ld de,4
 		add hl,de
-		ld ($5d1b),hl
-		ret
+		ld (delkaRadku),hl
 
+		ld a,$ea		;REM token
+		ld ($5d1d),a	;vyremuj token SPECTRUM
+		ret
+delkaRadku	equ $5d21
 RUN_SNAP
 
 		call potvrd
@@ -1374,6 +1377,8 @@ taptxt2	defb		$22,$3A,$61,$64,$6A,$3D,$30,$0E,$00,$00,$00,$00,$00,$3A,$ec,$31,$0
 taptxt3
 
 
+uvozovkyVBasicu	equ $5d58
+
 RUN_TAP
 		call potvrd
 		
@@ -1408,7 +1413,7 @@ st
 
 
 		ld hl,cmd2
-		ld de,$5d2c
+		ld de,uvozovkyVBasicu
 delkaNazvu
 		ld bc,0
 		ldir
@@ -1424,14 +1429,25 @@ delkaNazvu
 		add hl,de
 		ld ($5d21),hl
 savesp	ld sp,0
+
+
+		ld a,(cursorComp)
+		ld e,a
+		ld d,0
+		ld hl,tabComp
+		add hl,de
+		ld a,(hl)
+		ld ($5d4B),a
+
 		ld a,(cursorComp)
 		cp 3
 		ret nz
+
 		ld a,$ea		;REM token
 		ld ($5d1d),a	;vyremuj token SPECTRUM
 
 		ld hl,cmd2
-		ld de,$5d2c
+		ld de,uvozovkyVBasicu
 
 		ld bc,(delkaNazvu+1)
 		ldir
@@ -1445,7 +1461,16 @@ savesp	ld sp,0
 		add hl,de
 		ld de,9
 		add hl,de
-		ld ($5d21),hl
+		ld (delkaRadku),hl
+
+
+		ld a,(cursorComp)
+		ld e,a
+		ld d,0
+		ld hl,tabComp
+		add hl,de
+		ld a,(hl)
+		ld ($5d4B),a
 
 		ret
 		;ld a,0
