@@ -18,6 +18,10 @@
 - show date, time
 - compare directory (left and right window)
 - support second disc
+- highlight DIRs and runnable files
+- run files (BAS, TAP, NEX, SNA, SNX, Z80)
+- save position on disc, cursors and option on computer select (on run TAP)
+
 
 ### Some screenshots:
 
