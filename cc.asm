@@ -1403,17 +1403,7 @@ st
 		ld bc,500
 		ldir
 
- 		ld   iy,23610
-        ld   hl,10072
-		exx
-		di
-		 ld   a,63
-         ld   i,a
-         ld   a,16
-         ld   bc,32765
-         out  (c),a
-		ei
- 		im   1
+ 
 
 		
 
@@ -1427,7 +1417,7 @@ delkaNazvu
 		ld hl,loadTap
 		ld bc,loadTapLen
 		ldir
-		
+
 		ld de,loadTapLen
 		ld hl,(delkaNazvu+1)
 		add hl,de
@@ -1445,8 +1435,20 @@ savesp	ld sp,0
 		ld a,(hl)
 		ld ($5d4B),a
 
+		ld   iy,23610
+        ld   hl,10072
+		exx
+		di
+		ld   a,63
+        ld   i,a
+        ld   a,16
+        ld   bc,32765
+        out  (c),a
+		ei
+ 		im   1
+
 		ld a,(cursorComp)
-		cp 3
+		cp 3			;test na Next konfiguraci
 		ret nz
 
 		ld a,$ea		;REM token
