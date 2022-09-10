@@ -152,10 +152,10 @@ ReadNextReg2A:
 			ret
 
 START       
-	
+		ld (savesp+1),sp
 		ld hl,23296
 		ld de,sysvars
-		ld bc,512
+		ld bc,500
 		ldir
 
 		call dospage
@@ -1102,9 +1102,20 @@ run2    ld a,(hl)
 		sbc hl,de
 		ld b,h
 		ld c,l
-xxx		
+xxx		ld h,b
+		ld l,c
+		ld (delkaNazvu + 1),hl
 		ld hl,LFNNAME
 		ld de,cmd2
+
+		push hl
+		push bc
+
+		ldir
+
+		pop bc
+		pop hl
+		ld de,cmd3
 		ldir
 
 		ld hl,cmd2
@@ -1250,7 +1261,7 @@ RUN_BAS
 		
 		ld de,23296
 		ld hl,sysvars
-		ld bc,512
+		ld bc,500
 		ldir
 
  		ld   iy,23610
@@ -1306,7 +1317,7 @@ RUN_SNAP
 		
 		ld de,23296
 		ld hl,sysvars
-		ld bc,512
+		ld bc,500
 		ldir
 
  		ld   iy,23610
@@ -1347,8 +1358,21 @@ layer0
 		
 		ret
 
-loadTap	defb $ef, $22,"t:",$22,":",$ef,$22,$22,$d
+
+cestaSys	defb "c:/nextzxos/",$ff
+loadTap	defb $22, ":", $ef,$22,$22,$d
 loadTapLen	equ $-loadTap
+
+loadTapNext
+		defb $22, ":", $ef,$22,"t:",$22,":",$ef,$22,$22,$d
+loadTapNextLen	equ $-loadTapNext
+
+
+taptxt	defb 	$fd,$36,$35,$33,$36,$37,$0E,$0,$0,$57,$ff,$00,$3a,$ef,$22,$74,$61,$70,$6c,$6f,$61,$64,$2E,$62,$61,$73,$22,$3A,$66,$24,$3D
+		defb		$22
+taptxt2	defb		$22,$3A,$61,$64,$6A,$3D,$30,$0E,$00,$00,$00,$00,$00,$3A,$ec,$31,$0e,$00,$00,$01,$00,$00,$0d
+taptxt3
+
 
 RUN_TAP
 		call potvrd
@@ -1356,50 +1380,80 @@ RUN_TAP
 		call vyberPocitace
 
 		call layer0
-		
+
+			
+st
+		call dospage
+		call zapisCfg
+		call basicpage		
+;	    nextreg MMU2_4000_NR_52,5
 		ld de,23296
 		ld hl,sysvars
-		ld bc,512
+		ld bc,500
 		ldir
 
  		ld   iy,23610
         ld   hl,10072
 		exx
-		 im   1
-         ld   a,63
+		di
+		 ld   a,63
          ld   i,a
          ld   a,16
          ld   bc,32765
          out  (c),a
+		ei
+ 		im   1
+
 		
-		ld hl,tapein
-		ld de,cmd
-		ld bc,cmd-tapein
+
+
+		ld hl,cmd2
+		ld de,$5d2c
+delkaNazvu
+		ld bc,0
 		ldir
 
 		ld hl,loadTap
-		ld de,$5d1d
 		ld bc,loadTapLen
 		ldir
+		
+		ld de,loadTapLen
+		ld hl,(delkaNazvu+1)
+		add hl,de
+		ld de,9
+		add hl,de
+		ld ($5d21),hl
+savesp	ld sp,0
+		ld a,(cursorComp)
+		cp 3
+		ret nz
+		ld a,$ea		;REM token
+		ld ($5d1d),a	;vyremuj token SPECTRUM
 
-		ld hl,loadTapLen
-		ld ($5d1b),hl
-        
-st
-		call dospage
-		call zapisCfg
-		call basicpage		
-	    ld ix,cmd
+		ld hl,cmd2
+		ld de,$5d2c
 
-		rst $08
-		defb $8f
+		ld bc,(delkaNazvu+1)
+		ldir
 
+		ld hl,loadTapNext
+		ld bc,loadTapNextLen
+		ldir
+		
+		ld de,loadTapNextLen
+		ld hl,(delkaNazvu+1)
+		add hl,de
+		ld de,9
+		add hl,de
+		ld ($5d21),hl
 
+		ret
 		;ld a,0
 		;rst $08
 		;defb $90
 		;di : halt
-		ret
+
+		;ret
 RUN_NEX_FILE
 
 		call potvrd
@@ -1410,7 +1464,7 @@ RUN_NEX_FILE
 
 		ld de,23296
 		ld hl,sysvars
-		ld bc,512
+		ld bc,500
 		ldir
 		call layer0
 		ld ix,cmd
@@ -1522,7 +1576,7 @@ ext_BAS defb ".BAS"
 
 cmdload	defb	$ef		;LOAD
 		;defb	$22			;uvozovky
-		
+cmd3	defs 100		
 tapein  defb "run     "
 cmd		defb "nexload "
 cmd2	defs 100
@@ -3165,7 +3219,7 @@ dosret:
 numLoop		defw 0
 FILES    	defb 0
 dirNum	 	defw 0
-sysvars 	defs 513
+sysvars 	defs 500
 
 
 		include "functions/file.asm"
