@@ -1378,7 +1378,7 @@ layer0
 		xor a
 		ld (hl),a
 		ldir
-		
+		   nextreg SPRITE_CONTROL_NR_15,%01100010    	; layer priority: USL
 		ret
 
 
@@ -1419,7 +1419,7 @@ st
 
  
 
-		
+	
 
 
 		ld hl,cmd2
@@ -1551,6 +1551,8 @@ enterwait2
 		jp z,enterno		;nic nekopiruj - obnov obrazovku
 		cp 13
 		jr nz,enterwait2
+
+
 		ret
 
 enterno	pop hl
