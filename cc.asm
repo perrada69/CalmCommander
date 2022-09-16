@@ -157,7 +157,8 @@ START
 		ld de,sysvars
 		ld bc,500
 		ldir
-
+        ld hl,50*256+50
+        call KOREKCE    ;nastaveni pocatecnich hodnot pozice kurzoru
 		call dospage
 
 		call createCfg
@@ -202,8 +203,21 @@ dalsi
 NES
 neskenuj
 
+
 		call basicpage
+
+		ld hl,sipka
+		ld bc,16*16*1
+		ld a,0
+		call LoadSprites
+
 		call VSE_NASTAV
+
+
+
+		call showSprite
+
+
 menu0		
 		ld a,(hl)
 		ld (de),a
@@ -2154,6 +2168,7 @@ TMP83		ds 13
 
 
 INKEY 	call gettime
+		call showSprite
 		xor  a				           
         ld   (aLAST_KEY+1),a		 
 		ei
@@ -3224,6 +3239,7 @@ NactiKonfiguraci
 		jr zavriSoubor
 
 
+
 pathCfg	defb "c:/sys",255
 nameCfg	defb "cc.cfg",255
 posdrv	defb 0
@@ -3513,7 +3529,7 @@ VSE_NASTAV
 		ldir
 
         nextreg TURBO_CONTROL_NR_07,3               ; 28Mhz mode
-        nextreg SPRITE_CONTROL_NR_15,%000'100'00    ; layer priority: USL
+        nextreg SPRITE_CONTROL_NR_15,%01100011    	; layer priority: USL
         nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0   ; black transparency fallback color
         nextreg TILEMAP_TRANSPARENCY_I_NR_4C,$0F
         nextreg ULA_CONTROL_NR_68,$80               ; disable ULA layer
@@ -3522,7 +3538,7 @@ VSE_NASTAV
         nextreg TILEMAP_DEFAULT_ATTR_NR_6C,$00      ; no pal offset, no mirror/rot, 0 bit8
         nextreg TILEMAP_BASE_ADR_NR_6E,high TILE_MAP_ADR
         nextreg TILEMAP_GFX_ADR_NR_6F,high TILE_GFX_ADR
-        nextreg CLIP_WINDOW_CONTROL_NR_1C,%0000'1000
+
         nextreg CLIP_TILEMAP_NR_1B,0
         nextreg CLIP_TILEMAP_NR_1B,159
         nextreg CLIP_TILEMAP_NR_1B,0
@@ -5851,7 +5867,6 @@ lfnat		ld de,20672+2
 
 
 
-
 sysatrtxt	defb "System attributes:",0
 fileinfonadpis
 			defb "File/directory informations:",0 
@@ -5864,6 +5879,93 @@ DISC
 		include "functions/menu.asm"
 		include "functions/search.asm"
 		include "functions/selected.asm"
+
+
+
+LoadSprites
+			ld bc,SPRITE_STATUS_SLOT_SELECT_P_303B
+			out (c),a
+			ld (.dmaSource),hl
+			ld (.dmaLenght),bc
+			ld hl, .dmaProgram
+			ld b, .dmaProgramLength
+			ld c,$6B
+			otir
+
+			nextreg $19,0
+			nextreg $19,255
+			nextreg $19,0
+			nextreg $19,255
+
+			ret	
+
+.dmaProgram db %10000011
+			db %01111101
+			 
+.dmaSource	dw 0
+.dmaLenght	dw 0
+			db %00010100
+			db %00101000
+			db %10101101
+			dw $005B
+			db %10000010
+			db %11001111
+			db %10000111
+
+.dmaProgramLength = $ - .dmaProgram
+
+showSprite
+			push af
+			push bc
+			push hl
+			push de
+
+			call MOUSE
+			ld a,l
+			ld (Xcoordinate + 1),a
+			ld a,h
+			ld (Ycoordinate + 1),a
+
+			nextreg $34,0
+
+Xcoordinate	ld d,0
+			ld e,2
+			mul d,e
+			ld a,e
+			ld (mouseX+3),a
+
+			ld a,(moreX + 3)
+			res 0,a
+
+			or d
+			set 7,a
+			ld (moreX + 3),a
+nemenX
+
+
+
+Ycoordinate	ld a,0
+			ld (mouseY+3),a
+
+
+        	
+
+mouseX		nextreg $35,10	;X souradnice
+mouseY		nextreg $36,80  ;Y souradnice
+
+moreX		nextreg $37,%00001000
+			nextreg $38,%10000000
+
+			pop de
+			pop hl
+			pop bc
+			pop af
+
+
+			ret	
+
+sipka	incbin "sipka.spr"
+		include "kmouse/driver.a80"
 last:       
 E2
  			SAVEBIN "cc1.bin",S1,E1-S1

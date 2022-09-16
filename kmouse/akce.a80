@@ -1,0 +1,436 @@
+
+LEVE_TLACITKO
+        ld a,(show_menu)
+        or a
+        jp nz,LEVE_MENU1         ;neni zobrazene menu, muzeme koncit
+                                 ;sem dodelat pripadne kliknuti na odkaz
+                                 ;v nactene strance
+
+        ld a,(show_menu2)
+        or a
+        jp z,VYSKOC
+LEVE_MENU2
+        ld hl,CLOSE_VEKTOR2
+        call CONTROL_CLICK
+        jp c,VYSKOC
+
+        ld hl,buff_screen2
+        ld de,16384
+        ld bc,6912
+        ldir
+        xor a
+        ld (show_menu2),a
+        inc a
+        ld (show_menu),a
+        call SIPKA
+        jp LOOP_IM
+
+
+LEVE_MENU1
+
+        ld hl,vektor_menu1
+        call CONTROL_CLICK
+        jp nc,ENTER_ADDRESS            ;pokud kliknes na 3. položku v menu, tak reloadni
+
+        ld hl,vektor_menu2
+        call CONTROL_CLICK
+        jp nc,SEARCH_GOOGLE            ;pokud kliknes na 3. položku v menu, tak reloadni
+
+        ld hl,vektor_menu3
+        call CONTROL_CLICK
+        jp nc,PRERELOAD            ;pokud kliknes na 3. položku v menu, tak reloadni
+
+        ld hl,vektor_menu4
+        call CONTROL_CLICK
+        jp nc,ABOUT            ;pokud kliknes na 4. položku v menu, tak reloadni
+
+
+
+        ld hl,CLOSE_VEKTOR
+        call CONTROL_CLICK
+        jp c,VYSKOC
+
+        
+
+        ld hl,buff_screen
+        ld de,16384
+        ld bc,6912
+        ldir
+        xor a
+        ld (show_menu),a
+        ld bc,(COORD)
+        call SIPKA
+        jp LOOP_IM
+
+PRERELOAD
+        ld hl,16384
+        ld de,buff_screen2
+        ld bc,6912
+        ldir
+        call shadow
+        xor a
+        ld (show_menu),a
+        inc a
+        ld (show_menu2),a
+        call NastavRozmeryOkna3
+        call menu
+        ld bc,(COORD)
+        call SIPKA
+        LD HL,48*256+3
+        CALL pozice
+        LD HL,reload_title
+        call PRINT
+
+        LD HL,64*256+3
+        CALL pozice
+        LD HL,reload_msg
+        call PRINT
+
+        ld hl,KRIZEK
+        ld de,$40a0+34 -1
+        call jeden_znak
+
+        ld hl,ok_char1
+        ld de,$4820 + 27 
+        call jeden_znak
+        ld hl,ok_char2
+        ld de,$4820 + 28 
+        call jeden_znak
+
+        LD B,10
+R000        
+        HALT
+        DJNZ R000
+
+reload0
+        halt        
+        call MOUSE
+        ld (TLACITKO),a
+        call RESSIP
+        ld bc,(COORD)        
+        call SIPKA
+
+        ld a,(TLACITKO)
+        bit 1,a
+        jr z,reload0
+
+        ld hl,CLOSE_VEKTOR3
+        call CONTROL_CLICK
+        jr nc,close_reload_window
+
+        ld hl,CLOSE_VEKTOR_OK
+        call CONTROL_CLICK
+        jr c,reload0
+
+
+
+        xor a
+        ld (show_menu),a
+        ld (show_menu2),a
+        jp RELOAD
+
+CLOSE_VEKTOR_OK
+        defb 216,72
+        defb 232,80
+
+
+close_reload_window
+        ld hl,buff_screen2
+        ld de,16384
+        ld bc,6912
+        ldir
+        ld bc,(COORD)
+        call SIPKA
+        xor a
+        ld (show_menu2),a 
+        inc a
+        ld (show_menu),a
+      
+
+        jp LOOP_IM
+
+ABOUT
+        ld hl,16384
+        ld de,buff_screen2
+        ld bc,6912
+        ldir
+        call shadow
+        xor a
+        ld (show_menu),a
+        call NastavRozmeryOkna2
+        call menu
+
+        LD HL,32*256+6
+        CALL pozice
+        LD HL,about1
+        call PRINT
+
+
+        
+        LD HL,48*256+6
+        CALL pozice
+        LD HL,about6
+        call PRINT
+        
+        LD HL,64*256+6
+        CALL pozice
+        LD HL,about2
+        call PRINT
+        
+        LD HL,72*256+6
+        CALL pozice
+        LD HL,about3
+        call PRINT
+        
+        LD HL,80*256+6
+        CALL pozice
+        LD HL,about4
+        call PRINT
+        
+        LD HL,104*256+6
+        CALL pozice
+        LD HL,about5
+        call PRINT
+
+
+
+        ld hl,KRIZEK
+        ld de,$40a0+34 - 64 + 2
+        call jeden_znak
+
+
+
+        ld a,1
+        ld (show_menu2),a
+
+;musim nacist souradnice kurzoru do reg. BC!!!
+        ld bc,(COORD)
+        call SIPKA
+        jp LOOP_IM
+
+;Zkontroluje jestli doslo kliknutí na daný
+;ovládací prvek
+;
+;   Vstup:
+;           HL .. adresa s rohama obdelníku, do ktereho se mam trefit
+;   Vystup:
+;           C .... netrefil
+;           NC ... trefil
+CONTROL
+CONTROL_CLICK
+        ld a,(COORD+0)
+        ld e,a
+        ld a,(hl)
+        cp e                    ;porovnavame X
+        jr nc,CONTROL_CLICK_NETREFIL
+        inc hl
+        ld a,(COORD+1)
+        ld e,a
+        ld a,(hl)
+        cp e                    ;porovnavame y
+        jr nc,CONTROL_CLICK_NETREFIL
+
+        inc hl
+        ld a,(COORD+0)
+        ld e,a
+        ld a,(hl)
+        cp e                    ;porovnavame x
+        jr c,CONTROL_CLICK_NETREFIL
+        inc hl
+        ld a,(COORD+1)
+        ld e,a
+        ld a,(hl)
+        cp e                    ;porovnavame y 
+        jr c,CONTROL_CLICK_NETREFIL
+        or a
+        ret
+
+CONTROL_CLICK_NETREFIL
+        scf
+        ret
+
+CLOSE_VEKTOR
+        defb 16,48
+        defb 24,56
+
+CLOSE_VEKTOR2
+        defb 32,32
+        defb 40,40
+
+CLOSE_VEKTOR3
+        defb 8,48
+        defb 16,56
+
+VYSKOC  ;pop bc
+        jp LOOP_IM                                
+
+TLACITKO defb 0
+PRAVA
+PRAVE_TLACITKO
+        ld a,(show_menu)
+        or a
+        jr nz,VYSKOC
+        ld a,(show_menu2)
+        or a
+        jr nz,VYSKOC
+        ld  hl,16384
+        ld de,buff_screen
+        ld bc,6912
+        ldir
+        call shadow
+
+        call NastavRozmeryOkna
+        call menu
+        LD HL,48*256+4
+        CALL pozice
+        LD HL,nadpis_menu
+        call PRINT
+
+        LD HL,64*256+4
+        CALL pozice
+        LD HL,menu1
+        call PRINT
+
+        LD HL,72*256+4
+        CALL pozice
+        LD HL,menu2
+        call PRINT
+
+        LD HL,80*256+4
+        CALL pozice
+        LD HL,menu3
+        call PRINT
+
+        LD HL,88*256+4
+        CALL pozice
+        LD HL,menu4
+        call PRINT
+
+        ld hl,KRIZEK
+        ld de,$40a0+34
+        call jeden_znak
+
+        ld a,1
+        ld (show_menu),a
+        ;musim nacist souradnice kurzoru do reg. BC!!!
+        ld bc,(COORD)
+        call SIPKA
+        jp LOOP_IM
+
+ENTER_ADDRESS
+        ld hl,16384
+        ld de,buff_screen2
+        ld bc,6912
+        ldir
+        call shadow
+        xor a
+        ld (show_menu),a
+        inc a
+        ld (show_menu2),a
+        call NastavRozmeryOkna3
+        call menu
+
+        LD HL,48*256+3
+        CALL pozice
+        LD HL,enter_new_address
+        call PRINT
+
+        ld hl,KRIZEK
+        ld de,$40a0+33
+        call jeden_znak
+        ld bc,(COORD)
+        call SIPKA
+
+        ld ixh,26
+        ld hl,$4002
+        call INPUT
+
+        ld a,(zavri_input)
+        or a
+        jr nz,obnov_pred_input
+        xor a
+        ld (show_menu),a
+        ld (show_menu2),a
+        jp RELOAD
+
+SEARCH_GOOGLE
+        ld hl,16384
+        ld de,buff_screen2
+        ld bc,6912
+        ldir
+        call shadow
+        xor a
+        ld (show_menu),a
+        inc a
+        ld (show_menu2),a
+        call NastavRozmeryOkna3
+        call menu
+
+        LD HL,48*256+3
+        CALL pozice
+        LD HL,search_title
+        call PRINT
+
+        ld hl,KRIZEK
+        ld de,$40a0+33
+        call jeden_znak
+        ld bc,(COORD)
+        call SIPKA
+
+        ld ixh,26
+        ld hl,$4002
+        call INPUT
+
+        ld a,(zavri_input)
+        or a
+        jr nz,obnov_pred_input
+        xor a
+        ld (show_menu),a
+        ld (show_menu2),a
+        jp RELOAD           
+
+obnov_pred_input
+        xor a
+        ld (zavri_input),a
+        ld (show_menu2),a
+        inc a
+        ld (show_menu),a
+        
+        ld hl,buff_screen2
+        ld de,16384
+        ld bc,6912
+        ldir
+        ld bc,(COORD)
+        call SIPKA
+        jp LOOP_IM
+
+vektor_menu1    defb    32,64
+                defb    200,72
+
+vektor_menu2    defb    32,72
+                defb    200,80
+
+vektor_menu3    defb    32,80
+                defb    200,88
+
+vektor_menu4    defb    32,88
+                defb    200,96
+
+
+modry   ld a,1
+        jr outuj
+cerveny ld a,2
+outuj   out (254),a
+        ret
+        
+
+KRIZEK  defb %01111111
+        defb %01000001
+        defb %01010101
+        defb %01001001
+        defb %01010101
+        defb %01000001
+        defb %01111111
+        defb %00000000   
+show_menu defb 0
+show_menu2  defb 0

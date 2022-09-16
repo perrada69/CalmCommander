@@ -1,0 +1,113 @@
+;   Nejprve zavolat KOREKCE s parametrama:
+;           INPUT : L=new X-axis(0-255) / H=new Y-axis(0-191)
+;           OUTPUT: none
+;
+;
+;   Zavolat MOUSE - zjištění nových souřadnic:
+;           INPUT : none
+;           OUTPUT: A=buttons status (*) + modify mouse positions (*)
+;
+;           register L or (coord+0) = 1B new x-axis window position(absolute)
+;           register H or (coord+1) = 1B new y-axis window position(absolute)
+;
+;           register A or (contrb)  = 1B new mouse buttons (D0=right button,D1=left button,D2=middle button) - 0=inactive/1=active button
+;
+;           register E or (oldco+0) = 1B previous(old) x-axis window position(absolute)
+;           register D or (oldco+1) = 1B previous(old) y-axis window position(absolute)
+;
+;           register BC is modified, after return from driver will contain value #FADF.
+
+
+XMAX     equ  153
+XMIN     equ  0
+         
+YMAX     equ  249
+YMIN     equ  0
+         
+;XECUTE MOUSE
+;TAKE COORDINATES FROM CURPOS=
+;=COORD
+         
+MOUSE    
+         ld   hl,(COORD)
+;L=X-axis
+;H=Y-axis
+         ld   bc,$FBDF
+         ld   de,(OLDCO)
+         in   a,(c)
+         ld   (OLDCO),a
+         sub  e
+         jr   z,NM_X
+         jp   p,MX_PL
+         add  a,l
+         jr   c,ZER_X
+         xor  a
+ZER_X    ld   l,a
+         jr   NM_X
+MX_PL    add  a,l
+         jr   c,BEX_Z
+         cp   XMAX
+         jr   c,BEX_B
+BEX_Z    ld   a,XMAX
+BEX_B    ld   l,a
+NM_X     ld   b,$FF
+         in   a,(c)
+         ld   (OLDCO+1),a
+         sub  d
+         jr   z,NM_Y
+         neg  
+         jp   p,MY_PL
+         add  a,h
+         jr   c,ZER_Y
+         xor  a
+ZER_Y    ld   h,a
+         jr   NM_Y
+MY_PL    add  a,h
+         jr   c,BEY_Z
+         cp   YMAX
+         jr   c,BEY_B
+BEY_Z    ld   a,YMAX
+BEY_B    ld   h,a
+NM_Y     ld   a,h
+         cp   $FF
+         jr   c,BIGY
+         ld   h,$FF
+BIGY     cp   YMIN
+         jr   nc,SMALY
+         ld   h,YMIN
+SMALY    ld   a,l
+         cp   $FF
+         jr   c,DIRY
+         ld   l,$FF
+DIRY     cp   XMIN
+         jr   nc,DIMENS
+         ld   l,XMIN
+DIMENS   ld   (COORD),hl
+         ld   bc,$FADF
+         in   a,(c)
+         cpl  
+         and  7
+         ld   (CONTRB),a
+         ret  
+;------------------------------
+;INPUT: L=new X-axis
+;       H=new Y-axis
+         
+KOREKCE  ld   a,$FB
+         in   a,($DF)
+         ld   (OLDCO),a
+         ld   a,$FF
+         in   a,($DF)
+         ld   (OLDCO+1),a
+         ld   (COORD),hl
+         ret  
+;------------------------------
+;new cursor position
+COORD    defb 0,0
+         
+;buttons status
+CONTRB   defb 0
+         
+;working (previous position)
+OLDCO    defb 0,0
+;------------------------------
