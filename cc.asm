@@ -366,7 +366,8 @@ L0
 loop0	
 		ld   hl,$4000+160*15+23
 		ld (PROGS+1),hl
-
+		xor a
+		ld (TLACITKO),a
 		call gettime
 		nextreg $56,0
 		nextreg $55,20 
@@ -571,8 +572,29 @@ loop0
 		cp 199
 		jp z,quit
 
+
+        ld a,(TLACITKO)
+        bit 1,a       ;test na leve tlacitko - bit 0 je prave
+        jp nz,LEVE_TLACITKO
+
 		jp loop0
 
+
+LEVE_TLACITKO	
+		ld hl,leveOkno
+		call CONTROL
+		jp nc,leftwin
+
+		ld hl,praveOkno
+		call CONTROL
+		jp nc,rightwin
+
+		xor a
+		ld (TLACITKO),a
+	
+
+
+		jp loop0
 
 freespace
 		ld hl,24*256 + 30
@@ -2168,9 +2190,18 @@ find830
 foundfile	defw 0		
 TMP83		ds 13
 
+clickMouse
+		
+		xor a
+
+		ret
 
 INKEY 	call gettime
 		call showSprite
+		ld a,(TLACITKO)
+		or a
+		jr nz,clickMouse
+		
 		xor  a				           
         ld   (aLAST_KEY+1),a		 
 		ei
@@ -5923,6 +5954,14 @@ showSprite
 			push de
 
 			call MOUSE
+			ld b,a
+			ld a,(TLACITKO)
+			xor b
+			jr z,shwSpr
+			ld a,(TLACITKO)
+			or b
+			ld (TLACITKO),a
+shwSpr			
 			ld a,l
 			ld (Xcoordinate + 1),a
 			ld a,h
@@ -5968,6 +6007,7 @@ moreX		nextreg $37,%00001000
 
 sipka	incbin "sipka.spr"
 		include "kmouse/driver.a80"
+		include "kmouse/akce.a80"
 last:       
 E2
  			SAVEBIN "cc1.bin",S1,E1-S1
