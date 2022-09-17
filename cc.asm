@@ -612,7 +612,35 @@ vypoctiClick
 		dec d
 		dec d
  		
+
+
 		push de
+		
+		ld hl,ALLFILES
+		call ROZHOD2
+		pop de
+
+		push de
+		
+		ld e,d
+		ld d,0
+
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+
+		dec hl
+		dec hl
+		or a
+		sbc hl,de
+
+		pop de
+		jp c,loop0
+		push de
+
+
 		ld l,d
  		ld h,0
  		call NUM
@@ -627,6 +655,7 @@ vypoctiClick
 		call ROZHOD
 
 		pop de			;v D mame cislo souboru
+
 		ld a,d
 		ld (hl),a
 
