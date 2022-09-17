@@ -163,6 +163,17 @@ START
 
 		call createCfg
 
+
+		ld bc,$fadf
+		in a,(c)
+
+         and  $F0
+         rrca 
+         rrca 
+         rrca 
+         rrca 
+		ld (wheelOld),a
+
 		ld l,0
 		ld h,0
 		call $01bd
@@ -474,12 +485,15 @@ loop0
 ; 		ld de,NUMBUF
 ; 		call print
 
-; 		ld hl,(STARTWINR)
-; 		call NUM
-; 		ld hl,49*256+31
-; 		ld a,16
-; 		ld de,NUMBUF
-; 		call print
+
+
+;		ld l,a
+;		ld h,0
+ ;		call NUM
+ ;		ld hl,49*256+31
+ ;		ld a,16
+ ;		ld de,NUMBUF
+ ;		call print
 
 ; 		ld a,(POSKURZR)
 ; 		ld l,a
@@ -502,7 +516,7 @@ loop0
 	
 		call NOBUFF83
 	
-		call INKEY
+		call InkeyNoWait
 
 		ld (klavesa),a
 
@@ -578,8 +592,29 @@ loop0
         bit 1,a       ;test na leve tlacitko - bit 0 je prave
         jp nz,LEVE_TLACITKO
 
-		jp loop0
 
+						;kolecko mysi - nefunguje v cspect
+
+		ld a,(wheelOld)
+		ld e,a			;nacti starou polohu kolecka
+
+		ld bc,$fadf
+		in a,(c)
+
+        and  $F0
+        rrca 
+        rrca 
+        rrca 
+        rrca 
+		ld (wheelOld),a
+		cp e
+		jp z,loop0
+		jp c,leftcur
+		jp rightcur
+
+
+
+wheelOld	defb 0
 
 freespace
 		ld hl,24*256 + 30
