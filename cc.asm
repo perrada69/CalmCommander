@@ -1096,7 +1096,13 @@ enterwait
 		ld (TLACITKO),a	
 		call INKEY
 		cp 13
-		jp z,enterno2		
+		jp z,enterno2
+
+							;overeni stisknutí tlacitka mysi, jestli jsme se trefili
+		ld hl,buttonYes2
+		call CONTROL_CLICK
+		JP nc,enterno2
+
 		jr enterwait
 
 enter
@@ -1626,6 +1632,11 @@ enterw2
 
 buttonYes defb 120,120
 		  defb 140,128
+
+buttonYes2 defb 108,120
+		  defb 138,128
+
+
 
 buttonNo defb 120,112
 		  defb 140,120
@@ -4385,7 +4396,7 @@ XXXX		call FINDLFN
 		ldir
 
 
-		ld hl,LFNNAME2 + 230
+		ld hl,LFNNAME + 230
 NajdiPrvniNemezeru
 		ld a,(hl)
 		cp $20
@@ -4396,62 +4407,62 @@ NajdiPrvniNemezeru
 TUU		inc hl
 		xor a
 		ld (hl),a
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_tap
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_TAP
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_nex
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_NEX
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_sna
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_SNA
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_snx
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_SNX
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_z80
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_Z80
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_bas
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME2
+		ld hl,LFNNAME
 		ld de,ext_BAS
 		call pripony
 		jp z,obarvi_spustitelny_soubor
