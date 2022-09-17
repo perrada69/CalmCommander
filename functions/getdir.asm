@@ -113,12 +113,19 @@ fa
 		ld (FF+1),hl
 		xor a
 		ld (virtmem),a
+
+		ld de,$a001
+		ld bc,$200
+		xor a
+		ld (hl),a
+		ldir
+
         
 FF		ld de,$a000
         ld b,pocetpolozek 
         ld hl,stardstar   
-		ld c,%101         
-		ld a,%1000
+		ld c,%111         
+		;ld a,%1000
 		call dos_catalog 
 		ld (savehl),hl
 		ld (saveix),ix
