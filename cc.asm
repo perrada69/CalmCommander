@@ -433,14 +433,14 @@ loop0
 		; call print
 
 
- 		ld a,(POSKURZL)
- 		ld l,a
- 		ld h,0
- 		call NUM
- 		ld hl,1*256+31
- 		ld a,16
- 		ld de,NUMBUF
- 		call print
+; 		ld a,(POSKURZL)
+;		ld l,a
+; 		ld h,0
+; 		call NUM
+; 		ld hl,1*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
 
 ; 		ld hl,(STARTWINL)
 ; 		call NUM
@@ -501,6 +501,7 @@ loop0
 
 	
 		call NOBUFF83
+	
 		call INKEY
 
 		ld (klavesa),a
@@ -579,148 +580,6 @@ loop0
 
 		jp loop0
 
-
-LEVE_TLACITKO	
-		ld hl,leveOkno
-		call CONTROL
-		jp nc,leve2
-
-		ld hl,praveOkno
-		call CONTROL
-		jp nc,leve3
-
-		jp loop0
-
-leve2
-		;leve okno
-		call lw
-		call vypoctiClick
-		jp loop0
-
-leve3
-		;prave okno
-		call rw
-		call vypoctiClick
-		jp loop0
-
-
-vypoctiClick
-		ld a,(COORD+1)		;Y souradnice
-		ld d,a
-		ld e,8
-		call deleno8		;vysledek v D
-		dec d
-		dec d
- 		
-
-
-		push de
-		
-		ld hl,ALLFILES
-		call ROZHOD2
-		pop de
-
-		push de
-		
-		ld e,d
-		ld d,0
-
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-
-
-		dec hl
-		dec hl
-		or a
-		sbc hl,de
-
-		pop de
-		jp c,loop0
-		push de
-
-
-		ld l,d
- 		ld h,0
- 		call NUM
- 		ld hl,41*256+31
- 		ld a,16
- 		ld de,NUMBUF
- 		call print
-		ld a,0
-		call writecur
-
-		ld hl,POSKURZL
-		call ROZHOD
-
-		pop de			;v D mame cislo souboru
-
-		ld a,d
-		ld (hl),a
-
-		ld a,32
-		call writecur
-		ret
-
-
-nastavKurzor
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		or h
-		ret z
-		ld hl,POSKURZL
-		call ROZHOD
-		ld (ssmcur+1),hl
-		ld a,(hl)
-		cp 26
-		jp z,rightcur0			;zobraz další stránku
-		
-		ld hl,ALLFILES
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld d,(hl)
-		ld e,a
-		dec de
-		push de
-		ld hl,pathl
-		call ROZHOD2
-		ld a,(hl)
-		inc hl
-		ld h,(hl)
-		ld l,a
-		ld de,3
-		add hl,de
-		ld a,(hl)
-		cp 255
-		pop de
-		jr z,saasw0
-		
-		dec de
-saasw0
-		ld hl,26
-		or a
-		sbc hl,de
-		add hl,de
-		jr c,sposledniradek
-		ld a,e
-		ld (skamcur+1),a
-		jr ssmcur
-sposledniradek
-		ld a,26
-		ld (skamcur+1),a
-ssmcur	ld hl,0
-		ld a,0
-		call writecur
-skrcur	ld hl,(ssmcur+1)		
-skamcur	ld (hl),26
-		ld a,32
-		call writecur
-		ret
 
 freespace
 		ld hl,24*256 + 30
@@ -1232,7 +1091,9 @@ unsup
 		ld a,48
 		ld de,conttxt
 		call print		
-enterwait		
+enterwait	
+		xor a
+		ld (TLACITKO),a	
 		call INKEY
 		cp 13
 		jp z,enterno2		
@@ -1740,7 +1601,8 @@ potvrd
 		ld a,16
 		ld de,notxt
 		call print		
-enterwait2		
+enterwait2			xor a
+		ld (TLACITKO),a	
 		call INKEY
 		cp 1
 		jp z,enterno		;nic nekopiruj - obnov obrazovku
@@ -2366,7 +2228,7 @@ TMP83		ds 13
 clickMouse
 		
 		xor a
-
+        ld   (aLAST_KEY+1),a
 		ret
 
 INKEY 	call gettime
@@ -3573,7 +3435,10 @@ vyberPocitace
 		ld a,64
 		call kreslicurcomp
 
-comp00	call INKEY
+comp00	
+		xor a
+		ld (TLACITKO),a
+		call INKEY
 		cp 10
 		jr z,compdown
 
@@ -3981,7 +3846,10 @@ chngdrv0
 		djnz chngdrv0
 		ld a,64
 		call writecurdrv
-chng0	call INKEY
+chng0	
+		xor a
+		ld (TLACITKO),a
+		call INKEY
 		cp 10
 		jr z,curchngdown
 
@@ -5072,7 +4940,9 @@ quit
 		ld de,notxt
 		call print
 
-quit0		
+quit0	
+		xor a
+		ld (TLACITKO),a	
 		call INKEY
 		cp 1
 		jp z,infoend
@@ -5098,7 +4968,8 @@ softreset
 		ld de,pressanykeytxt
 		call print		
 
-
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		call loadscr
 		jp loop0
@@ -5217,6 +5088,8 @@ CHNG_ATTR
 ;vyhodnocení
 		
 chng00	call showattr
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jr z,chng_end
@@ -5542,6 +5415,8 @@ info_file
 
 
 		call showattr_info
+				xor a
+		ld (TLACITKO),a
 		call INKEY
 		call loadscr
 		jp loop0
@@ -5799,6 +5674,8 @@ help	call savescr
 
 
 help0		
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,infoend
@@ -5823,7 +5700,8 @@ notnow
 		ld a,32
 		ld de,pressanykeytxt
 		call print
-
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		call loadscr
 	
@@ -5926,6 +5804,8 @@ rtcje
 		call print
 
 info0		
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,infoend
@@ -6191,6 +6071,138 @@ moreX		nextreg $37,%00001000
 
 
 			ret	
+
+
+
+LEVE_TLACITKO	
+		ld hl,leveOkno
+		call CONTROL
+		jp nc,leve2
+
+		ld hl,praveOkno
+		call CONTROL
+		jp nc,leve3
+
+		jp loop0
+
+leve2
+		;leve okno
+		call lw
+		call vypoctiClick
+		jp loop0
+
+leve3
+		;prave okno
+		call rw
+		call vypoctiClick
+		jp loop0
+
+
+vypoctiClick
+		ld a,(COORD+1)		;Y souradnice
+		ld d,a
+		ld e,8
+		call deleno8		;vysledek v D
+		dec d
+		dec d
+ 		
+
+
+		push de
+		
+		ld hl,ALLFILES
+		call ROZHOD2
+		pop de
+
+		push de
+		
+		ld e,d
+		ld d,0
+
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+
+
+		dec hl
+		dec hl
+		or a
+		sbc hl,de
+
+		pop de
+		ret c
+		push de
+
+
+		;ld l,d
+ 		;ld h,0
+ 		;call NUM
+ 		;ld hl,41*256+31
+ 		;ld a,16
+ 		;ld de,NUMBUF
+ 		;call print
+		ld a,0
+		call writecur
+
+		ld hl,POSKURZL
+		call ROZHOD
+
+		pop de			;v D mame cislo souboru
+
+		ld a,d
+		ld (hl),a
+
+		ld a,32
+		call writecur
+
+
+		ld b,10
+pauza	
+		halt
+		call MOUSE
+		call showSprite
+		bit 1,a
+		jr nz,pauza
+
+		ld b,50
+						;osetreni dvojkliku na polozku souboru
+dvojKlik halt
+		push bc						
+		call MOUSE
+		call showSprite
+mm		bit 1,a
+		jp nz,overDvojKlik
+		pop bc
+		djnz dvojKlik
+		ret
+odskocZnovaKlik
+		pop hl
+		pop hl
+		xor a
+		ld (TLACITKO),a
+		jp LEVE_TLACITKO
+odskocEnter
+		pop hl
+		pop hl
+		xor a
+		ld (TLACITKO),a
+xx		jp enter
+
+overDvojKlik
+		ld d,h
+		ld e,8
+		call deleno8
+		dec d
+		dec d
+		push de
+		ld hl,POSKURZL
+		call ROZHOD
+		ld a,(hl)
+		pop de
+		xor d
+		jr z,odskocEnter
+		jp odskocZnovaKlik
 
 sipka	incbin "sipka.spr"
 		include "kmouse/driver.a80"
