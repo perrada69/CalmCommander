@@ -3421,6 +3421,9 @@ E1
 
 S2
 
+oknoVyber	defb	64,32
+			defb	100,96
+
 vyberPocitace
 		ld hl,30 * 256 + 5
 		ld bc,20 * 256 + 15
@@ -3457,17 +3460,47 @@ vyberPocitace
 comp00	
 		xor a
 		ld (TLACITKO),a
-		call INKEY
+		call InkeyNoWait
 		cp 10
-		jr z,compdown
+		jp z,compdown
 
 		cp 11
-		jr z,compup
+		jp z,compup
 		cp 1
 		jr z,cancelComp
 		cp 13
 		jp z,entercomp
+
+		ld hl,oknoVyber
+		call CONTROL
+		jr nc,vOkne
+
 		jp comp00
+
+vOkne
+
+		ld a,(COORD+1)
+		ld d,a
+		ld e,8
+		call deleno8
+		ld a,-8
+		add a,d
+		push af
+		ld d,a
+
+	
+		ld a,16
+		call kreslicurcomp
+
+		pop af
+		ld (cursorComp),a
+		ld a,64
+		call kreslicurcomp
+
+		ld a,(TLACITKO)
+		bit 1,a
+		jr nz,entercomp
+		jr comp00
 
 v0		
 		di
@@ -6222,6 +6255,42 @@ overDvojKlik
 		xor d
 		jr z,odskocEnter
 		jp odskocZnovaKlik
+
+InkeyNoWait
+	 	call gettime
+		call showSprite
+		ld a,(TLACITKO)
+		or a
+		jp nz,clickMouse
+		
+		xor  a				           
+        ld   (aLAST_KEY+1),a		 
+		ei
+
+		ld b,2
+CEKEJd	halt
+		djnz CEKEJd
+ahl0d		 
+		 call KEYSCAN			       
+
+		 ld   a,e
+         inc  a
+         ret z
+         ld   a,d
+         ld   hl,SYMTAB
+         cp   $18
+         jr   z,aHLSM2s
+         ld   hl,CAPSTAB
+         cp   $27
+         jr   z,aHLSM2s
+         ld   hl,NORMTAB
+aHLSM2s    ld   d,0
+         add  hl,de
+         ld   a,(hl)
+         or   a
+         ret z
+         jp aLAST_KEY
+
 
 sipka	incbin "sipka.spr"
 		include "kmouse/driver.a80"
