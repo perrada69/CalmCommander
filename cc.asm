@@ -433,14 +433,14 @@ loop0
 		; call print
 
 
-; 		ld a,(POSKURZL)
-; 		ld l,a
-; 		ld h,0
-; 		call NUM
-; 		ld hl,1*256+31
-; 		ld a,16
-; 		ld de,NUMBUF
-; 		call print
+ 		ld a,(POSKURZL)
+ 		ld l,a
+ 		ld h,0
+ 		call NUM
+ 		ld hl,1*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
 
 ; 		ld hl,(STARTWINL)
 ; 		call NUM
@@ -500,7 +500,7 @@ loop0
 ;*******************************
 
 	
-	call NOBUFF83
+		call NOBUFF83
 		call INKEY
 
 		ld (klavesa),a
@@ -583,18 +583,115 @@ loop0
 LEVE_TLACITKO	
 		ld hl,leveOkno
 		call CONTROL
-		jp nc,leftwin
+		jp nc,leve2
 
 		ld hl,praveOkno
 		call CONTROL
-		jp nc,rightwin
-
-		xor a
-		ld (TLACITKO),a
-	
-
+		jp nc,leve3
 
 		jp loop0
+
+leve2
+		;leve okno
+		call lw
+		call vypoctiClick
+		jp loop0
+
+leve3
+		;prave okno
+		call rw
+		call vypoctiClick
+		jp loop0
+
+
+vypoctiClick
+		ld a,(COORD+1)		;Y souradnice
+		ld d,a
+		ld e,8
+		call deleno8		;vysledek v D
+		dec d
+		dec d
+ 		
+		push de
+		ld l,d
+ 		ld h,0
+ 		call NUM
+ 		ld hl,41*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
+		ld a,0
+		call writecur
+
+		ld hl,POSKURZL
+		call ROZHOD
+
+		pop de			;v D mame cislo souboru
+		ld a,d
+		ld (hl),a
+
+		ld a,32
+		call writecur
+		ret
+
+
+nastavKurzor
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		or h
+		ret z
+		ld hl,POSKURZL
+		call ROZHOD
+		ld (ssmcur+1),hl
+		ld a,(hl)
+		cp 26
+		jp z,rightcur0			;zobraz další stránku
+		
+		ld hl,ALLFILES
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld d,(hl)
+		ld e,a
+		dec de
+		push de
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		ld de,3
+		add hl,de
+		ld a,(hl)
+		cp 255
+		pop de
+		jr z,saasw0
+		
+		dec de
+saasw0
+		ld hl,26
+		or a
+		sbc hl,de
+		add hl,de
+		jr c,sposledniradek
+		ld a,e
+		ld (skamcur+1),a
+		jr ssmcur
+sposledniradek
+		ld a,26
+		ld (skamcur+1),a
+ssmcur	ld hl,0
+		ld a,0
+		call writecur
+skrcur	ld hl,(ssmcur+1)		
+skamcur	ld (hl),26
+		ld a,32
+		call writecur
+		ret
 
 freespace
 		ld hl,24*256 + 30
@@ -757,6 +854,30 @@ leftwin
 		
 		call basicpage
 		jp loop0
+
+lw
+		ld a,0
+		call writecur
+		ld a,3
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		ret
+
 rightwin
 		ld a,0
 		call writecur
@@ -779,6 +900,29 @@ rightwin
 		
 		call basicpage
 		jp loop0
+
+rw
+		ld a,0
+		call writecur
+		ld a,$13
+		ld (OKNO),a
+		ld a,32
+		call writecur
+
+		call dospage
+		
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
+		
+		xor a
+		call $01b1
+		
+		call basicpage
+		ret
 
 
 newdisc_right
@@ -2917,8 +3061,19 @@ contin		pop bc				;zopakuj to pro všechny soubory, které máme načtené...
 AAA
 			nextreg $57,1			;vráť zpátky stránku, kde se nachází data pro player
 			ret
-
-
+; Input: D = Dividend, E = Divisor, A = 0
+; Output: D = Quotient, A = Remainder
+deleno8
+			xor a
+			ld b,8
+de8			sla	d		; unroll 8 times
+			rla			; ...
+			cp	e		; ...
+			jr	c,$+4		; ...
+			sub	e		; ...
+			inc	d		; ...
+			djnz de8
+			ret
 
 ; Input: HL = Dividend, C = Divisor, A = 0
 ; Output: HL = Quotient, A = Remainder
@@ -4622,6 +4777,7 @@ kamcur	ld (hl),26
 		call writecur
 
 		jp loop0
+
 rightcur0
 
 		ld hl,STARTWINL
@@ -5946,6 +6102,8 @@ LoadSprites
 			db %10000111
 
 .dmaProgramLength = $ - .dmaProgram
+
+
 
 showSprite
 			push af
