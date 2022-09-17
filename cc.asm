@@ -1607,10 +1607,29 @@ enterwait2			xor a
 		cp 1
 		jp z,enterno		;nic nekopiruj - obnov obrazovku
 		cp 13
-		jr nz,enterwait2
+		jr z,enterw2
+		ld a,(TLACITKO)
+		bit 1,a
+		jr z,enterwait2
 
+		;overeni stisknutí tlacitka mysi, jestli jsme se trefili
+		ld hl,buttonYes
+		call CONTROL_CLICK
+		ret nc
+		ld hl,buttonNo
+		call CONTROL_CLICK
+		jr nc,enterno
+		jr enterwait2
 
+enterw2
 		ret
+
+buttonYes defb 120,120
+		  defb 140,128
+
+buttonNo defb 120,112
+		  defb 140,120
+
 
 enterno	pop hl
 enterno2
