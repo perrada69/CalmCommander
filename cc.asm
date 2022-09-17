@@ -3376,6 +3376,7 @@ sysvars 	defs 500
 		include "functions/rename.asm"
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
+		include "functions/copy.asm"
      
                                                                     ; 24 chars skipped (3*256)
                                                                     ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
@@ -3412,8 +3413,8 @@ FILEBUFF
 
 
 E1			
-			org $a000
-			include "functions/copy.asm"
+
+
 
 
 
@@ -6310,7 +6311,7 @@ E2
  			SAVEBIN "cc2.bin",S2,E2-S2
 			SAVEBIN "cc.bin", S1, E2-S1
 
-			DISPLAY "Volne misto v prvni casti:",/A,40960 - E1
+			DISPLAY "Volne misto v prvni casti:",/A,S2 - E1
 			DISPLAY "Volne misto v druhe casti:",/A,65535 - E2
 
               CSPECTMAP player.map
