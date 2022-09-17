@@ -3348,9 +3348,9 @@ ALLFILES    defw 0
 ALLFILES2	defw 0
 ALLFILESR	defw 0
 ;Buffer pro LFN
-LFNNAME		defs 270
+LFNNAME		defs 275
 ;Pomocný buffer pro LFN - při porovnávání
-LFNNAME2	defs 270		
+LFNNAME2	defs 275		
 tmpname		ds 2
 BFT
 bufftmp		ds 15		 
@@ -4373,75 +4373,84 @@ isselect
 
 neni_to_adresar
 
-
-
-
 		pop af
 		pop hl
-		xor a
-		ld (vypln+1),a
 		
-		call FINDLFN
+XXXX		call FINDLFN
 
-		ld a,$20
-		ld (vypln+1),a
-TUU
 		ld hl,LFNNAME
+		ld de,LFNNAME2
+		ld bc,250
+		ldir
+
+
+		ld hl,LFNNAME2 + 230
+NajdiPrvniNemezeru
+		ld a,(hl)
+		cp $20
+		jr nz,TUU
+		dec hl
+		jr NajdiPrvniNemezeru
+
+TUU		inc hl
+		xor a
+		ld (hl),a
+		ld hl,LFNNAME2
 		ld de,ext_tap
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_TAP
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_nex
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_NEX
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_sna
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_SNA
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_snx
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_SNX
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_z80
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_Z80
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_bas
 		call pripony
 		jp z,obarvi_spustitelny_soubor
 
-		ld hl,LFNNAME
+		ld hl,LFNNAME2
 		ld de,ext_BAS
 		call pripony
 		jp z,obarvi_spustitelny_soubor
@@ -5946,7 +5955,7 @@ findlfn830
 			
 		ld hl,LFNNAME
 		ld de,LFNNAME+1
-		ld bc,maxlen
+		ld bc,maxlen 
 vypln	ld a,32
 		ld (hl),a
 		ldir
@@ -6301,7 +6310,8 @@ E2
  			SAVEBIN "cc2.bin",S2,E2-S2
 			SAVEBIN "cc.bin", S1, E2-S1
 
-
+			DISPLAY "Volne misto v prvni casti:",/A,40960 - E1
+			DISPLAY "Volne misto v druhe casti:",/A,65535 - E2
 
               CSPECTMAP player.map
               ;savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
