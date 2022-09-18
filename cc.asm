@@ -628,7 +628,7 @@ nactiWheelMysky
         rrca 
 
 		ret
-
+TLACITKO        defb 0
 hranicniPatnact
 		ld e,a
 		call nactiWheelMysky
@@ -2333,12 +2333,12 @@ clickMouse
 
 INKEY 	call gettime
 		call showSprite
-		ld a,(wheelOld)
+		;ld a,(wheelOld)
 		
-		ld e,a
-		call nactiWheelMysky
-		xor e
-		jr nz,clickMouse
+		;ld e,a
+		;call nactiWheelMysky
+		;xor e
+		;jr nz,clickMouse
 
 		ld a,(TLACITKO)
 		or a
@@ -3464,8 +3464,6 @@ sysvars 	defs 500
 		include "functions/rename.asm"
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
-		include "kmouse/driver.a80"
-		include "kmouse/akce.a80"
 		include "functions/copy.asm"
      
                                                                     ; 24 chars skipped (3*256)
@@ -3510,7 +3508,8 @@ E1
 			org 49152
 
 S2
-
+		include "kmouse/driver.a80"
+		include "kmouse/akce.a80"
 oknoVyber	defb	64,32
 			defb	100,96
 

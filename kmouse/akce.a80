@@ -41,7 +41,7 @@ CONTROL_CLICK_NETREFIL
         scf
         ret
 
-TLACITKO        defb 0
+
 leveOkno
                 defb    0,0
                 defb    80,230

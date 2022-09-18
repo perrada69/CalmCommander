@@ -379,7 +379,10 @@ delete
 		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
-		call print		
+		call print	
+
+		xor a
+		ld (TLACITKO),a	
 deletewait		
 		call INKEY
 		cp 1
