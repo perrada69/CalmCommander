@@ -1601,7 +1601,7 @@ savesp	ld sp,0
 RUN_NEX_FILE
 
 		call potvrd
-
+		call layer0
 		call dospage
 		call zapisCfg
 		call basicpage	
@@ -3422,7 +3422,7 @@ sysvars 	defs 500
 		include "functions/rename.asm"
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
-		include "functions/copy.asm"
+
      
                                                                     ; 24 chars skipped (3*256)
                                                                     ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
@@ -3456,7 +3456,8 @@ FILEBUFF
 ;*****************************************************************************************
 ;*****************************************************************************************
 ;*****************************************************************************************
-
+			org $a000
+			include "functions/copy.asm"
 
 E1			
 
