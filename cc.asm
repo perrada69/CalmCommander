@@ -4424,14 +4424,8 @@ neni_to_adresar
 		pop af
 		pop hl
 		
-XXXX		call FINDLFN
-
-		ld hl,LFNNAME
-		ld de,LFNNAME2
-		ld bc,250
-		ldir
-
-
+XXXX	call FINDLFN
+		call basicpage
 		ld hl,LFNNAME + 230
 NajdiPrvniNemezeru
 		ld a,(hl)
