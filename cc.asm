@@ -596,8 +596,28 @@ loop0
 						;kolecko mysi - nefunguje v cspect
 
 		ld a,(wheelOld)
+;		push af
+;		ld l,a
+; 		ld h,0
+; 		call NUM
+; 		ld hl,1*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
+;		pop af
+		cp 15
+		jr z,hranicniPatnact
+		or a
+		jr z,hranicniNula
 		ld e,a			;nacti starou polohu kolecka
+		call nactiWheelMysky
+		ld (wheelOld),a
+		cp e
+		jp z,loop0
+		jp c,leftcur
+		jp rightcur
 
+nactiWheelMysky
 		ld bc,$fadf
 		in a,(c)
 
@@ -606,13 +626,28 @@ loop0
         rrca 
         rrca 
         rrca 
+
+		ret
+
+hranicniPatnact
+		ld e,a
+		call nactiWheelMysky
 		ld (wheelOld),a
-		cp e
-		jp z,loop0
-		jp c,leftcur
-		jp rightcur
+		cp 0
+		jp z,rightcur
+		cp 14
+		jp z,leftcur
+		jp loop0
 
-
+hranicniNula
+		ld e,a
+		call nactiWheelMysky
+		ld (wheelOld),a
+		cp 15
+		jp z,leftcur
+		cp 1
+		jp z,rightcur
+		jp loop0
 
 wheelOld	defb 0
 
