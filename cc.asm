@@ -516,7 +516,7 @@ loop0
 	
 		call NOBUFF83
 	
-		call InkeyNoWait
+		call INKEY
 
 		ld (klavesa),a
 
@@ -2333,6 +2333,13 @@ clickMouse
 
 INKEY 	call gettime
 		call showSprite
+		ld a,(wheelOld)
+		
+		ld e,a
+		call nactiWheelMysky
+		xor e
+		jr nz,clickMouse
+
 		ld a,(TLACITKO)
 		or a
 		jr nz,clickMouse
@@ -3457,7 +3464,9 @@ sysvars 	defs 500
 		include "functions/rename.asm"
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
-
+		include "kmouse/driver.a80"
+		include "kmouse/akce.a80"
+		include "functions/copy.asm"
      
                                                                     ; 24 chars skipped (3*256)
                                                                     ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
@@ -3491,8 +3500,6 @@ FILEBUFF
 ;*****************************************************************************************
 ;*****************************************************************************************
 ;*****************************************************************************************
-			org $a000
-			include "functions/copy.asm"
 
 E1			
 
@@ -6293,35 +6300,57 @@ vypoctiClick
 
 		ld a,32
 		call writecur
-
-
-		ld b,10
-pauza	
-		halt
+		ld b,25
+pauza	;push bc
+		;halt
 		call MOUSE
 		call showSprite
-		bit 1,a
-		jr nz,pauza
+		ld bc,KEMPSTON_MOUSE_B_P_FADF
+		in a,(c)
 
+		push af
+		ld l,a
+ 		ld h,0
+ 		call NUM
+ 		ld hl,41*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
+		pop af
+
+		bit 1,a
+		;pop bc
+		jr z,pauza
+		;djnz pauza
+dvoj2	ei
 		ld b,50
 						;osetreni dvojkliku na polozku souboru
 dvojKlik halt
 		push bc						
-		call MOUSE
+
 		call showSprite
-mm		bit 1,a
-		jp nz,overDvojKlik
+
+		
+		ld bc,KEMPSTON_MOUSE_B_P_FADF
+		in a,(c)
+
+		bit 1,a
+		push af
+		call MOUSE
+		pop af
 		pop bc
+		jp z,overDvojKlik
+
 		djnz dvojKlik
 		ret
 odskocZnovaKlik
-		pop hl
+		;pop hl
 		pop hl
 		xor a
 		ld (TLACITKO),a
 		jp LEVE_TLACITKO
 odskocEnter
-		pop hl
+		;pop hl
 		pop hl
 		xor a
 		ld (TLACITKO),a
@@ -6379,8 +6408,7 @@ aHLSM2s    ld   d,0
 
 
 sipka	incbin "sipka.spr"
-		include "kmouse/driver.a80"
-		include "kmouse/akce.a80"
+
 last:       
 E2
  			SAVEBIN "cc1.bin",S1,E1-S1
