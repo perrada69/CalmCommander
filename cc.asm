@@ -6308,15 +6308,15 @@ pauza	;push bc
 		ld bc,KEMPSTON_MOUSE_B_P_FADF
 		in a,(c)
 
-		push af
-		ld l,a
- 		ld h,0
- 		call NUM
- 		ld hl,41*256+31
- 		ld a,16
- 		ld de,NUMBUF
- 		call print
-		pop af
+;		push af
+;		ld l,a
+; 		ld h,0
+; 		call NUM
+; 		ld hl,41*256+31
+; 		ld a,16
+; 		ld de,NUMBUF
+; 		call print
+;		pop af
 
 		bit 1,a
 		;pop bc
