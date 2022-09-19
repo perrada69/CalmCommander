@@ -384,8 +384,7 @@ delete
 		ld de,notxt
 		call print	
 
-		xor a
-		ld (TLACITKO),a	
+		call NOBUFF83
 deletewait		
 		xor a
 		ld (TLACITKO),a
