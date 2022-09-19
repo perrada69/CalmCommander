@@ -3454,18 +3454,15 @@ dosret:
 numLoop		defw 0
 FILES    	defb 0
 dirNum	 	defw 0
-sysvars 	defs 500
 
 
-		include "functions/file.asm"
-		include "functions/delete.asm"
-		include "functions/input.asm"
-		include "functions/createdir.asm"
-		include "functions/rename.asm"
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
-		include "functions/copy.asm"
-     
+		include "functions/file.asm"
+		include "functions/rename.asm"
+		include "functions/delete.asm"
+		include "functions/input.asm"     
+
                                                                     ; 24 chars skipped (3*256)
                                                                     ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
 
@@ -3501,9 +3498,11 @@ FILEBUFF
 
 E1			
 
-
-
-
+			org $a000
+S3
+			include "functions/copy.asm"
+		include "functions/createdir.asm"
+E3
 
 			org 49152
 
@@ -6405,7 +6404,7 @@ aHLSM2s    ld   d,0
          ret z
          jp aLAST_KEY
 
-
+sysvars 	defs 500
 sipka	incbin "sipka.spr"
 
 last:       
@@ -6414,8 +6413,9 @@ E2
  			SAVEBIN "cc2.bin",S2,E2-S2
 			SAVEBIN "cc.bin", S1, E2-S1
 
-			DISPLAY "Volne misto v prvni casti:",/A,S2 - E1
-			DISPLAY "Volne misto v druhe casti:",/A,65535 - E2
+			DISPLAY "Volne misto v prvni casti:",/A,S3 - E1
+			DISPLAY "Volne misto v druhe casti:",/A,S2 - E3
+			DISPLAY "Volne misto v treti casti:",/A,65535 - E2
 
               CSPECTMAP player.map
               ;savenex open "CalmCommander.nex",START,ORG_ADDRESS-2

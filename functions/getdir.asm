@@ -109,6 +109,7 @@ fa
 		call $01b1				;skoc do nadrizeneho adresare
 
 		nextreg $55,95
+
 		ld hl,$a000
 		ld (FF+1),hl
 		xor a
@@ -121,33 +122,16 @@ fa
 		ldir
 
         
-FF		ld de,$a000
-        ld b,pocetpolozek 
+FF		ld de,$0
+        ld b,2
         ld hl,stardstar   
 		ld c,%111         
 		;ld a,%1000
 		call dos_catalog 
 		ld (savehl),hl
 		ld (saveix),ix
-		ld a,pocetpolozek
-		xor b
-		jr nz,PRK4
-		ld hl,(FF+1)
-		ld de,pocetpolozek*13
-		add hl,de
-		ld (FF+1),hl
-		ld hl,virtmem
-		inc (hl)
-		ld a,(hl)
-		xor 3
-		jr z,PRK4
-		jr FF
+		call NOBUFF83
 PRK4		
-		ld a,1				;get path
-		ld hl,pks
-		call $01b1
-
-
 		ld de,DIRBUFF			;jmeno souboru
 		ld hl,stardstar
 		ld ix,(savehl)
@@ -193,7 +177,7 @@ PRK5
 		ret
 
 directoryHandle defw 0
-pks 	defs 100
+;pks 	defs 100
 getdirroot	
     	ld a,"/"
 		ld (LFNNAME),a
@@ -213,6 +197,7 @@ getdirroot
 		call print
 
 		call NOBUFF83
+
 		ret
 
 dirpos      defw 10*256+1
