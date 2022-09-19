@@ -21,6 +21,8 @@ no_copy_move
 		call print
 
 nocopy0
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,infoend
@@ -126,6 +128,8 @@ COPY	call specific_search
 		ld de,notxt
 		call print		
 copywait		
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,copyend
@@ -351,7 +355,8 @@ nekopiruj_adresar
 		ld de,pressanykeytxt
 		call print
 
-
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		jp copyend
 
@@ -437,6 +442,8 @@ morecopy
 		ld de,notxt
 		call print		
 acopywait		
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,copyend
@@ -840,6 +847,8 @@ TTT
 		ld de,notxt
 		call print		
 .wait		
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,norewrite

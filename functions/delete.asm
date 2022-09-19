@@ -59,6 +59,9 @@ moredelete
 		ld de,notxt
 		call print		
 mdeletewait		
+
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,deleteend		;nic nekopiruj - obnov obrazovku
@@ -384,6 +387,8 @@ delete
 		xor a
 		ld (TLACITKO),a	
 deletewait		
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 		cp 1
 		jp z,copyend
@@ -598,7 +603,9 @@ vymaz_vse_v_adresari
 		ld a,16
 		ld de,notxt
 		call print		
-edeletewait		
+edeletewait	
+		xor a
+		ld (TLACITKO),a	
 		call INKEY
 		cp 1
 		jp z,ecopyend

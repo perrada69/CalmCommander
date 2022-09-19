@@ -56,8 +56,6 @@ READ	xor a
 		call dospage
 		call NOBUFF83
 read0	
-
-
 		 ld   hl,(PROGPROM2)
          inc  hl
          ld   (PROGPROM2),hl		

@@ -9,7 +9,8 @@ menu
 		call show_menu
 menu01
 
-
+		xor a
+		ld (TLACITKO),a
 		call INKEY
 
 		cp 1

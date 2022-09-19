@@ -31,6 +31,8 @@ IN3 	ld a,l              ;testuj spodní byte adresy
 		cp c                ;být až za posledním
 		ld a,"<"            ;znakem, pak bude
 		call z,CHAR         ;na řádku vypadat jinak
+		xor a
+		ld (TLACITKO),a
 		call INKEY          ;přečti si kód klávesy
 		cp 1                ;testuj EDIT (Caps Shift + 1)
 		ret z               ;a případně se vrať zpátky

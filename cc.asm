@@ -1510,7 +1510,7 @@ layer0
 		xor a
 		ld (hl),a
 		ldir
-		   nextreg SPRITE_CONTROL_NR_15,%01100010    	; layer priority: USL
+		nextreg SPRITE_CONTROL_NR_15,%01100010    	; layer priority: USL
 		ret
 
 
@@ -2333,12 +2333,12 @@ clickMouse
 
 INKEY 	call gettime
 		call showSprite
-		;ld a,(wheelOld)
+		ld a,(wheelOld)
 		
-		;ld e,a
-		;call nactiWheelMysky
-		;xor e
-		;jr nz,clickMouse
+		ld e,a
+		call nactiWheelMysky
+		xor e
+		jr nz,clickMouse
 
 		ld a,(TLACITKO)
 		or a
