@@ -511,6 +511,28 @@ loop0
 		
 ; 		call print
 
+
+
+ 		ld a,(COORD)
+ 		ld l,a
+ 		ld h,0
+ 		call NUM
+ 		ld hl,41*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
+
+
+ 		ld a,(COORD+1)
+ 		ld l,a
+ 		ld h,0
+ 		call NUM
+ 		ld hl,50*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
+
+
 ;*******************************
 
 	
@@ -1677,13 +1699,15 @@ potvrd
 		ld a,16
 		ld de,notxt
 		call print		
-enterwait2			xor a
+enterwait2	
+		xor a
 		ld (TLACITKO),a	
 		call INKEY
 		cp 1
 		jp z,enterno		;nic nekopiruj - obnov obrazovku
 		cp 13
 		jr z,enterw2
+		
 		ld a,(TLACITKO)
 		bit 1,a
 		jr z,enterwait2
@@ -6162,6 +6186,25 @@ showSprite
 			push bc
 			push hl
 			push de
+
+ 		ld a,(COORD)
+ 		ld l,a
+ 		ld h,0
+ 		call NUM
+ 		ld hl,41*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
+
+
+ 		ld a,(COORD+1)
+ 		ld l,a
+ 		ld h,0
+ 		call NUM
+ 		ld hl,50*256+31
+ 		ld a,16
+ 		ld de,NUMBUF
+ 		call print
 
 			call MOUSE
 			ld b,a

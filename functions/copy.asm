@@ -120,9 +120,6 @@ COPY	call specific_search
 		ld de,yestxt
 		call print		
 
-
-		
-
 		ld hl,60*256+14
 		ld a,16
 		ld de,notxt
@@ -135,6 +132,17 @@ copywait
 		jp z,copyend
 		cp 13
 		jr z,copycont
+
+		ld a,(TLACITKO)
+		bit 1,a
+		jr z,copywait
+		;overeni stisknutí tlacitka mysi, jestli jsme se trefili
+		ld hl,buttonYes
+		call CONTROL_CLICK
+		jr nc,copycont
+		ld hl,buttonNo
+		call CONTROL_CLICK
+		jp nc,copyend
 		jr copywait
 		
 copycont 
