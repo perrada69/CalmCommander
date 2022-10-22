@@ -21,7 +21,7 @@
 XMAX     equ  153
 XMIN     equ  0
          
-YMAX     equ  249
+YMAX     equ  254
 YMIN     equ  0
          
 ;XECUTE MOUSE
