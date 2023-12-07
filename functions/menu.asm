@@ -173,19 +173,32 @@ podbarviPodlePoziceMysky
 		jr z,nultaPolozka
 		dec a
 		dec a
-nultaPolozka		
+nultaPolozka							;definice ctverce, ve kterem je aktivni menu
 		ld (xovaSouradniceMenu),a
-		
-
+		ld b,12
+		add a,b
+		ld (konecXoveSouradnice),a
 pocetPolozekMenu
-		ld a,0
-
-
+		ld e,0
+		ld d,12
+		mul d,e
+		;predpokladam, ze se jedna o 8mi bitove cislo
+		;a tak se nam vejde do registru E
+		;vim, ze Igor rika, ze predpoklad je generator chyb
+		;ale je to program pro 8mi bitovy pocitac, takze to vyjde :)
+		;ne vazne tolik polozek v menu mit nikdy nebudu - muselo by jich byt
+		;vice jak 21
 
 		ret
 
 xovaSouradniceMenu
 		defb 0
+		defb 12
+konecXoveSouradnice
+		defb 0
+rohAktivnihoMenu
+		defb 0
+
 
 show_menu
 SAS
