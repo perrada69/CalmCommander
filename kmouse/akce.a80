@@ -41,6 +41,9 @@ CONTROL_CLICK_NETREFIL
         scf
         ret
 
+menuSouradnice
+                defb 0,0
+                defb 12,160
 
 leveOkno
                 defb    0,0

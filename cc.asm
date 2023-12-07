@@ -6261,6 +6261,11 @@ moreX		nextreg $37,%00001000
 
 
 LEVE_TLACITKO	
+
+		ld hl,menuSouradnice
+		call CONTROL
+		jp nc,menu
+
 		ld hl,leveOkno
 		call CONTROL
 		jp nc,leve2
