@@ -152,7 +152,40 @@ menuup 	ld hl,curmeny+1
         dec (hl)
 
 		jp menu01
+
+
+podbarviPodlePoziceMysky
+
+		ld a,(nummenu)
+		ld e,a
+		ld d,0
+		ld hl,menulenght
+		add hl,de
+		ld a,(hl)
+							;v reg. A mam pocet polozek aktivniho menu
+
+		ld (pocetPolozekMenu + 1),a
+
+		ld hl,menupos				;zjisteni X souradnice
+		add hl,de
+		ld a,(hl)
+		or a
+		jr z,nultaPolozka
+		dec a
+		dec a
+nultaPolozka		
+		ld (xovaSouradniceMenu),a
 		
+
+pocetPolozekMenu
+		ld a,0
+
+
+
+		ret
+
+xovaSouradniceMenu
+		defb 0
 
 show_menu
 SAS

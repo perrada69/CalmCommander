@@ -43,12 +43,12 @@ CONTROL_CLICK_NETREFIL
 
 menuSouradnice
                 defb 0,0
-                defb 12,160
+                defb 160,12
 
 leveOkno
-                defb    0,0
+                defb    0,12
                 defb    80,230
 
-praveOkno       defb    80,0
+praveOkno       defb    80,12
                 defb    160,230
 

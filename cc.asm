@@ -512,7 +512,7 @@ loop0
 ; 		call print
 
 
-
+		;vypsani X a Y souradnice mysky
  		ld a,(COORD)
  		ld l,a
  		ld h,0
@@ -4372,7 +4372,7 @@ usavehl	ld hl,0
 
 		jp loop0
 
-
+;znova vykresli okna
 showwin	
 		ld hl,ALLFILES
 		call ROZHOD2
@@ -6264,7 +6264,7 @@ LEVE_TLACITKO
 
 		ld hl,menuSouradnice
 		call CONTROL
-		jp nc,menu
+		jp nc,menu		;pri kliku na horni radku, zobraz menu
 
 		ld hl,leveOkno
 		call CONTROL
