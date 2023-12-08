@@ -230,7 +230,7 @@ nejsem defb "nejsem ",0
 XOVA
 xovaSouradniceMenu
 		defb 0
-		defb 12
+		defb 8
 konecXoveSouradnice
 		defb 0
 rohAktivnihoMenu
