@@ -209,23 +209,32 @@ pocetPolozekMenu
 		ld hl,xovaSouradniceMenu
 		call CONTROL
 		jr nc,JsemVMenu
-
-NejsemVMenu
-		ld de,nejsem
-		jr VysledekOperaceJestliJsemVMenu
-
+		ret
 JsemVMenu
-		ld de,jsem
-VysledekOperaceJestliJsemVMenu
-		ld hl,41*256+2
-		ld a,0
+;vypocet polozky v danem menu
 
-		call print
+		ld a,(COORD+1)		;Y souradnice
+		ld d,a
+		ld e,8
+		call deleno8		;vysledek v D
+		
+		push de
+
+		ld a,48
+		call writecurmenu
+
+		pop de
+		ld a,d
+		ld (curmeny+1),a
+		dec a
+		ld (menucur),a
+		ld a,64
+		call writecurmenu
+
+		
+        
 
 		ret
-
-jsem   defb "jsem ",0
-nejsem defb "nejsem ",0
 
 XOVA
 xovaSouradniceMenu
