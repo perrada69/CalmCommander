@@ -2357,6 +2357,8 @@ clickMouse
 		ret
 
 INKEY 	call gettime
+		call podbarviPodlePoziceMysky
+
 		call showSprite
 		ld a,(wheelOld)
 		

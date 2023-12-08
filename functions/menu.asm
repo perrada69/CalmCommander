@@ -1,4 +1,14 @@
+
+;info jestli je zobrazene menu
+; 0 ... neni
+; 1 ... je
+zobrazeneMenu
+		defb 0
+
 menu	
+
+		ld a,1
+		ld (zobrazeneMenu),a
 		ld hl,0*256+0
 		ld de,text
 		ld a,16
@@ -30,7 +40,9 @@ menu01
 		
 menu_exit 
 		call loadscr
-
+		xor a
+		ld (zobrazeneMenu),a
+		
 		ld hl,nadpis
 		ld de,#4000
 		ld bc,80
@@ -156,13 +168,17 @@ menuup 	ld hl,curmeny+1
 
 podbarviPodlePoziceMysky
 
+		ld a,(zobrazeneMenu)
+		or a
+		ret z
+
 		ld a,(nummenu)
 		ld e,a
 		ld d,0
 		ld hl,menulenght
 		add hl,de
 		ld a,(hl)
-							;v reg. A mam pocet polozek aktivniho menu
+		inc a					;v reg. A mam pocet polozek aktivniho menu
 
 		ld (pocetPolozekMenu + 1),a
 
@@ -175,12 +191,12 @@ podbarviPodlePoziceMysky
 		dec a
 nultaPolozka							;definice ctverce, ve kterem je aktivni menu
 		ld (xovaSouradniceMenu),a
-		ld b,12
+		ld b,36
 		add a,b
 		ld (konecXoveSouradnice),a
 pocetPolozekMenu
 		ld e,0
-		ld d,12
+		ld d,8
 		mul d,e
 		;predpokladam, ze se jedna o 8mi bitove cislo
 		;a tak se nam vejde do registru E
@@ -188,15 +204,30 @@ pocetPolozekMenu
 		;ale je to program pro 8mi bitovy pocitac, takze to vyjde :)
 		;ne vazne tolik polozek v menu mit nikdy nebudu - muselo by jich byt
 		;vice jak 21
-
-		ld hl,menuSouradnice
+		ld a,e
+		ld (rohAktivnihoMenu),a
+		ld hl,xovaSouradniceMenu
 		call CONTROL
-		ret c			;kdyz nejsem v aktualnim okne, skoncim
+		jr nc,JsemVMenu
 
+NejsemVMenu
+		ld de,nejsem
+		jr VysledekOperaceJestliJsemVMenu
 
+JsemVMenu
+		ld de,jsem
+VysledekOperaceJestliJsemVMenu
+		ld hl,41*256+2
+		ld a,0
+
+		call print
 
 		ret
 
+jsem   defb "jsem ",0
+nejsem defb "nejsem ",0
+
+XOVA
 xovaSouradniceMenu
 		defb 0
 		defb 12
@@ -208,7 +239,6 @@ rohAktivnihoMenu
 
 show_menu
 SAS
-		call podbarviPodlePoziceMysky
 		ld a,(nummenu)				;zjisteni delky menu
 		ld e,a
 		ld d,0
@@ -337,6 +367,10 @@ menuenter
             pop hl          
             add hl,de
             push hl
+
+			xor a
+			ld (zobrazeneMenu),a
+
             call loadscr
             pop hl
             ld a,(hl)
