@@ -1,7 +1,7 @@
 LENGHT_BUFFER	equ 6*1024
 PAGE_BUFF		equ 3
 createfile
-
+CR
 		call PROHOD
 
 

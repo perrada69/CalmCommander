@@ -208,6 +208,6 @@ emptypos    defw 8*256+1
 emptydir    defb "[                     ]",0
 parrent 	defb 	"..",#ff
 DIRBUFF	    defs 15
-modstart    defs 100
+modstart    defs 256
 lfndir		defb "Dir:", 0
 NAZEVADRESARE	ds 20	

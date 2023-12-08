@@ -153,6 +153,7 @@ ReadNextReg2A:
 
 START       
 		ld (savesp+1),sp
+		;ld sp,$a000 - 2
 		ld hl,23296
 		ld de,sysvars
 		ld bc,500
@@ -3482,10 +3483,12 @@ dirNum	 	defw 0
 
 		include "functions/texts.asm"
 		include "functions/getdir.asm"
-		include "functions/file.asm"
+		
 		include "functions/rename.asm"
 		include "functions/delete.asm"
-		include "functions/input.asm"     
+		include "functions/input.asm"    
+		include "functions/file.asm"
+
 
                                                                     ; 24 chars skipped (3*256)
                                                                     ; starts at character 32 - 4 dir_arrows - 3 color dots - 1 reserve = 24
@@ -3524,7 +3527,7 @@ E1
 
 			org $a000
 S3
-			include "functions/copy.asm"
+		include "functions/copy.asm"
 		include "functions/createdir.asm"
 E3
 

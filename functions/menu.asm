@@ -189,6 +189,12 @@ pocetPolozekMenu
 		;ne vazne tolik polozek v menu mit nikdy nebudu - muselo by jich byt
 		;vice jak 21
 
+		ld hl,menuSouradnice
+		call CONTROL
+		ret c			;kdyz nejsem v aktualnim okne, skoncim
+
+
+
 		ret
 
 xovaSouradniceMenu
@@ -202,6 +208,7 @@ rohAktivnihoMenu
 
 show_menu
 SAS
+		call podbarviPodlePoziceMysky
 		ld a,(nummenu)				;zjisteni delky menu
 		ld e,a
 		ld d,0
