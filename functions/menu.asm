@@ -36,8 +36,19 @@ menu01
 		jr z,menu_left
         cp 13
         jp z,menuenter
+
+		ld a,(TLACITKO)
+        bit 1,a       ;test na leve tlacitko - bit 0 je prave
+        jp nz,tlacitko_menu
 		jr menu01			
-		
+
+menuenter_pred
+		call loadscr
+		jp menuenter
+tlacitko_menu
+		call ZjistiJestliJsemVMenu
+		jp nc,menuenter_pred
+
 menu_exit 
 		call loadscr
 		xor a
@@ -165,13 +176,7 @@ menuup 	ld hl,curmeny+1
 
 		jp menu01
 
-
-podbarviPodlePoziceMysky
-
-		ld a,(zobrazeneMenu)
-		or a
-		ret z
-
+ZjistiJestliJsemVMenu
 		ld a,(nummenu)
 		ld e,a
 		ld d,0
@@ -210,11 +215,19 @@ pocetPolozekMenu
 		ld (rohAktivnihoMenu),a
 		ld hl,xovaSouradniceMenu
 		call CONTROL
-		jr nc,JsemVMenu
+
 		ret
+
+podbarviPodlePoziceMysky
+
+		ld a,(zobrazeneMenu)
+		or a
+		ret z
+
+		call ZjistiJestliJsemVMenu
+		ret c
 JsemVMenu
 ;vypocet polozky v danem menu
-
 		ld a,(COORD+1)		;Y souradnice
 		ld d,a
 		ld e,8
@@ -232,9 +245,6 @@ JsemVMenu
 		ld (menucur),a
 		ld a,64
 		call writecurmenu
-
-		
-        
 
 		ret
 
