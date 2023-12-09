@@ -20,8 +20,9 @@ CONTROL_CLICK
         ld e,a
         ld a,(hl)
         cp e                    ;porovnavame y
+        jr z,trefil
         jr nc,CONTROL_CLICK_NETREFIL
-
+trefil
         inc hl
         ld a,(COORD+0)
         ld e,a
@@ -43,8 +44,7 @@ CONTROL_CLICK_NETREFIL
 
 menuSouradnice
                 defb 0,0
-                defb 160,12
-
+                defb 160,8
 leveOkno
                 defb    0,12
                 defb    80,230
