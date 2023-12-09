@@ -205,6 +205,8 @@ pocetPolozekMenu
 		;ne vazne tolik polozek v menu mit nikdy nebudu - muselo by jich byt
 		;vice jak 21
 		ld a,e
+		dec a
+		dec a
 		ld (rohAktivnihoMenu),a
 		ld hl,xovaSouradniceMenu
 		call CONTROL

@@ -115,7 +115,7 @@ F_READ                          equ $9D
 F_WRITE                         equ $9E
 F_SEEK                          equ $9F
 F_FGETPOS                       equ $A0
-F_UNLINK                        equ $AD
+F_UNLINK                        equ $AD  
 F_RENAME                        equ $B0
 FA_READ                         equ $01
 ;; helper macros
