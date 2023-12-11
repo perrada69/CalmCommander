@@ -208,7 +208,7 @@ pocetPolozekMenu
 		;vim, ze Igor rika, ze predpoklad je generator chyb
 		;ale je to program pro 8mi bitovy pocitac, takze to vyjde :)
 		;ne vazne tolik polozek v menu mit nikdy nebudu - muselo by jich byt
-		;vice jak 21
+		;vice jak 32
 		ld a,e
 		dec a
 		dec a

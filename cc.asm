@@ -545,12 +545,16 @@ loop0
 
 		cp ''
 		jp z,info
+
 		cp 10
 		jp z,down
+
 		cp 11 
 		jp z,up
+
 		cp 9
 		jp z,rightcur
+
 		cp 8
 		jp z,leftcur
 		
@@ -562,6 +566,7 @@ loop0
 		
 		cp "8"
 		jp z,delete
+¨
 		cp "9"
 		jp z,RENAME
 		
@@ -579,18 +584,19 @@ loop0
 		
 		cp "7"
 		jp z,MKDIR
+
 		cp 7
 		jp z,newdisc_left
 
 		cp 6
 		jp z,newdisc_right
 
-
-
 		cp "+"
 		jp z,select_files
+		
 		cp "*"
 		jp z,invert_select_files
+		
 		cp "-"
 		jp z,deselect
 
@@ -599,8 +605,10 @@ loop0
 
 		cp "2"
 		jp z,rightwin
+
 		cp "h"
 		jp z,help
+		
 		cp "c"
 		jp z,CHNG_ATTR
 
@@ -612,11 +620,8 @@ loop0
 
 
         ld a,(TLACITKO)
-        bit 1,a       ;test na leve tlacitko - bit 0 je prave
-        jp nz,LEVE_TLACITKO
-
-
-						;kolecko mysi - nefunguje v cspect
+        bit 1,a       					;test na leve tlacitko - bit 0 je prave
+        jp nz,LEVE_TLACITKO				;kolecko mysi - nefunguje v cspect
 
 		ld a,(wheelOld)
 ;		push af
