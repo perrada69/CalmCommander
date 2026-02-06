@@ -566,7 +566,7 @@ loop0
 		
 		cp "8"
 		jp z,delete
-¨
+
 		cp "9"
 		jp z,RENAME
 		
@@ -2363,6 +2363,7 @@ clickMouse
 
 INKEY 	call gettime
 		call podbarviPodlePoziceMysky
+		call zjistiJestliMyskaNeniVHorniCastiMenu
 
 		call showSprite
 		ld a,(wheelOld)

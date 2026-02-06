@@ -1,54 +1,99 @@
-
-
-;Zkontroluje jestli doslo kliknutí na daný
-;ovládací prvek
+; -----------------------------------------------------------------------------
+; CONTROL / CONTROL_CLICK
 ;
-;   Vstup:
-;           HL .. adresa s rohama obdelníku, do ktereho se mam trefit
-;   Vystup:
-;           C .... netrefil
-;           NC ... trefil
+; Rutina kontroluje, zda aktuální souřadnice kliknutí (uložené v COORD)
+; leží uvnitř obdélníku, jehož hranice jsou předány v HL.
+;
+; Formát dat na adrese HL:
+;   +0  minX
+;   +1  minY
+;   +2  maxX
+;   +3  maxY
+;
+; COORD:
+;   COORD+0 = X pozice kliknutí
+;   COORD+1 = Y pozice kliknutí
+;
+; Výstup:
+;   Carry = 1  → kliknutí mimo oblast
+;   Carry = 0  → kliknutí uvnitř oblasti
+;
+; HL je během rutiny inkrementováno.
+; -----------------------------------------------------------------------------
+
 CONTROL
 CONTROL_CLICK
+
+        ; načti aktuální X souřadnici kliknutí
         ld a,(COORD+0)
-        ld e,a
+        ld e,a                  ; E = X kliknutí
+
+        ; načti minX oblasti
         ld a,(hl)
-        cp e                    ;porovnavame X
+        cp e                    ; minX - X
         jr nc,CONTROL_CLICK_NETREFIL
-        inc hl
+                                ; pokud minX >= X → klik je vlevo mimo
+
+        inc hl                  ; HL → minY
+
+        ; načti aktuální Y kliknutí
         ld a,(COORD+1)
-        ld e,a
+        ld e,a                  ; E = Y kliknutí
+
+        ; načti minY oblasti
         ld a,(hl)
-        cp e                    ;porovnavame y
-        jr z,trefil
+        cp e                    ; minY - Y
+        jr z,trefil             ; přesně na hraně → bereme jako zásah
         jr nc,CONTROL_CLICK_NETREFIL
+                                ; pokud minY > Y → klik je nad oblastí
+
 trefil
-        inc hl
+        inc hl                  ; HL → maxX
+
+        ; znovu načti X kliknutí
         ld a,(COORD+0)
         ld e,a
+
+        ; načti maxX oblasti
         ld a,(hl)
-        cp e                    ;porovnavame x
+        cp e                    ; maxX - X
         jr c,CONTROL_CLICK_NETREFIL
-        inc hl
+                                ; pokud maxX < X → klik je vpravo mimo
+
+        inc hl                  ; HL → maxY
+
+        ; načti Y kliknutí
         ld a,(COORD+1)
         ld e,a
+
+        ; načti maxY oblasti
         ld a,(hl)
-        cp e                    ;porovnavame y 
+        cp e                    ; maxY - Y
         jr c,CONTROL_CLICK_NETREFIL
-        or a
-        ret
+                                ; pokud maxY < Y → klik je pod oblastí
+
+        ; jsme uvnitř oblasti
+        or a                    ; vyčistí Carry flag
+        ret                     ; návrat s Carry=0 (zásah)
 
 CONTROL_CLICK_NETREFIL
-        scf
-        ret
+        scf                     ; nastav Carry → netrefil
+        ret                     ; návrat
+
+; -----------------------------------------------------------------------------
+; Definice oblastí (obdélníků)
+; -----------------------------------------------------------------------------
 
 menuSouradnice
-                defb 0,0
-                defb 160,8
-leveOkno
-                defb    0,12
-                defb    80,230
+                defb 0,0        ; minX, minY
+                defb 160,8      ; maxX, maxY
 
-praveOkno       defb    80,12
-                defb    160,230
+leveOkno
+                defb    0,12    ; minX, minY
+                defb    80,230  ; maxX, maxY
+
+praveOkno
+                defb    80,12   ; minX, minY
+                defb    160,230 ; maxX, maxY
+
 
