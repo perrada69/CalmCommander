@@ -196,9 +196,10 @@ dfind_end
         call writecur
         
         
-        jp loop0        
-invert_body
+        jp loop0  
 
+
+invert_body
         ld hl,ALLFILES
 		call ROZHOD2
 		ld a,(hl)

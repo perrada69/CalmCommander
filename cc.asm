@@ -3533,20 +3533,21 @@ FILEBUFF
 
 E1			
 
-			org $a000
+		org $a000
 S3
 		include "functions/copy.asm"
 		include "functions/createdir.asm"
-E3
-
-			org 49152
-
-S2
-		include "kmouse/driver.a80"
+				include "kmouse/driver.a80"
 		include "kmouse/akce.a80"
+							include "functions/compare.asm"
+									include "functions/menu.asm"
+tilemapFont_char24:
+            INCLUDE "tilemap_font_8x6.i.asm"
+E3
+		org 49152
+S2
 oknoVyber	defb	64,32
 			defb	100,96
-
 vyberPocitace
 		ld hl,30 * 256 + 5
 		ld bc,20 * 256 + 15
@@ -3723,8 +3724,7 @@ txt128	defb "128k/+2",0
 txt48	defb	"48k",0
 Pentagontxt	defb	"Pentagon",0
 NextTxt		defb "+2A/+3/Next",0
-tilemapFont_char24:
-            INCLUDE "tilemap_font_8x6.i.asm"
+
 tilemapFont:    ds   16*32
 
 ConvertRomCharTo4bpp:
@@ -3915,7 +3915,7 @@ lftw	defb 0
 		defb 1
 
 
-					include "functions/compare.asm"
+
 
 changedrive
 		call savescr
@@ -6152,7 +6152,7 @@ tecka		defb ". ",0
 dvojtecka 	defb ":",0
 DISC
 
-		include "functions/menu.asm"
+
 		include "functions/search.asm"
 		include "functions/selected.asm"
 
@@ -6474,7 +6474,8 @@ E2
 
 			DISPLAY "Volne misto v prvni casti:",/A,S3 - E1
 			DISPLAY "Volne misto v druhe casti:",/A,S2 - E3
-			DISPLAY "Volne misto v treti casti:",/A,65535 - E2
+			DISPLAY "Volne misto v treti casti:",/A,57344 - E2
+			DISPLAY "Volne misto v treti casti:",/A,E2 - 57344
 
               CSPECTMAP player.map
               ;savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
