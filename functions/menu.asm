@@ -66,20 +66,19 @@ menu01
 
 
 zjistiJestliMyskaNeniVHorniCastiMenu
-zmm
         ld a,(zobrazeneMenu)
         or a
         ret z                   ; pokud menu není zobrazené, nic nedělej
-		call GetHotXRangeInTopBands
-		cp 255
-		ret z		;pokud nejsi, vrat se
-		ld b,a
-		ld a,(nummenu)
-		cp b
-		ret z
+	call GetHotXRangeInTopBands
+	cp 255
+	ret z		;pokud nejsi, vrat se
+	ld b,a
+	ld a,(nummenu)
+	cp b
+	ret z
 
-		ld a,b
-		ld (nummenu),a
+	ld a,b
+	ld (nummenu),a
 
         call loadscr
         call gettime
@@ -94,7 +93,7 @@ zmm
 
         xor a
         ld (menucur),a           ; index položky = 0	
-		ret
+        ret
 
 ; -----------------------------------------------------------------------------
 ; menuenter_pred
@@ -118,9 +117,9 @@ tlacitko_menu
         call ZjistiJestliJsemVMenu
         jp nc,menuenter_pred     ; NC = trefil oblast -> proveď akci položky
 
-        xor a
-        ld (prvniYsouradniceMenu),a   ; nastav 1. variantu Y offsetu = 0
-        call ZjistiJestliJsemVMenu
+        ;xor a
+        ;ld (prvniYsouradniceMenu),a   ; nastav 1. variantu Y offsetu = 0
+        ;call ZjistiJestliJsemVMenu
 
         ld a,8
         ld (prvniYsouradniceMenu),a   
