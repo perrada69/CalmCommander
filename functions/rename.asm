@@ -27,7 +27,7 @@ RENAME
         pop hl
         call FINDLFN
 
-		call BUFF83
+		call NOBUFF83
 		ld hl,(foundfile)
 		ld de,ban1
 		ld a,0

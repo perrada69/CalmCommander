@@ -3937,10 +3937,9 @@ FILES    defb 0
 dirNum   defw 0
 
         include "functions/texts.asm"
-        include "functions/getdir.asm"
         include "functions/rename.asm"
+        include "functions/getdir.asm"
         include "functions/delete.asm"
-        include "functions/input.asm"
         include "functions/file.asm"
 
 FILEBUFF
@@ -3982,6 +3981,7 @@ S3
         include "kmouse/akce.a80"
         include "functions/compare.asm"
         include "functions/menu.asm"
+        include "functions/input.asm"
 tilemapFont_char24:
         include "tilemap_font_8x6.i.asm"
 E3
@@ -5851,45 +5851,63 @@ readonlytxt2	defb "Read only",0
 systemfiletxt2 defb "System file",0
 archivedtxt2 defb "Archived",0
 
-
+; ============================================================
+; info_file
+; Zobrazí dialog s informacemi o právě označeném souboru:
+;  - název (LFNNAME, zkrácený pro zobrazení)
+;  - datum/čas (MS-DOS formát uložený v metadatech LFNNAME+261+4/+6)
+;  - velikost (32-bit z LFNNAME+261..)
+;  - atributy (read-only/system/archive) přes showattr_info
+;
+; Na začátku navíc blokuje “ban1/ban2” soubory (porovnání foundfile vs ban texty).
+;
+; Pozn.: V kódu je hodně opakování “získej aktuální záznam → BUFF83/find83 → FINDLFN”.
+; ============================================================
 info_file
+        ; ---- HL = index aktuální položky (kurzor v levém panelu)
         ld hl,POSKURZL
         call ROZHOD
-        ld a,(hl)
+        ld a,(hl)                                  ; A = index položky v okně
         ld l,a
-        ld h,0
+        ld h,0                                     ; HL = index (16-bit)
 
+        ; ---- HL = pointer na položku v seznamu: STARTWINL + index
         push hl
         ld hl,STARTWINL
         call ROZHOD2
         ld a,(hl)
         inc hl
         ld h,(hl)
-        ld l,a
+        ld l,a                                     ; HL = base pointer seznamu
+        ex de,hl                                   ; DE = base
+        pop hl                                     ; HL = index
+        add hl,de                                  ; HL = base + index
 
-        ex de,hl
-        pop hl
-        add hl,de
+        ; ---- načti 8.3/LFN data pro danou položku
         push hl
         inc hl
-        call BUFF83
-        call find83
+        call BUFF83                                ; typicky připraví buffer/kontext pro find83
+        call find83                                ; načte 8.3 entry do TMP83 (a/nebo foundfile)
         pop hl
-        call FINDLFN
+        call FINDLFN                               ; načte dlouhé jméno do LFNNAME (+ metadata)
 
-        call BUFF83
+        ; ---- ochrana: některé soubory se nesmí “info” zobrazit (ban list)
+        call BUFF83                                ; zřejmě nastaví (foundfile) na aktuální jméno
         ld hl,(foundfile)
         ld de,ban1
         ld a,0
         call specific_search
-        jp z,loop0
+        jp z,loop0                                 ; pokud shoda s ban1 → nic nezobrazuj
+
         ld hl,(foundfile)
         ld de,ban2
         ld a,0
         call specific_search
-        jp z,loop0
+        jp z,loop0                                 ; pokud shoda s ban2 → nic nezobrazuj
 
-
+        ; ----------------------------------------------------
+        ; Uložit obrazovku, protože budeme kreslit dialog
+        ; ----------------------------------------------------
         call savescr
 
         ld hl,POSKURZL
@@ -5905,7 +5923,6 @@ info_file
         inc hl
         ld h,(hl)
         ld l,a
-
         ex de,hl
         pop hl
         add hl,de
@@ -5915,9 +5932,11 @@ info_file
         call find83
         pop hl
         call FINDLFN
-        ld hl,8 * 256 + 10
-        ld bc,60 * 256 + 10
-        ld a,16
+
+        ; ---- vykresli okno dialogu
+        ld hl,8 * 256 + 10                         ; pozice dialogu
+        ld bc,60 * 256 + 10                        ; rozměry
+        ld a,16                                    ; atribut okna
         call window
 
         ld hl,POSKURZL
@@ -5933,7 +5952,6 @@ info_file
         inc hl
         ld h,(hl)
         ld l,a
-
         ex de,hl
         pop hl
         add hl,de
@@ -5943,50 +5961,62 @@ info_file
         call find83
         pop hl
         call FINDLFN
+
+        ; (tady jsou zbytkové LD hl/bc/a bez CALL window – historický pozůstatek?)
         ld hl,8 * 256 + 10
         ld bc,60 * 256 + 10
         ld a,16
 
 
+        ; ---- Nadpis dialogu
         ld hl,11*256+11
         ld a,16
         ld de,fileinfonadpis
         call print
 
+        ; ---- Zkrácení LFNNAME pro výpis (nulový terminátor na pozici +44)
         xor a
         ld hl,LFNNAME+44
-        ld (hl),a
+        ld (hl),a                                  ; ukonči string, aby byl max 44 znaků
+
+        ; ---- Vypiš název souboru
         ld hl,25*256+13
         ld a,16
         ld de,LFNNAME
         call print
 
+        ; ---- Popisek "Name:" (nebo podobně; namefile je text)
         ld hl,11*256+13
         ld a,16
         ld de,namefile
         call print
 
+        ; ---- Popisky pro datum/čas
         ld de,filedate
         ld hl,11*256+15
         ld a,16
         call print
+
         ld de,filetime
         ld hl,11*256+16
         ld a,16
         call print
 
+        ; ---- Vypiš datum a čas z metadat (MS-DOS formát)
+        ; datum: (LFNNAME+261+4)  čas: (LFNNAME+261+6)
         ld de,(LFNNAME+261+4)
         ld hl,17*256+15
         call showdate
+
         ld hl,17*256+16
         ld de,(LFNNAME+261+6)
         call showtime
 
+        ; ---- Sekce atributů (System/Readonly/Archive) – samotné hodnoty řeší showattr_info
         ld hl,51*256+15
         ld a,16
         ld de,sysatrtxt
         call print
-
 
         ld hl,51*256+17
         ld a,16
@@ -6003,191 +6033,242 @@ info_file
         ld de,archivedtxt2
         call print
 
+        ; ---- Velikost
         ld hl,11*256+18
         ld a,16
         ld de,sizetxt
         call print
 
-
+        ; DEC32: vytiskne 32-bit číslo (velikost) na pozici HL (přes self-mod dec32pos)
         ld hl,16*256+18
-        ld (dec32pos+1),hl
-        ld hl,(LFNNAME+261)
-        ld de,(LFNNAME+261+2)
-        ld b,10
-        ld a,16
+        ld (dec32pos+1),hl                          ; kam DEC32 vypíše
+        ld hl,(LFNNAME+261)                          ; low word size
+        ld de,(LFNNAME+261+2)                        ; high word size
+        ld b,10                                     ; počet číslic (nebo šířka pole)
+        ld a,16                                     ; ink/atribut pro výpis
         ld (decink+1),a
         call DEC32
         ld a,0
-        ld (decink+1),a
+        ld (decink+1),a                             ; vrať default ink
 
         ld hl,27*256+18
         ld a,16
         ld de,bytestxt
         call print
 
-
+        ; ---- nápověda “press any key”
         ld hl,11*256+20
         ld a,16
         ld de,pressanykeytxt
         call print
 
-
-
+        ; ---- vykresli konkrétní hodnoty atributů (read-only/system/archive) podle TMP83/LFN metadata
         call showattr_info
-                xor a
+
+        ; ---- čekej na klávesu a vrať obrazovku
+        xor a
         ld (TLACITKO),a
         call INKEY
         call loadscr
         jp loop0
 
-sizetxt	defb "Size:",0
-bytestxt defb "bytes",0
-; DE - datum
-; HL - pozice
-showdate
-        ld (shdt1+1),hl
-        inc h
-        inc h
-        ld (shdt2+1),hl
-        inc h
-        ld (shdt3+1),hl
-        inc h
-        inc h
-        ld (shdt4+1),hl
-        inc h
-        ld (shdt5+1),hl
 
-        ld   a,e
-        and  31
+; ============================================================
+; Texty
+; ============================================================
+sizetxt  defb "Size:",0
+bytestxt defb "bytes",0
+
+
+; ============================================================
+; showdate
+; Vypíše datum z MS-DOS formátu (DE) na pozici HL.
+; MS-DOS date (16-bit):
+;   bits 0-4   = day   (1-31)
+;   bits 5-8   = month (1-12)
+;   bits 9-15  = year  (od 1980)
+;
+; Používá self-mod adresy shdt1..shdt5 pro konkrétní pozice tisku:
+;  dd.mm.yyyy
+; ============================================================
+; DE - datum (MSDOS)
+; HL - pozice (X*256+Y)
+showdate
+        ; uloží pozice pro jednotlivé části na základě HL
+        ld (shdt1+1),hl                            ; pozice dne
+        inc h
+        inc h
+        ld (shdt2+1),hl                            ; pozice první tečky
+        inc h
+        ld (shdt3+1),hl                            ; pozice měsíce
+        inc h
+        inc h
+        ld (shdt4+1),hl                            ; pozice druhé tečky
+        inc h
+        ld (shdt5+1),hl                            ; pozice roku
+
+        ; ---- day = E & 31
+        ld a,e
+        and 31
         push de
 
         ld l,a
         ld h,0
-        call NUM
-shdt1	ld hl,17*256+15
+        call NUM                                   ; převede HL na ASCII do NUMBUF
+
+shdt1   ld hl,17*256+15                            ; (self-mod) skutečná cílová pozice dne
         ld a,16
-        ld de,NUMBUF+3
+        ld de,NUMBUF+3                             ; typicky poslední 2 číslice
         call print
 
-shdt2	ld hl,19*256+15
+shdt2   ld hl,19*256+15                            ; (self-mod) tečka
         ld a,16
         ld de,tecka
         call print
 
         pop de
 
-        ld   a,e
-        ld   b,d
-        srl  b
+        ; ---- month = (DE >> 5) & 15
+        ; poskládá z D/E posunem doprava (5 bitů)
+        ld a,e
+        ld b,d
+        srl b
         push bc
         rra
         rra
         rra
         rra
         rra
-        and  15
+        and 15
 
         ld l,a
         ld h,0
         call NUM
-        ; call smaznuly
-shdt3	ld hl,20*256+15
+
+shdt3   ld hl,20*256+15
         ld a,16
         ld de,NUMBUF+3
         call print
-shdt4 	ld hl,22*256+15
+
+shdt4   ld hl,22*256+15
         ld a,16
         ld de,tecka
         call print
 
-        pop af
-
+        ; ---- year = 1980 + (DE >> 9)
+        pop af                                      ; A = horní část po posunech (rok offset)
         ld l,a
         ld h,0
         ld de,1980
         add hl,de
         call NUM
-        call smaznuly
-shdt5	ld hl,23*256+15
+        call smaznuly                               ; odstraní vedoucí nuly (nahradí mezerou)
+
+shdt5   ld hl,23*256+15
         ld a,16
-        ld de,NUMBUF+1
+        ld de,NUMBUF+1                             ; rok typicky 4 znaky
         call print
         ret
-        ; DE - čas ve formátu MSDOS
-        ; HL - pozice
+
+
+; ============================================================
+; showtime
+; Vypíše čas z MS-DOS formátu (DE) na pozici HL.
+; MS-DOS time (16-bit):
+;   bits 0-4   = seconds/2  (0-29)  -> *2 = 0..58
+;   bits 5-10  = minutes    (0-59)
+;   bits 11-15 = hours      (0-23)
+;
+; Vypíše hh:mm:ss
+; ============================================================
+; DE - čas ve formátu MSDOS
+; HL - pozice
 showtime
-        ld (shtm1+1),hl
+        ; pozice pro jednotlivé části (self-mod shtm1..shtm5)
+        ld (shtm1+1),hl                            ; hodiny
         inc h
         inc h
-        ld (shtm2+1),hl
+        ld (shtm2+1),hl                            ; dvojtečka
         inc h
-        ld (shtm3+1),hl
+        ld (shtm3+1),hl                            ; minuty
         inc h
         inc h
-        ld (shtm4+1),hl
+        ld (shtm4+1),hl                            ; druhá dvojtečka
         inc h
-        ld (shtm5+1),hl
-        ; zjisti vteriny
+        ld (shtm5+1),hl                            ; vteřiny
+
+        ; ---- seconds = (E & 0x1F) * 2
         ld a,e
         and 00011111b
         add a,a
-        ld (vteriny+1),a
-         ld   a,d
-         ld   b,e
-         srl  a
-         rr   b
-         srl  a
-         rr   b
-         srl  a
-         rr   b
-         srl  b
-         srl  b
-         push bc
+        ld (vteriny+1),a                           ; self-mod: operand pro "ld l,0" níže
 
+        ; ---- hours/minutes: posuny doprava pro získání hodin (A) a minut (AF)
+        ; Výsledkem:
+        ;   A = hours
+        ;   AF (po pop) = minutes (z B po posunech)
+        ld a,d
+        ld b,e
+        srl a
+        rr  b
+        srl a
+        rr  b
+        srl a
+        rr  b                                      ; po 3 posunech máme A≈(time>>3) a B≈(time low)
+        srl b
+        srl b                                      ; doladění na minutes (>>5)
+        push bc
+
+        ; ---- print hours
         ld l,a
         ld h,0
         call NUM
-shtm1	ld hl,17*256+16
+shtm1   ld hl,17*256+16
         ld a,16
         ld de,NUMBUF+3
         call print
 
-shtm2	ld hl,19*256+16
+shtm2   ld hl,19*256+16
         ld a,16
         ld de,dvojtecka
         call print
 
-         pop  af
-
+        ; ---- print minutes (z uloženého B)
+        pop af                                      ; A = minutes
         ld l,a
         ld h,0
         call NUM
-shtm3	ld hl,20*256+16
+shtm3   ld hl,20*256+16
         ld a,16
         ld de,NUMBUF+3
         call print
 
-shtm4	ld hl,19*256+16
+shtm4   ld hl,19*256+16
         ld a,16
         ld de,dvojtecka
         call print
 
-
-vteriny	ld l,0
+        ; ---- print seconds (operand je self-mod vteriny)
+vteriny ld l,0                                     ; sem se dosadí seconds
         ld h,0
         call NUM
-shtm5	ld hl,20*256+16
+shtm5   ld hl,20*256+16
         ld a,16
         ld de,NUMBUF+3
         call print
 
         ret
 
+
+; ============================================================
+; smaznuly
+; Odstraní vedoucí nuly v NUMBUF tím, že je nahradí mezerou.
+; Končí na první nenulové číslici.
+; ============================================================
 smaznuly
         ld hl,NUMBUF
-
         ld b,5
-snuly	ld a,(hl)
+snuly   ld a,(hl)
         cp "0"
         ret nz
         ld (hl)," "
@@ -6195,12 +6276,20 @@ snuly	ld a,(hl)
         djnz snuly
         ret
 
-help	call savescr
+
+; ============================================================
+; help
+; Zobrazí vícestránkový help dialog (18 řádků vysoký),
+; vypíše řádky help1..help17 a čeká na ESC/Break (INKEY==1).
+; ============================================================
+help
+        call savescr
         ld hl,8 * 256 + 4
         ld bc,60 * 256 + 18
         ld a,16
         call window
 
+        ; postupně vypiš help texty
         ld hl,11*256+5
         ld a,16
         ld de,help1
@@ -6271,7 +6360,6 @@ help	call savescr
         ld de,help14
         call print
 
-
         ld hl,11*256+20
         ld a,16
         ld de,help15
@@ -6287,19 +6375,21 @@ help	call savescr
         ld de,help17
         call print
 
-
-
-
-
-
 help0
         xor a
         ld (TLACITKO),a
         call INKEY
         cp 1
-        jp z,infoend
+        jp z,infoend                                ; ESC/Break → konec helpu (obvykle loadscr uvnitř infoend)
         jr help0
 
+
+; ============================================================
+; notnow
+; Univerzální dialog: “This feature is not yet implemented.”
+; Po stisku klávesy obnoví původní obrazovku + znovu překreslí nadpis
+; (ruční kopie nadpisu do #4000 s atributem 16).
+; ============================================================
 notimplemented defb "This feature is not yet implemented.",0
 
 notnow
@@ -6314,25 +6404,27 @@ notnow
         ld de,notimplemented
         call print
 
-
         ld hl,42*256+13
         ld a,32
         ld de,pressanykeytxt
         call print
+
         xor a
         ld (TLACITKO),a
         call INKEY
         call loadscr
 
+        ; ručně překresli nadpis do obrazovky (nadpis → #4000),
+        ; vždy znak + atribut 16 (ink/paper)
         ld hl,nadpis
         ld de,#4000
         ld bc,80
 not0
         ld a,(hl)
-        ld (de),a
+        ld (de),a                                   ; znak
         inc de
         ld a,16
-        ld (de),a
+        ld (de),a                                   ; atribut
         inc de
         inc hl
         dec bc
@@ -6341,6 +6433,7 @@ not0
         jr nz,not0
 
         jp loop0
+
 
 
 info
