@@ -5531,8 +5531,14 @@ selcont
         call showwin
         ld a,32
         call writecur
-        jp down
+        ld a,(rightMouse)
+        or a
+        jp z,down
+        xor a
+        ld (rightMouse),a
+        jp loop0
 
+rightMouse      db 0
 
 quittxt	defb "You want realy quit from Calm Commander?",0
 emul    defb "Sorry, you use emulator... ;) Reset not works.",0
@@ -6873,11 +6879,11 @@ PRAVE_TLACITKO
 
         ld hl,leveOkno
         call CONTROL
-        jp nc,leve2                               ; klik spadl do levého okna → obsluha levého okna
+        jp nc,prave2                               ; klik spadl do levého okna → obsluha levého okna
 
         ld hl,praveOkno
         call CONTROL
-        jp nc,leve3                               ; klik spadl do pravého okna → obsluha pravého okna
+        jp nc,prave3                               ; klik spadl do pravého okna → obsluha pravého okna
 
         jp loop0                                  ; klik mimo definované oblasti → nic, zpět do hlavní smyčky
 
@@ -6923,6 +6929,97 @@ leve3
 
         jp loop0
 
+
+prave2
+        ; ---- Levé okno: připraví kontext levého panelu a spočítá, na jakou položku se kliklo
+        call lw                                   ; přepni/aktivuj levé okno (např. nastav aktivní panel, barvy, kurzor, apod.)
+        call vypoctiClickRight                         ; přepočítej Y souřadnici myši na index položky v seznamu + ošetři doubleclick
+
+
+
+        jp loop0
+
+prave3
+        ; ---- Pravé okno: analogicky pro pravý panel
+        call rw                                   ; přepni/aktivuj pravé okno
+        call vypoctiClickRight                         ; stejná logika výběru položky
+
+
+        jp loop0
+
+
+vypoctiClickRight
+        ld a,(COORD+1)                            ; A = Y souřadnice myši (v pixelech nebo v jednotkách co vrací MOUSE)
+        ld d,a                                    ; D = Y (před dělením)
+        ld e,8
+        call deleno8                              ; D = Y / 8  (převod na řádek znakové mřížky / řádek seznamu)
+        dec d
+        dec d                                     ; posun o 2 řádky nahoru (typicky kvůli hlavičce/okrajům okna)
+
+        push de                                   ; ulož DE (E=8, D=řádek) – budeme ho brzy potřebovat znovu
+
+        ld hl,ALLFILES
+        call ROZHOD2                              ; HL = ukazatel na strukturu/tabulku aktivního panelu (varianta "2")
+        pop de                                    ; obnov D = vypočtený řádek položky
+
+        push de                                   ; znovu ulož D (budeme ho ještě používat)
+        ld e,d
+        ld d,0                                    ; DE = index položky (16-bit), E = číslo řádku/položky, D=0
+
+        ; Následující blok vytahuje z (HL) pointer/délku struktury.
+        ; Typicky: (HL)=low, (HL+1)=high → HL = adresa/počet položek apod.
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a                                    ; HL = 16bit hodnota ze struktury (např. počet položek, konec seznamu, apod.)
+
+        ; Ověření rozsahu: odečítá DE od HL a sleduje carry.
+        ; Tady to vypadá jako "je index (DE) uvnitř rozsahu?" – pokud je mimo, vrátí se s C=1.
+        dec hl
+        dec hl                                    ; korekce HL (např. ukazuje na konec-2, nebo počet-2)
+        or a                                      ; vynuluje carry před SBC
+        sbc hl,de                                 ; HL = HL - DE
+        pop de                                    ; obnov původní DE (D=řádek)
+        ret c                                     ; pokud borrow/carry → index mimo platný rozsah → nic nevybírej
+
+        push de                                   ; index je platný → uložíme ještě jednou D (číslo souboru/řádku)
+
+        ld hl,adrl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (adrs+1),hl
+
+        call getroot
+
+        call showwin
+
+        ld hl,POSKURZL
+        call ROZHOD                               ; HL = adresa proměnné pro "pozici kurzoru" v aktuálním panelu
+
+        pop de                                    ; obnov D = index položky (v komentáři níže: "v D máme číslo souboru")
+
+        ld a,d
+        ld (hl),a                                 ; uloží vybranou položku jako aktuální (kurzor na soubor)
+
+        ld a,32
+        call writecur                             ; zřejmě vrať viditelný kurzor / nastav znak kurzoru (32=mezera?) dle implementace
+        ld hl,rightMouse
+        inc (hl)
+
+pauzaR
+        call MOUSE                                ; načti aktuální stav myši (souřadnice do COORD apod.)
+        call showSprite                           ; překresli sprite kurzoru myši
+
+        ld bc,KEMPSTON_MOUSE_B_P_FADF
+        in a,(c)                                  ; A = stav tlačítek z KEMPSTON mouse portu
+
+        bit 0,a                                   ; test tlačítka (v tomto kódu je "bit 1" = levé nebo konkrétní tlačítko dle mapování)
+        jr z,pauzaR                                ; pokud bit=0 → stále nedošlo k (požadované změně) → čekej dál
+
+        jp select
 
 ; ------------------------------------------------------------
 ; vypoctiClick
