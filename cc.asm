@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.7" : ENDM
+            MACRO VERSION : defb "0.7a" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -631,8 +631,8 @@ loop0
 
 
             ld a,(CONTRB)
-            bit 0,a                               ; levé tlačítko je bit1 (bit0 = pravé)
-            jp nz,LEVE_TLACITKO                   ; obsluha levého kliknutí
+            bit 0,a                               ; pravé tlačítko je bit1 (bit0 = pravé)
+            jp nz,PRAVE_TLACITKO                   ; obsluha levého kliknutí
 
 
 
@@ -6866,7 +6866,20 @@ moreX       nextreg $37,%00001000                 ; X high + flags
             pop af
             ret
 
+PRAVE_TLACITKO
+        ld hl,menuSouradnice
+        call CONTROL
+        jp nc,menu                                ; pokud CONTROL vrátil NC = klik v oblasti horního řádku → otevři menu
 
+        ld hl,leveOkno
+        call CONTROL
+        jp nc,leve2                               ; klik spadl do levého okna → obsluha levého okna
+
+        ld hl,praveOkno
+        call CONTROL
+        jp nc,leve3                               ; klik spadl do pravého okna → obsluha pravého okna
+
+        jp loop0                                  ; klik mimo definované oblasti → nic, zpět do hlavní smyčky
 
 ; ------------------------------------------------------------
 ; LEVE_TLACITKO
@@ -6897,12 +6910,17 @@ leve2
         ; ---- Levé okno: připraví kontext levého panelu a spočítá, na jakou položku se kliklo
         call lw                                   ; přepni/aktivuj levé okno (např. nastav aktivní panel, barvy, kurzor, apod.)
         call vypoctiClick                         ; přepočítej Y souřadnici myši na index položky v seznamu + ošetři doubleclick
+
+
+
         jp loop0
 
 leve3
         ; ---- Pravé okno: analogicky pro pravý panel
         call rw                                   ; přepni/aktivuj pravé okno
         call vypoctiClick                         ; stejná logika výběru položky
+
+
         jp loop0
 
 
@@ -6953,10 +6971,17 @@ vypoctiClick
 
         push de                                   ; index je platný → uložíme ještě jednou D (číslo souboru/řádku)
 
-        ; (debug blok zakomentovaný - tisk čísla, apod.)
+        ld hl,adrl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (adrs+1),hl
 
-        ld a,0
-        call writecur                             ; zřejmě skryj/odznač kurzor (nebo nastav typ kurzoru 0)
+        call getroot
+
+        call showwin
 
         ld hl,POSKURZL
         call ROZHOD                               ; HL = adresa proměnné pro "pozici kurzoru" v aktuálním panelu
