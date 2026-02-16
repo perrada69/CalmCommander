@@ -1903,9 +1903,8 @@ RUN_NEX_FILE
         ld hl,sysvars
         ld bc,500
         ldir
-
         call layer0                               ; znovu (pravděpodobně jistota stavu vrstvy)
-dfdf
+
                                                   ; ESXDOS dot-command / loader přes $8F (externí)
 
         call spravneStranky
@@ -1915,11 +1914,38 @@ dfdf
 
         jp loop0
 
+dfdf
+ClearAllSprites:
+        nextreg $34, 0          ; Začni od slotu 0
+    ld b, 128               ; 128 spritů
+.loop:
+    nextreg $35, 0          ; X low = 0
+    nextreg $36, 0          ; Y = 0
+    nextreg $37, 0          ; Attr 2: Bit 7 = 0 (VYPNUTO), X high = 0
+    nextreg $38, 0          ; Attr 3: Všechny flagy pryč
+    ; Registr $34 se po zápisu do $38 automaticky inkrementuje na další slot!
+    djnz .loop
+    call ClearSpritePatterns
+    ret
+ClearSpritePatterns:
+    nextreg $3b, 0          ; Vyber vzor (Pattern) 0
+    ld bc, $005b            ; Port $5B (Sprite Pattern System)
+    ld hl, 128 * 256        ; 128 vzorů * 256 bytů
+.clearLoop:
+    xor a
+    out (c), a              ; Pošli nulu
+    dec hl
+    ld a, h
+    or l
+    jr nz, .clearLoop
+    ret
 spravneStranky
         ld a,$0e
         nextreg $56,a
         ld a,$0f
         nextreg $57,a
+
+        call ClearAllSprites
         ret
         ; ------------------------------------------------------------
         ; potvrd
@@ -6742,8 +6768,6 @@ LoadSprites
 
 .dmaProgramLength = $ - .dmaProgram
 
-
-
 ; ------------------------------------------------------------
 ; showSprite
 ; ------------------------------------------------------------
@@ -6843,18 +6867,20 @@ shwSpr
                                                   ; ------------------------------------------------------------
                                                   ; X se násobí 2 (přepočet jednotek / subpixel režim)
 
-Xcoordinate  ld d,0                               ; zde bude dosazena X souřadnice
-            ld e,2
-            mul d,e                               ; DE = X * 2
+Xcoordinate  
+        ld d,0                               ; zde bude dosazena X souřadnice
+        ld e,2
+        mul d,e                               ; DE = X * 2
 
-            ld a,e                                ; dolní byte výsledku
-            ld (mouseX+3),a                       ; uložit do operandu nextreg
+        ld a,e                                ; dolní byte výsledku
+        ld (mouseX+3),a                       ; uložit do operandu nextreg
 
 
                                                   ; úprava horní části X + flagů
         ld a,(moreX + 3)
         res 0,a                                   ; zruš bit 0
         or d                                      ; přidej horní byte X
+shwSpr_EnableBit:        
         set 7,a                                   ; sprite enable flag
         ld (moreX + 3),a
 nemenX
@@ -6864,8 +6890,9 @@ nemenX
 ; Nastavení Y pozice sprite
 ; ------------------------------------------------------------
 
-Ycoordinate  ld a,0
-            ld (mouseY+3),a                       ; dosadí operand nextreg
+Ycoordinate  
+        ld a,0
+        ld (mouseY+3),a                       ; dosadí operand nextreg
 
 
                                                   ; ------------------------------------------------------------
