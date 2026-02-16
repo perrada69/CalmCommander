@@ -1289,24 +1289,24 @@ unsup
                                                   ; vykresli okno (pozice+velikost) – konkrétní parametry závisí na rutině window
         ld hl,10 * 256 + 10                       ; HL = (y<<8) + x
         ld bc,60 * 256 + 5                        ; BC = (šířka/…?) + (výška/…?) – dle implementace window
-        ld a,16                                   ; barva/atribut okna
+        ld a,144                                   ; barva/atribut okna
         call window                               ; externí: vykresli okno
 
                                                   ; text "Unsupported" (nebo podobně) – tisk do okna
         ld hl,12*256+11
-        ld a,16
+        ld a,144
         ld de,unsuptxt
         call print                                ; externí: tisk textu
 
                                                   ; další řádek hlášky (norun)
         ld hl,12*256+13
-        ld a,16
+        ld a,144
         ld de,norun
         call print
 
         ; "Continue / press enter" atp. (conttxt), zvýrazněná barva 48
         ld hl,54*256+15
-        ld a,48
+        ld a,16
         ld de,conttxt
         call print
 
@@ -4386,6 +4386,14 @@ tilemapPalette:
                 db  %000'100'00,0                 ; 6 green
                 ds 18
 
+                db  %111'000'00,0                 ; 0 modra (paper)					144 - 
+                db  %100'111'00,1                 ; 1 light grey (25% ink)
+                db  %010'010'01,1                 ; 2 dark grey (75% ink)
+                db  %101'101'11,0                 ; 0 white-blueish (ink)
+                db  %110'001'00,1                 ; 4 red
+                db  %111'110'00,1                 ; 5 yellow
+                db  %000'110'00,0                 ; 6 green
+                ds 18
 
 
 tilemapPalette_SZ:  EQU $ - tilemapPalette
@@ -6804,7 +6812,7 @@ showSprite
         ld hl,41*256+31                           ; pozice na obrazovce (y,x)
         ld a,16                                   ; šířka pole pro tisk
         ld de,NUMBUF                              ; buffer s číslem
-        call print                                ; tisk čísla
+        ;call print                                ; tisk čísla
 
 
                                                   ; ------------------------------------------------------------

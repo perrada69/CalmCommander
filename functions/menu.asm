@@ -737,6 +737,26 @@ menuenter
         xor a
         ld (zobrazeneMenu),a
         call loadscr
+        call gettime
+
+
+        ld hl,nadpis
+        ld de,#4000
+        ld bc,80                 ; počet znaků nadpisu (80 bajtů)
+
+menu001b
+        ld a,(hl)                ; znak
+        ld (de),a
+        inc de
+        ld a,16                  ; atribut (barva)
+        ld (de),a
+        inc de
+        inc hl
+        dec bc
+        ld a,c
+        or b
+        jr nz,menu001b
+
 
         ; --- načti handler adresu a skoč na něj ---
         pop hl                  ; HL ukazuje na defw handler (low, high)
