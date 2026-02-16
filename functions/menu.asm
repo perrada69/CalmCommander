@@ -754,7 +754,7 @@ menu001b
         inc hl
         dec bc
         ld a,c
-        or b
+        or b 
         jr nz,menu001b
 
 
