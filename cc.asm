@@ -212,6 +212,8 @@ START
 
                                                   ; kopie části systémových proměnných do vlastní oblasti (sysvars)
                                                   ; (23296 = 0x5B00 – typicky oblast ZX sysvars; přesný význam závisí na projektu)
+xc
+
             ld hl,23296
             ld de,sysvars
             ld bc,500
@@ -219,6 +221,8 @@ START
 
             ; nastavení počáteční pozice kurzoru/myši (externí rutina KOREKCE)
             ld hl,50*256+50
+            ld (lastCoordMouse),hl
+
             call KOREKCE                          ; externí: nastaví počáteční souřadnice
 
             call dospage                          ; externí: přepnutí stránkování/ROM pro DOS funkce?
@@ -294,7 +298,10 @@ neskenuj
             call LoadSprites                      ; externí
 
             call VSE_NASTAV                       ; externí: globální nastavení aplikace/GUI?
-            call showSprite                       ; externí (v předchozím kontextu: aktualizace kurzoru)
+
+            
+
+            ;call showSprite                       ; externí (v předchozím kontextu: aktualizace kurzoru)
 
 
                                                   ; ------------------------------------------------------------
@@ -620,7 +627,7 @@ loop0
             cp 199
             jp z,quit
 
-
+            call MOUSE
             ; ------------------------------------------------------------
             ; Myš: test levého tlačítka + kolečko (v cspect poznámka, že kolečko nefunguje)
             ; TLACITKO je "latched" (ORované) jinde v kódu (showSprite/MOUSE dle tvých úryvků)
@@ -2670,8 +2677,30 @@ clickMouse
 INKEY 	call gettime
         call podbarviPodlePoziceMysky
         call zjistiJestliMyskaNeniVHorniCastiMenu
+        call MOUSE
+        ld b,a                                    ; uložit aktuální stav tlačítek
 
+                                                  ; kontrola změny tlačítek oproti uloženému stavu
+        ld a,(TLACITKO)
+        xor b
+        jr z,nemenTlacitka                               ; žádná změna → pokračuj
+
+                                                  ; při změně uložíme OR stav
+                                                  ; tlačítko zůstane "aktivní", dokud se ručně nevynuluje
+        ld a,(CONTRB)
+        or b
+        ld (TLACITKO),a
+nemenTlacitka        
+        ld hl,(COORD)
+        ld de,(lastCoordMouse)
+        or a
+        sbc hl,de
+        jr z,nekresliMysku      ;pokud nebyl zadny pohyb nekresly kurzor mysky
         call showSprite
+nekresliMysku
+        ld hl,(COORD)
+        ld (lastCoordMouse),hl
+
         ld a,(wheelOld)
 
         ld e,a
@@ -6792,6 +6821,8 @@ LoadSprites
 ; Používá self-modifying code pro zápis operandů NextReg.
 ; ------------------------------------------------------------
 
+lastCoordMouse  defw 0;
+
 showSprite
             ; ochrana registrů používaných uvnitř rutiny
             push af
@@ -6804,7 +6835,7 @@ showSprite
             ; DEBUG: výpis X souřadnice
             ; ------------------------------------------------------------
 
-        ld a,(TLACITKO)                              ; načti aktuální X myši
+        ld a,(CONTRB)                              ; načti aktuální X myši
         ld l,a
         ld h,0                                    ; HL = číslo pro převod na text
         call NUM                                  ; převeď číslo do NUMBUF
@@ -6827,7 +6858,7 @@ showSprite
         ld hl,50*256+31                           ; jiný řádek na obrazovce
         ld a,16
         ld de,NUMBUF
-        ; call print
+        ;call print
 
 
         ; ------------------------------------------------------------
@@ -7230,8 +7261,19 @@ overDvojKlik
 ; ------------------------------------------------------------
 InkeyNoWait
         call gettime                              ; aktualizace času (pro timeouty, UI, atd.)
-        call showSprite                           ; udržuj myš viditelnou
 
+        ld hl,(COORD)
+        ld de,(lastCoordMouse)
+        or a
+        sbc hl,de
+        jr z,zadnyPohybMysky
+
+
+        call showSprite                           ; udržuj myš viditelnou
+zadnyPohybMysky
+        call MOUSE
+        ld hl,(COORD)
+        ld (lastCoordMouse),hl
         ld a,(TLACITKO)
         or a
         jp nz,clickMouse                          ; pokud je evidovaný klik myši → obsluž ho místo kláves
