@@ -255,7 +255,10 @@ por1    ld a,(hl)
         ld hl,LFNNAME
         ld de,LFNNAME2
         ld a,0
+xcv
         call specific_search          ; očekává se: Z=1 pokud match (nebo dle implementace)
+
+
         ret
 
 

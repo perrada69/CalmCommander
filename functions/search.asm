@@ -1,3 +1,139 @@
+
+; ------------------------------------------------------------
+; wildcard_match_ci
+;   '*' = libovolná posloupnost znaků (včetně prázdné)
+;   '?' = jeden libovolný znak
+;   case-insensitive ASCII
+;   terminátor: 0 nebo 255
+;
+; IN : DE = pattern (maska)
+;      HL = text (filename)
+; OUT: ZF=1 match
+;      ZF=0 no match
+; TRASH: AF, BC, DE, HL, IX
+; ------------------------------------------------------------
+search
+wildcard_match_ci:
+
+        ; IX = pattern resume po '*'
+        ; BC = text resume pro '*'
+        ld ix,0
+        ld bc,0
+
+.loop:
+        ld a,(de)
+        call .is_end
+        jr z,.pattern_end
+
+        cp '*'
+        jr z,.star
+
+        ld a,(hl)
+        call .is_end
+        jr z,.text_end_need_only_stars
+
+        ld a,(de)
+        cp '?'
+        jr z,.match_one
+
+        ; case-insensitive compare (SAFE: nešahá na D/E pointer)
+        push bc                ; zachovej resume pointer
+        ld a,(de)
+        call to_upper
+        ld b,a                 ; B = upper(pattern char)
+
+        ld a,(hl)
+        call to_upper
+        cp b                   ; compare upper(text char) vs upper(pattern)
+        pop bc
+        jr z,.match_one
+
+        ; mismatch
+        ld a,ixl
+        or ixh
+        jr z,.fail
+
+        ; backtrack přes '*'
+        push ix
+        pop de                 ; DE = pattern resume (za '*')
+
+        inc bc                 ; posuň text resume o 1
+        push bc
+        pop hl                 ; HL = nový text resume
+        jr .loop
+
+.match_one:
+        inc de
+        inc hl
+        jr .loop
+
+.star:
+        inc de                 ; přeskoč '*'
+        push de
+        pop ix                 ; IX = pattern resume (za '*')
+        push hl
+        pop bc                 ; BC = text resume (odtud může '*' začít matchovat)
+        jr .loop
+
+.pattern_end:
+        ; pattern skončil -> match jen když text taky skončil
+        ld a,(hl)
+        call .is_end
+        jr z,.success
+
+        ; jinak povol backtrack, jen pokud bylo '*'
+        ld a,ixl
+        or ixh
+        jr z,.fail
+
+        push ix
+        pop de
+
+        inc bc
+        push bc
+        pop hl
+        jr .loop
+
+.text_end_need_only_stars:
+        ; text skončil -> pattern může obsahovat už jen '*'
+.skip_stars:
+        ld a,(de)
+        call .is_end
+        jr z,.success
+        cp '*'
+        jr nz,.fail
+        inc de
+        jr .skip_stars
+
+.success:
+        xor a                  ; ZF=1
+        ret
+
+.fail:
+        or 1                   ; ZF=0
+        ret
+
+; ------------------------------------------------------------
+; A = znak
+; Z pokud 0 nebo 255
+.is_end:
+        cp 0
+        ret z
+        cp 255
+        ret
+
+; ------------------------------------------------------------
+; A -> uppercase pokud 'a'..'z'
+to_upper:
+        cp 'a'
+        ret c
+        cp 'z'+1
+        ret nc
+        sub 32
+        ret
+
+
+
 ;Hledávní se specifickým koncem (default je 255)
 ;Vstup:
 ;Vstup:
@@ -9,67 +145,11 @@
 ;         NZ .. nenalezeno
 
 specific_search
-			ld (def_kon+1),a
-			ld (def_kon2+1),a
-			
+			push ix
 			call search
-			ld a,255
-			ld (def_kon+1),a
-			ld (def_kon2+1),a			
+			pop ix
 			ret
 
-
-
-; Vstup:
-;         DE .... vstup hledaneho retezce (ukončený bytem 255)
-;         HL .... vstup textu,kde budeme hledat (ukončený bytem 255)
-; Výstup:
-;         Z ... nalezeno
-;         NZ .. nenalezeno
-search		ld (search0+1),de	
-search1		
-			
-			ld a,(de)
-			cp "a"
-			jr c,search_next
-			cp "z"
-			jr nc,search_next
-			or a
-			sbc a,32
-			ld (de),a
-search_next
-			ld a,(hl)
-			cp "a"
-			jr c,search_next2
-			cp "z"
-			jr nc,search_next2
-			or a
-			sbc a,32
-			ld (hl),a
-search_next2			
-			
-			ld a,(de)
-def_kon		cp 255
-			ret z		        ;konec, nasli jsme retezec
-
-			ld a,(hl)
-def_kon2	cp 255
-			jr z,konec_textu
-					
-			ld a,(de)           ;porovnání
-			xor (hl)
-
-			jr z,search_jo
-search0		ld de,0						
-			inc hl
-			jr search1
-search_jo	inc hl
-			inc de
-			jr search1
-
-konec_textu ld a,1		        ;nastav nz - nic jsme nenasli
-			or a
-			ret
 
 deselect
         call savescr
@@ -396,7 +476,7 @@ find2
         ld de,23296
         ld hl,LFNNAME
         call search
-        jr nz,nesouhlasi
+aaas    jr nz,nesouhlasi
         ld hl,(foundfile)
         call BUFF83
         set 7,(hl)

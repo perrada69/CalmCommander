@@ -4008,6 +4008,7 @@ dirNum   defw 0
         include "functions/getdir.asm"
         include "functions/delete.asm"
         include "functions/file.asm"
+        include "functions/compare.asm"
 
 FILEBUFF
 
@@ -4046,7 +4047,6 @@ S3
         include "functions/createdir.asm"
         include "kmouse/driver.a80"
         include "kmouse/akce.a80"
-        include "functions/compare.asm"
         include "functions/menu.asm"
         include "functions/input.asm"
 tilemapFont_char24:
