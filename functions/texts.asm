@@ -62,7 +62,7 @@ help15          defb    "            close this window...)",0
 help16			defb    "CAPS+1      Change drive in left window",0
 help17			defb    "CAPS+2      Change drive in right window",0
 
-calmcommander	defb    "CALM COMMANDER " : VERSION : defb " (Development version 2022)",0		
+calmcommander	defb    "CALM COMMANDER " : VERSION : defb " (Development version 2026)",0		
 breaktxt 		defb    "BREAK: close this window",0		
 info1txt 		defb    "File manager for ZX Spectrum Next. ",0
 info2txt 		defb    "Main program: Shrek/MB Maniax",0

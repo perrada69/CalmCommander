@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.7a" : ENDM
+            MACRO VERSION : defb "0.7b" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -3982,8 +3982,7 @@ ALLFILES  defw 0
 ALLFILES2 defw 0
 ALLFILESR defw 0
 
-LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
-LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
+
 tmpname   ds 2
 bufftmp   ds 15
 
@@ -4009,7 +4008,8 @@ dirNum   defw 0
         include "functions/delete.asm"
         include "functions/file.asm"
         include "functions/compare.asm"
-
+LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
+LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 FILEBUFF
 
 
@@ -7137,7 +7137,25 @@ vypoctiClick
 
         ; Ověření rozsahu: odečítá DE od HL a sleduje carry.
         ; Tady to vypadá jako "je index (DE) uvnitř rozsahu?" – pokud je mimo, vrátí se s C=1.
+        push hl
+        push de
+        ld hl,pathl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld de,3
+        add hl,de
+        ld a,(hl)
+        cp 255
+        pop de
+        pop hl
+        jr z,jeRoot
+
+
         dec hl
+jeRoot
         dec hl                                    ; korekce HL (např. ukazuje na konec-2, nebo počet-2)
         or a                                      ; vynuluje carry před SBC
         sbc hl,de                                 ; HL = HL - DE
@@ -7167,7 +7185,7 @@ vypoctiClick
         ld (hl),a                                 ; uloží vybranou položku jako aktuální (kurzor na soubor)
 
         ld a,32
-        call writecur                             ; zřejmě vrať viditelný kurzor / nastav znak kurzoru (32=mezera?) dle implementace
+        call writecur                             ; zřejmě vrať viditelný kurzor / nastav znak kurzoru (32=barva) dle implementace
 
         ; --------------------------------------------------------
         ; Čekání na uvolnění tlačítka:
