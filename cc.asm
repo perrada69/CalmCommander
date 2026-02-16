@@ -7262,6 +7262,23 @@ overDvojKlik
 InkeyNoWait
         call gettime                              ; aktualizace času (pro timeouty, UI, atd.)
 
+
+        call MOUSE
+        ld b,a                                    ; uložit aktuální stav tlačítek
+
+                                                  ; kontrola změny tlačítek oproti uloženému stavu
+        ld a,(TLACITKO)
+        xor b
+        jr z,nemenTlacitka2                               ; žádná změna → pokračuj
+
+                                                  ; při změně uložíme OR stav
+                                                  ; tlačítko zůstane "aktivní", dokud se ručně nevynuluje
+        ld a,(CONTRB)
+        or b
+        ld (TLACITKO),a
+nemenTlacitka2        
+
+
         ld hl,(COORD)
         ld de,(lastCoordMouse)
         or a
