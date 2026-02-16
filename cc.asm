@@ -1673,6 +1673,8 @@ bass
 
         pop hl
         ld (delkaRadku),hl                        ; uloží délku řádku pro BASIC (adresa je equ níže)
+        call spravneStranky
+
 
                                                   ; “vyremování” tokenu SPECTRUM v BASIC hlavičce
                                                   ; (0xEA = REM token)
@@ -1721,6 +1723,7 @@ RUN_SNAP
 
         ; vypni turbo
         nextreg TURBO_CONTROL_NR_07,0
+        call spravneStranky
 
         ; zavolej ESXDOS službu $8F s parametry v IX=cmd
         ld ix,cmd
@@ -1877,6 +1880,7 @@ savesp   ld sp,0                                  ; self-modify: obnov původní
         add hl,de
         ld a,(hl)
         ld ($5d4B),a
+        call spravneStranky
 
         ret
 
@@ -1887,6 +1891,7 @@ savesp   ld sp,0                                  ; self-modify: obnov původní
         ; Confirm + ulož cfg + obnov sysvars + zavolej ESXDOS $8F s IX=cmd
         ; ------------------------------------------------------------
 RUN_NEX_FILE
+
         call potvrd
         call layer0
         call dospage
@@ -1900,15 +1905,22 @@ RUN_NEX_FILE
         ldir
 
         call layer0                               ; znovu (pravděpodobně jistota stavu vrstvy)
-
+dfdf
                                                   ; ESXDOS dot-command / loader přes $8F (externí)
+
+        call spravneStranky
         ld ix,cmd
         rst $08
         defb $8f
 
         jp loop0
 
-
+spravneStranky
+        ld a,$0e
+        nextreg $56,a
+        ld a,$0f
+        nextreg $57,a
+        ret
         ; ------------------------------------------------------------
         ; potvrd
         ; ------------------------------------------------------------
