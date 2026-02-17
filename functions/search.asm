@@ -180,10 +180,39 @@ deselect
 		call print		
 
 
+;		ld hx,59
+;		ld hl,$4000 + 15*160 + 11*2
+;		ld a,80
+;		call INPUT
+
+
 		ld hx,59
 		ld hl,$4000 + 15*160 + 11*2
 		ld a,80
-		call INPUT
+
+		ld (INPOS+1),hl     ;ulož adresu začátku pro další použití
+        ld (INCOL+1),a      ;ulož barvu
+
+		ld hl,23296         ;do HL adresa editační oblasti
+		ld b,hx             ;do B délka editační oblasti
+		push bc
+RIN1aa 	ld (hl),32          ;a nyní celou editační
+		inc hl              ;zónu vyplníme mezerami
+		djnz RIN1aa         ;na konec editační zóny
+		ld a,"*"
+		ld (23296),a
+		pop bc
+
+		res 5,(iy+1)        ;signál není stisknuta klávesa
+		xor a
+
+		ld a,1
+        ld (CURSOR+1),a
+        call IN2
+
+
+
+		
 		cp 1                    ;testuj BREAK
 		jp z,dfind_end
 
@@ -414,10 +443,36 @@ select_files
 		call print		
 
 
+;		ld hx,59
+;		ld hl,$4000 + 15*160 + 11*2
+;		ld a,80
+;		call INPUT
+
+
 		ld hx,59
 		ld hl,$4000 + 15*160 + 11*2
 		ld a,80
-		call INPUT
+
+		ld (INPOS+1),hl     ;ulož adresu začátku pro další použití
+        ld (INCOL+1),a      ;ulož barvu
+
+		ld hl,23296         ;do HL adresa editační oblasti
+		ld b,hx             ;do B délka editační oblasti
+		push bc
+RIN1a 	ld (hl),32          ;a nyní celou editační
+		inc hl              ;zónu vyplníme mezerami
+		djnz RIN1a            ;na konec editační zóny
+		ld a,"*"
+		ld (23296),a
+		pop bc
+
+		res 5,(iy+1)        ;signál není stisknuta klávesa
+		xor a
+
+		ld a,1
+        ld (CURSOR+1),a
+        call IN2
+
 		cp 1                    ;testuj BREAK
 		jp z,find_end
 
