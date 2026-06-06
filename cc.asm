@@ -1528,8 +1528,8 @@ xxx
         call pripony
         jp z,rrrun
 
-        ; pokud žádná přípona neodpovídá -> nepodporováno
-        jp unsup
+        ; pokud soubor nejde spustit, zkus ho otevrit pres viewer plugin
+        jp view_file
 
 
         ; ------------------------------------------------------------
@@ -4023,7 +4023,6 @@ dirNum   defw 0
         include "functions/delete.asm"
         include "functions/file.asm"
         include "functions/compare.asm"
-        include "functions/viewer.asm"
 LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
 LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 FILEBUFF
@@ -4065,6 +4064,7 @@ S3
         include "kmouse/akce.a80"
         include "functions/menu.asm"
         include "functions/input.asm"
+        include "functions/viewer.asm"
 tilemapFont_char24:
         include "tilemap_font_8x6.i.asm"
 E3
@@ -7373,10 +7373,12 @@ E2
              SAVEBIN "cc2.bin",S2,E2-S2
             SAVEBIN "cc.bin", S1, E2-S1
 
+            assert E1 <= S3
+            assert E3 <= S2
+            assert E2 <= 57344
             DISPLAY "Volne misto v prvni casti:",/A,S3 - E1
             DISPLAY "Volne misto v druhe casti:",/A,S2 - E3
             DISPLAY "Volne misto v treti casti:",/A,57344 - E2
-            DISPLAY "Volne misto v treti casti:",/A,E2 - 57344
 
               CSPECTMAP player.map
               ; savenex open "CalmCommander.nex",START,ORG_ADDRESS-2

@@ -48,13 +48,15 @@ view_file
         jp c,view_plugin_error
 
         call view_fill_context
+        ld a,(OKNO)
+        ld (viewSavedOKNO),a
         call savescr
+        call view_init_plugin_input
         call view_call_plugin
         ld a,(viewPluginType)
         cp VIEWTYPE_ZXSCREEN
         jr z,.full_restore
-        call VSE_NASTAV
-        call loadscr
+        call view_restore_saved_screen
         jp loop0
 .full_restore
         call view_restore_full_ui
@@ -509,13 +511,29 @@ view_call_plugin
         ret
 
 
+view_restore_saved_screen
+        call VSE_NASTAV
+        ld a,(viewSavedOKNO)
+        ld (OKNO),a
+        call loadscr
+        ret
+
+
 view_restore_full_ui
         call VSE_NASTAV
         call kresli
+        ld a,3
+        ld (OKNO),a
+        ld hl,(adrl)
+        ld (adrs+1),hl
         call showwin
-        call PROHOD
+        ld a,19
+        ld (OKNO),a
+        ld hl,(adrr)
+        ld (adrs+1),hl
         call showwin
-        call PROHOD
+        ld a,(viewSavedOKNO)
+        ld (OKNO),a
         call zobraz_nadpis
         ld a,32
         call writecur
@@ -527,6 +545,98 @@ viewServices
         defw INKEY
         defw window
         defw layer0
+        defw view_plugin_input_nowait
+
+
+view_init_plugin_input
+        xor a
+        ld (TLACITKO),a
+        call view_read_wheel
+        ld (viewWheelOld),a
+        ret
+
+
+view_plugin_input_nowait
+        call MOUSE
+        push af
+        ld hl,(COORD)
+        ld de,(lastCoordMouse)
+        or a
+        sbc hl,de
+        jr z,.no_mouse_move
+        ld a,(viewSavedMmu6)
+        nextreg $56,a
+        call showSprite
+        ld a,VIEW_PLUGIN_PAGE
+        nextreg $56,a
+.no_mouse_move
+        call MOUSE
+        ld hl,(COORD)
+        ld (lastCoordMouse),hl
+        pop af
+        bit 0,a
+        jr nz,.mouse_click
+        bit 1,a
+        jr nz,.mouse_click
+
+        call view_read_wheel
+        ld b,a
+        ld a,(viewWheelOld)
+        ld c,a
+        cp b
+        jr z,.keyboard
+        ld a,b
+        ld (viewWheelOld),a
+        ld a,c
+        cp 15
+        jr z,.keyboard
+        or a
+        jr z,.keyboard
+        ld a,b
+        cp c
+        jr c,.wheel_up
+        ld a,10
+        ret
+.wheel_up
+        ld a,11
+        ret
+
+.keyboard
+        call KEYSCAN
+        ld a,e
+        inc a
+        jr z,.no_key
+        ld a,d
+        ld hl,SYMTAB
+        cp $18
+        jr z,.map
+        ld hl,CAPSTAB
+        cp $27
+        jr z,.map
+        ld hl,NORMTAB
+.map
+        ld d,0
+        add hl,de
+        ld a,(hl)
+        or a
+        ret
+.no_key
+        xor a
+        ret
+.mouse_click
+        ld a,13
+        ret
+
+
+view_read_wheel
+        ld bc,$fadf
+        in a,(c)
+        and $F0
+        rrca
+        rrca
+        rrca
+        rrca
+        ret
 
 
 view_no_viewer
@@ -543,10 +653,9 @@ view_plugin_error
 
 view_error_dialog
         push de
-        call view_stage_to_text
         call savescr
-        ld hl,8 * 256 + 10
-        ld bc,60 * 256 + 12
+        ld hl,10 * 256 + 10
+        ld bc,60 * 256 + 8
         ld a,144
         call window
         ld hl,12*256+11
@@ -557,44 +666,11 @@ view_error_dialog
         ld hl,12*256+13
         ld a,144
         call print
-
         ld hl,12*256+15
         ld a,144
-        ld de,viewStageLabelTxt
+        ld de,viewTryOtherTxt
         call print
-        ld hl,20*256+15
-        ld a,144
-        ld de,viewDebugStage
-        call print
-
-        ld hl,12*256+17
-        ld a,144
-        ld de,viewPathLabelTxt
-        call print
-        ld hl,20*256+17
-        ld a,144
-        ld de,viewDebugPath
-        call print
-
-        ld hl,12*256+19
-        ld a,144
-        ld de,viewNameLabelTxt
-        call print
-        ld hl,20*256+19
-        ld a,144
-        ld de,cmd2
-        call print
-
-        ld hl,12*256+21
-        ld a,144
-        ld de,view83LabelTxt
-        call print
-        ld hl,20*256+21
-        ld a,144
-        ld de,viewDebug83
-        call print
-
-        ld hl,42*256+24
+        ld hl,49*256+17
         ld a,16
         ld de,conttxt
         call print
@@ -671,7 +747,9 @@ viewFirstReadLen     defw 0
 viewDataPageCount    defb 0
 viewSavedMmu6        defb 0
 viewSavedMmu7        defb 0
+viewSavedOKNO        defb 3
 viewErrorStage       defb 0
+viewWheelOld         defb 0
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
 ; that expose the upper 8K of each bank at $E000.
@@ -682,10 +760,11 @@ viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
 viewZxScreenPluginName defb "zxscreen.ccp",255
 
-viewErrorTitleTxt       defb "Viewer error:",0
-viewNoViewerTxt         defb "No viewer plugin for this file.",0
+viewErrorTitleTxt       defb "Viewer:",0
+viewNoViewerTxt         defb "No viewer is available for this file.",0
 viewFileErrorTxt        defb "Cannot open selected file.",0
 viewPluginErrorTxt      defb "Cannot load viewer plugin.",0
+viewTryOtherTxt         defb "Install a matching plugin or use another file.",0
 viewStageLabelTxt       defb "Stage:",0
 viewPathLabelTxt        defb "Path:",0
 viewNameLabelTxt        defb "Name:",0
