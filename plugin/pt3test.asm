@@ -47,7 +47,7 @@ plugin_start
         ei
 
 .wait_release
-        call raw_keyboard
+        call raw_control
         or a
         jr nz,.wait_release
         call input_arm_delay
@@ -55,20 +55,35 @@ plugin_start
 .play_loop
         halt
         call raw_input
-        or a
-        jr nz,.stop
+        cp 1
+        jr z,.exit
+        cp 2
+        jr z,.next
         call VTPL.PLAY
+        ld a,(VTPL.SETUP)
+        and %11000000
+        jr nz,.next
         call show_volume_meters
         ; VTPL sets SETUP bit 7 when the module loop point is passed.
         ; In looped playback mode this is informational, not a stop request.
         jr .play_loop
 
-.stop
+.exit
         call VTPL.MUTE
         call wait_stop_release
         di
         call restore_mmu
         ld sp,(savedSp)
+        xor a
+        ret
+
+.next
+        call VTPL.MUTE
+        call wait_stop_release
+        di
+        call restore_mmu
+        ld sp,(savedSp)
+        ld a,1
         ret
 
 
@@ -76,7 +91,6 @@ map_pt3_data
         ld ix,(ctxPtr)
         ld l,(ix+VIEWCTX_DATA_PAGES)
         ld h,(ix+VIEWCTX_DATA_PAGES+1)
-        ld (dataPagesPtr),hl
         ld a,(hl)
         nextreg $52,a
         ld a,(ix+VIEWCTX_PAGE_COUNT)
@@ -124,7 +138,7 @@ restore_mmu
 
 
 setup_pt3_mode
-        ld a,%00100000          ; PT3, ABC, loop forever, AlCo TS autodetect
+        ld a,%00100001          ; PT3, ABC, no loop, AlCo TS autodetect
         ld (pt3Setup),a
         ld hl,0
         ld (secondModuleAddr),hl
@@ -167,7 +181,7 @@ setup_pt3_mode
         ld hl,PT3_LINEAR_ADDR
         add hl,de
         ld (secondModuleAddr),hl
-        ld a,%00010000          ; Two PT3 modules TS, ABC, loop forever
+        ld a,%00010001          ; Two PT3 modules TS, ABC, no loop
         ld (pt3Setup),a
         ret
 
@@ -382,7 +396,7 @@ input_arm_delay
 
 
 wait_stop_release
-        call raw_keyboard
+        call raw_control
         or a
         jr nz,wait_stop_release
         ld b,INPUT_ARM_FRAMES
@@ -393,25 +407,13 @@ wait_stop_release
 
 
 raw_input
-        ; Keep CC mouse handling alive, but do not use its key result
-        ; for closing yet; the PT3 test player exits only on SPACE.
         call call_input
-        call raw_keyboard
+        call raw_control
         ret
 
 
 call_input
         call 0
-        ret
-
-
-raw_mouse_click
-        call read_mouse_buttons
-        ld b,a
-        ld a,(idleMouseButtons)
-        cp b
-        ret z
-        ld a,1
         ret
 
 
@@ -428,24 +430,21 @@ read_mouse_buttons
         ret
 
 
-raw_keyboard
-        ; For the first PT3 test build use SPACE only. Generic "any key"
-        ; detection is too sensitive while returning from CC.
+raw_control
+        ld bc,$bffe
+        in a,(c)
+        cpl
+        and $01
+        jr z,.space
+        ld a,1
+        ret
+.space
         ld bc,$7ffe
         in a,(c)
         cpl
         and $01
         ret z
-        ld a,1
-        ret
-
-
-raw_key_row
-        in a,(c)
-        cpl
-        and $1f
-        ret z
-        ld a,1
+        ld a,2
         ret
 
 read_nextreg
@@ -463,7 +462,6 @@ savedMmu3    defb 0
 savedMmu4    defb 0
 savedMmu5    defb 0
 idleMouseButtons defb 0
-dataPagesPtr defw 0
 secondModuleAddr defw 0
 pt3Setup    defb 0
 title        defb "PT3:",0
@@ -476,7 +474,7 @@ metersHeaderText defb "Meters:",0
 meterRowAText defb "A",0
 meterRowBText defb "B",0
 meterRowCText defb "C",0
-stopText     defb "SPACE stops playback",0
+stopText     defb "ENTER exits  SPACE next",0
 pt3Title     defs 31
 pt3Author    defs 31
 meterBuffer  defs 33

@@ -4661,7 +4661,7 @@ down
         inc hl
         ld h,(hl)
         or h
-        jp z,loop0
+        jp z,down_cancel
 
 
 
@@ -4694,7 +4694,7 @@ down
         pop de
         or a
         sbc hl,de
-        jp z,loop0
+        jp z,down_cancel
 
         ld a,0
         call writecur
@@ -4731,7 +4731,7 @@ down
         call showwin
         ld a,32
         call writecur
-        jp loop0
+        jp down_finish
 
 down0
         push af
@@ -4758,7 +4758,7 @@ down0
         pop de
         or a
         sbc hl,de
-        jp z,loop0
+        jp z,down_cancel
 
         ld hl,ALLPOSL
         call ROZHOD2
@@ -4782,7 +4782,7 @@ down0
         sbc hl,de
         add hl,de
         pop de
-        jp z,loop0
+        jp z,down_cancel
 
         ex de,hl
         inc de
@@ -4818,6 +4818,19 @@ down0
         call showwin
         ld a,32
         call writecur
+        jp down_finish
+
+down_finish
+        ld a,(viewNextAfterDown)
+        or a
+        jp z,loop0
+        xor a
+        ld (viewNextAfterDown),a
+        jp view_file
+
+down_cancel
+        xor a
+        ld (viewNextAfterDown),a
         jp loop0
 
 

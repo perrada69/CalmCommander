@@ -58,6 +58,15 @@ view_file
         cp VIEWTYPE_ZXSCREEN
         jr z,.full_restore
         call view_restore_saved_screen
+        ld a,(viewPluginType)
+        cp VIEWTYPE_PT3
+        jr nz,.done
+        ld a,(viewPluginResult)
+        cp 1
+        jr nz,.done
+        ld (viewNextAfterDown),a
+        jp down
+.done
         jp loop0
 .full_restore
         call view_restore_full_ui
@@ -521,6 +530,7 @@ view_call_plugin
         ld hl,viewPluginContext
         ld de,viewServices
         call VIEW_PLUGIN_ADDRESS
+        ld (viewPluginResult),a
 
         ld a,(viewSavedMmu6)
         nextreg $56,a
@@ -768,6 +778,8 @@ viewSavedMmu7        defb 0
 viewSavedOKNO        defb 3
 viewErrorStage       defb 0
 viewWheelOld         defb 0
+viewPluginResult     defb 0
+viewNextAfterDown    defb 0
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
 ; that expose the upper 8K of each bank at $E000.
