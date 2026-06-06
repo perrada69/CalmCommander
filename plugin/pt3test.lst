@@ -1,9 +1,10 @@
-# file opened: plugin\pt3test.asm
+warning[backslash]: File name contains \, use / instead (\ fails on most of the supported platforms): plugin\pt3test.asm
+# file opened: pt3test.asm
    1  0000                      DEVICE ZXSPECTRUMNEXT
    2  0000                      org VIEW_PLUGIN_ADDRESS
    3  C000
    4  C000                      include "plugin_api.i.asm"
-# file opened: plugin\plugin_api.i.asm
+# file opened: plugin_api.i.asm
    1+ C000              VIEW_PLUGIN_ADDRESS  equ 49152
    2+ C000              VIEW_DATA_ADDRESS    equ 57344
    3+ C000              VIEW_PLUGIN_SIZE     equ 4096
@@ -26,7 +27,7 @@
   20+ C000              SERVICE_LAYER0       equ 6
   21+ C000              SERVICE_INPUT_NOWAIT equ 8
   22+ C000
-# file closed: plugin\plugin_api.i.asm
+# file closed: plugin_api.i.asm
    5  C000
    6  C000              PT3_LINEAR_ADDR equ $4000
    7  C000              PT3_STACK       equ $DFFE
@@ -37,1980 +38,2203 @@
   12  C000              songdata equ PT3_LINEAR_ADDR
   13  C000
   14  C000              plugin_start
-  15  C000 22 91 C1             ld (ctxPtr),hl
-  16  C003 ED 53 93 C1          ld (svcPtr),de
-  17  C007 CD 18 C1             call patch_services
+  15  C000 22 00 C3             ld (ctxPtr),hl
+  16  C003 ED 53 02 C3          ld (svcPtr),de
+  17  C007 CD 87 C2             call patch_services
   18  C00A
-  19  C00A ED 73 95 C1          ld (savedSp),sp
+  19  C00A ED 73 04 C3          ld (savedSp),sp
   20  C00E 31 FE DF             ld sp,PT3_STACK
   21  C011
   22  C011 3E 52                ld a,$52
-  23  C013 CD 88 C1             call read_nextreg
-  24  C016 32 97 C1             ld (savedMmu2),a
+  23  C013 CD F7 C2             call read_nextreg
+  24  C016 32 06 C3             ld (savedMmu2),a
   25  C019 3E 53                ld a,$53
-  26  C01B CD 88 C1             call read_nextreg
-  27  C01E 32 98 C1             ld (savedMmu3),a
+  26  C01B CD F7 C2             call read_nextreg
+  27  C01E 32 07 C3             ld (savedMmu3),a
   28  C021 3E 54                ld a,$54
-  29  C023 CD 88 C1             call read_nextreg
-  30  C026 32 99 C1             ld (savedMmu4),a
+  29  C023 CD F7 C2             call read_nextreg
+  30  C026 32 08 C3             ld (savedMmu4),a
   31  C029 3E 55                ld a,$55
-  32  C02B CD 88 C1             call read_nextreg
-  33  C02E 32 9A C1             ld (savedMmu5),a
+  32  C02B CD F7 C2             call read_nextreg
+  33  C02E 32 09 C3             ld (savedMmu5),a
   34  C031
-  35  C031 CD D0 C0             call show_player_screen
-  36  C034 CD 64 C1             call capture_mouse_idle
-  37  C037 CD 6C C0             call map_pt3_data
-  38  C03A
-  39  C03A AF                   xor a
-  40  C03B 32 EF C1             ld (VTPL.SETUP),a       ; PT3, ABC, loop forever
-  41  C03E 21 00 40             ld hl,PT3_LINEAR_ADDR
-  42  C041 11 00 00             ld de,0
-  43  C044 CD 26 C2             call VTPL.INIT
-  44  C047 FB                   ei
-  45  C048
-  46  C048              .wait_release
-  47  C048 CD 73 C1             call raw_keyboard
-  48  C04B B7                   or a
-  49  C04C 20 FA                jr nz,.wait_release
-  50  C04E CD 38 C1             call input_arm_delay
-  51  C051
-  52  C051              .play_loop
-  53  C051 76                   halt
-  54  C052 CD 4D C1             call raw_input
-  55  C055 B7                   or a
-  56  C056 20 05                jr nz,.stop
-  57  C058 CD 49 CA             call VTPL.PLAY
-  58  C05B                      ; VTPL sets SETUP bit 7 when the module loop point is passed.
-  59  C05B                      ; In looped playback mode this is informational, not a stop request.
-  60  C05B 18 F4                jr .play_loop
-  61  C05D
-  62  C05D              .stop
-  63  C05D CD 14 C2             call VTPL.MUTE
-  64  C060 CD 41 C1             call wait_stop_release
-  65  C063 F3                   di
-  66  C064 CD B7 C0             call restore_mmu
-  67  C067 ED 7B 95 C1          ld sp,(savedSp)
-  68  C06B C9                   ret
-  69  C06C
-  70  C06C
-  71  C06C              map_pt3_data
-  72  C06C DD 2A 91 C1          ld ix,(ctxPtr)
-  73  C070 DD 6E 0E             ld l,(ix+VIEWCTX_DATA_PAGES)
-  74  C073 DD 66 0F             ld h,(ix+VIEWCTX_DATA_PAGES+1)
-  75  C076 22 9C C1             ld (dataPagesPtr),hl
-  76  C079 7E                   ld a,(hl)
-  77  C07A ED 92 52             nextreg $52,a
-  78  C07D DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
-  79  C080 FE 02                cp 2
-  80  C082 38 1E                jr c,.restore_3
-  81  C084 23                   inc hl
-  82  C085 7E                   ld a,(hl)
-  83  C086 ED 92 53             nextreg $53,a
-  84  C089 DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
-  85  C08C FE 03                cp 3
-  86  C08E 38 1A                jr c,.restore_4
-  87  C090 23                   inc hl
-  88  C091 7E                   ld a,(hl)
-  89  C092 ED 92 54             nextreg $54,a
-  90  C095 DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
-  91  C098 FE 04                cp 4
-  92  C09A 38 14                jr c,.restore_5
-  93  C09C 23                   inc hl
-  94  C09D 7E                   ld a,(hl)
-  95  C09E ED 92 55             nextreg $55,a
-  96  C0A1 C9                   ret
-  97  C0A2              .restore_3
-  98  C0A2 3A 98 C1             ld a,(savedMmu3)
-  99  C0A5 ED 92 53             nextreg $53,a
- 100  C0A8 18 00                jr .restore_4
- 101  C0AA              .restore_4
- 102  C0AA 3A 99 C1             ld a,(savedMmu4)
- 103  C0AD ED 92 54             nextreg $54,a
- 104  C0B0              .restore_5
- 105  C0B0 3A 9A C1             ld a,(savedMmu5)
- 106  C0B3 ED 92 55             nextreg $55,a
- 107  C0B6 C9                   ret
- 108  C0B7
- 109  C0B7
- 110  C0B7              restore_mmu
- 111  C0B7 3A 97 C1             ld a,(savedMmu2)
- 112  C0BA ED 92 52             nextreg $52,a
- 113  C0BD 3A 98 C1             ld a,(savedMmu3)
- 114  C0C0 ED 92 53             nextreg $53,a
- 115  C0C3 3A 99 C1             ld a,(savedMmu4)
- 116  C0C6 ED 92 54             nextreg $54,a
- 117  C0C9 3A 9A C1             ld a,(savedMmu5)
- 118  C0CC ED 92 55             nextreg $55,a
- 119  C0CF C9                   ret
- 120  C0D0
- 121  C0D0
- 122  C0D0              show_player_screen
- 123  C0D0 21 00 00             ld hl,0 * 256 + 0
- 124  C0D3 01 1E 4E             ld bc,78 * 256 + 30
- 125  C0D6 3E 10                ld a,16
- 126  C0D8 CD 14 C1             call call_window
- 127  C0DB 21 9E C1             ld hl,title
- 128  C0DE CD 0A C1             call print_de_at_2_1
- 129  C0E1 DD 2A 91 C1          ld ix,(ctxPtr)
- 130  C0E5 DD 5E 02             ld e,(ix+VIEWCTX_FILENAME)
- 131  C0E8 DD 56 03             ld d,(ix+VIEWCTX_FILENAME+1)
- 132  C0EB 21 01 0F             ld hl,15*256+1
- 133  C0EE 3E 10                ld a,16
- 134  C0F0 CD 10 C1             call call_print
- 135  C0F3 11 A3 C1             ld de,infoText
- 136  C0F6 21 04 02             ld hl,2*256+4
- 137  C0F9 3E 10                ld a,16
- 138  C0FB CD 10 C1             call call_print
- 139  C0FE 11 D0 C1             ld de,stopText
- 140  C101 21 1F 02             ld hl,2*256+31
- 141  C104 3E 20                ld a,32
- 142  C106 CD 10 C1             call call_print
- 143  C109 C9                   ret
- 144  C10A
- 145  C10A
- 146  C10A              print_de_at_2_1
- 147  C10A EB                   ex de,hl
- 148  C10B 21 01 02             ld hl,2*256+1
- 149  C10E 3E 10                ld a,16
- 150  C110              call_print
- 151  C110 CD 00 00             call 0
- 152  C113 C9                   ret
- 153  C114
- 154  C114              call_window
- 155  C114 CD 00 00             call 0
- 156  C117 C9                   ret
- 157  C118
- 158  C118              patch_services
- 159  C118 DD 2A 93 C1          ld ix,(svcPtr)
- 160  C11C DD 6E 00             ld l,(ix+SERVICE_PRINT)
- 161  C11F DD 66 01             ld h,(ix+SERVICE_PRINT+1)
- 162  C122 22 11 C1             ld (call_print+1),hl
- 163  C125 DD 6E 04             ld l,(ix+SERVICE_WINDOW)
- 164  C128 DD 66 05             ld h,(ix+SERVICE_WINDOW+1)
- 165  C12B 22 15 C1             ld (call_window+1),hl
- 166  C12E DD 6E 08             ld l,(ix+SERVICE_INPUT_NOWAIT)
- 167  C131 DD 66 09             ld h,(ix+SERVICE_INPUT_NOWAIT+1)
- 168  C134 22 55 C1             ld (call_input+1),hl
- 169  C137 C9                   ret
- 170  C138
- 171  C138
- 172  C138              input_arm_delay
- 173  C138 06 19                ld b,INPUT_ARM_FRAMES
- 174  C13A              .wait
- 175  C13A 76                   halt
- 176  C13B 10 FD                djnz .wait
- 177  C13D CD 64 C1             call capture_mouse_idle
- 178  C140 C9                   ret
- 179  C141
- 180  C141
- 181  C141              wait_stop_release
- 182  C141 CD 73 C1             call raw_keyboard
- 183  C144 B7                   or a
- 184  C145 20 FA                jr nz,wait_stop_release
- 185  C147 06 19                ld b,INPUT_ARM_FRAMES
- 186  C149              .wait
- 187  C149 76                   halt
- 188  C14A 10 FD                djnz .wait
- 189  C14C C9                   ret
- 190  C14D
- 191  C14D
- 192  C14D              raw_input
- 193  C14D                      ; Keep CC mouse handling alive, but do not use its key result
- 194  C14D                      ; for closing yet; the PT3 test player exits only on SPACE.
- 195  C14D CD 54 C1             call call_input
- 196  C150 CD 73 C1             call raw_keyboard
- 197  C153 C9                   ret
- 198  C154
- 199  C154
- 200  C154              call_input
- 201  C154 CD 00 00             call 0
- 202  C157 C9                   ret
- 203  C158
- 204  C158
- 205  C158              raw_mouse_click
- 206  C158 CD 6B C1             call read_mouse_buttons
- 207  C15B 47                   ld b,a
- 208  C15C 3A 9B C1             ld a,(idleMouseButtons)
- 209  C15F B8                   cp b
- 210  C160 C8                   ret z
- 211  C161 3E 01                ld a,1
- 212  C163 C9                   ret
- 213  C164
- 214  C164
- 215  C164              capture_mouse_idle
- 216  C164 CD 6B C1             call read_mouse_buttons
- 217  C167 32 9B C1             ld (idleMouseButtons),a
- 218  C16A C9                   ret
- 219  C16B
- 220  C16B
- 221  C16B              read_mouse_buttons
- 222  C16B 01 DF FA             ld bc,$fadf
- 223  C16E ED 78                in a,(c)
- 224  C170 E6 03                and 3
- 225  C172 C9                   ret
- 226  C173
- 227  C173
- 228  C173              raw_keyboard
- 229  C173                      ; For the first PT3 test build use SPACE only. Generic "any key"
- 230  C173                      ; detection is too sensitive while returning from CC.
- 231  C173 01 FE 7F             ld bc,$7ffe
- 232  C176 ED 78                in a,(c)
- 233  C178 2F                   cpl
- 234  C179 E6 01                and $01
- 235  C17B C8                   ret z
- 236  C17C 3E 01                ld a,1
- 237  C17E C9                   ret
- 238  C17F
- 239  C17F
- 240  C17F              raw_key_row
- 241  C17F ED 78                in a,(c)
- 242  C181 2F                   cpl
- 243  C182 E6 1F                and $1f
- 244  C184 C8                   ret z
- 245  C185 3E 01                ld a,1
- 246  C187 C9                   ret
- 247  C188
- 248  C188              read_nextreg
- 249  C188 01 3B 24             ld bc,$243B
- 250  C18B ED 79                out (c),a
- 251  C18D 04                   inc b
- 252  C18E ED 78                in a,(c)
- 253  C190 C9                   ret
- 254  C191
- 255  C191 00 00        ctxPtr       defw 0
- 256  C193 00 00        svcPtr       defw 0
- 257  C195 00 00        savedSp      defw 0
- 258  C197 00           savedMmu2    defb 0
- 259  C198 00           savedMmu3    defb 0
- 260  C199 00           savedMmu4    defb 0
- 261  C19A 00           savedMmu5    defb 0
- 262  C19B 00           idleMouseButtons defb 0
- 263  C19C 00 00        dataPagesPtr defw 0
- 264  C19E 50 54 33 3A  title        defb "PT3:",0
- 264  C1A2 00
- 265  C1A3 54 65 73 74  infoText     defb "Test PT3 plugin - data mapped at $4000-$BFFF",0
- 265  C1A7 20 50 54 33
- 265  C1AB 20 70 6C 75
- 265  C1AF 67 69 6E 20
- 265  C1B3 2D 20 64 61
- 265  C1B7 74 61 20 6D
- 265  C1BB 61 70 70 65
- 265  C1BF 64 20 61 74
- 265  C1C3 20 24 34 30
- 265  C1C7 30 30 2D 24
- 265  C1CB 42 46 46 46
- 265  C1CF 00
- 266  C1D0 53 50 41 43  stopText     defb "SPACE stops playback",0
- 266  C1D4 45 20 73 74
- 266  C1D8 6F 70 73 20
- 266  C1DC 70 6C 61 79
- 266  C1E0 62 61 63 6B
- 266  C1E4 00
- 267  C1E5
- 268  C1E5                      include "ptx_vtpl.i.asm"
-# file opened: plugin\ptx_vtpl.i.asm
-   1+ C1E5              ;Universal PT2'n'PT3 Turbo Sound player for ZX Spectrum
-   2+ C1E5              ;(c)2004-2007 S.V.Bulba <vorobey@mail.khstu.ru>
-   3+ C1E5              ;Specially for AlCo
-   4+ C1E5              ;http://bulba.untergrund.net/ (http://bulba.at.kz/)
-   5+ C1E5              	MODULE VTPL
-   6+ C1E5              ;Release number
-   7+ C1E5              Release EQU "0"
-   8+ C1E5              ;Conditional assembly
-   9+ C1E5              ;1) Current position counters at (Vars1+0) and (Vars2+0)
-  10+ C1E5              CurPosCounter=0
-  11+ C1E5              ;2) Allow channels allocation bits at (START+10)
-  12+ C1E5              ACBBAC=0
-  13+ C1E5              ;3) Allow loop checking and disabling
-  14+ C1E5              LoopChecker=1
-  15+ C1E5              ;4) Insert official identificator
-  16+ C1E5              Id=0
-  17+ C1E5              ;5) Set IY for correct return to ZX Basic
-  18+ C1E5              Basic=1
-  19+ C1E5
-  20+ C1E5              ;Features
-  21+ C1E5              ;--------
-  22+ C1E5              ;-Can be compiled at any address (i.e. no need rounding ORG
-  23+ C1E5              ; address).
-  24+ C1E5              ;-Variables (VARS) can be located at any address (not only after
-  25+ C1E5              ; code block).
-  26+ C1E5              ;-INIT subprogram checks PT3-module version and rightly
-  27+ C1E5              ; generates both note and volume tables outside of code block
-  28+ C1E5              ; (in VARS).
-  29+ C1E5              ;-Two portamento (spc. command 3xxx) algorithms (depending of
-  30+ C1E5              ; PT3 module version).
-  31+ C1E5              ;-New 1.XX and 2.XX special command behaviour (only for PT v3.7
-  32+ C1E5              ; and higher).
-  33+ C1E5              ;-Any Tempo value are accepted (including Tempo=1 and Tempo=2).
-  34+ C1E5              ;-TS modes: 2xPT3, 2xPT2 and PT v3.7 TS standard.
-  35+ C1E5              ;-Fully compatible with Ay_Emul PT3 and PT2 players codes.
-  36+ C1E5              ;-See also notes at the end of this source code.
-  37+ C1E5
-  38+ C1E5              ;Limitations
-  39+ C1E5              ;-----------
-  40+ C1E5              ;-Can run in RAM only (self-modified code is used).
-  41+ C1E5              ;-PT2 position list must be end by #FF marker only.
-  42+ C1E5
-  43+ C1E5              ;Warning!!! PLAY subprogram can crash if no module are loaded
-  44+ C1E5              ;into RAM or INIT subprogram was not called before.
-  45+ C1E5
-  46+ C1E5              ;Call MUTE or INIT one more time to mute sound after stopping
-  47+ C1E5              ;playing
-  48+ C1E5
-  49+ C1E5              ;Test codes (commented)
-  50+ C1E5              ;	LD A,32 ;SinglePT3(TS if TSPT3.7),ABC,Looped
-  51+ C1E5              ;	LD (START+10),A
-  52+ C1E5              ;	LD HL,#8000 ;Mod1
-  53+ C1E5              ;	LD DE,#A000 ;Mod2 (optional)
-  54+ C1E5              ;	CALL START+3
-  55+ C1E5              ;	EI
-  56+ C1E5              ;_LP	HALT
-  57+ C1E5              ;	CALL START+5
-  58+ C1E5              ;	XOR A
-  59+ C1E5              ;	IN A,(#FE)
-  60+ C1E5              ;	CPL
-  61+ C1E5              ;	AND 15
-  62+ C1E5              ;	JR Z,_LP
-  63+ C1E5              ;	JR START+8
-  64+ C1E5
-  65+ C1E5              TonA	EQU 0
-  66+ C1E5              TonB	EQU 2
-  67+ C1E5              TonC	EQU 4
-  68+ C1E5              Noise	EQU 6
-  69+ C1E5              Mixer	EQU 7
-  70+ C1E5              AmplA	EQU 8
-  71+ C1E5              AmplB	EQU 9
-  72+ C1E5              AmplC	EQU 10
-  73+ C1E5              Env	EQU 11
-  74+ C1E5              EnvTp	EQU 13
-  75+ C1E5
-  76+ C1E5              ;Entry and other points
-  77+ C1E5              ;START initialize playing of modules at MDLADDR (single module)
-  78+ C1E5              ;START+3 initialization with module address in HL and DE (TS)
-  79+ C1E5              ;START+5 play one quark
-  80+ C1E5              ;START+8 mute
-  81+ C1E5              ;START+10 setup and status flags
-  82+ C1E5
-  83+ C1E5              START:
-  84+ C1E5 21 00 40     	LD HL,songdata ;DE - address of 2nd module for TS
-  85+ C1E8 18 3C        	JR INIT
-  86+ C1EA C3 49 CA     	JP PLAY
-  87+ C1ED 18 25        	JR MUTE
-  88+ C1EF 10           SETUP	DB %00010000 ;set bit0, if you want to play without looping
-  89+ C1F0              	     ;(optional);
-  90+ C1F0              	     ;set bit1 for PT2 and reset for PT3 before
-  91+ C1F0              	     ;calling INIT;
-  92+ C1F0              	     ;bits2-3: %00-ABC, %01-ACB, %10-BAC (optional);
-  93+ C1F0              	     ;bits4-5: %00-no TS, %01-2 modules TS, %10-
-  94+ C1F0              	     ;autodetect PT3 TS-format by AlCo (PT 3.7+);
-  95+ C1F0              	     ;Remark: old PT3 TS-format by AlCo (PT 3.6) is not
-  96+ C1F0              	     ;documented and must be converted to new standard.
-  97+ C1F0              	     ;bit6 is set each time, when loop point of 2nd TS
-  98+ C1F0              	     ;module is passed (optional).
-  99+ C1F0              	     ;bit7 is set each time, when loop point of 1st TS
- 100+ C1F0              	     ;or of single module is passed (optional).
- 101+ C1F0
- 102+ C1F0              ;Identifier
- 103+ C1F0              	IF Id
- 104+ C1F0 ~            	DB "=UniPT2/PT3/TS-Player r.",Release,"="
- 105+ C1F0              	ENDIF
- 106+ C1F0
- 107+ C1F0              	IF LoopChecker
- 108+ C1F0 21 EF C1     CHECKLP	LD HL,SETUP
- 109+ C1F3 FD CB 9E 46  	BIT 0,(IY-100+VRS.ModNum)
- 110+ C1F7 28 04        	JR Z,CHL1
- 111+ C1F9 CB F6        	SET 6,(HL)
- 112+ C1FB 18 02        	JR CHL2
- 113+ C1FD CB FE        CHL1	SET 7,(HL)
- 114+ C1FF CB 46        CHL2	BIT 0,(HL)
- 115+ C201 C8           	RET Z
- 116+ C202 E1           	POP HL
- 117+ C203 FD 34 09     	INC (IY-100+VRS.DelyCnt)
- 118+ C206 FD 34 BA     	INC (IY-100+VRS.ChanA+CHP.NtSkCn)
- 119+ C209 AF           	XOR A
- 120+ C20A FD 77 1D     	LD (IY-100+VRS.AYREGS+AmplA),A
- 121+ C20D FD 77 1E     	LD (IY-100+VRS.AYREGS+AmplB),A
- 122+ C210 FD 77 1F     	LD (IY-100+VRS.AYREGS+AmplC),A
- 123+ C213 C9           	RET
- 124+ C214              	ENDIF
- 125+ C214
- 126+ C214 AF           MUTE: XOR A
- 127+ C215 67           	LD H,A
- 128+ C216 6F           	LD L,A
- 129+ C217 32 9E CB     	LD (VARS1+VRS.AYREGS+AmplA),A
- 130+ C21A 22 9F CB     	LD (VARS1+VRS.AYREGS+AmplB),HL
- 131+ C21D 32 25 CC     	LD (VARS2+VRS.AYREGS+AmplA),A
- 132+ C220 22 26 CC     	LD (VARS2+VRS.AYREGS+AmplB),HL
- 133+ C223 C3 61 CA     	JP ROUT
- 134+ C226
- 135+ C226              INIT:
- 136+ C226              ;HL - AddressOfModule
- 137+ C226              ;DE - AddresOf2ndModule
- 138+ C226 D5           	PUSH DE
- 139+ C227 E5           	PUSH HL
- 140+ C228 21 1C CB     	LD HL,VARS
- 141+ C22B 36 00        	LD (HL),0
- 142+ C22D 11 1D CB     	LD DE,VARS+1
- 143+ C230 01 0E 01     	LD BC,VAR0END-VARS-1
- 144+ C233 ED B0        	LDIR
- 145+ C235 23           	INC HL
- 146+ C236 22 7F CB     	LD (VARS1+VRS.AdInPtA),HL ;ptr to zero
- 147+ C239 22 06 CC     	LD (VARS2+VRS.AdInPtA),HL
- 148+ C23C
- 149+ C23C E1           	POP HL
- 150+ C23D FD 21 81 CB  	LD IY,VARS1+100
- 151+ C241 3A EF C1     	LD A,(START+10)
- 152+ C244 E6 02        	AND 2
- 153+ C246 C2 CF C2     	JP NZ,I_PT2
- 154+ C249
- 155+ C249 CD 1C C4     	CALL INITPT3
- 156+ C24C 21 18 1F     	LD HL,(e_-SamCnv-2)*256+#18
- 157+ C24F 22 EF C7     	LD (SamCnv),HL
- 158+ C252 3E BA        	LD A,#BA
- 159+ C254 32 BA C7     	LD (OrnCP),A
- 160+ C257 32 E6 C7     	LD (SamCP),A
- 161+ C25A 3E 7B        	LD A,#7B
- 162+ C25C 32 BD C7     	LD (OrnLD),A
- 163+ C25F 32 E9 C7     	LD (SamLD),A
- 164+ C262 3E 87        	LD A,#87
- 165+ C264 32 E0 C7     	LD (SamClc2),A
- 166+ C267 E1           	POP HL
- 167+ C268              	;Use version and ton table of 1st module
- 168+ C268 DD 7E A9     	LD A,(IX+13-100) ;EXTRACT VERSION NUMBER
- 169+ C26B D6 30        	SUB #30
- 170+ C26D 38 04        	JR C,L20
- 171+ C26F FE 0A        	CP 10
- 172+ C271 38 02        	JR C,L21
- 173+ C273 3E 06        L20	LD A,6
- 174+ C275 32 8D C6     L21	LD (Version),A
- 175+ C278 F5           	PUSH AF ;VolTable version
- 176+ C279 FE 04        	CP 4
- 177+ C27B DD 7E FF     	LD A,(IX+99-100) ;TONE TABLE NUMBER
- 178+ C27E 17           	RLA
- 179+ C27F E6 07        	AND 7
- 180+ C281 F5           	PUSH AF ;NoteTable number
- 181+ C282
- 182+ C282 FD 21 08 CC  	LD IY,VARS2+100
- 183+ C286 3A EF C1     	LD A,(START+10)
- 184+ C289 E6 30        	AND 48
- 185+ C28B 28 37        	JR Z,NOTS
- 186+ C28D FE 10        	CP 16
- 187+ C28F 28 27        	JR Z,TwoPT3s
- 188+ C291 3A 8D C6     	LD A,(Version)
- 189+ C294 FE 07        	CP 7
- 190+ C296 38 2C        	JR C,NOTS
- 191+ C298 DD 7E FE     	LD A,(IX+98-100) ;ALCO TS MARKER
- 192+ C29B FE 20        	CP #20
- 193+ C29D 28 25        	JR Z,NOTS
- 194+ C29F 21 1D CB     	LD HL,VARS1
- 195+ C2A2 11 A4 CB     	LD DE,VARS2
- 196+ C2A5 01 87 00     	LD BC,VRS
- 197+ C2A8 ED B0        	LDIR
- 198+ C2AA FD CB 9E CE  	SET 1,(IY-100+VRS.ModNum)
- 199+ C2AE 4F           	LD C,A
- 200+ C2AF 87           	ADD A,A
- 201+ C2B0 81           	ADD A,C
- 202+ C2B1 D6 02        	SUB 2
- 203+ C2B3 32 54 C9     	LD (TSSub),A
- 204+ C2B6 18 03        	JR AlCoTS_
- 205+ C2B8 CD 1C C4     TwoPT3s	CALL INITPT3
- 206+ C2BB 3E 01        AlCoTS_	LD A,1
- 207+ C2BD 32 1C CB     	LD (is_ts),A
- 208+ C2C0 FD CB 9E C6  	SET 0,(IY-100+VRS.ModNum)
- 209+ C2C4
- 210+ C2C4 01 D9 C5     NOTS	LD BC,PT3PD
- 211+ C2C7 21 00 00     	LD HL,0
- 212+ C2CA 11 E4 CA     	LD DE,PT3EMPTYORN
- 213+ C2CD 18 48        	JR INITCOMMON
- 214+ C2CF
- 215+ C2CF CD 54 C4     I_PT2	CALL INITPT2
- 216+ C2D2 21 CB 51     	LD HL,#51CB
- 217+ C2D5 22 EF C7     	LD (SamCnv),HL
- 218+ C2D8 3E BB        	LD A,#BB
- 219+ C2DA 32 BA C7     	LD (OrnCP),A
- 220+ C2DD 32 E6 C7     	LD (SamCP),A
- 221+ C2E0 3E 7A        	LD A,#7A
- 222+ C2E2 32 BD C7     	LD (OrnLD),A
- 223+ C2E5 32 E9 C7     	LD (SamLD),A
- 224+ C2E8 3E 80        	LD A,#80
- 225+ C2EA 32 E0 C7     	LD (SamClc2),A
- 226+ C2ED E1           	POP HL
- 227+ C2EE 3E 05        	LD A,5
- 228+ C2F0 32 8D C6     	LD (Version),A
- 229+ C2F3 F5           	PUSH AF
- 230+ C2F4 3E 02        	LD A,2
- 231+ C2F6 F5           	PUSH AF
- 232+ C2F7
- 233+ C2F7 3A EF C1     	LD A,(START+10)
- 234+ C2FA E6 30        	AND 48
- 235+ C2FC 28 10        	JR Z,NOTS2
- 236+ C2FE
- 237+ C2FE FD 21 08 CC  	LD IY,VARS2+100
- 238+ C302 3E 01        	LD A,1
- 239+ C304 32 1C CB     	LD (is_ts),A
- 240+ C307 FD CB 9E C6  	SET 0,(IY-100+VRS.ModNum)
- 241+ C30B CD 54 C4     	CALL INITPT2
- 242+ C30E
- 243+ C30E 01 13 C5     NOTS2	LD BC,PT2PD
- 244+ C311 21 87 86     	LD HL,#8687
- 245+ C314 11 3A CC     	LD DE,PT2EMPTYORN
- 246+ C317
- 247+ C317              INITCOMMON
- 248+ C317
- 249+ C317              	IF Basic
- 250+ C317 FD 21 3A 5C  	LD IY,#5C3A
- 251+ C31B              	ENDIF
- 252+ C31B
- 253+ C31B ED 43 C4 C4  	LD (PTDEC),BC
- 254+ C31F 22 56 C9     	LD (PsCalc),HL
- 255+ C322 D5           	PUSH DE
- 256+ C323
- 257+ C323              ;note table data depacker
- 258+ C323              ;(c) Ivan Roshin
- 259+ C323 11 E7 CA     	LD DE,T_PACK
- 260+ C326 01 8C CC     	LD BC,T1_+(2*49)-1
- 261+ C329 1A           TP_0	LD A,(DE)
- 262+ C32A 13           	INC DE
- 263+ C32B FE 1E        	CP 15*2
- 264+ C32D 30 06        	JR NC,TP_1
- 265+ C32F 67           	LD H,A
- 266+ C330 1A           	LD A,(DE)
- 267+ C331 6F           	LD L,A
- 268+ C332 13           	INC DE
- 269+ C333 18 07        	JR TP_2
- 270+ C335 D5           TP_1	PUSH DE
- 271+ C336 16 00        	LD D,0
- 272+ C338 5F           	LD E,A
- 273+ C339 19           	ADD HL,DE
- 274+ C33A 19           	ADD HL,DE
- 275+ C33B D1           	POP DE
- 276+ C33C 7C           TP_2	LD A,H
- 277+ C33D 02           	LD (BC),A
- 278+ C33E 0B           	DEC BC
- 279+ C33F 7D           	LD A,L
- 280+ C340 02           	LD (BC),A
- 281+ C341 0B           	DEC BC
+  35  C031 CD C2 C1             call prepare_pt3_info
+  36  C034 CD 30 C1             call show_player_screen
+  37  C037 CD D3 C2             call capture_mouse_idle
+  38  C03A CD 7B C0             call map_pt3_data
+  39  C03D CD DF C0             call setup_pt3_mode
+  40  C040
+  41  C040 3A 0F C3             ld a,(pt3Setup)
+  42  C043 32 F5 C3             ld (VTPL.SETUP),a
+  43  C046 21 00 40             ld hl,PT3_LINEAR_ADDR
+  44  C049 ED 5B 0D C3          ld de,(secondModuleAddr)
+  45  C04D CD 2C C4             call VTPL.INIT
+  46  C050 CD E0 C1             call show_pt3_mode
+  47  C053 FB                   ei
+  48  C054
+  49  C054              .wait_release
+  50  C054 CD E2 C2             call raw_keyboard
+  51  C057 B7                   or a
+  52  C058 20 FA                jr nz,.wait_release
+  53  C05A CD A7 C2             call input_arm_delay
+  54  C05D
+  55  C05D              .play_loop
+  56  C05D 76                   halt
+  57  C05E CD BC C2             call raw_input
+  58  C061 B7                   or a
+  59  C062 20 08                jr nz,.stop
+  60  C064 CD 4F CC             call VTPL.PLAY
+  61  C067 CD FA C1             call show_volume_meters
+  62  C06A                      ; VTPL sets SETUP bit 7 when the module loop point is passed.
+  63  C06A                      ; In looped playback mode this is informational, not a stop request.
+  64  C06A 18 F1                jr .play_loop
+  65  C06C
+  66  C06C              .stop
+  67  C06C CD 1A C4             call VTPL.MUTE
+  68  C06F CD B0 C2             call wait_stop_release
+  69  C072 F3                   di
+  70  C073 CD C6 C0             call restore_mmu
+  71  C076 ED 7B 04 C3          ld sp,(savedSp)
+  72  C07A C9                   ret
+  73  C07B
+  74  C07B
+  75  C07B              map_pt3_data
+  76  C07B DD 2A 00 C3          ld ix,(ctxPtr)
+  77  C07F DD 6E 0E             ld l,(ix+VIEWCTX_DATA_PAGES)
+  78  C082 DD 66 0F             ld h,(ix+VIEWCTX_DATA_PAGES+1)
+  79  C085 22 0B C3             ld (dataPagesPtr),hl
+  80  C088 7E                   ld a,(hl)
+  81  C089 ED 92 52             nextreg $52,a
+  82  C08C DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
+  83  C08F FE 02                cp 2
+  84  C091 38 1E                jr c,.restore_3
+  85  C093 23                   inc hl
+  86  C094 7E                   ld a,(hl)
+  87  C095 ED 92 53             nextreg $53,a
+  88  C098 DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
+  89  C09B FE 03                cp 3
+  90  C09D 38 1A                jr c,.restore_4
+  91  C09F 23                   inc hl
+  92  C0A0 7E                   ld a,(hl)
+  93  C0A1 ED 92 54             nextreg $54,a
+  94  C0A4 DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
+  95  C0A7 FE 04                cp 4
+  96  C0A9 38 14                jr c,.restore_5
+  97  C0AB 23                   inc hl
+  98  C0AC 7E                   ld a,(hl)
+  99  C0AD ED 92 55             nextreg $55,a
+ 100  C0B0 C9                   ret
+ 101  C0B1              .restore_3
+ 102  C0B1 3A 07 C3             ld a,(savedMmu3)
+ 103  C0B4 ED 92 53             nextreg $53,a
+ 104  C0B7 18 00                jr .restore_4
+ 105  C0B9              .restore_4
+ 106  C0B9 3A 08 C3             ld a,(savedMmu4)
+ 107  C0BC ED 92 54             nextreg $54,a
+ 108  C0BF              .restore_5
+ 109  C0BF 3A 09 C3             ld a,(savedMmu5)
+ 110  C0C2 ED 92 55             nextreg $55,a
+ 111  C0C5 C9                   ret
+ 112  C0C6
+ 113  C0C6
+ 114  C0C6              restore_mmu
+ 115  C0C6 3A 06 C3             ld a,(savedMmu2)
+ 116  C0C9 ED 92 52             nextreg $52,a
+ 117  C0CC 3A 07 C3             ld a,(savedMmu3)
+ 118  C0CF ED 92 53             nextreg $53,a
+ 119  C0D2 3A 08 C3             ld a,(savedMmu4)
+ 120  C0D5 ED 92 54             nextreg $54,a
+ 121  C0D8 3A 09 C3             ld a,(savedMmu5)
+ 122  C0DB ED 92 55             nextreg $55,a
+ 123  C0DE C9                   ret
+ 124  C0DF
+ 125  C0DF
+ 126  C0DF              setup_pt3_mode
+ 127  C0DF 3E 20                ld a,%00100000          ; PT3, ABC, loop forever, AlCo TS autodetect
+ 128  C0E1 32 0F C3             ld (pt3Setup),a
+ 129  C0E4 21 00 00             ld hl,0
+ 130  C0E7 22 0D C3             ld (secondModuleAddr),hl
+ 131  C0EA DD 2A 00 C3          ld ix,(ctxPtr)
+ 132  C0EE DD 7E 06             ld a,(ix+VIEWCTX_SIZE_HI)
+ 133  C0F1 DD B6 07             or (ix+VIEWCTX_SIZE_HI+1)
+ 134  C0F4 C0                   ret nz
+ 135  C0F5 DD 6E 04             ld l,(ix+VIEWCTX_SIZE_LO)
+ 136  C0F8 DD 66 05             ld h,(ix+VIEWCTX_SIZE_LO+1)
+ 137  C0FB 7C                   ld a,h
+ 138  C0FC FE 80                cp $80
+ 139  C0FE D0                   ret nc
+ 140  C0FF 7C                   ld a,h
+ 141  C100 B5                   or l
+ 142  C101 C8                   ret z
+ 143  C102 2B                   dec hl
+ 144  C103 11 00 40             ld de,PT3_LINEAR_ADDR
+ 145  C106 19                   add hl,de
+ 146  C107 7E                   ld a,(hl)
+ 147  C108 FE 53                cp "S"
+ 148  C10A C0                   ret nz
+ 149  C10B 2B                   dec hl
+ 150  C10C 7E                   ld a,(hl)
+ 151  C10D FE 54                cp "T"
+ 152  C10F C0                   ret nz
+ 153  C110 2B                   dec hl
+ 154  C111 7E                   ld a,(hl)
+ 155  C112 FE 32                cp "2"
+ 156  C114 C0                   ret nz
+ 157  C115 2B                   dec hl
+ 158  C116 7E                   ld a,(hl)
+ 159  C117 FE 30                cp "0"
+ 160  C119 C0                   ret nz
+ 161  C11A 11 08 00             ld de,8
+ 162  C11D B7                   or a
+ 163  C11E ED 52                sbc hl,de
+ 164  C120 5E                   ld e,(hl)
+ 165  C121 23                   inc hl
+ 166  C122 56                   ld d,(hl)
+ 167  C123 21 00 40             ld hl,PT3_LINEAR_ADDR
+ 168  C126 19                   add hl,de
+ 169  C127 22 0D C3             ld (secondModuleAddr),hl
+ 170  C12A 3E 10                ld a,%00010000          ; Two PT3 modules TS, ABC, loop forever
+ 171  C12C 32 0F C3             ld (pt3Setup),a
+ 172  C12F C9                   ret
+ 173  C130
+ 174  C130
+ 175  C130              show_player_screen
+ 176  C130 21 05 00             ld hl,0 * 256 + 5
+ 177  C133 01 14 4E             ld bc,78 * 256 + 20
+ 178  C136 3E 10                ld a,16
+ 179  C138 CD 83 C2             call call_window
+ 180  C13B 21 10 C3             ld hl,title
+ 181  C13E CD 79 C2             call print_de_at_2_1
+ 182  C141 DD 2A 00 C3          ld ix,(ctxPtr)
+ 183  C145 DD 5E 02             ld e,(ix+VIEWCTX_FILENAME)
+ 184  C148 DD 56 03             ld d,(ix+VIEWCTX_FILENAME+1)
+ 185  C14B 21 06 0F             ld hl,15*256+6
+ 186  C14E 3E 10                ld a,16
+ 187  C150 CD 7F C2             call call_print
+ 188  C153 11 15 C3             ld de,infoText
+ 189  C156 21 09 02             ld hl,2*256+9
+ 190  C159 3E 10                ld a,16
+ 191  C15B CD 7F C2             call call_print
+ 192  C15E 11 5A C3             ld de,pt3TitleLabel
+ 193  C161 21 0B 02             ld hl,2*256+11
+ 194  C164 3E 10                ld a,16
+ 195  C166 CD 7F C2             call call_print
+ 196  C169 11 8C C3             ld de,pt3Title
+ 197  C16C 21 0B 09             ld hl,9*256+11
+ 198  C16F 3E 10                ld a,16
+ 199  C171 CD 7F C2             call call_print
+ 200  C174 11 61 C3             ld de,pt3AuthorLabel
+ 201  C177 21 0D 02             ld hl,2*256+13
+ 202  C17A 3E 10                ld a,16
+ 203  C17C CD 7F C2             call call_print
+ 204  C17F 11 AB C3             ld de,pt3Author
+ 205  C182 21 0D 0A             ld hl,10*256+13
+ 206  C185 3E 10                ld a,16
+ 207  C187 CD 7F C2             call call_print
+ 208  C18A 11 77 C3             ld de,stopText
+ 209  C18D 21 18 1E             ld hl,30*256+24
+ 210  C190 3E 20                ld a,32
+ 211  C192 CD 7F C2             call call_print
+ 212  C195 11 69 C3             ld de,metersHeaderText
+ 213  C198 21 10 02             ld hl,2*256+16
+ 214  C19B 3E 10                ld a,16
+ 215  C19D CD 7F C2             call call_print
+ 216  C1A0 11 71 C3             ld de,meterRowAText
+ 217  C1A3 21 12 02             ld hl,2*256+18
+ 218  C1A6 3E 10                ld a,16
+ 219  C1A8 CD 7F C2             call call_print
+ 220  C1AB 11 73 C3             ld de,meterRowBText
+ 221  C1AE 21 13 02             ld hl,2*256+19
+ 222  C1B1 3E 10                ld a,16
+ 223  C1B3 CD 7F C2             call call_print
+ 224  C1B6 11 75 C3             ld de,meterRowCText
+ 225  C1B9 21 14 02             ld hl,2*256+20
+ 226  C1BC 3E 10                ld a,16
+ 227  C1BE CD 7F C2             call call_print
+ 228  C1C1 C9                   ret
+ 229  C1C2
+ 230  C1C2
+ 231  C1C2              prepare_pt3_info
+ 232  C1C2 21 1E E0             ld hl,VIEW_DATA_ADDRESS+30
+ 233  C1C5 11 8C C3             ld de,pt3Title
+ 234  C1C8 CD D5 C1             call copy_pt3_text
+ 235  C1CB 21 3C E0             ld hl,VIEW_DATA_ADDRESS+60
+ 236  C1CE 11 AB C3             ld de,pt3Author
+ 237  C1D1 CD D5 C1             call copy_pt3_text
+ 238  C1D4 C9                   ret
+ 239  C1D5
+ 240  C1D5
+ 241  C1D5              copy_pt3_text
+ 242  C1D5 06 1E                ld b,30
+ 243  C1D7              .copy
+ 244  C1D7 7E                   ld a,(hl)
+ 245  C1D8 12                   ld (de),a
+ 246  C1D9 23                   inc hl
+ 247  C1DA 13                   inc de
+ 248  C1DB 10 FA                djnz .copy
+ 249  C1DD AF                   xor a
+ 250  C1DE 12                   ld (de),a
+ 251  C1DF C9                   ret
+ 252  C1E0
+ 253  C1E0
+ 254  C1E0              show_pt3_mode
+ 255  C1E0 CD C6 C0             call restore_mmu
+ 256  C1E3 11 2C C3             ld de,modeSingleText
+ 257  C1E6 3A 22 CD             ld a,(VTPL.is_ts)
+ 258  C1E9 B7                   or a
+ 259  C1EA 28 03                jr z,.print
+ 260  C1EC 11 43 C3             ld de,modeTsText
+ 261  C1EF              .print
+ 262  C1EF 21 09 02             ld hl,2*256+9
+ 263  C1F2 3E 10                ld a,16
+ 264  C1F4 CD 7F C2             call call_print
+ 265  C1F7 C3 7B C0             jp map_pt3_data
+ 266  C1FA
+ 267  C1FA
+ 268  C1FA              show_volume_meters
+ 269  C1FA CD C6 C0             call restore_mmu
+ 270  C1FD 3A A4 CD             ld a,(VTPL.VARS1+VTPL.VRS.AYREGS+VTPL.AmplA)
+ 271  C200 E6 0F                and $0f
+ 272  C202 47                   ld b,a
+ 273  C203 3A 22 CD             ld a,(VTPL.is_ts)
+ 274  C206 B7                   or a
+ 275  C207 28 08                jr z,.meter_a
+ 276  C209 3A 2B CE             ld a,(VTPL.VARS2+VTPL.VRS.AYREGS+VTPL.AmplA)
+ 277  C20C E6 0F                and $0f
+ 278  C20E 80                   add a,b
+ 279  C20F 18 01                jr .print_a
+ 280  C211              .meter_a
+ 281  C211 78                   ld a,b
+ 282  C212              .print_a
+ 283  C212 21 12 08             ld hl,8*256+18
+ 284  C215 CD 51 C2             call print_meter
+ 285  C218 3A A5 CD             ld a,(VTPL.VARS1+VTPL.VRS.AYREGS+VTPL.AmplB)
+ 286  C21B E6 0F                and $0f
+ 287  C21D 47                   ld b,a
+ 288  C21E 3A 22 CD             ld a,(VTPL.is_ts)
+ 289  C221 B7                   or a
+ 290  C222 28 08                jr z,.meter_b
+ 291  C224 3A 2C CE             ld a,(VTPL.VARS2+VTPL.VRS.AYREGS+VTPL.AmplB)
+ 292  C227 E6 0F                and $0f
+ 293  C229 80                   add a,b
+ 294  C22A 18 01                jr .print_b
+ 295  C22C              .meter_b
+ 296  C22C 78                   ld a,b
+ 297  C22D              .print_b
+ 298  C22D 21 13 08             ld hl,8*256+19
+ 299  C230 CD 51 C2             call print_meter
+ 300  C233 3A A6 CD             ld a,(VTPL.VARS1+VTPL.VRS.AYREGS+VTPL.AmplC)
+ 301  C236 E6 0F                and $0f
+ 302  C238 47                   ld b,a
+ 303  C239 3A 22 CD             ld a,(VTPL.is_ts)
+ 304  C23C B7                   or a
+ 305  C23D 28 08                jr z,.meter_c
+ 306  C23F 3A 2D CE             ld a,(VTPL.VARS2+VTPL.VRS.AYREGS+VTPL.AmplC)
+ 307  C242 E6 0F                and $0f
+ 308  C244 80                   add a,b
+ 309  C245 18 01                jr .print_c
+ 310  C247              .meter_c
+ 311  C247 78                   ld a,b
+ 312  C248              .print_c
+ 313  C248 21 14 08             ld hl,8*256+20
+ 314  C24B CD 51 C2             call print_meter
+ 315  C24E C3 7B C0             jp map_pt3_data
+ 316  C251
+ 317  C251
+ 318  C251              print_meter
+ 319  C251 47                   ld b,a
+ 320  C252 11 CA C3             ld de,meterBuffer
+ 321  C255 3E 5B                ld a,"["
+ 322  C257 12                   ld (de),a
+ 323  C258 13                   inc de
+ 324  C259 0E 1E                ld c,30
+ 325  C25B              .loop
+ 326  C25B 78                   ld a,b
+ 327  C25C B7                   or a
+ 328  C25D 28 05                jr z,.space
+ 329  C25F 3E 23                ld a,"#"
+ 330  C261 05                   dec b
+ 331  C262 18 02                jr .store
+ 332  C264              .space
+ 333  C264 3E 2E                ld a,"."
+ 334  C266              .store
+ 335  C266 12                   ld (de),a
+ 336  C267 13                   inc de
+ 337  C268 0D                   dec c
+ 338  C269 20 F0                jr nz,.loop
+ 339  C26B 3E 5D                ld a,"]"
+ 340  C26D 12                   ld (de),a
+ 341  C26E 13                   inc de
+ 342  C26F AF                   xor a
+ 343  C270 12                   ld (de),a
+ 344  C271 11 CA C3             ld de,meterBuffer
+ 345  C274 3E 10                ld a,16
+ 346  C276 C3 7F C2             jp call_print
+ 347  C279
+ 348  C279
+ 349  C279              print_de_at_2_1
+ 350  C279 EB                   ex de,hl
+ 351  C27A 21 06 02             ld hl,2*256+6
+ 352  C27D 3E 10                ld a,16
+ 353  C27F              call_print
+ 354  C27F CD 00 00             call 0
+ 355  C282 C9                   ret
+ 356  C283
+ 357  C283              call_window
+ 358  C283 CD 00 00             call 0
+ 359  C286 C9                   ret
+ 360  C287
+ 361  C287              patch_services
+ 362  C287 DD 2A 02 C3          ld ix,(svcPtr)
+ 363  C28B DD 6E 00             ld l,(ix+SERVICE_PRINT)
+ 364  C28E DD 66 01             ld h,(ix+SERVICE_PRINT+1)
+ 365  C291 22 80 C2             ld (call_print+1),hl
+ 366  C294 DD 6E 04             ld l,(ix+SERVICE_WINDOW)
+ 367  C297 DD 66 05             ld h,(ix+SERVICE_WINDOW+1)
+ 368  C29A 22 84 C2             ld (call_window+1),hl
+ 369  C29D DD 6E 08             ld l,(ix+SERVICE_INPUT_NOWAIT)
+ 370  C2A0 DD 66 09             ld h,(ix+SERVICE_INPUT_NOWAIT+1)
+ 371  C2A3 22 C4 C2             ld (call_input+1),hl
+ 372  C2A6 C9                   ret
+ 373  C2A7
+ 374  C2A7
+ 375  C2A7              input_arm_delay
+ 376  C2A7 06 19                ld b,INPUT_ARM_FRAMES
+ 377  C2A9              .wait
+ 378  C2A9 76                   halt
+ 379  C2AA 10 FD                djnz .wait
+ 380  C2AC CD D3 C2             call capture_mouse_idle
+ 381  C2AF C9                   ret
+ 382  C2B0
+ 383  C2B0
+ 384  C2B0              wait_stop_release
+ 385  C2B0 CD E2 C2             call raw_keyboard
+ 386  C2B3 B7                   or a
+ 387  C2B4 20 FA                jr nz,wait_stop_release
+ 388  C2B6 06 19                ld b,INPUT_ARM_FRAMES
+ 389  C2B8              .wait
+ 390  C2B8 76                   halt
+ 391  C2B9 10 FD                djnz .wait
+ 392  C2BB C9                   ret
+ 393  C2BC
+ 394  C2BC
+ 395  C2BC              raw_input
+ 396  C2BC                      ; Keep CC mouse handling alive, but do not use its key result
+ 397  C2BC                      ; for closing yet; the PT3 test player exits only on SPACE.
+ 398  C2BC CD C3 C2             call call_input
+ 399  C2BF CD E2 C2             call raw_keyboard
+ 400  C2C2 C9                   ret
+ 401  C2C3
+ 402  C2C3
+ 403  C2C3              call_input
+ 404  C2C3 CD 00 00             call 0
+ 405  C2C6 C9                   ret
+ 406  C2C7
+ 407  C2C7
+ 408  C2C7              raw_mouse_click
+ 409  C2C7 CD DA C2             call read_mouse_buttons
+ 410  C2CA 47                   ld b,a
+ 411  C2CB 3A 0A C3             ld a,(idleMouseButtons)
+ 412  C2CE B8                   cp b
+ 413  C2CF C8                   ret z
+ 414  C2D0 3E 01                ld a,1
+ 415  C2D2 C9                   ret
+ 416  C2D3
+ 417  C2D3
+ 418  C2D3              capture_mouse_idle
+ 419  C2D3 CD DA C2             call read_mouse_buttons
+ 420  C2D6 32 0A C3             ld (idleMouseButtons),a
+ 421  C2D9 C9                   ret
+ 422  C2DA
+ 423  C2DA
+ 424  C2DA              read_mouse_buttons
+ 425  C2DA 01 DF FA             ld bc,$fadf
+ 426  C2DD ED 78                in a,(c)
+ 427  C2DF E6 03                and 3
+ 428  C2E1 C9                   ret
+ 429  C2E2
+ 430  C2E2
+ 431  C2E2              raw_keyboard
+ 432  C2E2                      ; For the first PT3 test build use SPACE only. Generic "any key"
+ 433  C2E2                      ; detection is too sensitive while returning from CC.
+ 434  C2E2 01 FE 7F             ld bc,$7ffe
+ 435  C2E5 ED 78                in a,(c)
+ 436  C2E7 2F                   cpl
+ 437  C2E8 E6 01                and $01
+ 438  C2EA C8                   ret z
+ 439  C2EB 3E 01                ld a,1
+ 440  C2ED C9                   ret
+ 441  C2EE
+ 442  C2EE
+ 443  C2EE              raw_key_row
+ 444  C2EE ED 78                in a,(c)
+ 445  C2F0 2F                   cpl
+ 446  C2F1 E6 1F                and $1f
+ 447  C2F3 C8                   ret z
+ 448  C2F4 3E 01                ld a,1
+ 449  C2F6 C9                   ret
+ 450  C2F7
+ 451  C2F7              read_nextreg
+ 452  C2F7 01 3B 24             ld bc,$243B
+ 453  C2FA ED 79                out (c),a
+ 454  C2FC 04                   inc b
+ 455  C2FD ED 78                in a,(c)
+ 456  C2FF C9                   ret
+ 457  C300
+ 458  C300 00 00        ctxPtr       defw 0
+ 459  C302 00 00        svcPtr       defw 0
+ 460  C304 00 00        savedSp      defw 0
+ 461  C306 00           savedMmu2    defb 0
+ 462  C307 00           savedMmu3    defb 0
+ 463  C308 00           savedMmu4    defb 0
+ 464  C309 00           savedMmu5    defb 0
+ 465  C30A 00           idleMouseButtons defb 0
+ 466  C30B 00 00        dataPagesPtr defw 0
+ 467  C30D 00 00        secondModuleAddr defw 0
+ 468  C30F 00           pt3Setup    defb 0
+ 469  C310 50 54 33 3A  title        defb "PT3:",0
+ 469  C314 00
+ 470  C315 4D 6F 64 65  infoText     defb "Mode: detecting PT3/TS",0
+ 470  C319 3A 20 64 65
+ 470  C31D 74 65 63 74
+ 470  C321 69 6E 67 20
+ 470  C325 50 54 33 2F
+ 470  C329 54 53 00
+ 471  C32C 4D 6F 64 65  modeSingleText defb "Mode: PT3             ",0
+ 471  C330 3A 20 50 54
+ 471  C334 33 20 20 20
+ 471  C338 20 20 20 20
+ 471  C33C 20 20 20 20
+ 471  C340 20 20 00
+ 472  C343 4D 6F 64 65  modeTsText   defb "Mode: PT3 TS / 2 AY   ",0
+ 472  C347 3A 20 50 54
+ 472  C34B 33 20 54 53
+ 472  C34F 20 2F 20 32
+ 472  C353 20 41 59 20
+ 472  C357 20 20 00
+ 473  C35A 54 69 74 6C  pt3TitleLabel defb "Title:",0
+ 473  C35E 65 3A 00
+ 474  C361 41 75 74 68  pt3AuthorLabel defb "Author:",0
+ 474  C365 6F 72 3A 00
+ 475  C369 4D 65 74 65  metersHeaderText defb "Meters:",0
+ 475  C36D 72 73 3A 00
+ 476  C371 41 00        meterRowAText defb "A",0
+ 477  C373 42 00        meterRowBText defb "B",0
+ 478  C375 43 00        meterRowCText defb "C",0
+ 479  C377 53 50 41 43  stopText     defb "SPACE stops playback",0
+ 479  C37B 45 20 73 74
+ 479  C37F 6F 70 73 20
+ 479  C383 70 6C 61 79
+ 479  C387 62 61 63 6B
+ 479  C38B 00
+ 480  C38C 00 00 00...  pt3Title     defs 31
+ 481  C3AB 00 00 00...  pt3Author    defs 31
+ 482  C3CA 00 00 00...  meterBuffer  defs 33
+ 483  C3EB
+ 484  C3EB                      include "ptx_vtpl.i.asm"
+# file opened: ptx_vtpl.i.asm
+   1+ C3EB              ;Universal PT2'n'PT3 Turbo Sound player for ZX Spectrum
+   2+ C3EB              ;(c)2004-2007 S.V.Bulba <vorobey@mail.khstu.ru>
+   3+ C3EB              ;Specially for AlCo
+   4+ C3EB              ;http://bulba.untergrund.net/ (http://bulba.at.kz/)
+   5+ C3EB              	MODULE VTPL
+   6+ C3EB              ;Release number
+   7+ C3EB              Release EQU "0"
+   8+ C3EB              ;Conditional assembly
+   9+ C3EB              ;1) Current position counters at (Vars1+0) and (Vars2+0)
+  10+ C3EB              CurPosCounter=0
+  11+ C3EB              ;2) Allow channels allocation bits at (START+10)
+  12+ C3EB              ACBBAC=0
+  13+ C3EB              ;3) Allow loop checking and disabling
+  14+ C3EB              LoopChecker=1
+  15+ C3EB              ;4) Insert official identificator
+  16+ C3EB              Id=0
+  17+ C3EB              ;5) Set IY for correct return to ZX Basic
+  18+ C3EB              Basic=1
+  19+ C3EB
+  20+ C3EB              ;Features
+  21+ C3EB              ;--------
+  22+ C3EB              ;-Can be compiled at any address (i.e. no need rounding ORG
+  23+ C3EB              ; address).
+  24+ C3EB              ;-Variables (VARS) can be located at any address (not only after
+  25+ C3EB              ; code block).
+  26+ C3EB              ;-INIT subprogram checks PT3-module version and rightly
+  27+ C3EB              ; generates both note and volume tables outside of code block
+  28+ C3EB              ; (in VARS).
+  29+ C3EB              ;-Two portamento (spc. command 3xxx) algorithms (depending of
+  30+ C3EB              ; PT3 module version).
+  31+ C3EB              ;-New 1.XX and 2.XX special command behaviour (only for PT v3.7
+  32+ C3EB              ; and higher).
+  33+ C3EB              ;-Any Tempo value are accepted (including Tempo=1 and Tempo=2).
+  34+ C3EB              ;-TS modes: 2xPT3, 2xPT2 and PT v3.7 TS standard.
+  35+ C3EB              ;-Fully compatible with Ay_Emul PT3 and PT2 players codes.
+  36+ C3EB              ;-See also notes at the end of this source code.
+  37+ C3EB
+  38+ C3EB              ;Limitations
+  39+ C3EB              ;-----------
+  40+ C3EB              ;-Can run in RAM only (self-modified code is used).
+  41+ C3EB              ;-PT2 position list must be end by #FF marker only.
+  42+ C3EB
+  43+ C3EB              ;Warning!!! PLAY subprogram can crash if no module are loaded
+  44+ C3EB              ;into RAM or INIT subprogram was not called before.
+  45+ C3EB
+  46+ C3EB              ;Call MUTE or INIT one more time to mute sound after stopping
+  47+ C3EB              ;playing
+  48+ C3EB
+  49+ C3EB              ;Test codes (commented)
+  50+ C3EB              ;	LD A,32 ;SinglePT3(TS if TSPT3.7),ABC,Looped
+  51+ C3EB              ;	LD (START+10),A
+  52+ C3EB              ;	LD HL,#8000 ;Mod1
+  53+ C3EB              ;	LD DE,#A000 ;Mod2 (optional)
+  54+ C3EB              ;	CALL START+3
+  55+ C3EB              ;	EI
+  56+ C3EB              ;_LP	HALT
+  57+ C3EB              ;	CALL START+5
+  58+ C3EB              ;	XOR A
+  59+ C3EB              ;	IN A,(#FE)
+  60+ C3EB              ;	CPL
+  61+ C3EB              ;	AND 15
+  62+ C3EB              ;	JR Z,_LP
+  63+ C3EB              ;	JR START+8
+  64+ C3EB
+  65+ C3EB              TonA	EQU 0
+  66+ C3EB              TonB	EQU 2
+  67+ C3EB              TonC	EQU 4
+  68+ C3EB              Noise	EQU 6
+  69+ C3EB              Mixer	EQU 7
+  70+ C3EB              AmplA	EQU 8
+  71+ C3EB              AmplB	EQU 9
+  72+ C3EB              AmplC	EQU 10
+  73+ C3EB              Env	EQU 11
+  74+ C3EB              EnvTp	EQU 13
+  75+ C3EB
+  76+ C3EB              ;Entry and other points
+  77+ C3EB              ;START initialize playing of modules at MDLADDR (single module)
+  78+ C3EB              ;START+3 initialization with module address in HL and DE (TS)
+  79+ C3EB              ;START+5 play one quark
+  80+ C3EB              ;START+8 mute
+  81+ C3EB              ;START+10 setup and status flags
+  82+ C3EB
+  83+ C3EB              START:
+  84+ C3EB 21 00 40     	LD HL,songdata ;DE - address of 2nd module for TS
+  85+ C3EE 18 3C        	JR INIT
+  86+ C3F0 C3 4F CC     	JP PLAY
+  87+ C3F3 18 25        	JR MUTE
+  88+ C3F5 10           SETUP	DB %00010000 ;set bit0, if you want to play without looping
+  89+ C3F6              	     ;(optional);
+  90+ C3F6              	     ;set bit1 for PT2 and reset for PT3 before
+  91+ C3F6              	     ;calling INIT;
+  92+ C3F6              	     ;bits2-3: %00-ABC, %01-ACB, %10-BAC (optional);
+  93+ C3F6              	     ;bits4-5: %00-no TS, %01-2 modules TS, %10-
+  94+ C3F6              	     ;autodetect PT3 TS-format by AlCo (PT 3.7+);
+  95+ C3F6              	     ;Remark: old PT3 TS-format by AlCo (PT 3.6) is not
+  96+ C3F6              	     ;documented and must be converted to new standard.
+  97+ C3F6              	     ;bit6 is set each time, when loop point of 2nd TS
+  98+ C3F6              	     ;module is passed (optional).
+  99+ C3F6              	     ;bit7 is set each time, when loop point of 1st TS
+ 100+ C3F6              	     ;or of single module is passed (optional).
+ 101+ C3F6
+ 102+ C3F6              ;Identifier
+ 103+ C3F6              	IF Id
+ 104+ C3F6 ~            	DB "=UniPT2/PT3/TS-Player r.",Release,"="
+ 105+ C3F6              	ENDIF
+ 106+ C3F6
+ 107+ C3F6              	IF LoopChecker
+ 108+ C3F6 21 F5 C3     CHECKLP	LD HL,SETUP
+ 109+ C3F9 FD CB 9E 46  	BIT 0,(IY-100+VRS.ModNum)
+ 110+ C3FD 28 04        	JR Z,CHL1
+ 111+ C3FF CB F6        	SET 6,(HL)
+ 112+ C401 18 02        	JR CHL2
+ 113+ C403 CB FE        CHL1	SET 7,(HL)
+ 114+ C405 CB 46        CHL2	BIT 0,(HL)
+ 115+ C407 C8           	RET Z
+ 116+ C408 E1           	POP HL
+ 117+ C409 FD 34 09     	INC (IY-100+VRS.DelyCnt)
+ 118+ C40C FD 34 BA     	INC (IY-100+VRS.ChanA+CHP.NtSkCn)
+ 119+ C40F AF           	XOR A
+ 120+ C410 FD 77 1D     	LD (IY-100+VRS.AYREGS+AmplA),A
+ 121+ C413 FD 77 1E     	LD (IY-100+VRS.AYREGS+AmplB),A
+ 122+ C416 FD 77 1F     	LD (IY-100+VRS.AYREGS+AmplC),A
+ 123+ C419 C9           	RET
+ 124+ C41A              	ENDIF
+ 125+ C41A
+ 126+ C41A AF           MUTE: XOR A
+ 127+ C41B 67           	LD H,A
+ 128+ C41C 6F           	LD L,A
+ 129+ C41D 32 A4 CD     	LD (VARS1+VRS.AYREGS+AmplA),A
+ 130+ C420 22 A5 CD     	LD (VARS1+VRS.AYREGS+AmplB),HL
+ 131+ C423 32 2B CE     	LD (VARS2+VRS.AYREGS+AmplA),A
+ 132+ C426 22 2C CE     	LD (VARS2+VRS.AYREGS+AmplB),HL
+ 133+ C429 C3 67 CC     	JP ROUT
+ 134+ C42C
+ 135+ C42C              INIT:
+ 136+ C42C              ;HL - AddressOfModule
+ 137+ C42C              ;DE - AddresOf2ndModule
+ 138+ C42C D5           	PUSH DE
+ 139+ C42D E5           	PUSH HL
+ 140+ C42E 21 22 CD     	LD HL,VARS
+ 141+ C431 36 00        	LD (HL),0
+ 142+ C433 11 23 CD     	LD DE,VARS+1
+ 143+ C436 01 0E 01     	LD BC,VAR0END-VARS-1
+ 144+ C439 ED B0        	LDIR
+ 145+ C43B 23           	INC HL
+ 146+ C43C 22 85 CD     	LD (VARS1+VRS.AdInPtA),HL ;ptr to zero
+ 147+ C43F 22 0C CE     	LD (VARS2+VRS.AdInPtA),HL
+ 148+ C442
+ 149+ C442 E1           	POP HL
+ 150+ C443 FD 21 87 CD  	LD IY,VARS1+100
+ 151+ C447 3A F5 C3     	LD A,(START+10)
+ 152+ C44A E6 02        	AND 2
+ 153+ C44C C2 D5 C4     	JP NZ,I_PT2
+ 154+ C44F
+ 155+ C44F CD 22 C6     	CALL INITPT3
+ 156+ C452 21 18 1F     	LD HL,(e_-SamCnv-2)*256+#18
+ 157+ C455 22 F5 C9     	LD (SamCnv),HL
+ 158+ C458 3E BA        	LD A,#BA
+ 159+ C45A 32 C0 C9     	LD (OrnCP),A
+ 160+ C45D 32 EC C9     	LD (SamCP),A
+ 161+ C460 3E 7B        	LD A,#7B
+ 162+ C462 32 C3 C9     	LD (OrnLD),A
+ 163+ C465 32 EF C9     	LD (SamLD),A
+ 164+ C468 3E 87        	LD A,#87
+ 165+ C46A 32 E6 C9     	LD (SamClc2),A
+ 166+ C46D E1           	POP HL
+ 167+ C46E              	;Use version and ton table of 1st module
+ 168+ C46E DD 7E A9     	LD A,(IX+13-100) ;EXTRACT VERSION NUMBER
+ 169+ C471 D6 30        	SUB #30
+ 170+ C473 38 04        	JR C,L20
+ 171+ C475 FE 0A        	CP 10
+ 172+ C477 38 02        	JR C,L21
+ 173+ C479 3E 06        L20	LD A,6
+ 174+ C47B 32 93 C8     L21	LD (Version),A
+ 175+ C47E F5           	PUSH AF ;VolTable version
+ 176+ C47F FE 04        	CP 4
+ 177+ C481 DD 7E FF     	LD A,(IX+99-100) ;TONE TABLE NUMBER
+ 178+ C484 17           	RLA
+ 179+ C485 E6 07        	AND 7
+ 180+ C487 F5           	PUSH AF ;NoteTable number
+ 181+ C488
+ 182+ C488 FD 21 0E CE  	LD IY,VARS2+100
+ 183+ C48C 3A F5 C3     	LD A,(START+10)
+ 184+ C48F E6 30        	AND 48
+ 185+ C491 28 37        	JR Z,NOTS
+ 186+ C493 FE 10        	CP 16
+ 187+ C495 28 27        	JR Z,TwoPT3s
+ 188+ C497 3A 93 C8     	LD A,(Version)
+ 189+ C49A FE 07        	CP 7
+ 190+ C49C 38 2C        	JR C,NOTS
+ 191+ C49E DD 7E FE     	LD A,(IX+98-100) ;ALCO TS MARKER
+ 192+ C4A1 FE 20        	CP #20
+ 193+ C4A3 28 25        	JR Z,NOTS
+ 194+ C4A5 21 23 CD     	LD HL,VARS1
+ 195+ C4A8 11 AA CD     	LD DE,VARS2
+ 196+ C4AB 01 87 00     	LD BC,VRS
+ 197+ C4AE ED B0        	LDIR
+ 198+ C4B0 FD CB 9E CE  	SET 1,(IY-100+VRS.ModNum)
+ 199+ C4B4 4F           	LD C,A
+ 200+ C4B5 87           	ADD A,A
+ 201+ C4B6 81           	ADD A,C
+ 202+ C4B7 D6 02        	SUB 2
+ 203+ C4B9 32 5A CB     	LD (TSSub),A
+ 204+ C4BC 18 03        	JR AlCoTS_
+ 205+ C4BE CD 22 C6     TwoPT3s	CALL INITPT3
+ 206+ C4C1 3E 01        AlCoTS_	LD A,1
+ 207+ C4C3 32 22 CD     	LD (is_ts),A
+ 208+ C4C6 FD CB 9E C6  	SET 0,(IY-100+VRS.ModNum)
+ 209+ C4CA
+ 210+ C4CA 01 DF C7     NOTS	LD BC,PT3PD
+ 211+ C4CD 21 00 00     	LD HL,0
+ 212+ C4D0 11 EA CC     	LD DE,PT3EMPTYORN
+ 213+ C4D3 18 48        	JR INITCOMMON
+ 214+ C4D5
+ 215+ C4D5 CD 5A C6     I_PT2	CALL INITPT2
+ 216+ C4D8 21 CB 51     	LD HL,#51CB
+ 217+ C4DB 22 F5 C9     	LD (SamCnv),HL
+ 218+ C4DE 3E BB        	LD A,#BB
+ 219+ C4E0 32 C0 C9     	LD (OrnCP),A
+ 220+ C4E3 32 EC C9     	LD (SamCP),A
+ 221+ C4E6 3E 7A        	LD A,#7A
+ 222+ C4E8 32 C3 C9     	LD (OrnLD),A
+ 223+ C4EB 32 EF C9     	LD (SamLD),A
+ 224+ C4EE 3E 80        	LD A,#80
+ 225+ C4F0 32 E6 C9     	LD (SamClc2),A
+ 226+ C4F3 E1           	POP HL
+ 227+ C4F4 3E 05        	LD A,5
+ 228+ C4F6 32 93 C8     	LD (Version),A
+ 229+ C4F9 F5           	PUSH AF
+ 230+ C4FA 3E 02        	LD A,2
+ 231+ C4FC F5           	PUSH AF
+ 232+ C4FD
+ 233+ C4FD 3A F5 C3     	LD A,(START+10)
+ 234+ C500 E6 30        	AND 48
+ 235+ C502 28 10        	JR Z,NOTS2
+ 236+ C504
+ 237+ C504 FD 21 0E CE  	LD IY,VARS2+100
+ 238+ C508 3E 01        	LD A,1
+ 239+ C50A 32 22 CD     	LD (is_ts),A
+ 240+ C50D FD CB 9E C6  	SET 0,(IY-100+VRS.ModNum)
+ 241+ C511 CD 5A C6     	CALL INITPT2
+ 242+ C514
+ 243+ C514 01 19 C7     NOTS2	LD BC,PT2PD
+ 244+ C517 21 87 86     	LD HL,#8687
+ 245+ C51A 11 40 CE     	LD DE,PT2EMPTYORN
+ 246+ C51D
+ 247+ C51D              INITCOMMON
+ 248+ C51D
+ 249+ C51D              	IF Basic
+ 250+ C51D FD 21 3A 5C  	LD IY,#5C3A
+ 251+ C521              	ENDIF
+ 252+ C521
+ 253+ C521 ED 43 CA C6  	LD (PTDEC),BC
+ 254+ C525 22 5C CB     	LD (PsCalc),HL
+ 255+ C528 D5           	PUSH DE
+ 256+ C529
+ 257+ C529              ;note table data depacker
+ 258+ C529              ;(c) Ivan Roshin
+ 259+ C529 11 ED CC     	LD DE,T_PACK
+ 260+ C52C 01 92 CE     	LD BC,T1_+(2*49)-1
+ 261+ C52F 1A           TP_0	LD A,(DE)
+ 262+ C530 13           	INC DE
+ 263+ C531 FE 1E        	CP 15*2
+ 264+ C533 30 06        	JR NC,TP_1
+ 265+ C535 67           	LD H,A
+ 266+ C536 1A           	LD A,(DE)
+ 267+ C537 6F           	LD L,A
+ 268+ C538 13           	INC DE
+ 269+ C539 18 07        	JR TP_2
+ 270+ C53B D5           TP_1	PUSH DE
+ 271+ C53C 16 00        	LD D,0
+ 272+ C53E 5F           	LD E,A
+ 273+ C53F 19           	ADD HL,DE
+ 274+ C540 19           	ADD HL,DE
+ 275+ C541 D1           	POP DE
+ 276+ C542 7C           TP_2	LD A,H
+ 277+ C543 02           	LD (BC),A
+ 278+ C544 0B           	DEC BC
+ 279+ C545 7D           	LD A,L
+ 280+ C546 02           	LD (BC),A
+ 281+ C547 0B           	DEC BC
 ptx_vtpl.i.asm(282): warning: value 0x1F0 is truncated to 8bit value: 0xF0
- 282+ C342 D6 F0        	SUB #F8*2
- 283+ C344 20 E3        	JR NZ,TP_0
- 284+ C346
- 285+ C346 3C           	INC A
- 286+ C347 32 8A CB     	LD (VARS1+VRS.DelyCnt),A
- 287+ C34A 32 11 CC     	LD (VARS2+VRS.DelyCnt),A
- 288+ C34D 21 01 F0     	LD HL,#F001 ;H - CHP.Volume, L - CHP.NtSkCn
- 289+ C350 22 3B CB     	LD (VARS1+VRS.ChanA+CHP.NtSkCn),HL
- 290+ C353 22 58 CB     	LD (VARS1+VRS.ChanB+CHP.NtSkCn),HL
- 291+ C356 22 75 CB     	LD (VARS1+VRS.ChanC+CHP.NtSkCn),HL
- 292+ C359 22 C2 CB     	LD (VARS2+VRS.ChanA+CHP.NtSkCn),HL
- 293+ C35C 22 DF CB     	LD (VARS2+VRS.ChanB+CHP.NtSkCn),HL
- 294+ C35F 22 FC CB     	LD (VARS2+VRS.ChanC+CHP.NtSkCn),HL
- 295+ C362 E1           	POP HL
- 296+ C363 22 2D CB     	LD (VARS1+VRS.ChanA+CHP.OrnPtr),HL
- 297+ C366 22 4A CB     	LD (VARS1+VRS.ChanB+CHP.OrnPtr),HL
- 298+ C369 22 67 CB     	LD (VARS1+VRS.ChanC+CHP.OrnPtr),HL
- 299+ C36C 22 B4 CB     	LD (VARS2+VRS.ChanA+CHP.OrnPtr),HL
- 300+ C36F 22 D1 CB     	LD (VARS2+VRS.ChanB+CHP.OrnPtr),HL
- 301+ C372 22 EE CB     	LD (VARS2+VRS.ChanC+CHP.OrnPtr),HL
- 302+ C375
- 303+ C375 F1           	POP AF
- 304+ C376
- 305+ C376              ;NoteTableCreator (c) Ivan Roshin
- 306+ C376              ;A - NoteTableNumber*2+VersionForNoteTable
- 307+ C376              ;(xx1b - 3.xx..3.4r, xx0b - 3.4x..3.6x..VTII1.0)
- 308+ C376
- 309+ C376 21 94 CA     	LD HL,NT_DATA
- 310+ C379 16 00        	LD D,0
- 311+ C37B 87           	ADD A,A
- 312+ C37C 5F           	LD E,A
- 313+ C37D 19           	ADD HL,DE
- 314+ C37E 5E           	LD E,(HL)
- 315+ C37F 23           	INC HL
- 316+ C380 CB 3B        	SRL E
- 317+ C382 9F           	SBC A,A
- 318+ C383 E6 A7        	AND #A7 ;#00 (NOP) or #A7 (AND A)
- 319+ C385 32 AD C3     	LD (L3),A
- 320+ C388 EB           	EX DE,HL
- 321+ C389 01 2B CC     	LD BC,T1_
- 322+ C38C 09           	ADD HL,BC
- 323+ C38D
- 324+ C38D 1A           	LD A,(DE)
-ptx_vtpl.i.asm(325): warning: value 0xCAA4 is truncated to 8bit value: 0xA4
- 325+ C38E C6 A4        	ADD A,T_
- 326+ C390 4F           	LD C,A
- 327+ C391 CE CA        	ADC A,T_/256
- 328+ C393 91           	SUB C
- 329+ C394 47           	LD B,A
- 330+ C395 C5           	PUSH BC
- 331+ C396 11 1B CD     	LD DE,NT_
- 332+ C399 D5           	PUSH DE
- 333+ C39A
- 334+ C39A 06 0C        	LD B,12
- 335+ C39C C5           L1	PUSH BC
- 336+ C39D 4E           	LD C,(HL)
- 337+ C39E 23           	INC HL
- 338+ C39F E5           	PUSH HL
- 339+ C3A0 46           	LD B,(HL)
- 340+ C3A1
- 341+ C3A1 D5           	PUSH DE
- 342+ C3A2 EB           	EX DE,HL
- 343+ C3A3 11 17 00     	LD DE,23
- 344+ C3A6 DD 26 08     	LD IXH,8
- 345+ C3A9
- 346+ C3A9 CB 38        L2	SRL B
- 347+ C3AB CB 19        	RR C
- 348+ C3AD 19           L3	DB #19	;AND A or NOP
- 349+ C3AE 79           	LD A,C
- 350+ C3AF 8A           	ADC A,D	;=ADC 0
- 351+ C3B0 77           	LD (HL),A
- 352+ C3B1 23           	INC HL
- 353+ C3B2 78           	LD A,B
- 354+ C3B3 8A           	ADC A,D
- 355+ C3B4 77           	LD (HL),A
- 356+ C3B5 19           	ADD HL,DE
- 357+ C3B6 DD 25        	DEC IXH
- 358+ C3B8 20 EF        	JR NZ,L2
- 359+ C3BA
- 360+ C3BA D1           	POP DE
- 361+ C3BB 13           	INC DE
- 362+ C3BC 13           	INC DE
- 363+ C3BD E1           	POP HL
- 364+ C3BE 23           	INC HL
- 365+ C3BF C1           	POP BC
- 366+ C3C0 10 DA        	DJNZ L1
- 367+ C3C2
- 368+ C3C2 E1           	POP HL
- 369+ C3C3 D1           	POP DE
- 370+ C3C4
- 371+ C3C4 7B           	LD A,E
-ptx_vtpl.i.asm(372): warning: value 0xCAB0 is truncated to 8bit value: 0xB0
- 372+ C3C5 FE B0        	CP TCOLD_1
- 373+ C3C7 20 05        	JR NZ,CORR_1
- 374+ C3C9 3E FD        	LD A,#FD
- 375+ C3CB 32 49 CD     	LD (NT_+#2E),A
- 376+ C3CE
- 377+ C3CE 1A           CORR_1	LD A,(DE)
- 378+ C3CF A7           	AND A
- 379+ C3D0 28 11        	JR Z,TC_EXIT
- 380+ C3D2 1F           	RRA
- 381+ C3D3 F5           	PUSH AF
- 382+ C3D4 87           	ADD A,A
- 383+ C3D5 4F           	LD C,A
- 384+ C3D6 09           	ADD HL,BC
- 385+ C3D7 F1           	POP AF
- 386+ C3D8 30 02        	JR NC,CORR_2
- 387+ C3DA 35           	DEC (HL)
- 388+ C3DB 35           	DEC (HL)
- 389+ C3DC 34           CORR_2	INC (HL)
- 390+ C3DD A7           	AND A
- 391+ C3DE ED 42        	SBC HL,BC
- 392+ C3E0 13           	INC DE
- 393+ C3E1 18 EB        	JR CORR_1
- 394+ C3E3
- 395+ C3E3              TC_EXIT
- 396+ C3E3
- 397+ C3E3 F1           	POP AF
- 398+ C3E4
- 399+ C3E4              ;VolTableCreator (c) Ivan Roshin
- 400+ C3E4              ;A - VersionForVolumeTable (0..4 - 3.xx..3.4x;
- 401+ C3E4              			   ;5.. - 2.x,3.5x..3.6x..VTII1.0)
- 402+ C3E4
- 403+ C3E4 FE 05        	CP 5
- 404+ C3E6 21 11 00     	LD HL,#11
- 405+ C3E9 54           	LD D,H
- 406+ C3EA 5C           	LD E,H
- 407+ C3EB 3E 17        	LD A,#17
- 408+ C3ED 30 03        	JR NC,M1
- 409+ C3EF 2D           	DEC L
- 410+ C3F0 5D           	LD E,L
- 411+ C3F1 AF           	XOR A
- 412+ C3F2 32 03 C4     M1      LD (M2),A
- 413+ C3F5
- 414+ C3F5 DD 21 2B CC  	LD IX,VT_+16
- 415+ C3F9
- 416+ C3F9 0E 0F        	LD C,#F
- 417+ C3FB E5           INITV2  PUSH HL
- 418+ C3FC
- 419+ C3FC 19           	ADD HL,DE
- 420+ C3FD EB           	EX DE,HL
- 421+ C3FE ED 62        	SBC HL,HL
- 422+ C400
- 423+ C400 06 10        	LD B,#10
- 424+ C402 7D           INITV1  LD A,L
- 425+ C403 7D           M2      DB #7D
- 426+ C404 7C           	LD A,H
- 427+ C405 CE 00        	ADC A,0
- 428+ C407 DD 77 00     	LD (IX),A
- 429+ C40A DD 23        	INC IX
- 430+ C40C 19           	ADD HL,DE
- 431+ C40D 10 F3        	DJNZ INITV1
- 432+ C40F
- 433+ C40F E1           	POP HL
- 434+ C410 7B           	LD A,E
- 435+ C411 FE 77        	CP #77
- 436+ C413 20 01        	JR NZ,M3
- 437+ C415 1C           	INC E
- 438+ C416 0D           M3      DEC C
- 439+ C417 20 E2        	JR NZ,INITV2
- 440+ C419
- 441+ C419 C3 61 CA     	JP ROUT
- 442+ C41C
- 443+ C41C CD 8F C4     INITPT3	CALL SETMDAD
- 444+ C41F E5           	PUSH HL
- 445+ C420 11 64 00     	LD DE,100
- 446+ C423 19           	ADD HL,DE
- 447+ C424 7E           	LD A,(HL)
- 448+ C425 FD 77 08     	LD (IY-100+VRS.Delay),A
- 449+ C428 E5           	PUSH HL
- 450+ C429 DD E1        	POP IX
- 451+ C42B 19           	ADD HL,DE
- 452+ C42C CD 9D C4     	CALL SETCPPT
- 453+ C42F DD 5E 02     	LD E,(IX+102-100)
- 454+ C432 23           	INC HL
- 455+ C433
- 456+ C433              	IF CurPosCounter
- 457+ C433 ~            	LD (IY-100+VRS.PosSub),L
- 458+ C433              	ENDIF
- 459+ C433
- 460+ C433 19           	ADD HL,DE
- 461+ C434 CD A4 C4     	CALL SETLPPT
- 462+ C437 D1           	POP DE
- 463+ C438 DD 6E 03     	LD L,(IX+103-100)
- 464+ C43B DD 66 04     	LD H,(IX+104-100)
- 465+ C43E 19           	ADD HL,DE
- 466+ C43F CD 88 C4     	CALL SETPTPT
- 467+ C442 21 A9 00     	LD HL,169
- 468+ C445 19           	ADD HL,DE
- 469+ C446 CD 96 C4     	CALL SETORPT
- 470+ C449 21 69 00     	LD HL,105
- 471+ C44C 19           	ADD HL,DE
- 472+ C44D
- 473+ C44D FD 75 FA     SETSMPT LD (IY-100+VRS.SamPtrs),L
- 474+ C450 FD 74 FB     	LD (IY-100+VRS.SamPtrs+1),H
- 475+ C453 C9           	RET
- 476+ C454
- 477+ C454 7E           INITPT2	LD A,(HL)
- 478+ C455 FD 77 08     	LD (IY-100+VRS.Delay),A
- 479+ C458 E5           	PUSH HL
- 480+ C459 E5           	PUSH HL
- 481+ C45A E5           	PUSH HL
- 482+ C45B 23           	INC HL
- 483+ C45C 23           	INC HL
- 484+ C45D 7E           	LD A,(HL)
- 485+ C45E 23           	INC HL
- 486+ C45F CD 4D C4     	CALL SETSMPT
- 487+ C462 5E           	LD E,(HL)
- 488+ C463 23           	INC HL
- 489+ C464 56           	LD D,(HL)
- 490+ C465 E1           	POP HL
- 491+ C466 A7           	AND A
- 492+ C467 ED 52        	SBC HL,DE
- 493+ C469 CD 8F C4     	CALL SETMDAD
- 494+ C46C E1           	POP HL
- 495+ C46D 11 43 00     	LD DE,67
- 496+ C470 19           	ADD HL,DE
- 497+ C471 CD 96 C4     	CALL SETORPT
- 498+ C474 1E 20        	LD E,32
- 499+ C476 19           	ADD HL,DE
- 500+ C477 4E           	LD C,(HL)
- 501+ C478 23           	INC HL
- 502+ C479 46           	LD B,(HL)
- 503+ C47A 1E 1E        	LD E,30
- 504+ C47C 19           	ADD HL,DE
- 505+ C47D CD 9D C4     	CALL SETCPPT
- 506+ C480 5F           	LD E,A
- 507+ C481 23           	INC HL
- 508+ C482
- 509+ C482              	IF CurPosCounter
- 510+ C482 ~            	LD (IY-100+VRS.PosSub),L
- 511+ C482              	ENDIF
- 512+ C482
- 513+ C482 19           	ADD HL,DE
- 514+ C483 CD A4 C4     	CALL SETLPPT
- 515+ C486 E1           	POP HL
- 516+ C487 09           	ADD HL,BC
- 517+ C488
- 518+ C488 FD 75 FC     SETPTPT	LD (IY-100+VRS.PatsPtr),L
- 519+ C48B FD 74 FD     	LD (IY-100+VRS.PatsPtr+1),H
- 520+ C48E C9           	RET
- 521+ C48F
- 522+ C48F FD 75 F6     SETMDAD	LD (IY-100+VRS.MODADDR),L
- 523+ C492 FD 74 F7     	LD (IY-100+VRS.MODADDR+1),H
- 524+ C495 C9           	RET
- 525+ C496
- 526+ C496 FD 75 F8     SETORPT	LD (IY-100+VRS.OrnPtrs),L
- 527+ C499 FD 74 F9     	LD (IY-100+VRS.OrnPtrs+1),H
- 528+ C49C C9           	RET
- 529+ C49D
- 530+ C49D FD 75 04     SETCPPT	LD (IY-100+VRS.CrPsPtr),L
- 531+ C4A0 FD 74 05     	LD (IY-100+VRS.CrPsPtr+1),H
- 532+ C4A3 C9           	RET
- 533+ C4A4
- 534+ C4A4 FD 75 06     SETLPPT	LD (IY-100+VRS.LPosPtr),L
- 535+ C4A7 FD 74 07     	LD (IY-100+VRS.LPosPtr+1),H
- 536+ C4AA C9           	RET
- 537+ C4AB
- 538+ C4AB FD 75 13     SETENBS	LD (IY-100+VRS.EnvBase),L
- 539+ C4AE FD 74 14     	LD (IY-100+VRS.EnvBase+1),H
- 540+ C4B1 C9           	RET
- 541+ C4B2
- 542+ C4B2 FD 75 0C     SETESLD	LD (IY-100+VRS.CurESld),L
- 543+ C4B5 FD 74 0D     	LD (IY-100+VRS.CurESld+1),H
- 544+ C4B8 C9           	RET
- 545+ C4B9
- 546+ C4B9 FD E5        GETIX	PUSH IY
- 547+ C4BB DD E1        	POP IX
- 548+ C4BD DD 19        	ADD IX,DE
- 549+ C4BF C9           	RET
- 550+ C4C0
- 551+ C4C0 CD B9 C4     PTDECOD CALL GETIX
- 552+ C4C3              PTDEC	EQU $+1
- 553+ C4C3 C3 C3 C3     	JP #C3C3
- 554+ C4C6
- 555+ C4C6              ;PT2 pattern decoder
- 556+ C4C6 CD 5C C7     PD2_SAM	CALL SETSAM
- 557+ C4C9 18 4A        	JR PD2_LOOP
- 558+ C4CB
- 559+ C4CB DD 77 08     PD2_EOff LD (IX-12+CHP.Env_En),A
- 560+ C4CE 18 45        	JR PD2_LOOP
- 561+ C4D0
- 562+ C4D0 DD 36 08 10  PD2_ENV	LD (IX-12+CHP.Env_En),16
- 563+ C4D4 FD 77 22     	LD (IY-100+VRS.AYREGS+EnvTp),A
- 564+ C4D7 0A           	LD A,(BC)
- 565+ C4D8 03           	INC BC
- 566+ C4D9 6F           	LD L,A
- 567+ C4DA 0A           	LD A,(BC)
- 568+ C4DB 03           	INC BC
- 569+ C4DC 67           	LD H,A
- 570+ C4DD CD AB C4     	CALL SETENBS
- 571+ C4E0 18 33        	JR PD2_LOOP
- 572+ C4E2
- 573+ C4E2 CD 3D C7     PD2_ORN	CALL SETORN
- 574+ C4E5 18 2E        	JR PD2_LOOP
- 575+ C4E7
- 576+ C4E7 3C           PD2_SKIP INC A
- 577+ C4E8 DD 77 05     	LD (IX-12+CHP.NNtSkp),A
- 578+ C4EB 18 28        	JR PD2_LOOP
- 579+ C4ED
- 580+ C4ED 0F           PD2_VOL	RRCA
- 581+ C4EE 0F           	RRCA
- 582+ C4EF 0F           	RRCA
- 583+ C4F0 0F           	RRCA
- 584+ C4F1 DD 77 10     	LD (IX-12+CHP.Volume),A
- 585+ C4F4 18 1F        	JR PD2_LOOP
- 586+ C4F6
- 587+ C4F6 CD 0D C7     PD2_DEL	CALL C_DELAY
- 588+ C4F9 18 1A        	JR PD2_LOOP
- 589+ C4FB
- 590+ C4FB DD CB 09 D6  PD2_GLIS SET 2,(IX-12+CHP.Flags)
- 591+ C4FF 3C           	INC A
- 592+ C500 DD 77 0A     	LD (IX-12+CHP.TnSlDl),A
- 593+ C503 DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
- 594+ C506 0A           	LD A,(BC)
- 595+ C507 03           	INC BC
- 596+ C508 DD 77 0B             LD (IX-12+CHP.TSlStp),A
- 597+ C50B 87           	ADD A,A
- 598+ C50C 9F           	SBC A,A
- 599+ C50D DD 77 0C             LD (IX-12+CHP.TSlStp+1),A
- 600+ C510 37           	SCF
- 601+ C511 18 01        	JR PD2_LP2
- 602+ C513
- 603+ C513 A7           PT2PD	AND A
- 604+ C514
- 605+ C514 08           PD2_LP2	EX AF,AF'
- 606+ C515
- 607+ C515 0A           PD2_LOOP LD A,(BC)
- 608+ C516 03           	INC BC
- 609+ C517 C6 20        	ADD A,#20
- 610+ C519 28 3F        	JR Z,PD2_REL
- 611+ C51B 38 A9        	JR C,PD2_SAM
- 612+ C51D C6 60        	ADD A,96
- 613+ C51F 38 3E        	JR C,PD2_NOTE
- 614+ C521 3C           	INC A
- 615+ C522 28 A7        	JR Z,PD2_EOff
- 616+ C524 C6 0F        	ADD A,15
- 617+ C526 CA 3C C6     	JP Z,PD_FIN
- 618+ C529 38 A5        	JR C,PD2_ENV
- 619+ C52B C6 10        	ADD A,#10
- 620+ C52D 38 B3        	JR C,PD2_ORN
- 621+ C52F C6 40        	ADD A,#40
- 622+ C531 38 B4        	JR C,PD2_SKIP
- 623+ C533 C6 10        	ADD A,#10
- 624+ C535 38 B6        	JR C,PD2_VOL
- 625+ C537 3C           	INC A
- 626+ C538 28 BC        	JR Z,PD2_DEL
- 627+ C53A 3C           	INC A
- 628+ C53B 28 BE        	JR Z,PD2_GLIS
- 629+ C53D 3C           	INC A
- 630+ C53E 28 0A        	JR Z,PD2_PORT
- 631+ C540 3C           	INC A
- 632+ C541 28 12        	JR Z,PD2_STOP
- 633+ C543 0A           	LD A,(BC)
- 634+ C544 03           	INC BC
- 635+ C545 DD 77 F7     	LD (IX-12+CHP.CrNsSl),A
- 636+ C548 18 CB        	JR PD2_LOOP
- 637+ C54A
- 638+ C54A DD CB 09 96  PD2_PORT RES 2,(IX-12+CHP.Flags)
- 639+ C54E 0A           	LD A,(BC)
- 640+ C54F 03           	INC BC
- 641+ C550 03           	INC BC ;ignoring precalc delta to right sound
- 642+ C551 03           	INC BC
- 643+ C552 37           	SCF
- 644+ C553 18 BF        	JR PD2_LP2
- 645+ C555
- 646+ C555 DD 77 F9     PD2_STOP LD (IX-12+CHP.TSlCnt),A
- 647+ C558 18 BB        	JR PD2_LOOP
- 648+ C55A
- 649+ C55A DD 77 09     PD2_REL	LD (IX-12+CHP.Flags),A
- 650+ C55D 18 2C        	JR PD2_EXIT
- 651+ C55F
- 652+ C55F 6F           PD2_NOTE LD L,A
- 653+ C560 DD 7E 06     	LD A,(IX-12+CHP.Note)
- 654+ C563 32 76 C6     	LD (PrNote+1),A
- 655+ C566 DD 75 06     	LD (IX-12+CHP.Note),L
- 656+ C569 AF           	XOR A
- 657+ C56A DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
- 658+ C56D DD CB 09 C6  	SET 0,(IX-12+CHP.Flags)
- 659+ C571 08           	EX AF,AF'
- 660+ C572 30 16        	JR NC,NOGLIS2
- 661+ C574 DD CB 09 56  	BIT 2,(IX-12+CHP.Flags)
- 662+ C578 20 0C        	JR NZ,NOPORT2
- 663+ C57A 32 9C C6     	LD (LoStep),A
- 664+ C57D 87           	ADD A,A
- 665+ C57E 9F           	SBC A,A
- 666+ C57F 08           	EX AF,AF'
- 667+ C580 67           	LD H,A
- 668+ C581 6F           	LD L,A
- 669+ C582 3C           	INC A
- 670+ C583 CD 57 C6     	CALL SETPORT
- 671+ C586 DD 36 F9 01  NOPORT2	LD (IX-12+CHP.TSlCnt),1
- 672+ C58A AF           NOGLIS2	XOR A
- 673+ C58B
- 674+ C58B
- 675+ C58B DD 77 F5     PD2_EXIT LD (IX-12+CHP.PsInSm),A
- 676+ C58E DD 77 F4     	LD (IX-12+CHP.PsInOr),A
- 677+ C591 DD 77 FA     	LD (IX-12+CHP.CrTnSl),A
- 678+ C594 DD 77 FB     	LD (IX-12+CHP.CrTnSl+1),A
- 679+ C597 C3 3C C6     	JP PD_FIN
- 680+ C59A
- 681+ C59A              ;PT3 pattern decoder
- 682+ C59A DD 36 08 00  PD_OrSm	LD (IX-12+CHP.Env_En),0
- 683+ C59E CD 3D C7     	CALL SETORN
- 684+ C5A1 0A           PD_SAM_	LD A,(BC)
- 685+ C5A2 03           	INC BC
- 686+ C5A3 0F           	RRCA
- 687+ C5A4
- 688+ C5A4 CD 5C C7     PD_SAM	CALL SETSAM
- 689+ C5A7 18 3F        	JR PD_LOOP
- 690+ C5A9
- 691+ C5A9 0F           PD_VOL	RRCA
- 692+ C5AA 0F           	RRCA
- 693+ C5AB 0F           	RRCA
- 694+ C5AC 0F           	RRCA
- 695+ C5AD DD 77 10     	LD (IX-12+CHP.Volume),A
- 696+ C5B0 18 39        	JR PD_LP2
- 697+ C5B2
- 698+ C5B2 DD 77 08     PD_EOff	LD (IX-12+CHP.Env_En),A
- 699+ C5B5 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
- 700+ C5B8 18 31        	JR PD_LP2
- 701+ C5BA
- 702+ C5BA 3D           PD_SorE	DEC A
- 703+ C5BB 20 07        	JR NZ,PD_ENV
- 704+ C5BD 0A           	LD A,(BC)
- 705+ C5BE 03           	INC BC
- 706+ C5BF DD 77 05     	LD (IX-12+CHP.NNtSkp),A
- 707+ C5C2 18 27        	JR PD_LP2
- 708+ C5C4
- 709+ C5C4 CD 22 C7     PD_ENV	CALL SETENV
- 710+ C5C7 18 22        	JR PD_LP2
- 711+ C5C9
- 712+ C5C9 CD 3D C7     PD_ORN	CALL SETORN
- 713+ C5CC 18 1A        	JR PD_LOOP
- 714+ C5CE
- 715+ C5CE DD 77 08     PD_ESAM	LD (IX-12+CHP.Env_En),A
- 716+ C5D1 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
- 717+ C5D4 C4 22 C7     	CALL NZ,SETENV
- 718+ C5D7 18 C8        	JR PD_SAM_
- 719+ C5D9
- 720+ C5D9 DD 7E 06     PT3PD	LD A,(IX-12+CHP.Note)
- 721+ C5DC 32 76 C6     	LD (PrNote+1),A
- 722+ C5DF DD 6E FA     	LD L,(IX-12+CHP.CrTnSl)
- 723+ C5E2 DD 66 FB     	LD H,(IX-12+CHP.CrTnSl+1)
- 724+ C5E5 22 93 C6     	LD (PrSlide+1),HL
- 725+ C5E8
- 726+ C5E8 11 10 20     PD_LOOP	LD DE,#2010
- 727+ C5EB 0A           PD_LP2	LD A,(BC)
- 728+ C5EC 03           	INC BC
- 729+ C5ED 83           	ADD A,E
- 730+ C5EE 38 AA        	JR C,PD_OrSm
- 731+ C5F0 82           	ADD A,D
- 732+ C5F1 28 49        	JR Z,PD_FIN
- 733+ C5F3 38 AF        	JR C,PD_SAM
- 734+ C5F5 83           	ADD A,E
- 735+ C5F6 28 25        	JR Z,PD_REL
- 736+ C5F8 38 AF        	JR C,PD_VOL
- 737+ C5FA 83           	ADD A,E
- 738+ C5FB 28 B5        	JR Z,PD_EOff
- 739+ C5FD 38 BB        	JR C,PD_SorE
- 740+ C5FF C6 60        	ADD A,96
- 741+ C601 38 20        	JR C,PD_NOTE
- 742+ C603 83           	ADD A,E
- 743+ C604 38 C3        	JR C,PD_ORN
- 744+ C606 82           	ADD A,D
- 745+ C607 38 0F        	JR C,PD_NOIS
- 746+ C609 83           	ADD A,E
- 747+ C60A 38 C2        	JR C,PD_ESAM
- 748+ C60C 87           	ADD A,A
- 749+ C60D 5F           	LD E,A
-ptx_vtpl.i.asm(750): warning: value 0x1A698 is truncated to 16bit value: 0xA698
- 750+ C60E 21 98 A6     	LD HL,SPCCOMS+#FF20-#2000
- 751+ C611 19           	ADD HL,DE
- 752+ C612 5E           	LD E,(HL)
- 753+ C613 23           	INC HL
- 754+ C614 56           	LD D,(HL)
- 755+ C615 D5           	PUSH DE
- 756+ C616 18 D0        	JR PD_LOOP
- 757+ C618
- 758+ C618 FD 77 10     PD_NOIS	LD (IY-100+VRS.Ns_Base),A
- 759+ C61B 18 CE        	JR PD_LP2
- 760+ C61D
- 761+ C61D DD CB 09 86  PD_REL	RES 0,(IX-12+CHP.Flags)
- 762+ C621 18 08        	JR PD_RES
- 763+ C623
- 764+ C623 DD 77 06     PD_NOTE	LD (IX-12+CHP.Note),A
- 765+ C626 DD CB 09 C6  	SET 0,(IX-12+CHP.Flags)
- 766+ C62A AF           	XOR A
- 767+ C62B
- 768+ C62B ED 73 3A C6  PD_RES	LD (PDSP_+1),SP
- 769+ C62F DD F9        	LD SP,IX
- 770+ C631 67           	LD H,A
- 771+ C632 6F           	LD L,A
- 772+ C633 E5           	PUSH HL
- 773+ C634 E5           	PUSH HL
- 774+ C635 E5           	PUSH HL
- 775+ C636 E5           	PUSH HL
- 776+ C637 E5           	PUSH HL
- 777+ C638 E5           	PUSH HL
- 778+ C639 31 31 31     PDSP_	LD SP,#3131
- 779+ C63C
- 780+ C63C DD 7E 05     PD_FIN	LD A,(IX-12+CHP.NNtSkp)
- 781+ C63F DD 77 0F     	LD (IX-12+CHP.NtSkCn),A
- 782+ C642 C9           	RET
- 783+ C643
- 784+ C643 0A           C_PORTM LD A,(BC)
- 785+ C644 03           	INC BC
- 786+ C645              ;SKIP PRECALCULATED TONE DELTA (BECAUSE
- 787+ C645              ;CANNOT BE RIGHT AFTER PT3 COMPILATION)
- 788+ C645 03           	INC BC
- 789+ C646 03           	INC BC
- 790+ C647 08           	EX AF,AF'
- 791+ C648 0A           	LD A,(BC) ;SIGNED TONE STEP
- 792+ C649 03           	INC BC
- 793+ C64A 32 9C C6     	LD (LoStep),A
- 794+ C64D 0A           	LD A,(BC)
- 795+ C64E 03           	INC BC
- 796+ C64F A7           	AND A
- 797+ C650 08           	EX AF,AF'
- 798+ C651 DD 6E FA     	LD L,(IX-12+CHP.CrTnSl)
- 799+ C654 DD 66 FB     	LD H,(IX-12+CHP.CrTnSl+1)
- 800+ C657
- 801+ C657              ;Set portamento variables
- 802+ C657              ;A - Delay; A' - Hi(Step); ZF' - (A'=0); HL - CrTnSl
- 803+ C657
- 804+ C657 DD CB 09 96  SETPORT	RES 2,(IX-12+CHP.Flags)
- 805+ C65B DD 77 0A     	LD (IX-12+CHP.TnSlDl),A
- 806+ C65E DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
- 807+ C661 E5           	PUSH HL
- 808+ C662 11 1B CD     	LD DE,NT_
- 809+ C665 DD 7E 06     	LD A,(IX-12+CHP.Note)
- 810+ C668 DD 77 07     	LD (IX-12+CHP.SlToNt),A
- 811+ C66B 87           	ADD A,A
- 812+ C66C 6F           	LD L,A
- 813+ C66D 26 00        	LD H,0
- 814+ C66F 19           	ADD HL,DE
- 815+ C670 7E           	LD A,(HL)
- 816+ C671 23           	INC HL
- 817+ C672 66           	LD H,(HL)
- 818+ C673 6F           	LD L,A
- 819+ C674 E5           	PUSH HL
- 820+ C675 3E 3E        PrNote	LD A,#3E
- 821+ C677 DD 77 06     	LD (IX-12+CHP.Note),A
- 822+ C67A 87           	ADD A,A
- 823+ C67B 6F           	LD L,A
- 824+ C67C 26 00        	LD H,0
- 825+ C67E 19           	ADD HL,DE
- 826+ C67F 5E           	LD E,(HL)
- 827+ C680 23           	INC HL
- 828+ C681 56           	LD D,(HL)
- 829+ C682 E1           	POP HL
- 830+ C683 ED 52        	SBC HL,DE
- 831+ C685 DD 75 0D     	LD (IX-12+CHP.TnDelt),L
- 832+ C688 DD 74 0E     	LD (IX-12+CHP.TnDelt+1),H
- 833+ C68B D1           	POP DE
- 834+ C68C              Version EQU $+1
- 835+ C68C 3E 3E        	LD A,#3E
- 836+ C68E FE 06        	CP 6
- 837+ C690 38 09        	JR C,OLDPRTM ;Old 3xxx for PT v3.5-
- 838+ C692 11 11 11     PrSlide	LD DE,#1111
- 839+ C695 DD 73 FA     	LD (IX-12+CHP.CrTnSl),E
- 840+ C698 DD 72 FB     	LD (IX-12+CHP.CrTnSl+1),D
- 841+ C69B              LoStep	EQU $+1
- 842+ C69B 3E 3E        OLDPRTM	LD A,#3E
- 843+ C69D 08           	EX AF,AF'
- 844+ C69E 28 01        	JR Z,NOSIG
- 845+ C6A0 EB           	EX DE,HL
- 846+ C6A1 ED 52        NOSIG	SBC HL,DE
- 847+ C6A3 F2 AB C6     	JP P,SET_STP
- 848+ C6A6 2F           	CPL
- 849+ C6A7 08           	EX AF,AF'
- 850+ C6A8 ED 44        	NEG
- 851+ C6AA 08           	EX AF,AF'
- 852+ C6AB DD 77 0C     SET_STP	LD (IX-12+CHP.TSlStp+1),A
- 853+ C6AE 08           	EX AF,AF'
- 854+ C6AF DD 77 0B     	LD (IX-12+CHP.TSlStp),A
- 855+ C6B2 DD 36 FE 00  	LD (IX-12+CHP.COnOff),0
- 856+ C6B6 C9           	RET
- 857+ C6B7
- 858+ C6B7 DD CB 09 D6  C_GLISS	SET 2,(IX-12+CHP.Flags)
- 859+ C6BB 0A           	LD A,(BC)
- 860+ C6BC 03           	INC BC
- 861+ C6BD DD 77 0A     	LD (IX-12+CHP.TnSlDl),A
- 862+ C6C0 A7           	AND A
- 863+ C6C1 20 07        	JR NZ,GL36
- 864+ C6C3 3A 8D C6     	LD A,(Version) ;AlCo PT3.7+
- 865+ C6C6 FE 07        	CP 7
- 866+ C6C8 9F           	SBC A,A
- 867+ C6C9 3C           	INC A
- 868+ C6CA DD 77 F9     GL36	LD (IX-12+CHP.TSlCnt),A
- 869+ C6CD 0A           	LD A,(BC)
- 870+ C6CE 03           	INC BC
- 871+ C6CF 08           	EX AF,AF'
- 872+ C6D0 0A           	LD A,(BC)
- 873+ C6D1 03           	INC BC
- 874+ C6D2 18 D7        	JR SET_STP
- 875+ C6D4
- 876+ C6D4 0A           C_SMPOS	LD A,(BC)
- 877+ C6D5 03           	INC BC
- 878+ C6D6 DD 77 F5     	LD (IX-12+CHP.PsInSm),A
- 879+ C6D9 C9           	RET
- 880+ C6DA
- 881+ C6DA 0A           C_ORPOS	LD A,(BC)
- 882+ C6DB 03           	INC BC
- 883+ C6DC DD 77 F4     	LD (IX-12+CHP.PsInOr),A
- 884+ C6DF C9           	RET
- 885+ C6E0
- 886+ C6E0 0A           C_VIBRT	LD A,(BC)
- 887+ C6E1 03           	INC BC
- 888+ C6E2 DD 77 FF     	LD (IX-12+CHP.OnOffD),A
- 889+ C6E5 DD 77 FE     	LD (IX-12+CHP.COnOff),A
- 890+ C6E8 0A           	LD A,(BC)
- 891+ C6E9 03           	INC BC
- 892+ C6EA DD 77 00     	LD (IX-12+CHP.OffOnD),A
- 893+ C6ED AF           	XOR A
- 894+ C6EE DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
- 895+ C6F1 DD 77 FA     	LD (IX-12+CHP.CrTnSl),A
- 896+ C6F4 DD 77 FB     	LD (IX-12+CHP.CrTnSl+1),A
- 897+ C6F7 C9           	RET
- 898+ C6F8
- 899+ C6F8 0A           C_ENGLS	LD A,(BC)
- 900+ C6F9 03           	INC BC
- 901+ C6FA FD 77 0E     	LD (IY-100+VRS.Env_Del),A
- 902+ C6FD FD 77 0F     	LD (IY-100+VRS.CurEDel),A
- 903+ C700 0A           	LD A,(BC)
- 904+ C701 03           	INC BC
- 905+ C702 6F           	LD L,A
- 906+ C703 0A           	LD A,(BC)
- 907+ C704 03           	INC BC
- 908+ C705 67           	LD H,A
- 909+ C706 FD 75 0A     	LD (IY-100+VRS.ESldAdd),L
- 910+ C709 FD 74 0B     	LD (IY-100+VRS.ESldAdd+1),H
- 911+ C70C C9           	RET
- 912+ C70D
- 913+ C70D 0A           C_DELAY	LD A,(BC)
- 914+ C70E 03           	INC BC
- 915+ C70F FD 77 08     	LD (IY-100+VRS.Delay),A
- 916+ C712 21 A6 CB     	LD HL,VARS2+VRS.ModNum ;if AlCo_TS
- 917+ C715 CB 4E        	BIT 1,(HL)
- 918+ C717 C8           	RET Z
- 919+ C718 32 89 CB     	LD (VARS1+VRS.Delay),A
- 920+ C71B 32 8A CB     	LD (VARS1+VRS.DelyCnt),A
- 921+ C71E 32 10 CC     	LD (VARS2+VRS.Delay),A
- 922+ C721 C9           	RET
- 923+ C722
- 924+ C722 DD 73 08     SETENV	LD (IX-12+CHP.Env_En),E
- 925+ C725 FD 77 22     	LD (IY-100+VRS.AYREGS+EnvTp),A
- 926+ C728 0A           	LD A,(BC)
- 927+ C729 03           	INC BC
- 928+ C72A 67           	LD H,A
- 929+ C72B 0A           	LD A,(BC)
- 930+ C72C 03           	INC BC
- 931+ C72D 6F           	LD L,A
- 932+ C72E CD AB C4     	CALL SETENBS
- 933+ C731 AF           	XOR A
- 934+ C732 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
- 935+ C735 FD 77 0F     	LD (IY-100+VRS.CurEDel),A
- 936+ C738 67           	LD H,A
- 937+ C739 6F           	LD L,A
- 938+ C73A C3 B2 C4     	JP SETESLD
- 939+ C73D
- 940+ C73D 87           SETORN	ADD A,A
- 941+ C73E 5F           	LD E,A
- 942+ C73F 16 00        	LD D,0
- 943+ C741 DD 72 F4     	LD (IX-12+CHP.PsInOr),D
- 944+ C744 FD 6E F8     	LD L,(IY-100+VRS.OrnPtrs)
- 945+ C747 FD 66 F9     	LD H,(IY-100+VRS.OrnPtrs+1)
- 946+ C74A 19           	ADD HL,DE
- 947+ C74B 5E           	LD E,(HL)
- 948+ C74C 23           	INC HL
- 949+ C74D 56           	LD D,(HL)
- 950+ C74E FD 6E F6     	LD L,(IY-100+VRS.MODADDR)
- 951+ C751 FD 66 F7     	LD H,(IY-100+VRS.MODADDR+1)
- 952+ C754 19           	ADD HL,DE
- 953+ C755 DD 75 01     	LD (IX-12+CHP.OrnPtr),L
- 954+ C758 DD 74 02     	LD (IX-12+CHP.OrnPtr+1),H
- 955+ C75B C9           C_NOP	RET
- 956+ C75C
- 957+ C75C 87           SETSAM	ADD A,A
- 958+ C75D 5F           	LD E,A
- 959+ C75E 16 00        	LD D,0
- 960+ C760 FD 6E FA     	LD L,(IY-100+VRS.SamPtrs);
- 961+ C763 FD 66 FB     	LD H,(IY-100+VRS.SamPtrs+1);
- 962+ C766 19           	ADD HL,DE
- 963+ C767 5E           	LD E,(HL)
- 964+ C768 23           	INC HL
- 965+ C769 56           	LD D,(HL)
- 966+ C76A FD 6E F6     	LD L,(IY-100+VRS.MODADDR)
- 967+ C76D FD 66 F7     	LD H,(IY-100+VRS.MODADDR+1)
- 968+ C770 19           	ADD HL,DE
- 969+ C771 DD 75 03     	LD (IX-12+CHP.SamPtr),L
- 970+ C774 DD 74 04     	LD (IX-12+CHP.SamPtr+1),H
- 971+ C777 C9           	RET
- 972+ C778
- 973+ C778              ;ALL 16 ADDRESSES TO PROTECT FROM BROKEN PT3 MODULES
- 974+ C778 5B C7        SPCCOMS DW C_NOP
- 975+ C77A B7 C6        	DW C_GLISS
- 976+ C77C 43 C6        	DW C_PORTM
- 977+ C77E D4 C6        	DW C_SMPOS
- 978+ C780 DA C6        	DW C_ORPOS
- 979+ C782 E0 C6        	DW C_VIBRT
- 980+ C784 5B C7        	DW C_NOP
- 981+ C786 5B C7        	DW C_NOP
- 982+ C788 F8 C6        	DW C_ENGLS
- 983+ C78A 0D C7        	DW C_DELAY
- 984+ C78C 5B C7        	DW C_NOP
- 985+ C78E 5B C7        	DW C_NOP
- 986+ C790 5B C7        	DW C_NOP
- 987+ C792 5B C7        	DW C_NOP
- 988+ C794 5B C7        	DW C_NOP
- 989+ C796 5B C7        	DW C_NOP
- 990+ C798
- 991+ C798 CD B9 C4     CHREGS	CALL GETIX
- 992+ C79B AF           	XOR A
- 993+ C79C 32 D8 C9     	LD (Ampl),A
- 994+ C79F DD CB 15 46  	BIT 0,(IX+CHP.Flags)
- 995+ C7A3 E5           	PUSH HL
- 996+ C7A4 CA EB C8     	JP Z,CH_EXIT
- 997+ C7A7 ED 73 35 C8  	LD (CSP_+1),SP
- 998+ C7AB DD 6E 0D     	LD L,(IX+CHP.OrnPtr)
- 999+ C7AE DD 66 0E     	LD H,(IX+CHP.OrnPtr+1)
-1000+ C7B1 F9           	LD SP,HL
-1001+ C7B2 D1           	POP DE
-1002+ C7B3 67           	LD H,A
-1003+ C7B4 DD 7E 00     	LD A,(IX+CHP.PsInOr)
-1004+ C7B7 6F           	LD L,A
-1005+ C7B8 39           	ADD HL,SP
-1006+ C7B9 3C           	INC A
-1007+ C7BA              		;PT2	PT3
-1008+ C7BA 3C           OrnCP	INC A	;CP E	CP D
-1009+ C7BB 38 01        	JR C,CH_ORPS
-1010+ C7BD 01           OrnLD	DB 1	;LD A,D	LD A,E
-1011+ C7BE DD 77 00     CH_ORPS	LD (IX+CHP.PsInOr),A
-1012+ C7C1 DD 7E 12     	LD A,(IX+CHP.Note)
-1013+ C7C4 86           	ADD A,(HL)
-1014+ C7C5 F2 C9 C7     	JP P,CH_NTP
-1015+ C7C8 AF           	XOR A
-1016+ C7C9 FE 60        CH_NTP	CP 96
-1017+ C7CB 38 02        	JR C,CH_NOK
-1018+ C7CD 3E 5F        	LD A,95
-1019+ C7CF 87           CH_NOK	ADD A,A
-1020+ C7D0 08           	EX AF,AF'
-1021+ C7D1 DD 6E 0F     	LD L,(IX+CHP.SamPtr)
-1022+ C7D4 DD 66 10     	LD H,(IX+CHP.SamPtr+1)
-1023+ C7D7 F9           	LD SP,HL
-1024+ C7D8 D1           	POP DE
-1025+ C7D9 26 00        	LD H,0
-1026+ C7DB DD 7E 01     	LD A,(IX+CHP.PsInSm)
-1027+ C7DE 47           	LD B,A
-1028+ C7DF 87           	ADD A,A
-1029+ C7E0 87           SamClc2	ADD A,A ;or ADD A,B for PT2
-1030+ C7E1 6F           	LD L,A
-1031+ C7E2 39           	ADD HL,SP
-1032+ C7E3 F9           	LD SP,HL
-1033+ C7E4 78           	LD A,B
-1034+ C7E5 3C           	INC A
-1035+ C7E6              		;PT2	PT3
-1036+ C7E6 3C           SamCP	INC A	;CP E	CP D
-1037+ C7E7 38 01        	JR C,CH_SMPS
-1038+ C7E9 01           SamLD	DB 1	;LD A,D	LD A,E
-1039+ C7EA DD 77 01     CH_SMPS	LD (IX+CHP.PsInSm),A
-1040+ C7ED C1           	POP BC
-1041+ C7EE E1           	POP HL
-1042+ C7EF
-1043+ C7EF              ;Convert PT2 sample to PT3
-1044+ C7EF              		;PT2		PT3
-1045+ C7EF E1           SamCnv	POP HL  ;BIT 2,C	JR e_
-1046+ C7F0 E1           	POP HL
-1047+ C7F1 60           	LD H,B
-1048+ C7F2 20 06        	JR NZ,$+8
-1049+ C7F4 EB           	EX DE,HL
-1050+ C7F5 A7           	AND A
-1051+ C7F6 ED 62        	SBC HL,HL
-1052+ C7F8 ED 52        	SBC HL,DE
-1053+ C7FA 51           	LD D,C
-1054+ C7FB CB 19        	RR C
-1055+ C7FD 9F           	SBC A,A
-1056+ C7FE 2F           	CPL
-1057+ C7FF E6 3E        	AND #3E
-1058+ C801 CB 19        	RR C
-1059+ C803 CB 18        	RR B
-1060+ C805 A1           	AND C
-1061+ C806 4F           	LD C,A
-1062+ C807 78           	LD A,B
-1063+ C808 1F           	RRA
-1064+ C809 1F           	RRA
-1065+ C80A CB 1A        	RR D
-1066+ C80C 1F           	RRA
-1067+ C80D E6 9F        	AND #9F
-1068+ C80F 47           	LD B,A
-1069+ C810
-1070+ C810 DD 5E 08     e_	LD E,(IX+CHP.TnAcc)
-1071+ C813 DD 56 09     	LD D,(IX+CHP.TnAcc+1)
-1072+ C816 19           	ADD HL,DE
-1073+ C817 CB 70        	BIT 6,B
-1074+ C819 28 06        	JR Z,CH_NOAC
-1075+ C81B DD 75 08     	LD (IX+CHP.TnAcc),L
-1076+ C81E DD 74 09     	LD (IX+CHP.TnAcc+1),H
-1077+ C821 EB           CH_NOAC EX DE,HL
-1078+ C822 08           	EX AF,AF'
-ptx_vtpl.i.asm(1079): warning: value 0xCD1B is truncated to 8bit value: 0x1B
-1079+ C823 C6 1B        	ADD A,NT_
-1080+ C825 6F           	LD L,A
-1081+ C826 CE CD        	ADC A,NT_/256
-1082+ C828 95           	SUB L
-1083+ C829 67           	LD H,A
-1084+ C82A F9           	LD SP,HL
-1085+ C82B E1           	POP HL
-1086+ C82C 19           	ADD HL,DE
-1087+ C82D DD 5E 06     	LD E,(IX+CHP.CrTnSl)
-1088+ C830 DD 56 07     	LD D,(IX+CHP.CrTnSl+1)
-1089+ C833 19           	ADD HL,DE
-1090+ C834 31 31 31     CSP_	LD SP,#3131
-1091+ C837 E3           	EX (SP),HL
-1092+ C838 AF           	XOR A
-1093+ C839 DD B6 05     	OR (IX+CHP.TSlCnt)
-1094+ C83C 28 3E        	JR Z,CH_AMP
-1095+ C83E DD 35 05     	DEC (IX+CHP.TSlCnt)
-1096+ C841 20 39        	JR NZ,CH_AMP
-1097+ C843 DD 7E 16     	LD A,(IX+CHP.TnSlDl)
-1098+ C846 DD 77 05     	LD (IX+CHP.TSlCnt),A
-1099+ C849 DD 6E 17     	LD L,(IX+CHP.TSlStp)
-1100+ C84C DD 66 18     	LD H,(IX+CHP.TSlStp+1)
-1101+ C84F 7C           	LD A,H
-1102+ C850 19           	ADD HL,DE
-1103+ C851 DD 75 06     	LD (IX+CHP.CrTnSl),L
-1104+ C854 DD 74 07     	LD (IX+CHP.CrTnSl+1),H
-1105+ C857 DD CB 15 56  	BIT 2,(IX+CHP.Flags)
-1106+ C85B 20 1F        	JR NZ,CH_AMP
-1107+ C85D DD 5E 19     	LD E,(IX+CHP.TnDelt)
-1108+ C860 DD 56 1A     	LD D,(IX+CHP.TnDelt+1)
-1109+ C863 A7           	AND A
-1110+ C864 28 01        	JR Z,CH_STPP
-1111+ C866 EB           	EX DE,HL
-1112+ C867 ED 52        CH_STPP SBC HL,DE
-1113+ C869 FA 7C C8     	JP M,CH_AMP
-1114+ C86C DD 7E 13     	LD A,(IX+CHP.SlToNt)
-1115+ C86F DD 77 12     	LD (IX+CHP.Note),A
-1116+ C872 AF           	XOR A
-1117+ C873 DD 77 05     	LD (IX+CHP.TSlCnt),A
-1118+ C876 DD 77 06     	LD (IX+CHP.CrTnSl),A
-1119+ C879 DD 77 07     	LD (IX+CHP.CrTnSl+1),A
-1120+ C87C DD 7E 02     CH_AMP	LD A,(IX+CHP.CrAmSl)
-1121+ C87F CB 79        	BIT 7,C
-1122+ C881 28 13        	JR Z,CH_NOAM
-1123+ C883 CB 71        	BIT 6,C
-1124+ C885 28 07        	JR Z,CH_AMIN
-1125+ C887 FE 0F        	CP 15
-1126+ C889 28 0B        	JR Z,CH_NOAM
-1127+ C88B 3C           	INC A
-1128+ C88C 18 05        	JR CH_SVAM
-1129+ C88E FE F1        CH_AMIN	CP -15
-1130+ C890 28 04        	JR Z,CH_NOAM
-1131+ C892 3D           	DEC A
-1132+ C893 DD 77 02     CH_SVAM	LD (IX+CHP.CrAmSl),A
-1133+ C896 6F           CH_NOAM	LD L,A
-1134+ C897 78           	LD A,B
-1135+ C898 E6 0F        	AND 15
-1136+ C89A 85           	ADD A,L
-1137+ C89B F2 9F C8     	JP P,CH_APOS
-1138+ C89E AF           	XOR A
-1139+ C89F FE 10        CH_APOS	CP 16
-1140+ C8A1 38 02        	JR C,CH_VOL
-1141+ C8A3 3E 0F        	LD A,15
-1142+ C8A5 DD B6 1C     CH_VOL	OR (IX+CHP.Volume)
-ptx_vtpl.i.asm(1143): warning: value 0xCC1B is truncated to 8bit value: 0x1B
-1143+ C8A8 C6 1B        	ADD A,VT_
-1144+ C8AA 6F           	LD L,A
-1145+ C8AB CE CC        	ADC A,VT_/256
-1146+ C8AD 95           	SUB L
-1147+ C8AE 67           	LD H,A
-1148+ C8AF 7E           	LD A,(HL)
-1149+ C8B0 CB 41        CH_ENV	BIT 0,C
-1150+ C8B2 20 03        	JR NZ,CH_NOEN
-1151+ C8B4 DD B6 14     	OR (IX+CHP.Env_En)
-1152+ C8B7 32 D8 C9     CH_NOEN	LD (Ampl),A
-1153+ C8BA CB 78        	BIT 7,B
-1154+ C8BC 79           	LD A,C
-1155+ C8BD 28 1A        	JR Z,NO_ENSL
-1156+ C8BF 17           	RLA
-1157+ C8C0 17           	RLA
-1158+ C8C1 CB 2F        	SRA A
-1159+ C8C3 CB 2F        	SRA A
-1160+ C8C5 CB 2F        	SRA A
-1161+ C8C7 DD 86 04     	ADD A,(IX+CHP.CrEnSl) ;SEE COMMENT BELOW
-1162+ C8CA CB 68        	BIT 5,B
-1163+ C8CC 28 03        	JR Z,NO_ENAC
-1164+ C8CE DD 77 04     	LD (IX+CHP.CrEnSl),A
-1165+ C8D1 FD 86 12     NO_ENAC	ADD A,(IY-100+VRS.AddToEn) ;BUG IN PT3 - NEED WORD HERE
-1166+ C8D4 FD 77 12     	LD (IY-100+VRS.AddToEn),A
-1167+ C8D7 18 0E        	JR CH_MIX
-1168+ C8D9 1F           NO_ENSL RRA
-1169+ C8DA DD 86 03     	ADD A,(IX+CHP.CrNsSl)
-1170+ C8DD FD 77 11     	LD (IY-100+VRS.AddToNs),A
-1171+ C8E0 CB 68        	BIT 5,B
-1172+ C8E2 28 03        	JR Z,CH_MIX
-1173+ C8E4 DD 77 03     	LD (IX+CHP.CrNsSl),A
-1174+ C8E7 78           CH_MIX	LD A,B
-1175+ C8E8 1F           	RRA
-1176+ C8E9 E6 48        	AND #48
-1177+ C8EB FD B6 1C     CH_EXIT	OR (IY-100+VRS.AYREGS+Mixer)
-1178+ C8EE 0F           	RRCA
-1179+ C8EF FD 77 1C     	LD (IY-100+VRS.AYREGS+Mixer),A
-1180+ C8F2 E1           	POP HL
-1181+ C8F3 AF           	XOR A
-1182+ C8F4 DD B6 0A     	OR (IX+CHP.COnOff)
-1183+ C8F7 C8           	RET Z
-1184+ C8F8 DD 35 0A     	DEC (IX+CHP.COnOff)
-1185+ C8FB C0           	RET NZ
-1186+ C8FC DD AE 15     	XOR (IX+CHP.Flags)
-1187+ C8FF DD 77 15     	LD (IX+CHP.Flags),A
-1188+ C902 1F           	RRA
-1189+ C903 DD 7E 0B     	LD A,(IX+CHP.OnOffD)
-1190+ C906 38 03        	JR C,CH_ONDL
-1191+ C908 DD 7E 0C     	LD A,(IX+CHP.OffOnD)
-1192+ C90B DD 77 0A     CH_ONDL	LD (IX+CHP.COnOff),A
-1193+ C90E C9           	RET
-1194+ C90F
-1195+ C90F AF           PLAY_	XOR A
-1196+ C910 FD 77 12     	LD (IY-100+VRS.AddToEn),A
-1197+ C913 FD 77 1C     	LD (IY-100+VRS.AYREGS+Mixer),A
-1198+ C916 3D           	DEC A
-1199+ C917 FD 77 22     	LD (IY-100+VRS.AYREGS+EnvTp),A
-1200+ C91A FD 35 09     	DEC (IY-100+VRS.DelyCnt)
-1201+ C91D C2 C5 C9     	JP NZ,PL2
-1202+ C920 FD 35 BA     	DEC (IY-100+VRS.ChanA+CHP.NtSkCn)
-1203+ C923 20 6C        	JR NZ,PL1B
-1204+ C925 FD 4E FE     	LD C,(IY-100+VRS.AdInPtA)
-1205+ C928 FD 46 FF     	LD B,(IY-100+VRS.AdInPtA+1)
-1206+ C92B 0A           	LD A,(BC)
-1207+ C92C A7           	AND A
-1208+ C92D 20 56        	JR NZ,PL1A
-1209+ C92F 57           	LD D,A
-1210+ C930 FD 77 10     	LD (IY-100+VRS.Ns_Base),A
-1211+ C933 FD 6E 04     	LD L,(IY-100+VRS.CrPsPtr)
-1212+ C936 FD 66 05     	LD H,(IY-100+VRS.CrPsPtr+1)
-1213+ C939 23           	INC HL
-1214+ C93A 7E           	LD A,(HL)
-1215+ C93B 3C           	INC A
-1216+ C93C 20 0B        	JR NZ,PLNLP
-1217+ C93E
-1218+ C93E              	IF LoopChecker
-1219+ C93E CD F0 C1     	CALL CHECKLP
-1220+ C941              	ENDIF
-1221+ C941
-1222+ C941 FD 6E 06     	LD L,(IY-100+VRS.LPosPtr)
-1223+ C944 FD 66 07     	LD H,(IY-100+VRS.LPosPtr+1)
-1224+ C947 7E           	LD A,(HL)
-1225+ C948 3C           	INC A
-1226+ C949 CD 9D C4     PLNLP	CALL SETCPPT
-1227+ C94C 3D           	DEC A
-1228+ C94D FD CB 9E 4E  	BIT 1,(IY-100+VRS.ModNum)
-1229+ C951 28 03        	JR Z,NoAlCo
-1230+ C953              TSSub	EQU $+1
-1231+ C953 D6 D6        	SUB #D6
-1232+ C955 2F           	CPL
-1233+ C956              NoAlCo
-1234+ C956              		;PT2		PT3
-1235+ C956 3D           PsCalc	DEC A	;ADD A,A	NOP
-1236+ C957 3D           	DEC A	;ADD A,(HL)	NOP
-1237+ C958 87           	ADD A,A
-1238+ C959 5F           	LD E,A
-1239+ C95A CB 12        	RL D
-1240+ C95C
-1241+ C95C              	IF CurPosCounter
-1242+ C95C ~            	LD A,L
-1243+ C95C ~            	SUB (IY-100+VRS.PosSub)
-1244+ C95C ~            	LD (IY-100+VRS.CurPos),A
-1245+ C95C              	ENDIF
-1246+ C95C
-1247+ C95C FD 6E FC     	LD L,(IY-100+VRS.PatsPtr)
-1248+ C95F FD 66 FD     	LD H,(IY-100+VRS.PatsPtr+1)
-1249+ C962 19           	ADD HL,DE
-1250+ C963 FD 5E F6     	LD E,(IY-100+VRS.MODADDR)
-1251+ C966 FD 56 F7     	LD D,(IY-100+VRS.MODADDR+1)
-1252+ C969 ED 73 83 C9  	LD (PSP_+1),SP
-1253+ C96D F9           	LD SP,HL
-1254+ C96E E1           	POP HL
-1255+ C96F 19           	ADD HL,DE
-1256+ C970 44           	LD B,H
-1257+ C971 4D           	LD C,L
-1258+ C972 E1           	POP HL
-1259+ C973 19           	ADD HL,DE
-1260+ C974 FD 75 00     	LD (IY-100+VRS.AdInPtB),L
-1261+ C977 FD 74 01     	LD (IY-100+VRS.AdInPtB+1),H
-1262+ C97A E1           	POP HL
-1263+ C97B 19           	ADD HL,DE
-1264+ C97C FD 75 02     	LD (IY-100+VRS.AdInPtC),L
-1265+ C97F FD 74 03     	LD (IY-100+VRS.AdInPtC+1),H
-1266+ C982 31 31 31     PSP_	LD SP,#3131
-1267+ C985 11 AB FF     PL1A	LD DE,VRS.ChanA+12-100
-1268+ C988 CD C0 C4     	CALL PTDECOD
-1269+ C98B FD 71 FE     	LD (IY-100+VRS.AdInPtA),C
-1270+ C98E FD 70 FF     	LD (IY-100+VRS.AdInPtA+1),B
-1271+ C991
-1272+ C991 FD 35 D7     PL1B	DEC (IY-100+VRS.ChanB+CHP.NtSkCn)
-1273+ C994 20 12        	JR NZ,PL1C
-1274+ C996 11 C8 FF     	LD DE,VRS.ChanB+12-100
-1275+ C999 FD 4E 00     	LD C,(IY-100+VRS.AdInPtB)
-1276+ C99C FD 46 01     	LD B,(IY-100+VRS.AdInPtB+1)
-1277+ C99F CD C0 C4     	CALL PTDECOD
-1278+ C9A2 FD 71 00     	LD (IY-100+VRS.AdInPtB),C
-1279+ C9A5 FD 70 01     	LD (IY-100+VRS.AdInPtB+1),B
-1280+ C9A8
-1281+ C9A8 FD 35 F4     PL1C	DEC (IY-100+VRS.ChanC+CHP.NtSkCn)
-1282+ C9AB 20 12        	JR NZ,PL1D
-1283+ C9AD 11 E5 FF     	LD DE,VRS.ChanC+12-100
-1284+ C9B0 FD 4E 02     	LD C,(IY-100+VRS.AdInPtC)
-1285+ C9B3 FD 46 03     	LD B,(IY-100+VRS.AdInPtC+1)
-1286+ C9B6 CD C0 C4     	CALL PTDECOD
-1287+ C9B9 FD 71 02     	LD (IY-100+VRS.AdInPtC),C
-1288+ C9BC FD 70 03     	LD (IY-100+VRS.AdInPtC+1),B
-1289+ C9BF
-1290+ C9BF FD 7E 08     PL1D	LD A,(IY-100+VRS.Delay)
-1291+ C9C2 FD 77 09     	LD (IY-100+VRS.DelyCnt),A
-1292+ C9C5
-1293+ C9C5 11 9F FF     PL2	LD DE,VRS.ChanA-100
-1294+ C9C8 FD 6E 15     	LD L,(IY-100+VRS.AYREGS+TonA)
-1295+ C9CB FD 66 16     	LD H,(IY-100+VRS.AYREGS+TonA+1)
-1296+ C9CE CD 98 C7     	CALL CHREGS
-1297+ C9D1 FD 75 15     	LD (IY-100+VRS.AYREGS+TonA),L
-1298+ C9D4 FD 74 16     	LD (IY-100+VRS.AYREGS+TonA+1),H
-1299+ C9D7              Ampl	EQU $+1
-1300+ C9D7 3E 3E        	LD A,#3E
-1301+ C9D9 FD 77 1D     	LD (IY-100+VRS.AYREGS+AmplA),A
-1302+ C9DC 11 BC FF     	LD DE,VRS.ChanB-100
-1303+ C9DF FD 6E 17     	LD L,(IY-100+VRS.AYREGS+TonB)
-1304+ C9E2 FD 66 18     	LD H,(IY-100+VRS.AYREGS+TonB+1)
-1305+ C9E5 CD 98 C7     	CALL CHREGS
-1306+ C9E8 FD 75 17     	LD (IY-100+VRS.AYREGS+TonB),L
-1307+ C9EB FD 74 18     	LD (IY-100+VRS.AYREGS+TonB+1),H
-1308+ C9EE 3A D8 C9     	LD A,(Ampl)
-1309+ C9F1 FD 77 1E     	LD (IY-100+VRS.AYREGS+AmplB),A
-1310+ C9F4 11 D9 FF     	LD DE,VRS.ChanC-100
-1311+ C9F7 FD 6E 19     	LD L,(IY-100+VRS.AYREGS+TonC)
-1312+ C9FA FD 66 1A     	LD H,(IY-100+VRS.AYREGS+TonC+1)
-1313+ C9FD CD 98 C7     	CALL CHREGS
-1314+ CA00 FD 75 19     	LD (IY-100+VRS.AYREGS+TonC),L
-1315+ CA03 FD 74 1A     	LD (IY-100+VRS.AYREGS+TonC+1),H
-1316+ CA06 3A D8 C9     	LD A,(Ampl)
-1317+ CA09 FD 77 1F     	LD (IY-100+VRS.AYREGS+AmplC),A
-1318+ CA0C
-1319+ CA0C FD 7E 10     	LD A,(IY-100+VRS.Ns_Base)
-1320+ CA0F FD 86 11     	ADD (IY-100+VRS.AddToNs)
-1321+ CA12 FD 77 1B     	LD (IY-100+VRS.AYREGS+Noise),A
-1322+ CA15
-1323+ CA15 FD 7E 12     	LD A,(IY-100+VRS.AddToEn)
-1324+ CA18 5F           	LD E,A
-1325+ CA19 87           	ADD A,A
-1326+ CA1A 9F           	SBC A,A
-1327+ CA1B 57           	LD D,A
-1328+ CA1C FD 6E 13     	LD L,(IY-100+VRS.EnvBase)
-1329+ CA1F FD 66 14     	LD H,(IY-100+VRS.EnvBase+1)
-1330+ CA22 19           	ADD HL,DE
-1331+ CA23 FD 5E 0C     	LD E,(IY-100+VRS.CurESld)
-1332+ CA26 FD 56 0D     	LD D,(IY-100+VRS.CurESld+1)
-1333+ CA29 19           	ADD HL,DE
-1334+ CA2A FD 75 20     	LD (IY-100+VRS.AYREGS+Env),L
-1335+ CA2D FD 74 21     	LD (IY-100+VRS.AYREGS+Env+1),H
-1336+ CA30
-1337+ CA30 AF           	XOR A
-1338+ CA31 FD B6 0F     	OR (IY-100+VRS.CurEDel)
-1339+ CA34 C8           	RET Z
-1340+ CA35 FD 35 0F     	DEC (IY-100+VRS.CurEDel)
-1341+ CA38 C0           	RET NZ
-1342+ CA39 FD 7E 0E     	LD A,(IY-100+VRS.Env_Del)
-1343+ CA3C FD 77 0F     	LD (IY-100+VRS.CurEDel),A
-1344+ CA3F FD 6E 0A     	LD L,(IY-100+VRS.ESldAdd)
-1345+ CA42 FD 66 0B     	LD H,(IY-100+VRS.ESldAdd+1)
-1346+ CA45 19           	ADD HL,DE
-1347+ CA46 C3 B2 C4     	JP SETESLD
-1348+ CA49
-1349+ CA49 FD 21 81 CB  PLAY    LD IY,VARS1+100
-1350+ CA4D CD 0F C9     	CALL PLAY_
-1351+ CA50 3A 1C CB     	LD A,(is_ts)
-1352+ CA53 A7           	AND A
-1353+ CA54 28 07        	JR Z,PL_nts
-1354+ CA56 FD 21 08 CC  	LD IY,VARS2+100
-1355+ CA5A CD 0F C9     	CALL PLAY_
-1356+ CA5D              PL_nts
-1357+ CA5D              	IF Basic
-1358+ CA5D FD 21 3A 5C  	LD IY,#5C3A
-1359+ CA61              	ENDIF
-1360+ CA61
-1361+ CA61 01 FD FF     ROUT	LD BC,#FFFD
-1362+ CA64 3A 1C CB     	LD A,(is_ts)
-1363+ CA67 A7           	AND A
-1364+ CA68 28 02        	JR Z,r_nts ;keep old standard
-1365+ CA6A ED 41        	OUT (C),B
-1366+ CA6C 08           r_nts	EX AF,AF'
-1367+ CA6D
-1368+ CA6D              	IF ACBBAC
-1369+ CA6D ~            	LD IX,VARS1+VRS.AYREGS
-1370+ CA6D              	ELSE
-1371+ CA6D 21 96 CB     	LD HL,VARS1+VRS.AYREGS
-1372+ CA70              	ENDIF
-1373+ CA70
-1374+ CA70 CD 7C CA     	CALL ROUT_
-1375+ CA73 08           	EX AF,AF'
-1376+ CA74 C8           	RET Z
-1377+ CA75 42           	LD B,D
-1378+ CA76 2F           	CPL
-1379+ CA77 ED 79        	OUT (C),A
-1380+ CA79
-1381+ CA79              	IF ACBBAC
-1382+ CA79 ~            	LD IX,VARS2+VRS.AYREGS
-1383+ CA79              	ELSE
-1384+ CA79 21 1D CC     	LD HL,VARS2+VRS.AYREGS
-1385+ CA7C              	ENDIF
-1386+ CA7C
-1387+ CA7C              ROUT_
-1388+ CA7C              	IF ACBBAC
-1389+ CA7C ~            	LD A,(SETUP)
-1390+ CA7C ~            	AND 12
-1391+ CA7C ~            	JR Z,ABC
-1392+ CA7C ~            	ADD A,CHTABLE
-1393+ CA7C ~            	LD E,A
-1394+ CA7C ~            	ADC A,CHTABLE/256
-1395+ CA7C ~            	SUB E
-1396+ CA7C ~            	LD D,A
-1397+ CA7C ~            	LD B,0
-1398+ CA7C ~            	PUSH IX
-1399+ CA7C ~            	POP HL
-1400+ CA7C ~            	LD A,(DE)
-1401+ CA7C ~            	INC DE
-1402+ CA7C ~            	LD C,A
-1403+ CA7C ~            	ADD HL,BC
-1404+ CA7C ~            	LD A,(IX+TonB)
-1405+ CA7C ~            	LD C,(HL)
-1406+ CA7C ~            	LD (IX+TonB),C
-1407+ CA7C ~            	LD (HL),A
-1408+ CA7C ~            	INC HL
-1409+ CA7C ~            	LD A,(IX+TonB+1)
-1410+ CA7C ~            	LD C,(HL)
-1411+ CA7C ~            	LD (IX+TonB+1),C
-1412+ CA7C ~            	LD (HL),A
-1413+ CA7C ~            	LD A,(DE)
-1414+ CA7C ~            	INC DE
-1415+ CA7C ~            	LD C,A
-1416+ CA7C ~            	ADD HL,BC
-1417+ CA7C ~            	LD A,(IX+AmplB)
-1418+ CA7C ~            	LD C,(HL)
-1419+ CA7C ~            	LD (IX+AmplB),C
-1420+ CA7C ~            	LD (HL),A
-1421+ CA7C ~            	LD A,(DE)
-1422+ CA7C ~            	INC DE
-1423+ CA7C ~            	LD (RxCA1),A
-1424+ CA7C ~            	XOR 8
-1425+ CA7C ~            	LD (RxCA2),A
-1426+ CA7C ~            	LD A,(DE)
-1427+ CA7C ~            	AND (IX+Mixer)
-1428+ CA7C ~            	LD E,A
-1429+ CA7C ~            	LD A,(IX+Mixer)
-1430+ CA7C ~            RxCA1	DB #E6
-1431+ CA7C ~            	AND %010010
-1432+ CA7C ~            	OR E
-1433+ CA7C ~            	LD E,A
-1434+ CA7C ~            	LD A,(IX+Mixer)
-1435+ CA7C ~            	AND %010010
-1436+ CA7C ~            RxCA2	OR E
-1437+ CA7C ~            	OR E
-1438+ CA7C ~            	LD (IX+Mixer),A
-1439+ CA7C ~            ABC
-1440+ CA7C              	ENDIF
-1441+ CA7C
-1442+ CA7C AF           	XOR A
-1443+ CA7D 11 BF FF     	LD DE,#FFBF
-1444+ CA80
-1445+ CA80              	IF ACBBAC
-1446+ CA80 ~            	LD BC,#FFFD
-1447+ CA80 ~            	PUSH IX
-1448+ CA80 ~            	POP HL
-1449+ CA80              	ENDIF
-1450+ CA80
-1451+ CA80 ED 79        LOUT	OUT (C),A
-1452+ CA82 43           	LD B,E
-1453+ CA83 ED A3        	OUTI
-1454+ CA85 42           	LD B,D
-1455+ CA86 3C           	INC A
-1456+ CA87 FE 0D        	CP 13
-1457+ CA89 20 F5        	JR NZ,LOUT
-1458+ CA8B ED 79        	OUT (C),A
-1459+ CA8D 7E           	LD A,(HL)
-1460+ CA8E A7           	AND A
-1461+ CA8F F8           	RET M
-1462+ CA90 43           	LD B,E
-1463+ CA91 ED 79        	OUT (C),A
-1464+ CA93 C9           	RET
-1465+ CA94
-1466+ CA94              	IF ACBBAC
-1467+ CA94 ~            CHTABLE	EQU $-4
-1468+ CA94 ~            	DB 4,5,15,%001001,0,7,7,%100100
-1469+ CA94              	ENDIF
-1470+ CA94
-1471+ CA94 64           NT_DATA	DB (T_NEW_0-T1_)*2
-1472+ CA95 2A           	DB TCNEW_0-T_
-1473+ CA96 65           	DB (T_OLD_0-T1_)*2+1
-1474+ CA97 00           	DB TCOLD_0-T_
-1475+ CA98 01           	DB (T_NEW_1-T1_)*2+1
-1476+ CA99 0C           	DB TCNEW_1-T_
-1477+ CA9A 01           	DB (T_OLD_1-T1_)*2+1
-1478+ CA9B 0C           	DB TCOLD_1-T_
-1479+ CA9C 94           	DB (T_NEW_2-T1_)*2
-1480+ CA9D 35           	DB TCNEW_2-T_
-1481+ CA9E 30           	DB (T_OLD_2-T1_)*2
-1482+ CA9F 0E           	DB TCOLD_2-T_
-1483+ CAA0 60           	DB (T_NEW_3-T1_)*2
-1484+ CAA1 20           	DB TCNEW_3-T_
-1485+ CAA2 60           	DB (T_OLD_3-T1_)*2
-1486+ CAA3 21           	DB TCOLD_3-T_
-1487+ CAA4
-1488+ CAA4              T_
-1489+ CAA4
-1490+ CAA4 01 05 09 0B  TCOLD_0	DB #00+1,#04+1,#08+1,#0A+1,#0C+1,#0E+1,#12+1,#14+1
-1490+ CAA8 0D 0F 13 15
-1491+ CAAC 19 25 3D 00  	DB #18+1,#24+1,#3C+1,0
-1492+ CAB0 5D 00        TCOLD_1	DB #5C+1,0
-1493+ CAB2 31 37 4D 53  TCOLD_2	DB #30+1,#36+1,#4C+1,#52+1,#5E+1,#70+1,#82,#8C,#9C
-1493+ CAB6 5F 71 82 8C
-1493+ CABA 9C
-1494+ CABB 9E A0 A6 A8  	DB #9E,#A0,#A6,#A8,#AA,#AC,#AE,#AE,0
-1494+ CABF AA AC AE AE
-1494+ CAC3 00
-1495+ CAC4 57           TCNEW_3	DB #56+1
-1496+ CAC5 1F 23 25 29  TCOLD_3	DB #1E+1,#22+1,#24+1,#28+1,#2C+1,#2E+1,#32+1,#BE+1,0
-1496+ CAC9 2D 2F 33 BF
-1496+ CACD 00
-1497+ CACE 1D 21 23 27  TCNEW_0	DB #1C+1,#20+1,#22+1,#26+1,#2A+1,#2C+1,#30+1,#54+1
-1497+ CAD2 2B 2D 31 55
-1498+ CAD6 BD BF 00     	DB #BC+1,#BE+1,0
-1499+ CAD9              TCNEW_1 EQU TCOLD_1
-1500+ CAD9 1B 21 25 29  TCNEW_2	DB #1A+1,#20+1,#24+1,#28+1,#2A+1,#3A+1,#4C+1,#5E+1
-1500+ CADD 2B 3B 4D 5F
-1501+ CAE1 BB BD BF 00  	DB #BA+1,#BC+1,#BE+1,0
-1502+ CAE5
-1503+ CAE5              PT3EMPTYORN EQU $-1
-1504+ CAE5 01 00        	DB 1,0
-1505+ CAE7
-1506+ CAE7              ;first 12 values of tone tables (packed)
-1507+ CAE7
+ 282+ C548 D6 F0        	SUB #F8*2
+ 283+ C54A 20 E3        	JR NZ,TP_0
+ 284+ C54C
+ 285+ C54C 3C           	INC A
+ 286+ C54D 32 90 CD     	LD (VARS1+VRS.DelyCnt),A
+ 287+ C550 32 17 CE     	LD (VARS2+VRS.DelyCnt),A
+ 288+ C553 21 01 F0     	LD HL,#F001 ;H - CHP.Volume, L - CHP.NtSkCn
+ 289+ C556 22 41 CD     	LD (VARS1+VRS.ChanA+CHP.NtSkCn),HL
+ 290+ C559 22 5E CD     	LD (VARS1+VRS.ChanB+CHP.NtSkCn),HL
+ 291+ C55C 22 7B CD     	LD (VARS1+VRS.ChanC+CHP.NtSkCn),HL
+ 292+ C55F 22 C8 CD     	LD (VARS2+VRS.ChanA+CHP.NtSkCn),HL
+ 293+ C562 22 E5 CD     	LD (VARS2+VRS.ChanB+CHP.NtSkCn),HL
+ 294+ C565 22 02 CE     	LD (VARS2+VRS.ChanC+CHP.NtSkCn),HL
+ 295+ C568 E1           	POP HL
+ 296+ C569 22 33 CD     	LD (VARS1+VRS.ChanA+CHP.OrnPtr),HL
+ 297+ C56C 22 50 CD     	LD (VARS1+VRS.ChanB+CHP.OrnPtr),HL
+ 298+ C56F 22 6D CD     	LD (VARS1+VRS.ChanC+CHP.OrnPtr),HL
+ 299+ C572 22 BA CD     	LD (VARS2+VRS.ChanA+CHP.OrnPtr),HL
+ 300+ C575 22 D7 CD     	LD (VARS2+VRS.ChanB+CHP.OrnPtr),HL
+ 301+ C578 22 F4 CD     	LD (VARS2+VRS.ChanC+CHP.OrnPtr),HL
+ 302+ C57B
+ 303+ C57B F1           	POP AF
+ 304+ C57C
+ 305+ C57C              ;NoteTableCreator (c) Ivan Roshin
+ 306+ C57C              ;A - NoteTableNumber*2+VersionForNoteTable
+ 307+ C57C              ;(xx1b - 3.xx..3.4r, xx0b - 3.4x..3.6x..VTII1.0)
+ 308+ C57C
+ 309+ C57C 21 9A CC     	LD HL,NT_DATA
+ 310+ C57F 16 00        	LD D,0
+ 311+ C581 87           	ADD A,A
+ 312+ C582 5F           	LD E,A
+ 313+ C583 19           	ADD HL,DE
+ 314+ C584 5E           	LD E,(HL)
+ 315+ C585 23           	INC HL
+ 316+ C586 CB 3B        	SRL E
+ 317+ C588 9F           	SBC A,A
+ 318+ C589 E6 A7        	AND #A7 ;#00 (NOP) or #A7 (AND A)
+ 319+ C58B 32 B3 C5     	LD (L3),A
+ 320+ C58E EB           	EX DE,HL
+ 321+ C58F 01 31 CE     	LD BC,T1_
+ 322+ C592 09           	ADD HL,BC
+ 323+ C593
+ 324+ C593 1A           	LD A,(DE)
+ptx_vtpl.i.asm(325): warning: value 0xCCAA is truncated to 8bit value: 0xAA
+ 325+ C594 C6 AA        	ADD A,T_
+ 326+ C596 4F           	LD C,A
+ 327+ C597 CE CC        	ADC A,T_/256
+ 328+ C599 91           	SUB C
+ 329+ C59A 47           	LD B,A
+ 330+ C59B C5           	PUSH BC
+ 331+ C59C 11 21 CF     	LD DE,NT_
+ 332+ C59F D5           	PUSH DE
+ 333+ C5A0
+ 334+ C5A0 06 0C        	LD B,12
+ 335+ C5A2 C5           L1	PUSH BC
+ 336+ C5A3 4E           	LD C,(HL)
+ 337+ C5A4 23           	INC HL
+ 338+ C5A5 E5           	PUSH HL
+ 339+ C5A6 46           	LD B,(HL)
+ 340+ C5A7
+ 341+ C5A7 D5           	PUSH DE
+ 342+ C5A8 EB           	EX DE,HL
+ 343+ C5A9 11 17 00     	LD DE,23
+ 344+ C5AC DD 26 08     	LD IXH,8
+ 345+ C5AF
+ 346+ C5AF CB 38        L2	SRL B
+ 347+ C5B1 CB 19        	RR C
+ 348+ C5B3 19           L3	DB #19	;AND A or NOP
+ 349+ C5B4 79           	LD A,C
+ 350+ C5B5 8A           	ADC A,D	;=ADC 0
+ 351+ C5B6 77           	LD (HL),A
+ 352+ C5B7 23           	INC HL
+ 353+ C5B8 78           	LD A,B
+ 354+ C5B9 8A           	ADC A,D
+ 355+ C5BA 77           	LD (HL),A
+ 356+ C5BB 19           	ADD HL,DE
+ 357+ C5BC DD 25        	DEC IXH
+ 358+ C5BE 20 EF        	JR NZ,L2
+ 359+ C5C0
+ 360+ C5C0 D1           	POP DE
+ 361+ C5C1 13           	INC DE
+ 362+ C5C2 13           	INC DE
+ 363+ C5C3 E1           	POP HL
+ 364+ C5C4 23           	INC HL
+ 365+ C5C5 C1           	POP BC
+ 366+ C5C6 10 DA        	DJNZ L1
+ 367+ C5C8
+ 368+ C5C8 E1           	POP HL
+ 369+ C5C9 D1           	POP DE
+ 370+ C5CA
+ 371+ C5CA 7B           	LD A,E
+ptx_vtpl.i.asm(372): warning: value 0xCCB6 is truncated to 8bit value: 0xB6
+ 372+ C5CB FE B6        	CP TCOLD_1
+ 373+ C5CD 20 05        	JR NZ,CORR_1
+ 374+ C5CF 3E FD        	LD A,#FD
+ 375+ C5D1 32 4F CF     	LD (NT_+#2E),A
+ 376+ C5D4
+ 377+ C5D4 1A           CORR_1	LD A,(DE)
+ 378+ C5D5 A7           	AND A
+ 379+ C5D6 28 11        	JR Z,TC_EXIT
+ 380+ C5D8 1F           	RRA
+ 381+ C5D9 F5           	PUSH AF
+ 382+ C5DA 87           	ADD A,A
+ 383+ C5DB 4F           	LD C,A
+ 384+ C5DC 09           	ADD HL,BC
+ 385+ C5DD F1           	POP AF
+ 386+ C5DE 30 02        	JR NC,CORR_2
+ 387+ C5E0 35           	DEC (HL)
+ 388+ C5E1 35           	DEC (HL)
+ 389+ C5E2 34           CORR_2	INC (HL)
+ 390+ C5E3 A7           	AND A
+ 391+ C5E4 ED 42        	SBC HL,BC
+ 392+ C5E6 13           	INC DE
+ 393+ C5E7 18 EB        	JR CORR_1
+ 394+ C5E9
+ 395+ C5E9              TC_EXIT
+ 396+ C5E9
+ 397+ C5E9 F1           	POP AF
+ 398+ C5EA
+ 399+ C5EA              ;VolTableCreator (c) Ivan Roshin
+ 400+ C5EA              ;A - VersionForVolumeTable (0..4 - 3.xx..3.4x;
+ 401+ C5EA              			   ;5.. - 2.x,3.5x..3.6x..VTII1.0)
+ 402+ C5EA
+ 403+ C5EA FE 05        	CP 5
+ 404+ C5EC 21 11 00     	LD HL,#11
+ 405+ C5EF 54           	LD D,H
+ 406+ C5F0 5C           	LD E,H
+ 407+ C5F1 3E 17        	LD A,#17
+ 408+ C5F3 30 03        	JR NC,M1
+ 409+ C5F5 2D           	DEC L
+ 410+ C5F6 5D           	LD E,L
+ 411+ C5F7 AF           	XOR A
+ 412+ C5F8 32 09 C6     M1      LD (M2),A
+ 413+ C5FB
+ 414+ C5FB DD 21 31 CE  	LD IX,VT_+16
+ 415+ C5FF
+ 416+ C5FF 0E 0F        	LD C,#F
+ 417+ C601 E5           INITV2  PUSH HL
+ 418+ C602
+ 419+ C602 19           	ADD HL,DE
+ 420+ C603 EB           	EX DE,HL
+ 421+ C604 ED 62        	SBC HL,HL
+ 422+ C606
+ 423+ C606 06 10        	LD B,#10
+ 424+ C608 7D           INITV1  LD A,L
+ 425+ C609 7D           M2      DB #7D
+ 426+ C60A 7C           	LD A,H
+ 427+ C60B CE 00        	ADC A,0
+ 428+ C60D DD 77 00     	LD (IX),A
+ 429+ C610 DD 23        	INC IX
+ 430+ C612 19           	ADD HL,DE
+ 431+ C613 10 F3        	DJNZ INITV1
+ 432+ C615
+ 433+ C615 E1           	POP HL
+ 434+ C616 7B           	LD A,E
+ 435+ C617 FE 77        	CP #77
+ 436+ C619 20 01        	JR NZ,M3
+ 437+ C61B 1C           	INC E
+ 438+ C61C 0D           M3      DEC C
+ 439+ C61D 20 E2        	JR NZ,INITV2
+ 440+ C61F
+ 441+ C61F C3 67 CC     	JP ROUT
+ 442+ C622
+ 443+ C622 CD 95 C6     INITPT3	CALL SETMDAD
+ 444+ C625 E5           	PUSH HL
+ 445+ C626 11 64 00     	LD DE,100
+ 446+ C629 19           	ADD HL,DE
+ 447+ C62A 7E           	LD A,(HL)
+ 448+ C62B FD 77 08     	LD (IY-100+VRS.Delay),A
+ 449+ C62E E5           	PUSH HL
+ 450+ C62F DD E1        	POP IX
+ 451+ C631 19           	ADD HL,DE
+ 452+ C632 CD A3 C6     	CALL SETCPPT
+ 453+ C635 DD 5E 02     	LD E,(IX+102-100)
+ 454+ C638 23           	INC HL
+ 455+ C639
+ 456+ C639              	IF CurPosCounter
+ 457+ C639 ~            	LD (IY-100+VRS.PosSub),L
+ 458+ C639              	ENDIF
+ 459+ C639
+ 460+ C639 19           	ADD HL,DE
+ 461+ C63A CD AA C6     	CALL SETLPPT
+ 462+ C63D D1           	POP DE
+ 463+ C63E DD 6E 03     	LD L,(IX+103-100)
+ 464+ C641 DD 66 04     	LD H,(IX+104-100)
+ 465+ C644 19           	ADD HL,DE
+ 466+ C645 CD 8E C6     	CALL SETPTPT
+ 467+ C648 21 A9 00     	LD HL,169
+ 468+ C64B 19           	ADD HL,DE
+ 469+ C64C CD 9C C6     	CALL SETORPT
+ 470+ C64F 21 69 00     	LD HL,105
+ 471+ C652 19           	ADD HL,DE
+ 472+ C653
+ 473+ C653 FD 75 FA     SETSMPT LD (IY-100+VRS.SamPtrs),L
+ 474+ C656 FD 74 FB     	LD (IY-100+VRS.SamPtrs+1),H
+ 475+ C659 C9           	RET
+ 476+ C65A
+ 477+ C65A 7E           INITPT2	LD A,(HL)
+ 478+ C65B FD 77 08     	LD (IY-100+VRS.Delay),A
+ 479+ C65E E5           	PUSH HL
+ 480+ C65F E5           	PUSH HL
+ 481+ C660 E5           	PUSH HL
+ 482+ C661 23           	INC HL
+ 483+ C662 23           	INC HL
+ 484+ C663 7E           	LD A,(HL)
+ 485+ C664 23           	INC HL
+ 486+ C665 CD 53 C6     	CALL SETSMPT
+ 487+ C668 5E           	LD E,(HL)
+ 488+ C669 23           	INC HL
+ 489+ C66A 56           	LD D,(HL)
+ 490+ C66B E1           	POP HL
+ 491+ C66C A7           	AND A
+ 492+ C66D ED 52        	SBC HL,DE
+ 493+ C66F CD 95 C6     	CALL SETMDAD
+ 494+ C672 E1           	POP HL
+ 495+ C673 11 43 00     	LD DE,67
+ 496+ C676 19           	ADD HL,DE
+ 497+ C677 CD 9C C6     	CALL SETORPT
+ 498+ C67A 1E 20        	LD E,32
+ 499+ C67C 19           	ADD HL,DE
+ 500+ C67D 4E           	LD C,(HL)
+ 501+ C67E 23           	INC HL
+ 502+ C67F 46           	LD B,(HL)
+ 503+ C680 1E 1E        	LD E,30
+ 504+ C682 19           	ADD HL,DE
+ 505+ C683 CD A3 C6     	CALL SETCPPT
+ 506+ C686 5F           	LD E,A
+ 507+ C687 23           	INC HL
+ 508+ C688
+ 509+ C688              	IF CurPosCounter
+ 510+ C688 ~            	LD (IY-100+VRS.PosSub),L
+ 511+ C688              	ENDIF
+ 512+ C688
+ 513+ C688 19           	ADD HL,DE
+ 514+ C689 CD AA C6     	CALL SETLPPT
+ 515+ C68C E1           	POP HL
+ 516+ C68D 09           	ADD HL,BC
+ 517+ C68E
+ 518+ C68E FD 75 FC     SETPTPT	LD (IY-100+VRS.PatsPtr),L
+ 519+ C691 FD 74 FD     	LD (IY-100+VRS.PatsPtr+1),H
+ 520+ C694 C9           	RET
+ 521+ C695
+ 522+ C695 FD 75 F6     SETMDAD	LD (IY-100+VRS.MODADDR),L
+ 523+ C698 FD 74 F7     	LD (IY-100+VRS.MODADDR+1),H
+ 524+ C69B C9           	RET
+ 525+ C69C
+ 526+ C69C FD 75 F8     SETORPT	LD (IY-100+VRS.OrnPtrs),L
+ 527+ C69F FD 74 F9     	LD (IY-100+VRS.OrnPtrs+1),H
+ 528+ C6A2 C9           	RET
+ 529+ C6A3
+ 530+ C6A3 FD 75 04     SETCPPT	LD (IY-100+VRS.CrPsPtr),L
+ 531+ C6A6 FD 74 05     	LD (IY-100+VRS.CrPsPtr+1),H
+ 532+ C6A9 C9           	RET
+ 533+ C6AA
+ 534+ C6AA FD 75 06     SETLPPT	LD (IY-100+VRS.LPosPtr),L
+ 535+ C6AD FD 74 07     	LD (IY-100+VRS.LPosPtr+1),H
+ 536+ C6B0 C9           	RET
+ 537+ C6B1
+ 538+ C6B1 FD 75 13     SETENBS	LD (IY-100+VRS.EnvBase),L
+ 539+ C6B4 FD 74 14     	LD (IY-100+VRS.EnvBase+1),H
+ 540+ C6B7 C9           	RET
+ 541+ C6B8
+ 542+ C6B8 FD 75 0C     SETESLD	LD (IY-100+VRS.CurESld),L
+ 543+ C6BB FD 74 0D     	LD (IY-100+VRS.CurESld+1),H
+ 544+ C6BE C9           	RET
+ 545+ C6BF
+ 546+ C6BF FD E5        GETIX	PUSH IY
+ 547+ C6C1 DD E1        	POP IX
+ 548+ C6C3 DD 19        	ADD IX,DE
+ 549+ C6C5 C9           	RET
+ 550+ C6C6
+ 551+ C6C6 CD BF C6     PTDECOD CALL GETIX
+ 552+ C6C9              PTDEC	EQU $+1
+ 553+ C6C9 C3 C3 C3     	JP #C3C3
+ 554+ C6CC
+ 555+ C6CC              ;PT2 pattern decoder
+ 556+ C6CC CD 62 C9     PD2_SAM	CALL SETSAM
+ 557+ C6CF 18 4A        	JR PD2_LOOP
+ 558+ C6D1
+ 559+ C6D1 DD 77 08     PD2_EOff LD (IX-12+CHP.Env_En),A
+ 560+ C6D4 18 45        	JR PD2_LOOP
+ 561+ C6D6
+ 562+ C6D6 DD 36 08 10  PD2_ENV	LD (IX-12+CHP.Env_En),16
+ 563+ C6DA FD 77 22     	LD (IY-100+VRS.AYREGS+EnvTp),A
+ 564+ C6DD 0A           	LD A,(BC)
+ 565+ C6DE 03           	INC BC
+ 566+ C6DF 6F           	LD L,A
+ 567+ C6E0 0A           	LD A,(BC)
+ 568+ C6E1 03           	INC BC
+ 569+ C6E2 67           	LD H,A
+ 570+ C6E3 CD B1 C6     	CALL SETENBS
+ 571+ C6E6 18 33        	JR PD2_LOOP
+ 572+ C6E8
+ 573+ C6E8 CD 43 C9     PD2_ORN	CALL SETORN
+ 574+ C6EB 18 2E        	JR PD2_LOOP
+ 575+ C6ED
+ 576+ C6ED 3C           PD2_SKIP INC A
+ 577+ C6EE DD 77 05     	LD (IX-12+CHP.NNtSkp),A
+ 578+ C6F1 18 28        	JR PD2_LOOP
+ 579+ C6F3
+ 580+ C6F3 0F           PD2_VOL	RRCA
+ 581+ C6F4 0F           	RRCA
+ 582+ C6F5 0F           	RRCA
+ 583+ C6F6 0F           	RRCA
+ 584+ C6F7 DD 77 10     	LD (IX-12+CHP.Volume),A
+ 585+ C6FA 18 1F        	JR PD2_LOOP
+ 586+ C6FC
+ 587+ C6FC CD 13 C9     PD2_DEL	CALL C_DELAY
+ 588+ C6FF 18 1A        	JR PD2_LOOP
+ 589+ C701
+ 590+ C701 DD CB 09 D6  PD2_GLIS SET 2,(IX-12+CHP.Flags)
+ 591+ C705 3C           	INC A
+ 592+ C706 DD 77 0A     	LD (IX-12+CHP.TnSlDl),A
+ 593+ C709 DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
+ 594+ C70C 0A           	LD A,(BC)
+ 595+ C70D 03           	INC BC
+ 596+ C70E DD 77 0B             LD (IX-12+CHP.TSlStp),A
+ 597+ C711 87           	ADD A,A
+ 598+ C712 9F           	SBC A,A
+ 599+ C713 DD 77 0C             LD (IX-12+CHP.TSlStp+1),A
+ 600+ C716 37           	SCF
+ 601+ C717 18 01        	JR PD2_LP2
+ 602+ C719
+ 603+ C719 A7           PT2PD	AND A
+ 604+ C71A
+ 605+ C71A 08           PD2_LP2	EX AF,AF'
+ 606+ C71B
+ 607+ C71B 0A           PD2_LOOP LD A,(BC)
+ 608+ C71C 03           	INC BC
+ 609+ C71D C6 20        	ADD A,#20
+ 610+ C71F 28 3F        	JR Z,PD2_REL
+ 611+ C721 38 A9        	JR C,PD2_SAM
+ 612+ C723 C6 60        	ADD A,96
+ 613+ C725 38 3E        	JR C,PD2_NOTE
+ 614+ C727 3C           	INC A
+ 615+ C728 28 A7        	JR Z,PD2_EOff
+ 616+ C72A C6 0F        	ADD A,15
+ 617+ C72C CA 42 C8     	JP Z,PD_FIN
+ 618+ C72F 38 A5        	JR C,PD2_ENV
+ 619+ C731 C6 10        	ADD A,#10
+ 620+ C733 38 B3        	JR C,PD2_ORN
+ 621+ C735 C6 40        	ADD A,#40
+ 622+ C737 38 B4        	JR C,PD2_SKIP
+ 623+ C739 C6 10        	ADD A,#10
+ 624+ C73B 38 B6        	JR C,PD2_VOL
+ 625+ C73D 3C           	INC A
+ 626+ C73E 28 BC        	JR Z,PD2_DEL
+ 627+ C740 3C           	INC A
+ 628+ C741 28 BE        	JR Z,PD2_GLIS
+ 629+ C743 3C           	INC A
+ 630+ C744 28 0A        	JR Z,PD2_PORT
+ 631+ C746 3C           	INC A
+ 632+ C747 28 12        	JR Z,PD2_STOP
+ 633+ C749 0A           	LD A,(BC)
+ 634+ C74A 03           	INC BC
+ 635+ C74B DD 77 F7     	LD (IX-12+CHP.CrNsSl),A
+ 636+ C74E 18 CB        	JR PD2_LOOP
+ 637+ C750
+ 638+ C750 DD CB 09 96  PD2_PORT RES 2,(IX-12+CHP.Flags)
+ 639+ C754 0A           	LD A,(BC)
+ 640+ C755 03           	INC BC
+ 641+ C756 03           	INC BC ;ignoring precalc delta to right sound
+ 642+ C757 03           	INC BC
+ 643+ C758 37           	SCF
+ 644+ C759 18 BF        	JR PD2_LP2
+ 645+ C75B
+ 646+ C75B DD 77 F9     PD2_STOP LD (IX-12+CHP.TSlCnt),A
+ 647+ C75E 18 BB        	JR PD2_LOOP
+ 648+ C760
+ 649+ C760 DD 77 09     PD2_REL	LD (IX-12+CHP.Flags),A
+ 650+ C763 18 2C        	JR PD2_EXIT
+ 651+ C765
+ 652+ C765 6F           PD2_NOTE LD L,A
+ 653+ C766 DD 7E 06     	LD A,(IX-12+CHP.Note)
+ 654+ C769 32 7C C8     	LD (PrNote+1),A
+ 655+ C76C DD 75 06     	LD (IX-12+CHP.Note),L
+ 656+ C76F AF           	XOR A
+ 657+ C770 DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
+ 658+ C773 DD CB 09 C6  	SET 0,(IX-12+CHP.Flags)
+ 659+ C777 08           	EX AF,AF'
+ 660+ C778 30 16        	JR NC,NOGLIS2
+ 661+ C77A DD CB 09 56  	BIT 2,(IX-12+CHP.Flags)
+ 662+ C77E 20 0C        	JR NZ,NOPORT2
+ 663+ C780 32 A2 C8     	LD (LoStep),A
+ 664+ C783 87           	ADD A,A
+ 665+ C784 9F           	SBC A,A
+ 666+ C785 08           	EX AF,AF'
+ 667+ C786 67           	LD H,A
+ 668+ C787 6F           	LD L,A
+ 669+ C788 3C           	INC A
+ 670+ C789 CD 5D C8     	CALL SETPORT
+ 671+ C78C DD 36 F9 01  NOPORT2	LD (IX-12+CHP.TSlCnt),1
+ 672+ C790 AF           NOGLIS2	XOR A
+ 673+ C791
+ 674+ C791
+ 675+ C791 DD 77 F5     PD2_EXIT LD (IX-12+CHP.PsInSm),A
+ 676+ C794 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
+ 677+ C797 DD 77 FA     	LD (IX-12+CHP.CrTnSl),A
+ 678+ C79A DD 77 FB     	LD (IX-12+CHP.CrTnSl+1),A
+ 679+ C79D C3 42 C8     	JP PD_FIN
+ 680+ C7A0
+ 681+ C7A0              ;PT3 pattern decoder
+ 682+ C7A0 DD 36 08 00  PD_OrSm	LD (IX-12+CHP.Env_En),0
+ 683+ C7A4 CD 43 C9     	CALL SETORN
+ 684+ C7A7 0A           PD_SAM_	LD A,(BC)
+ 685+ C7A8 03           	INC BC
+ 686+ C7A9 0F           	RRCA
+ 687+ C7AA
+ 688+ C7AA CD 62 C9     PD_SAM	CALL SETSAM
+ 689+ C7AD 18 3F        	JR PD_LOOP
+ 690+ C7AF
+ 691+ C7AF 0F           PD_VOL	RRCA
+ 692+ C7B0 0F           	RRCA
+ 693+ C7B1 0F           	RRCA
+ 694+ C7B2 0F           	RRCA
+ 695+ C7B3 DD 77 10     	LD (IX-12+CHP.Volume),A
+ 696+ C7B6 18 39        	JR PD_LP2
+ 697+ C7B8
+ 698+ C7B8 DD 77 08     PD_EOff	LD (IX-12+CHP.Env_En),A
+ 699+ C7BB DD 77 F4     	LD (IX-12+CHP.PsInOr),A
+ 700+ C7BE 18 31        	JR PD_LP2
+ 701+ C7C0
+ 702+ C7C0 3D           PD_SorE	DEC A
+ 703+ C7C1 20 07        	JR NZ,PD_ENV
+ 704+ C7C3 0A           	LD A,(BC)
+ 705+ C7C4 03           	INC BC
+ 706+ C7C5 DD 77 05     	LD (IX-12+CHP.NNtSkp),A
+ 707+ C7C8 18 27        	JR PD_LP2
+ 708+ C7CA
+ 709+ C7CA CD 28 C9     PD_ENV	CALL SETENV
+ 710+ C7CD 18 22        	JR PD_LP2
+ 711+ C7CF
+ 712+ C7CF CD 43 C9     PD_ORN	CALL SETORN
+ 713+ C7D2 18 1A        	JR PD_LOOP
+ 714+ C7D4
+ 715+ C7D4 DD 77 08     PD_ESAM	LD (IX-12+CHP.Env_En),A
+ 716+ C7D7 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
+ 717+ C7DA C4 28 C9     	CALL NZ,SETENV
+ 718+ C7DD 18 C8        	JR PD_SAM_
+ 719+ C7DF
+ 720+ C7DF DD 7E 06     PT3PD	LD A,(IX-12+CHP.Note)
+ 721+ C7E2 32 7C C8     	LD (PrNote+1),A
+ 722+ C7E5 DD 6E FA     	LD L,(IX-12+CHP.CrTnSl)
+ 723+ C7E8 DD 66 FB     	LD H,(IX-12+CHP.CrTnSl+1)
+ 724+ C7EB 22 99 C8     	LD (PrSlide+1),HL
+ 725+ C7EE
+ 726+ C7EE 11 10 20     PD_LOOP	LD DE,#2010
+ 727+ C7F1 0A           PD_LP2	LD A,(BC)
+ 728+ C7F2 03           	INC BC
+ 729+ C7F3 83           	ADD A,E
+ 730+ C7F4 38 AA        	JR C,PD_OrSm
+ 731+ C7F6 82           	ADD A,D
+ 732+ C7F7 28 49        	JR Z,PD_FIN
+ 733+ C7F9 38 AF        	JR C,PD_SAM
+ 734+ C7FB 83           	ADD A,E
+ 735+ C7FC 28 25        	JR Z,PD_REL
+ 736+ C7FE 38 AF        	JR C,PD_VOL
+ 737+ C800 83           	ADD A,E
+ 738+ C801 28 B5        	JR Z,PD_EOff
+ 739+ C803 38 BB        	JR C,PD_SorE
+ 740+ C805 C6 60        	ADD A,96
+ 741+ C807 38 20        	JR C,PD_NOTE
+ 742+ C809 83           	ADD A,E
+ 743+ C80A 38 C3        	JR C,PD_ORN
+ 744+ C80C 82           	ADD A,D
+ 745+ C80D 38 0F        	JR C,PD_NOIS
+ 746+ C80F 83           	ADD A,E
+ 747+ C810 38 C2        	JR C,PD_ESAM
+ 748+ C812 87           	ADD A,A
+ 749+ C813 5F           	LD E,A
+ptx_vtpl.i.asm(750): warning: value 0x1A89E is truncated to 16bit value: 0xA89E
+ 750+ C814 21 9E A8     	LD HL,SPCCOMS+#FF20-#2000
+ 751+ C817 19           	ADD HL,DE
+ 752+ C818 5E           	LD E,(HL)
+ 753+ C819 23           	INC HL
+ 754+ C81A 56           	LD D,(HL)
+ 755+ C81B D5           	PUSH DE
+ 756+ C81C 18 D0        	JR PD_LOOP
+ 757+ C81E
+ 758+ C81E FD 77 10     PD_NOIS	LD (IY-100+VRS.Ns_Base),A
+ 759+ C821 18 CE        	JR PD_LP2
+ 760+ C823
+ 761+ C823 DD CB 09 86  PD_REL	RES 0,(IX-12+CHP.Flags)
+ 762+ C827 18 08        	JR PD_RES
+ 763+ C829
+ 764+ C829 DD 77 06     PD_NOTE	LD (IX-12+CHP.Note),A
+ 765+ C82C DD CB 09 C6  	SET 0,(IX-12+CHP.Flags)
+ 766+ C830 AF           	XOR A
+ 767+ C831
+ 768+ C831 ED 73 40 C8  PD_RES	LD (PDSP_+1),SP
+ 769+ C835 DD F9        	LD SP,IX
+ 770+ C837 67           	LD H,A
+ 771+ C838 6F           	LD L,A
+ 772+ C839 E5           	PUSH HL
+ 773+ C83A E5           	PUSH HL
+ 774+ C83B E5           	PUSH HL
+ 775+ C83C E5           	PUSH HL
+ 776+ C83D E5           	PUSH HL
+ 777+ C83E E5           	PUSH HL
+ 778+ C83F 31 31 31     PDSP_	LD SP,#3131
+ 779+ C842
+ 780+ C842 DD 7E 05     PD_FIN	LD A,(IX-12+CHP.NNtSkp)
+ 781+ C845 DD 77 0F     	LD (IX-12+CHP.NtSkCn),A
+ 782+ C848 C9           	RET
+ 783+ C849
+ 784+ C849 0A           C_PORTM LD A,(BC)
+ 785+ C84A 03           	INC BC
+ 786+ C84B              ;SKIP PRECALCULATED TONE DELTA (BECAUSE
+ 787+ C84B              ;CANNOT BE RIGHT AFTER PT3 COMPILATION)
+ 788+ C84B 03           	INC BC
+ 789+ C84C 03           	INC BC
+ 790+ C84D 08           	EX AF,AF'
+ 791+ C84E 0A           	LD A,(BC) ;SIGNED TONE STEP
+ 792+ C84F 03           	INC BC
+ 793+ C850 32 A2 C8     	LD (LoStep),A
+ 794+ C853 0A           	LD A,(BC)
+ 795+ C854 03           	INC BC
+ 796+ C855 A7           	AND A
+ 797+ C856 08           	EX AF,AF'
+ 798+ C857 DD 6E FA     	LD L,(IX-12+CHP.CrTnSl)
+ 799+ C85A DD 66 FB     	LD H,(IX-12+CHP.CrTnSl+1)
+ 800+ C85D
+ 801+ C85D              ;Set portamento variables
+ 802+ C85D              ;A - Delay; A' - Hi(Step); ZF' - (A'=0); HL - CrTnSl
+ 803+ C85D
+ 804+ C85D DD CB 09 96  SETPORT	RES 2,(IX-12+CHP.Flags)
+ 805+ C861 DD 77 0A     	LD (IX-12+CHP.TnSlDl),A
+ 806+ C864 DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
+ 807+ C867 E5           	PUSH HL
+ 808+ C868 11 21 CF     	LD DE,NT_
+ 809+ C86B DD 7E 06     	LD A,(IX-12+CHP.Note)
+ 810+ C86E DD 77 07     	LD (IX-12+CHP.SlToNt),A
+ 811+ C871 87           	ADD A,A
+ 812+ C872 6F           	LD L,A
+ 813+ C873 26 00        	LD H,0
+ 814+ C875 19           	ADD HL,DE
+ 815+ C876 7E           	LD A,(HL)
+ 816+ C877 23           	INC HL
+ 817+ C878 66           	LD H,(HL)
+ 818+ C879 6F           	LD L,A
+ 819+ C87A E5           	PUSH HL
+ 820+ C87B 3E 3E        PrNote	LD A,#3E
+ 821+ C87D DD 77 06     	LD (IX-12+CHP.Note),A
+ 822+ C880 87           	ADD A,A
+ 823+ C881 6F           	LD L,A
+ 824+ C882 26 00        	LD H,0
+ 825+ C884 19           	ADD HL,DE
+ 826+ C885 5E           	LD E,(HL)
+ 827+ C886 23           	INC HL
+ 828+ C887 56           	LD D,(HL)
+ 829+ C888 E1           	POP HL
+ 830+ C889 ED 52        	SBC HL,DE
+ 831+ C88B DD 75 0D     	LD (IX-12+CHP.TnDelt),L
+ 832+ C88E DD 74 0E     	LD (IX-12+CHP.TnDelt+1),H
+ 833+ C891 D1           	POP DE
+ 834+ C892              Version EQU $+1
+ 835+ C892 3E 3E        	LD A,#3E
+ 836+ C894 FE 06        	CP 6
+ 837+ C896 38 09        	JR C,OLDPRTM ;Old 3xxx for PT v3.5-
+ 838+ C898 11 11 11     PrSlide	LD DE,#1111
+ 839+ C89B DD 73 FA     	LD (IX-12+CHP.CrTnSl),E
+ 840+ C89E DD 72 FB     	LD (IX-12+CHP.CrTnSl+1),D
+ 841+ C8A1              LoStep	EQU $+1
+ 842+ C8A1 3E 3E        OLDPRTM	LD A,#3E
+ 843+ C8A3 08           	EX AF,AF'
+ 844+ C8A4 28 01        	JR Z,NOSIG
+ 845+ C8A6 EB           	EX DE,HL
+ 846+ C8A7 ED 52        NOSIG	SBC HL,DE
+ 847+ C8A9 F2 B1 C8     	JP P,SET_STP
+ 848+ C8AC 2F           	CPL
+ 849+ C8AD 08           	EX AF,AF'
+ 850+ C8AE ED 44        	NEG
+ 851+ C8B0 08           	EX AF,AF'
+ 852+ C8B1 DD 77 0C     SET_STP	LD (IX-12+CHP.TSlStp+1),A
+ 853+ C8B4 08           	EX AF,AF'
+ 854+ C8B5 DD 77 0B     	LD (IX-12+CHP.TSlStp),A
+ 855+ C8B8 DD 36 FE 00  	LD (IX-12+CHP.COnOff),0
+ 856+ C8BC C9           	RET
+ 857+ C8BD
+ 858+ C8BD DD CB 09 D6  C_GLISS	SET 2,(IX-12+CHP.Flags)
+ 859+ C8C1 0A           	LD A,(BC)
+ 860+ C8C2 03           	INC BC
+ 861+ C8C3 DD 77 0A     	LD (IX-12+CHP.TnSlDl),A
+ 862+ C8C6 A7           	AND A
+ 863+ C8C7 20 07        	JR NZ,GL36
+ 864+ C8C9 3A 93 C8     	LD A,(Version) ;AlCo PT3.7+
+ 865+ C8CC FE 07        	CP 7
+ 866+ C8CE 9F           	SBC A,A
+ 867+ C8CF 3C           	INC A
+ 868+ C8D0 DD 77 F9     GL36	LD (IX-12+CHP.TSlCnt),A
+ 869+ C8D3 0A           	LD A,(BC)
+ 870+ C8D4 03           	INC BC
+ 871+ C8D5 08           	EX AF,AF'
+ 872+ C8D6 0A           	LD A,(BC)
+ 873+ C8D7 03           	INC BC
+ 874+ C8D8 18 D7        	JR SET_STP
+ 875+ C8DA
+ 876+ C8DA 0A           C_SMPOS	LD A,(BC)
+ 877+ C8DB 03           	INC BC
+ 878+ C8DC DD 77 F5     	LD (IX-12+CHP.PsInSm),A
+ 879+ C8DF C9           	RET
+ 880+ C8E0
+ 881+ C8E0 0A           C_ORPOS	LD A,(BC)
+ 882+ C8E1 03           	INC BC
+ 883+ C8E2 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
+ 884+ C8E5 C9           	RET
+ 885+ C8E6
+ 886+ C8E6 0A           C_VIBRT	LD A,(BC)
+ 887+ C8E7 03           	INC BC
+ 888+ C8E8 DD 77 FF     	LD (IX-12+CHP.OnOffD),A
+ 889+ C8EB DD 77 FE     	LD (IX-12+CHP.COnOff),A
+ 890+ C8EE 0A           	LD A,(BC)
+ 891+ C8EF 03           	INC BC
+ 892+ C8F0 DD 77 00     	LD (IX-12+CHP.OffOnD),A
+ 893+ C8F3 AF           	XOR A
+ 894+ C8F4 DD 77 F9     	LD (IX-12+CHP.TSlCnt),A
+ 895+ C8F7 DD 77 FA     	LD (IX-12+CHP.CrTnSl),A
+ 896+ C8FA DD 77 FB     	LD (IX-12+CHP.CrTnSl+1),A
+ 897+ C8FD C9           	RET
+ 898+ C8FE
+ 899+ C8FE 0A           C_ENGLS	LD A,(BC)
+ 900+ C8FF 03           	INC BC
+ 901+ C900 FD 77 0E     	LD (IY-100+VRS.Env_Del),A
+ 902+ C903 FD 77 0F     	LD (IY-100+VRS.CurEDel),A
+ 903+ C906 0A           	LD A,(BC)
+ 904+ C907 03           	INC BC
+ 905+ C908 6F           	LD L,A
+ 906+ C909 0A           	LD A,(BC)
+ 907+ C90A 03           	INC BC
+ 908+ C90B 67           	LD H,A
+ 909+ C90C FD 75 0A     	LD (IY-100+VRS.ESldAdd),L
+ 910+ C90F FD 74 0B     	LD (IY-100+VRS.ESldAdd+1),H
+ 911+ C912 C9           	RET
+ 912+ C913
+ 913+ C913 0A           C_DELAY	LD A,(BC)
+ 914+ C914 03           	INC BC
+ 915+ C915 FD 77 08     	LD (IY-100+VRS.Delay),A
+ 916+ C918 21 AC CD     	LD HL,VARS2+VRS.ModNum ;if AlCo_TS
+ 917+ C91B CB 4E        	BIT 1,(HL)
+ 918+ C91D C8           	RET Z
+ 919+ C91E 32 8F CD     	LD (VARS1+VRS.Delay),A
+ 920+ C921 32 90 CD     	LD (VARS1+VRS.DelyCnt),A
+ 921+ C924 32 16 CE     	LD (VARS2+VRS.Delay),A
+ 922+ C927 C9           	RET
+ 923+ C928
+ 924+ C928 DD 73 08     SETENV	LD (IX-12+CHP.Env_En),E
+ 925+ C92B FD 77 22     	LD (IY-100+VRS.AYREGS+EnvTp),A
+ 926+ C92E 0A           	LD A,(BC)
+ 927+ C92F 03           	INC BC
+ 928+ C930 67           	LD H,A
+ 929+ C931 0A           	LD A,(BC)
+ 930+ C932 03           	INC BC
+ 931+ C933 6F           	LD L,A
+ 932+ C934 CD B1 C6     	CALL SETENBS
+ 933+ C937 AF           	XOR A
+ 934+ C938 DD 77 F4     	LD (IX-12+CHP.PsInOr),A
+ 935+ C93B FD 77 0F     	LD (IY-100+VRS.CurEDel),A
+ 936+ C93E 67           	LD H,A
+ 937+ C93F 6F           	LD L,A
+ 938+ C940 C3 B8 C6     	JP SETESLD
+ 939+ C943
+ 940+ C943 87           SETORN	ADD A,A
+ 941+ C944 5F           	LD E,A
+ 942+ C945 16 00        	LD D,0
+ 943+ C947 DD 72 F4     	LD (IX-12+CHP.PsInOr),D
+ 944+ C94A FD 6E F8     	LD L,(IY-100+VRS.OrnPtrs)
+ 945+ C94D FD 66 F9     	LD H,(IY-100+VRS.OrnPtrs+1)
+ 946+ C950 19           	ADD HL,DE
+ 947+ C951 5E           	LD E,(HL)
+ 948+ C952 23           	INC HL
+ 949+ C953 56           	LD D,(HL)
+ 950+ C954 FD 6E F6     	LD L,(IY-100+VRS.MODADDR)
+ 951+ C957 FD 66 F7     	LD H,(IY-100+VRS.MODADDR+1)
+ 952+ C95A 19           	ADD HL,DE
+ 953+ C95B DD 75 01     	LD (IX-12+CHP.OrnPtr),L
+ 954+ C95E DD 74 02     	LD (IX-12+CHP.OrnPtr+1),H
+ 955+ C961 C9           C_NOP	RET
+ 956+ C962
+ 957+ C962 87           SETSAM	ADD A,A
+ 958+ C963 5F           	LD E,A
+ 959+ C964 16 00        	LD D,0
+ 960+ C966 FD 6E FA     	LD L,(IY-100+VRS.SamPtrs);
+ 961+ C969 FD 66 FB     	LD H,(IY-100+VRS.SamPtrs+1);
+ 962+ C96C 19           	ADD HL,DE
+ 963+ C96D 5E           	LD E,(HL)
+ 964+ C96E 23           	INC HL
+ 965+ C96F 56           	LD D,(HL)
+ 966+ C970 FD 6E F6     	LD L,(IY-100+VRS.MODADDR)
+ 967+ C973 FD 66 F7     	LD H,(IY-100+VRS.MODADDR+1)
+ 968+ C976 19           	ADD HL,DE
+ 969+ C977 DD 75 03     	LD (IX-12+CHP.SamPtr),L
+ 970+ C97A DD 74 04     	LD (IX-12+CHP.SamPtr+1),H
+ 971+ C97D C9           	RET
+ 972+ C97E
+ 973+ C97E              ;ALL 16 ADDRESSES TO PROTECT FROM BROKEN PT3 MODULES
+ 974+ C97E 61 C9        SPCCOMS DW C_NOP
+ 975+ C980 BD C8        	DW C_GLISS
+ 976+ C982 49 C8        	DW C_PORTM
+ 977+ C984 DA C8        	DW C_SMPOS
+ 978+ C986 E0 C8        	DW C_ORPOS
+ 979+ C988 E6 C8        	DW C_VIBRT
+ 980+ C98A 61 C9        	DW C_NOP
+ 981+ C98C 61 C9        	DW C_NOP
+ 982+ C98E FE C8        	DW C_ENGLS
+ 983+ C990 13 C9        	DW C_DELAY
+ 984+ C992 61 C9        	DW C_NOP
+ 985+ C994 61 C9        	DW C_NOP
+ 986+ C996 61 C9        	DW C_NOP
+ 987+ C998 61 C9        	DW C_NOP
+ 988+ C99A 61 C9        	DW C_NOP
+ 989+ C99C 61 C9        	DW C_NOP
+ 990+ C99E
+ 991+ C99E CD BF C6     CHREGS	CALL GETIX
+ 992+ C9A1 AF           	XOR A
+ 993+ C9A2 32 DE CB     	LD (Ampl),A
+ 994+ C9A5 DD CB 15 46  	BIT 0,(IX+CHP.Flags)
+ 995+ C9A9 E5           	PUSH HL
+ 996+ C9AA CA F1 CA     	JP Z,CH_EXIT
+ 997+ C9AD ED 73 3B CA  	LD (CSP_+1),SP
+ 998+ C9B1 DD 6E 0D     	LD L,(IX+CHP.OrnPtr)
+ 999+ C9B4 DD 66 0E     	LD H,(IX+CHP.OrnPtr+1)
+1000+ C9B7 F9           	LD SP,HL
+1001+ C9B8 D1           	POP DE
+1002+ C9B9 67           	LD H,A
+1003+ C9BA DD 7E 00     	LD A,(IX+CHP.PsInOr)
+1004+ C9BD 6F           	LD L,A
+1005+ C9BE 39           	ADD HL,SP
+1006+ C9BF 3C           	INC A
+1007+ C9C0              		;PT2	PT3
+1008+ C9C0 3C           OrnCP	INC A	;CP E	CP D
+1009+ C9C1 38 01        	JR C,CH_ORPS
+1010+ C9C3 01           OrnLD	DB 1	;LD A,D	LD A,E
+1011+ C9C4 DD 77 00     CH_ORPS	LD (IX+CHP.PsInOr),A
+1012+ C9C7 DD 7E 12     	LD A,(IX+CHP.Note)
+1013+ C9CA 86           	ADD A,(HL)
+1014+ C9CB F2 CF C9     	JP P,CH_NTP
+1015+ C9CE AF           	XOR A
+1016+ C9CF FE 60        CH_NTP	CP 96
+1017+ C9D1 38 02        	JR C,CH_NOK
+1018+ C9D3 3E 5F        	LD A,95
+1019+ C9D5 87           CH_NOK	ADD A,A
+1020+ C9D6 08           	EX AF,AF'
+1021+ C9D7 DD 6E 0F     	LD L,(IX+CHP.SamPtr)
+1022+ C9DA DD 66 10     	LD H,(IX+CHP.SamPtr+1)
+1023+ C9DD F9           	LD SP,HL
+1024+ C9DE D1           	POP DE
+1025+ C9DF 26 00        	LD H,0
+1026+ C9E1 DD 7E 01     	LD A,(IX+CHP.PsInSm)
+1027+ C9E4 47           	LD B,A
+1028+ C9E5 87           	ADD A,A
+1029+ C9E6 87           SamClc2	ADD A,A ;or ADD A,B for PT2
+1030+ C9E7 6F           	LD L,A
+1031+ C9E8 39           	ADD HL,SP
+1032+ C9E9 F9           	LD SP,HL
+1033+ C9EA 78           	LD A,B
+1034+ C9EB 3C           	INC A
+1035+ C9EC              		;PT2	PT3
+1036+ C9EC 3C           SamCP	INC A	;CP E	CP D
+1037+ C9ED 38 01        	JR C,CH_SMPS
+1038+ C9EF 01           SamLD	DB 1	;LD A,D	LD A,E
+1039+ C9F0 DD 77 01     CH_SMPS	LD (IX+CHP.PsInSm),A
+1040+ C9F3 C1           	POP BC
+1041+ C9F4 E1           	POP HL
+1042+ C9F5
+1043+ C9F5              ;Convert PT2 sample to PT3
+1044+ C9F5              		;PT2		PT3
+1045+ C9F5 E1           SamCnv	POP HL  ;BIT 2,C	JR e_
+1046+ C9F6 E1           	POP HL
+1047+ C9F7 60           	LD H,B
+1048+ C9F8 20 06        	JR NZ,$+8
+1049+ C9FA EB           	EX DE,HL
+1050+ C9FB A7           	AND A
+1051+ C9FC ED 62        	SBC HL,HL
+1052+ C9FE ED 52        	SBC HL,DE
+1053+ CA00 51           	LD D,C
+1054+ CA01 CB 19        	RR C
+1055+ CA03 9F           	SBC A,A
+1056+ CA04 2F           	CPL
+1057+ CA05 E6 3E        	AND #3E
+1058+ CA07 CB 19        	RR C
+1059+ CA09 CB 18        	RR B
+1060+ CA0B A1           	AND C
+1061+ CA0C 4F           	LD C,A
+1062+ CA0D 78           	LD A,B
+1063+ CA0E 1F           	RRA
+1064+ CA0F 1F           	RRA
+1065+ CA10 CB 1A        	RR D
+1066+ CA12 1F           	RRA
+1067+ CA13 E6 9F        	AND #9F
+1068+ CA15 47           	LD B,A
+1069+ CA16
+1070+ CA16 DD 5E 08     e_	LD E,(IX+CHP.TnAcc)
+1071+ CA19 DD 56 09     	LD D,(IX+CHP.TnAcc+1)
+1072+ CA1C 19           	ADD HL,DE
+1073+ CA1D CB 70        	BIT 6,B
+1074+ CA1F 28 06        	JR Z,CH_NOAC
+1075+ CA21 DD 75 08     	LD (IX+CHP.TnAcc),L
+1076+ CA24 DD 74 09     	LD (IX+CHP.TnAcc+1),H
+1077+ CA27 EB           CH_NOAC EX DE,HL
+1078+ CA28 08           	EX AF,AF'
+ptx_vtpl.i.asm(1079): warning: value 0xCF21 is truncated to 8bit value: 0x21
+1079+ CA29 C6 21        	ADD A,NT_
+1080+ CA2B 6F           	LD L,A
+1081+ CA2C CE CF        	ADC A,NT_/256
+1082+ CA2E 95           	SUB L
+1083+ CA2F 67           	LD H,A
+1084+ CA30 F9           	LD SP,HL
+1085+ CA31 E1           	POP HL
+1086+ CA32 19           	ADD HL,DE
+1087+ CA33 DD 5E 06     	LD E,(IX+CHP.CrTnSl)
+1088+ CA36 DD 56 07     	LD D,(IX+CHP.CrTnSl+1)
+1089+ CA39 19           	ADD HL,DE
+1090+ CA3A 31 31 31     CSP_	LD SP,#3131
+1091+ CA3D E3           	EX (SP),HL
+1092+ CA3E AF           	XOR A
+1093+ CA3F DD B6 05     	OR (IX+CHP.TSlCnt)
+1094+ CA42 28 3E        	JR Z,CH_AMP
+1095+ CA44 DD 35 05     	DEC (IX+CHP.TSlCnt)
+1096+ CA47 20 39        	JR NZ,CH_AMP
+1097+ CA49 DD 7E 16     	LD A,(IX+CHP.TnSlDl)
+1098+ CA4C DD 77 05     	LD (IX+CHP.TSlCnt),A
+1099+ CA4F DD 6E 17     	LD L,(IX+CHP.TSlStp)
+1100+ CA52 DD 66 18     	LD H,(IX+CHP.TSlStp+1)
+1101+ CA55 7C           	LD A,H
+1102+ CA56 19           	ADD HL,DE
+1103+ CA57 DD 75 06     	LD (IX+CHP.CrTnSl),L
+1104+ CA5A DD 74 07     	LD (IX+CHP.CrTnSl+1),H
+1105+ CA5D DD CB 15 56  	BIT 2,(IX+CHP.Flags)
+1106+ CA61 20 1F        	JR NZ,CH_AMP
+1107+ CA63 DD 5E 19     	LD E,(IX+CHP.TnDelt)
+1108+ CA66 DD 56 1A     	LD D,(IX+CHP.TnDelt+1)
+1109+ CA69 A7           	AND A
+1110+ CA6A 28 01        	JR Z,CH_STPP
+1111+ CA6C EB           	EX DE,HL
+1112+ CA6D ED 52        CH_STPP SBC HL,DE
+1113+ CA6F FA 82 CA     	JP M,CH_AMP
+1114+ CA72 DD 7E 13     	LD A,(IX+CHP.SlToNt)
+1115+ CA75 DD 77 12     	LD (IX+CHP.Note),A
+1116+ CA78 AF           	XOR A
+1117+ CA79 DD 77 05     	LD (IX+CHP.TSlCnt),A
+1118+ CA7C DD 77 06     	LD (IX+CHP.CrTnSl),A
+1119+ CA7F DD 77 07     	LD (IX+CHP.CrTnSl+1),A
+1120+ CA82 DD 7E 02     CH_AMP	LD A,(IX+CHP.CrAmSl)
+1121+ CA85 CB 79        	BIT 7,C
+1122+ CA87 28 13        	JR Z,CH_NOAM
+1123+ CA89 CB 71        	BIT 6,C
+1124+ CA8B 28 07        	JR Z,CH_AMIN
+1125+ CA8D FE 0F        	CP 15
+1126+ CA8F 28 0B        	JR Z,CH_NOAM
+1127+ CA91 3C           	INC A
+1128+ CA92 18 05        	JR CH_SVAM
+1129+ CA94 FE F1        CH_AMIN	CP -15
+1130+ CA96 28 04        	JR Z,CH_NOAM
+1131+ CA98 3D           	DEC A
+1132+ CA99 DD 77 02     CH_SVAM	LD (IX+CHP.CrAmSl),A
+1133+ CA9C 6F           CH_NOAM	LD L,A
+1134+ CA9D 78           	LD A,B
+1135+ CA9E E6 0F        	AND 15
+1136+ CAA0 85           	ADD A,L
+1137+ CAA1 F2 A5 CA     	JP P,CH_APOS
+1138+ CAA4 AF           	XOR A
+1139+ CAA5 FE 10        CH_APOS	CP 16
+1140+ CAA7 38 02        	JR C,CH_VOL
+1141+ CAA9 3E 0F        	LD A,15
+1142+ CAAB DD B6 1C     CH_VOL	OR (IX+CHP.Volume)
+ptx_vtpl.i.asm(1143): warning: value 0xCE21 is truncated to 8bit value: 0x21
+1143+ CAAE C6 21        	ADD A,VT_
+1144+ CAB0 6F           	LD L,A
+1145+ CAB1 CE CE        	ADC A,VT_/256
+1146+ CAB3 95           	SUB L
+1147+ CAB4 67           	LD H,A
+1148+ CAB5 7E           	LD A,(HL)
+1149+ CAB6 CB 41        CH_ENV	BIT 0,C
+1150+ CAB8 20 03        	JR NZ,CH_NOEN
+1151+ CABA DD B6 14     	OR (IX+CHP.Env_En)
+1152+ CABD 32 DE CB     CH_NOEN	LD (Ampl),A
+1153+ CAC0 CB 78        	BIT 7,B
+1154+ CAC2 79           	LD A,C
+1155+ CAC3 28 1A        	JR Z,NO_ENSL
+1156+ CAC5 17           	RLA
+1157+ CAC6 17           	RLA
+1158+ CAC7 CB 2F        	SRA A
+1159+ CAC9 CB 2F        	SRA A
+1160+ CACB CB 2F        	SRA A
+1161+ CACD DD 86 04     	ADD A,(IX+CHP.CrEnSl) ;SEE COMMENT BELOW
+1162+ CAD0 CB 68        	BIT 5,B
+1163+ CAD2 28 03        	JR Z,NO_ENAC
+1164+ CAD4 DD 77 04     	LD (IX+CHP.CrEnSl),A
+1165+ CAD7 FD 86 12     NO_ENAC	ADD A,(IY-100+VRS.AddToEn) ;BUG IN PT3 - NEED WORD HERE
+1166+ CADA FD 77 12     	LD (IY-100+VRS.AddToEn),A
+1167+ CADD 18 0E        	JR CH_MIX
+1168+ CADF 1F           NO_ENSL RRA
+1169+ CAE0 DD 86 03     	ADD A,(IX+CHP.CrNsSl)
+1170+ CAE3 FD 77 11     	LD (IY-100+VRS.AddToNs),A
+1171+ CAE6 CB 68        	BIT 5,B
+1172+ CAE8 28 03        	JR Z,CH_MIX
+1173+ CAEA DD 77 03     	LD (IX+CHP.CrNsSl),A
+1174+ CAED 78           CH_MIX	LD A,B
+1175+ CAEE 1F           	RRA
+1176+ CAEF E6 48        	AND #48
+1177+ CAF1 FD B6 1C     CH_EXIT	OR (IY-100+VRS.AYREGS+Mixer)
+1178+ CAF4 0F           	RRCA
+1179+ CAF5 FD 77 1C     	LD (IY-100+VRS.AYREGS+Mixer),A
+1180+ CAF8 E1           	POP HL
+1181+ CAF9 AF           	XOR A
+1182+ CAFA DD B6 0A     	OR (IX+CHP.COnOff)
+1183+ CAFD C8           	RET Z
+1184+ CAFE DD 35 0A     	DEC (IX+CHP.COnOff)
+1185+ CB01 C0           	RET NZ
+1186+ CB02 DD AE 15     	XOR (IX+CHP.Flags)
+1187+ CB05 DD 77 15     	LD (IX+CHP.Flags),A
+1188+ CB08 1F           	RRA
+1189+ CB09 DD 7E 0B     	LD A,(IX+CHP.OnOffD)
+1190+ CB0C 38 03        	JR C,CH_ONDL
+1191+ CB0E DD 7E 0C     	LD A,(IX+CHP.OffOnD)
+1192+ CB11 DD 77 0A     CH_ONDL	LD (IX+CHP.COnOff),A
+1193+ CB14 C9           	RET
+1194+ CB15
+1195+ CB15 AF           PLAY_	XOR A
+1196+ CB16 FD 77 12     	LD (IY-100+VRS.AddToEn),A
+1197+ CB19 FD 77 1C     	LD (IY-100+VRS.AYREGS+Mixer),A
+1198+ CB1C 3D           	DEC A
+1199+ CB1D FD 77 22     	LD (IY-100+VRS.AYREGS+EnvTp),A
+1200+ CB20 FD 35 09     	DEC (IY-100+VRS.DelyCnt)
+1201+ CB23 C2 CB CB     	JP NZ,PL2
+1202+ CB26 FD 35 BA     	DEC (IY-100+VRS.ChanA+CHP.NtSkCn)
+1203+ CB29 20 6C        	JR NZ,PL1B
+1204+ CB2B FD 4E FE     	LD C,(IY-100+VRS.AdInPtA)
+1205+ CB2E FD 46 FF     	LD B,(IY-100+VRS.AdInPtA+1)
+1206+ CB31 0A           	LD A,(BC)
+1207+ CB32 A7           	AND A
+1208+ CB33 20 56        	JR NZ,PL1A
+1209+ CB35 57           	LD D,A
+1210+ CB36 FD 77 10     	LD (IY-100+VRS.Ns_Base),A
+1211+ CB39 FD 6E 04     	LD L,(IY-100+VRS.CrPsPtr)
+1212+ CB3C FD 66 05     	LD H,(IY-100+VRS.CrPsPtr+1)
+1213+ CB3F 23           	INC HL
+1214+ CB40 7E           	LD A,(HL)
+1215+ CB41 3C           	INC A
+1216+ CB42 20 0B        	JR NZ,PLNLP
+1217+ CB44
+1218+ CB44              	IF LoopChecker
+1219+ CB44 CD F6 C3     	CALL CHECKLP
+1220+ CB47              	ENDIF
+1221+ CB47
+1222+ CB47 FD 6E 06     	LD L,(IY-100+VRS.LPosPtr)
+1223+ CB4A FD 66 07     	LD H,(IY-100+VRS.LPosPtr+1)
+1224+ CB4D 7E           	LD A,(HL)
+1225+ CB4E 3C           	INC A
+1226+ CB4F CD A3 C6     PLNLP	CALL SETCPPT
+1227+ CB52 3D           	DEC A
+1228+ CB53 FD CB 9E 4E  	BIT 1,(IY-100+VRS.ModNum)
+1229+ CB57 28 03        	JR Z,NoAlCo
+1230+ CB59              TSSub	EQU $+1
+1231+ CB59 D6 D6        	SUB #D6
+1232+ CB5B 2F           	CPL
+1233+ CB5C              NoAlCo
+1234+ CB5C              		;PT2		PT3
+1235+ CB5C 3D           PsCalc	DEC A	;ADD A,A	NOP
+1236+ CB5D 3D           	DEC A	;ADD A,(HL)	NOP
+1237+ CB5E 87           	ADD A,A
+1238+ CB5F 5F           	LD E,A
+1239+ CB60 CB 12        	RL D
+1240+ CB62
+1241+ CB62              	IF CurPosCounter
+1242+ CB62 ~            	LD A,L
+1243+ CB62 ~            	SUB (IY-100+VRS.PosSub)
+1244+ CB62 ~            	LD (IY-100+VRS.CurPos),A
+1245+ CB62              	ENDIF
+1246+ CB62
+1247+ CB62 FD 6E FC     	LD L,(IY-100+VRS.PatsPtr)
+1248+ CB65 FD 66 FD     	LD H,(IY-100+VRS.PatsPtr+1)
+1249+ CB68 19           	ADD HL,DE
+1250+ CB69 FD 5E F6     	LD E,(IY-100+VRS.MODADDR)
+1251+ CB6C FD 56 F7     	LD D,(IY-100+VRS.MODADDR+1)
+1252+ CB6F ED 73 89 CB  	LD (PSP_+1),SP
+1253+ CB73 F9           	LD SP,HL
+1254+ CB74 E1           	POP HL
+1255+ CB75 19           	ADD HL,DE
+1256+ CB76 44           	LD B,H
+1257+ CB77 4D           	LD C,L
+1258+ CB78 E1           	POP HL
+1259+ CB79 19           	ADD HL,DE
+1260+ CB7A FD 75 00     	LD (IY-100+VRS.AdInPtB),L
+1261+ CB7D FD 74 01     	LD (IY-100+VRS.AdInPtB+1),H
+1262+ CB80 E1           	POP HL
+1263+ CB81 19           	ADD HL,DE
+1264+ CB82 FD 75 02     	LD (IY-100+VRS.AdInPtC),L
+1265+ CB85 FD 74 03     	LD (IY-100+VRS.AdInPtC+1),H
+1266+ CB88 31 31 31     PSP_	LD SP,#3131
+1267+ CB8B 11 AB FF     PL1A	LD DE,VRS.ChanA+12-100
+1268+ CB8E CD C6 C6     	CALL PTDECOD
+1269+ CB91 FD 71 FE     	LD (IY-100+VRS.AdInPtA),C
+1270+ CB94 FD 70 FF     	LD (IY-100+VRS.AdInPtA+1),B
+1271+ CB97
+1272+ CB97 FD 35 D7     PL1B	DEC (IY-100+VRS.ChanB+CHP.NtSkCn)
+1273+ CB9A 20 12        	JR NZ,PL1C
+1274+ CB9C 11 C8 FF     	LD DE,VRS.ChanB+12-100
+1275+ CB9F FD 4E 00     	LD C,(IY-100+VRS.AdInPtB)
+1276+ CBA2 FD 46 01     	LD B,(IY-100+VRS.AdInPtB+1)
+1277+ CBA5 CD C6 C6     	CALL PTDECOD
+1278+ CBA8 FD 71 00     	LD (IY-100+VRS.AdInPtB),C
+1279+ CBAB FD 70 01     	LD (IY-100+VRS.AdInPtB+1),B
+1280+ CBAE
+1281+ CBAE FD 35 F4     PL1C	DEC (IY-100+VRS.ChanC+CHP.NtSkCn)
+1282+ CBB1 20 12        	JR NZ,PL1D
+1283+ CBB3 11 E5 FF     	LD DE,VRS.ChanC+12-100
+1284+ CBB6 FD 4E 02     	LD C,(IY-100+VRS.AdInPtC)
+1285+ CBB9 FD 46 03     	LD B,(IY-100+VRS.AdInPtC+1)
+1286+ CBBC CD C6 C6     	CALL PTDECOD
+1287+ CBBF FD 71 02     	LD (IY-100+VRS.AdInPtC),C
+1288+ CBC2 FD 70 03     	LD (IY-100+VRS.AdInPtC+1),B
+1289+ CBC5
+1290+ CBC5 FD 7E 08     PL1D	LD A,(IY-100+VRS.Delay)
+1291+ CBC8 FD 77 09     	LD (IY-100+VRS.DelyCnt),A
+1292+ CBCB
+1293+ CBCB 11 9F FF     PL2	LD DE,VRS.ChanA-100
+1294+ CBCE FD 6E 15     	LD L,(IY-100+VRS.AYREGS+TonA)
+1295+ CBD1 FD 66 16     	LD H,(IY-100+VRS.AYREGS+TonA+1)
+1296+ CBD4 CD 9E C9     	CALL CHREGS
+1297+ CBD7 FD 75 15     	LD (IY-100+VRS.AYREGS+TonA),L
+1298+ CBDA FD 74 16     	LD (IY-100+VRS.AYREGS+TonA+1),H
+1299+ CBDD              Ampl	EQU $+1
+1300+ CBDD 3E 3E        	LD A,#3E
+1301+ CBDF FD 77 1D     	LD (IY-100+VRS.AYREGS+AmplA),A
+1302+ CBE2 11 BC FF     	LD DE,VRS.ChanB-100
+1303+ CBE5 FD 6E 17     	LD L,(IY-100+VRS.AYREGS+TonB)
+1304+ CBE8 FD 66 18     	LD H,(IY-100+VRS.AYREGS+TonB+1)
+1305+ CBEB CD 9E C9     	CALL CHREGS
+1306+ CBEE FD 75 17     	LD (IY-100+VRS.AYREGS+TonB),L
+1307+ CBF1 FD 74 18     	LD (IY-100+VRS.AYREGS+TonB+1),H
+1308+ CBF4 3A DE CB     	LD A,(Ampl)
+1309+ CBF7 FD 77 1E     	LD (IY-100+VRS.AYREGS+AmplB),A
+1310+ CBFA 11 D9 FF     	LD DE,VRS.ChanC-100
+1311+ CBFD FD 6E 19     	LD L,(IY-100+VRS.AYREGS+TonC)
+1312+ CC00 FD 66 1A     	LD H,(IY-100+VRS.AYREGS+TonC+1)
+1313+ CC03 CD 9E C9     	CALL CHREGS
+1314+ CC06 FD 75 19     	LD (IY-100+VRS.AYREGS+TonC),L
+1315+ CC09 FD 74 1A     	LD (IY-100+VRS.AYREGS+TonC+1),H
+1316+ CC0C 3A DE CB     	LD A,(Ampl)
+1317+ CC0F FD 77 1F     	LD (IY-100+VRS.AYREGS+AmplC),A
+1318+ CC12
+1319+ CC12 FD 7E 10     	LD A,(IY-100+VRS.Ns_Base)
+1320+ CC15 FD 86 11     	ADD (IY-100+VRS.AddToNs)
+1321+ CC18 FD 77 1B     	LD (IY-100+VRS.AYREGS+Noise),A
+1322+ CC1B
+1323+ CC1B FD 7E 12     	LD A,(IY-100+VRS.AddToEn)
+1324+ CC1E 5F           	LD E,A
+1325+ CC1F 87           	ADD A,A
+1326+ CC20 9F           	SBC A,A
+1327+ CC21 57           	LD D,A
+1328+ CC22 FD 6E 13     	LD L,(IY-100+VRS.EnvBase)
+1329+ CC25 FD 66 14     	LD H,(IY-100+VRS.EnvBase+1)
+1330+ CC28 19           	ADD HL,DE
+1331+ CC29 FD 5E 0C     	LD E,(IY-100+VRS.CurESld)
+1332+ CC2C FD 56 0D     	LD D,(IY-100+VRS.CurESld+1)
+1333+ CC2F 19           	ADD HL,DE
+1334+ CC30 FD 75 20     	LD (IY-100+VRS.AYREGS+Env),L
+1335+ CC33 FD 74 21     	LD (IY-100+VRS.AYREGS+Env+1),H
+1336+ CC36
+1337+ CC36 AF           	XOR A
+1338+ CC37 FD B6 0F     	OR (IY-100+VRS.CurEDel)
+1339+ CC3A C8           	RET Z
+1340+ CC3B FD 35 0F     	DEC (IY-100+VRS.CurEDel)
+1341+ CC3E C0           	RET NZ
+1342+ CC3F FD 7E 0E     	LD A,(IY-100+VRS.Env_Del)
+1343+ CC42 FD 77 0F     	LD (IY-100+VRS.CurEDel),A
+1344+ CC45 FD 6E 0A     	LD L,(IY-100+VRS.ESldAdd)
+1345+ CC48 FD 66 0B     	LD H,(IY-100+VRS.ESldAdd+1)
+1346+ CC4B 19           	ADD HL,DE
+1347+ CC4C C3 B8 C6     	JP SETESLD
+1348+ CC4F
+1349+ CC4F FD 21 87 CD  PLAY    LD IY,VARS1+100
+1350+ CC53 CD 15 CB     	CALL PLAY_
+1351+ CC56 3A 22 CD     	LD A,(is_ts)
+1352+ CC59 A7           	AND A
+1353+ CC5A 28 07        	JR Z,PL_nts
+1354+ CC5C FD 21 0E CE  	LD IY,VARS2+100
+1355+ CC60 CD 15 CB     	CALL PLAY_
+1356+ CC63              PL_nts
+1357+ CC63              	IF Basic
+1358+ CC63 FD 21 3A 5C  	LD IY,#5C3A
+1359+ CC67              	ENDIF
+1360+ CC67
+1361+ CC67 01 FD FF     ROUT	LD BC,#FFFD
+1362+ CC6A 3A 22 CD     	LD A,(is_ts)
+1363+ CC6D A7           	AND A
+1364+ CC6E 28 02        	JR Z,r_nts ;keep old standard
+1365+ CC70 ED 41        	OUT (C),B
+1366+ CC72 08           r_nts	EX AF,AF'
+1367+ CC73
+1368+ CC73              	IF ACBBAC
+1369+ CC73 ~            	LD IX,VARS1+VRS.AYREGS
+1370+ CC73              	ELSE
+1371+ CC73 21 9C CD     	LD HL,VARS1+VRS.AYREGS
+1372+ CC76              	ENDIF
+1373+ CC76
+1374+ CC76 CD 82 CC     	CALL ROUT_
+1375+ CC79 08           	EX AF,AF'
+1376+ CC7A C8           	RET Z
+1377+ CC7B 42           	LD B,D
+1378+ CC7C 2F           	CPL
+1379+ CC7D ED 79        	OUT (C),A
+1380+ CC7F
+1381+ CC7F              	IF ACBBAC
+1382+ CC7F ~            	LD IX,VARS2+VRS.AYREGS
+1383+ CC7F              	ELSE
+1384+ CC7F 21 23 CE     	LD HL,VARS2+VRS.AYREGS
+1385+ CC82              	ENDIF
+1386+ CC82
+1387+ CC82              ROUT_
+1388+ CC82              	IF ACBBAC
+1389+ CC82 ~            	LD A,(SETUP)
+1390+ CC82 ~            	AND 12
+1391+ CC82 ~            	JR Z,ABC
+1392+ CC82 ~            	ADD A,CHTABLE
+1393+ CC82 ~            	LD E,A
+1394+ CC82 ~            	ADC A,CHTABLE/256
+1395+ CC82 ~            	SUB E
+1396+ CC82 ~            	LD D,A
+1397+ CC82 ~            	LD B,0
+1398+ CC82 ~            	PUSH IX
+1399+ CC82 ~            	POP HL
+1400+ CC82 ~            	LD A,(DE)
+1401+ CC82 ~            	INC DE
+1402+ CC82 ~            	LD C,A
+1403+ CC82 ~            	ADD HL,BC
+1404+ CC82 ~            	LD A,(IX+TonB)
+1405+ CC82 ~            	LD C,(HL)
+1406+ CC82 ~            	LD (IX+TonB),C
+1407+ CC82 ~            	LD (HL),A
+1408+ CC82 ~            	INC HL
+1409+ CC82 ~            	LD A,(IX+TonB+1)
+1410+ CC82 ~            	LD C,(HL)
+1411+ CC82 ~            	LD (IX+TonB+1),C
+1412+ CC82 ~            	LD (HL),A
+1413+ CC82 ~            	LD A,(DE)
+1414+ CC82 ~            	INC DE
+1415+ CC82 ~            	LD C,A
+1416+ CC82 ~            	ADD HL,BC
+1417+ CC82 ~            	LD A,(IX+AmplB)
+1418+ CC82 ~            	LD C,(HL)
+1419+ CC82 ~            	LD (IX+AmplB),C
+1420+ CC82 ~            	LD (HL),A
+1421+ CC82 ~            	LD A,(DE)
+1422+ CC82 ~            	INC DE
+1423+ CC82 ~            	LD (RxCA1),A
+1424+ CC82 ~            	XOR 8
+1425+ CC82 ~            	LD (RxCA2),A
+1426+ CC82 ~            	LD A,(DE)
+1427+ CC82 ~            	AND (IX+Mixer)
+1428+ CC82 ~            	LD E,A
+1429+ CC82 ~            	LD A,(IX+Mixer)
+1430+ CC82 ~            RxCA1	DB #E6
+1431+ CC82 ~            	AND %010010
+1432+ CC82 ~            	OR E
+1433+ CC82 ~            	LD E,A
+1434+ CC82 ~            	LD A,(IX+Mixer)
+1435+ CC82 ~            	AND %010010
+1436+ CC82 ~            RxCA2	OR E
+1437+ CC82 ~            	OR E
+1438+ CC82 ~            	LD (IX+Mixer),A
+1439+ CC82 ~            ABC
+1440+ CC82              	ENDIF
+1441+ CC82
+1442+ CC82 AF           	XOR A
+1443+ CC83 11 BF FF     	LD DE,#FFBF
+1444+ CC86
+1445+ CC86              	IF ACBBAC
+1446+ CC86 ~            	LD BC,#FFFD
+1447+ CC86 ~            	PUSH IX
+1448+ CC86 ~            	POP HL
+1449+ CC86              	ENDIF
+1450+ CC86
+1451+ CC86 ED 79        LOUT	OUT (C),A
+1452+ CC88 43           	LD B,E
+1453+ CC89 ED A3        	OUTI
+1454+ CC8B 42           	LD B,D
+1455+ CC8C 3C           	INC A
+1456+ CC8D FE 0D        	CP 13
+1457+ CC8F 20 F5        	JR NZ,LOUT
+1458+ CC91 ED 79        	OUT (C),A
+1459+ CC93 7E           	LD A,(HL)
+1460+ CC94 A7           	AND A
+1461+ CC95 F8           	RET M
+1462+ CC96 43           	LD B,E
+1463+ CC97 ED 79        	OUT (C),A
+1464+ CC99 C9           	RET
+1465+ CC9A
+1466+ CC9A              	IF ACBBAC
+1467+ CC9A ~            CHTABLE	EQU $-4
+1468+ CC9A ~            	DB 4,5,15,%001001,0,7,7,%100100
+1469+ CC9A              	ENDIF
+1470+ CC9A
+1471+ CC9A 64           NT_DATA	DB (T_NEW_0-T1_)*2
+1472+ CC9B 2A           	DB TCNEW_0-T_
+1473+ CC9C 65           	DB (T_OLD_0-T1_)*2+1
+1474+ CC9D 00           	DB TCOLD_0-T_
+1475+ CC9E 01           	DB (T_NEW_1-T1_)*2+1
+1476+ CC9F 0C           	DB TCNEW_1-T_
+1477+ CCA0 01           	DB (T_OLD_1-T1_)*2+1
+1478+ CCA1 0C           	DB TCOLD_1-T_
+1479+ CCA2 94           	DB (T_NEW_2-T1_)*2
+1480+ CCA3 35           	DB TCNEW_2-T_
+1481+ CCA4 30           	DB (T_OLD_2-T1_)*2
+1482+ CCA5 0E           	DB TCOLD_2-T_
+1483+ CCA6 60           	DB (T_NEW_3-T1_)*2
+1484+ CCA7 20           	DB TCNEW_3-T_
+1485+ CCA8 60           	DB (T_OLD_3-T1_)*2
+1486+ CCA9 21           	DB TCOLD_3-T_
+1487+ CCAA
+1488+ CCAA              T_
+1489+ CCAA
+1490+ CCAA 01 05 09 0B  TCOLD_0	DB #00+1,#04+1,#08+1,#0A+1,#0C+1,#0E+1,#12+1,#14+1
+1490+ CCAE 0D 0F 13 15
+1491+ CCB2 19 25 3D 00  	DB #18+1,#24+1,#3C+1,0
+1492+ CCB6 5D 00        TCOLD_1	DB #5C+1,0
+1493+ CCB8 31 37 4D 53  TCOLD_2	DB #30+1,#36+1,#4C+1,#52+1,#5E+1,#70+1,#82,#8C,#9C
+1493+ CCBC 5F 71 82 8C
+1493+ CCC0 9C
+1494+ CCC1 9E A0 A6 A8  	DB #9E,#A0,#A6,#A8,#AA,#AC,#AE,#AE,0
+1494+ CCC5 AA AC AE AE
+1494+ CCC9 00
+1495+ CCCA 57           TCNEW_3	DB #56+1
+1496+ CCCB 1F 23 25 29  TCOLD_3	DB #1E+1,#22+1,#24+1,#28+1,#2C+1,#2E+1,#32+1,#BE+1,0
+1496+ CCCF 2D 2F 33 BF
+1496+ CCD3 00
+1497+ CCD4 1D 21 23 27  TCNEW_0	DB #1C+1,#20+1,#22+1,#26+1,#2A+1,#2C+1,#30+1,#54+1
+1497+ CCD8 2B 2D 31 55
+1498+ CCDC BD BF 00     	DB #BC+1,#BE+1,0
+1499+ CCDF              TCNEW_1 EQU TCOLD_1
+1500+ CCDF 1B 21 25 29  TCNEW_2	DB #1A+1,#20+1,#24+1,#28+1,#2A+1,#3A+1,#4C+1,#5E+1
+1500+ CCE3 2B 3B 4D 5F
+1501+ CCE7 BB BD BF 00  	DB #BA+1,#BC+1,#BE+1,0
+1502+ CCEB
+1503+ CCEB              PT3EMPTYORN EQU $-1
+1504+ CCEB 01 00        	DB 1,0
+1505+ CCED
+1506+ CCED              ;first 12 values of tone tables (packed)
+1507+ CCED
 ptx_vtpl.i.asm(1508): warning: value 0xDD8 is truncated to 8bit value: 0xD8
-1508+ CAE7 0D D8        T_PACK	DB #06EC*2/256,#06EC*2
-1509+ CAE9 69           	DB #0755-#06EC
-1510+ CAEA 70           	DB #07C5-#0755
-1511+ CAEB 76           	DB #083B-#07C5
-1512+ CAEC 7D           	DB #08B8-#083B
-1513+ CAED 85           	DB #093D-#08B8
-1514+ CAEE 8D           	DB #09CA-#093D
-1515+ CAEF 95           	DB #0A5F-#09CA
-1516+ CAF0 9D           	DB #0AFC-#0A5F
-1517+ CAF1 A8           	DB #0BA4-#0AFC
-1518+ CAF2 B1           	DB #0C55-#0BA4
-1519+ CAF3 BB           	DB #0D10-#0C55
+1508+ CCED 0D D8        T_PACK	DB #06EC*2/256,#06EC*2
+1509+ CCEF 69           	DB #0755-#06EC
+1510+ CCF0 70           	DB #07C5-#0755
+1511+ CCF1 76           	DB #083B-#07C5
+1512+ CCF2 7D           	DB #08B8-#083B
+1513+ CCF3 85           	DB #093D-#08B8
+1514+ CCF4 8D           	DB #09CA-#093D
+1515+ CCF5 95           	DB #0A5F-#09CA
+1516+ CCF6 9D           	DB #0AFC-#0A5F
+1517+ CCF7 A8           	DB #0BA4-#0AFC
+1518+ CCF8 B1           	DB #0C55-#0BA4
+1519+ CCF9 BB           	DB #0D10-#0C55
 ptx_vtpl.i.asm(1520): warning: value 0xCDA is truncated to 8bit value: 0xDA
-1520+ CAF4 0C DA        	DB #066D*2/256,#066D*2
-1521+ CAF6 62           	DB #06CF-#066D
-1522+ CAF7 68           	DB #0737-#06CF
-1523+ CAF8 6D           	DB #07A4-#0737
-1524+ CAF9 75           	DB #0819-#07A4
-1525+ CAFA 7B           	DB #0894-#0819
-1526+ CAFB 83           	DB #0917-#0894
-1527+ CAFC 8A           	DB #09A1-#0917
-1528+ CAFD 92           	DB #0A33-#09A1
-1529+ CAFE 9C           	DB #0ACF-#0A33
-1530+ CAFF A4           	DB #0B73-#0ACF
-1531+ CB00 AF           	DB #0C22-#0B73
-1532+ CB01 B8           	DB #0CDA-#0C22
+1520+ CCFA 0C DA        	DB #066D*2/256,#066D*2
+1521+ CCFC 62           	DB #06CF-#066D
+1522+ CCFD 68           	DB #0737-#06CF
+1523+ CCFE 6D           	DB #07A4-#0737
+1524+ CCFF 75           	DB #0819-#07A4
+1525+ CD00 7B           	DB #0894-#0819
+1526+ CD01 83           	DB #0917-#0894
+1527+ CD02 8A           	DB #09A1-#0917
+1528+ CD03 92           	DB #0A33-#09A1
+1529+ CD04 9C           	DB #0ACF-#0A33
+1530+ CD05 A4           	DB #0B73-#0ACF
+1531+ CD06 AF           	DB #0C22-#0B73
+1532+ CD07 B8           	DB #0CDA-#0C22
 ptx_vtpl.i.asm(1533): warning: value 0xE08 is truncated to 8bit value: 0x08
-1533+ CB02 0E 08        	DB #0704*2/256,#0704*2
-1534+ CB04 6A           	DB #076E-#0704
-1535+ CB05 72           	DB #07E0-#076E
-1536+ CB06 78           	DB #0858-#07E0
-1537+ CB07 7E           	DB #08D6-#0858
-1538+ CB08 86           	DB #095C-#08D6
-1539+ CB09 90           	DB #09EC-#095C
-1540+ CB0A 96           	DB #0A82-#09EC
-1541+ CB0B A0           	DB #0B22-#0A82
-1542+ CB0C AA           	DB #0BCC-#0B22
-1543+ CB0D B4           	DB #0C80-#0BCC
-1544+ CB0E BE           	DB #0D3E-#0C80
+1533+ CD08 0E 08        	DB #0704*2/256,#0704*2
+1534+ CD0A 6A           	DB #076E-#0704
+1535+ CD0B 72           	DB #07E0-#076E
+1536+ CD0C 78           	DB #0858-#07E0
+1537+ CD0D 7E           	DB #08D6-#0858
+1538+ CD0E 86           	DB #095C-#08D6
+1539+ CD0F 90           	DB #09EC-#095C
+1540+ CD10 96           	DB #0A82-#09EC
+1541+ CD11 A0           	DB #0B22-#0A82
+1542+ CD12 AA           	DB #0BCC-#0B22
+1543+ CD13 B4           	DB #0C80-#0BCC
+1544+ CD14 BE           	DB #0D3E-#0C80
 ptx_vtpl.i.asm(1545): warning: value 0xFC0 is truncated to 8bit value: 0xC0
-1545+ CB0F 0F C0        	DB #07E0*2/256,#07E0*2
-1546+ CB11 78           	DB #0858-#07E0
-1547+ CB12 88           	DB #08E0-#0858
-1548+ CB13 80           	DB #0960-#08E0
-1549+ CB14 90           	DB #09F0-#0960
-1550+ CB15 98           	DB #0A88-#09F0
-1551+ CB16 A0           	DB #0B28-#0A88
-1552+ CB17 B0           	DB #0BD8-#0B28
-1553+ CB18 A8           	DB #0C80-#0BD8
-1554+ CB19 E0           	DB #0D60-#0C80
-1555+ CB1A B0           	DB #0E10-#0D60
-1556+ CB1B E8           	DB #0EF8-#0E10
-1557+ CB1C
-1558+ CB1C              ;vars from here can be stripped
-1559+ CB1C              ;you can move VARS to any other address
-1560+ CB1C
-1561+ CB1C              VARS
-1562+ CB1C
-1563+ CB1C 00           is_ts	DB 0
-1564+ CB1D
-1565+ CB1D              ;ChannelsVars
-1566+ CB1D              	STRUCT	CHP
-1567+ CB1D ~            ;reset group
-1568+ CB1D ~            PsInOr	DB 0
-1569+ CB1D ~            PsInSm	DB 0
-1570+ CB1D ~            CrAmSl	DB 0
-1571+ CB1D ~            CrNsSl	DB 0
-1572+ CB1D ~            CrEnSl	DB 0
-1573+ CB1D ~            TSlCnt	DB 0
-1574+ CB1D ~            CrTnSl	DW 0
-1575+ CB1D ~            TnAcc	DW 0
-1576+ CB1D ~            COnOff	DB 0
-1577+ CB1D ~            ;reset group
-1578+ CB1D ~
-1579+ CB1D ~            OnOffD	DB 0
-1580+ CB1D ~
-1581+ CB1D ~            ;IX for PTDECOD here (+12)
-1582+ CB1D ~            OffOnD	DB 0
-1583+ CB1D ~            OrnPtr	DW 0
-1584+ CB1D ~            SamPtr	DW 0
-1585+ CB1D ~            NNtSkp	DB 0
-1586+ CB1D ~            Note	DB 0
-1587+ CB1D ~            SlToNt	DB 0
-1588+ CB1D ~            Env_En	DB 0
-1589+ CB1D ~            Flags	DB 0
-1590+ CB1D ~             ;Enabled - 0, SimpleGliss - 2
-1591+ CB1D ~            TnSlDl	DB 0
-1592+ CB1D ~            TSlStp	DW 0
-1593+ CB1D ~            TnDelt	DW 0
-1594+ CB1D ~            NtSkCn	DB 0
-1595+ CB1D ~            Volume	DB 0
-1596+ CB1D              	ENDS
-1597+ CB1D
-1598+ CB1D              	STRUCT	VRS
-1599+ CB1D ~
-1600+ CB1D ~            ;IF not works in STRUCT in SjASM :(
-1601+ CB1D ~            ;	IF CurPosCounter
-1602+ CB1D ~            CurPos	DB 0
-1603+ CB1D ~            PosSub	DB 0
-1604+ CB1D ~            ;	ENDIF
-1605+ CB1D ~
-1606+ CB1D ~            ModNum	DB 0 ;bit0: ChipNum
-1607+ CB1D ~            	     ;bit1: 1-reversed patterns order (AlCo TS)
-1608+ CB1D ~
-1609+ CB1D ~            ChanA	DS CHP
-1610+ CB1D ~            ChanB	DS CHP
-1611+ CB1D ~            ChanC	DS CHP
-1612+ CB1D ~
-1613+ CB1D ~            ;GlobalVars
-1614+ CB1D ~            MODADDR	DW 0
-1615+ CB1D ~            OrnPtrs	DW 0
-1616+ CB1D ~            SamPtrs	DW 0
-1617+ CB1D ~            PatsPtr	DW 0
-1618+ CB1D ~            AdInPtA	DW 0
-1619+ CB1D ~            AdInPtB	DW 0
-1620+ CB1D ~            AdInPtC	DW 0
-1621+ CB1D ~            CrPsPtr	DW 0
-1622+ CB1D ~            LPosPtr	DW 0
-1623+ CB1D ~            Delay	DB 0
-1624+ CB1D ~            DelyCnt	DB 0
-1625+ CB1D ~            ESldAdd	DW 0
-1626+ CB1D ~            CurESld	DW 0
-1627+ CB1D ~            Env_Del	DB 0
-1628+ CB1D ~            CurEDel	DB 0
-1629+ CB1D ~            Ns_Base	DB 0
-1630+ CB1D ~            AddToNs	DB 0
-1631+ CB1D ~            AddToEn	DB 0
-1632+ CB1D ~            EnvBase	DW 0
-1633+ CB1D ~            AYREGS	DS 14
-1634+ CB1D              	ENDS
-1635+ CB1D
-1636+ CB1D 00 00 00...  VARS1	DS VRS
-1637+ CBA4 00 00 00...  VARS2	DS VRS
-1638+ CC2B
-1639+ CC2B              VT_	EQU $-16
-1640+ CC2B 00 00 00...  	DS 256-16 ;CreatedVolumeTableAddress
-1641+ CD1B
-1642+ CD1B              T1_	EQU VT_+16 ;Tone tables data depacked here
-1643+ CD1B
-1644+ CD1B              T_OLD_1	EQU T1_
-1645+ CD1B              T_OLD_2	EQU T_OLD_1+24
-1646+ CD1B              T_OLD_3	EQU T_OLD_2+24
-1647+ CD1B              T_OLD_0	EQU T_OLD_3+2
-1648+ CD1B              T_NEW_0	EQU T_OLD_0
-1649+ CD1B              T_NEW_1	EQU T_OLD_1
-1650+ CD1B              T_NEW_2	EQU T_NEW_0+24
-1651+ CD1B              T_NEW_3	EQU T_OLD_3
-1652+ CD1B
-1653+ CD1B              PT2EMPTYORN EQU VT_+31 ;1,0,0 sequence
-1654+ CD1B
-1655+ CD1B 00 00 00...  NT_	DS 192 ;CreatedNoteTableAddress
-1656+ CDDB
-1657+ CDDB              VAR0END	EQU VT_+16 ;INIT zeroes from VARS to VAR0END-1
-1658+ CDDB
-1659+ CDDB              VARSEND EQU $
-1660+ CDDB
-1661+ CDDB              MDLADDR EQU songdata
-1662+ CDDB
-1663+ CDDB              ;Release 0 steps:
-1664+ CDDB              ;04/21/2007
-1665+ CDDB              ;Works start (PTxPlay adaptation); first beta.
-1666+ CDDB              ;04/22/2007
-1667+ CDDB              ;Job finished; beta-testing.
-1668+ CDDB              ;04/23/2007
-1669+ CDDB              ;PT v3.7 TS mode corrected (after AlCo remarks).
-1670+ CDDB              ;04/29/2007
-1671+ CDDB              ;Added 1.XX and 2.XX special commands interpretation for PT3
-1672+ CDDB              ;modules of v3.7+.
-1673+ CDDB
-1674+ CDDB              ;Size (minimal build for ZX Spectrum):
-1675+ CDDB              ;Code block #908 bytes
-1676+ CDDB              ;Variables #2BF bytes (can be stripped)
-1677+ CDDB              ;Total size #908+#2BF=#BC7 (3015) bytes
-1678+ CDDB              	ENDMODULE
-1679+ CDDB
-# file closed: plugin\ptx_vtpl.i.asm
- 269  CDDB
- 270  CDDB              plugin_end
- 271  CDDB                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
- 272  CDDB                      SAVEBIN "plugin/pt3test.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
- 273  CDDB
-# file closed: plugin\pt3test.asm
+1545+ CD15 0F C0        	DB #07E0*2/256,#07E0*2
+1546+ CD17 78           	DB #0858-#07E0
+1547+ CD18 88           	DB #08E0-#0858
+1548+ CD19 80           	DB #0960-#08E0
+1549+ CD1A 90           	DB #09F0-#0960
+1550+ CD1B 98           	DB #0A88-#09F0
+1551+ CD1C A0           	DB #0B28-#0A88
+1552+ CD1D B0           	DB #0BD8-#0B28
+1553+ CD1E A8           	DB #0C80-#0BD8
+1554+ CD1F E0           	DB #0D60-#0C80
+1555+ CD20 B0           	DB #0E10-#0D60
+1556+ CD21 E8           	DB #0EF8-#0E10
+1557+ CD22
+1558+ CD22              ;vars from here can be stripped
+1559+ CD22              ;you can move VARS to any other address
+1560+ CD22
+1561+ CD22              VARS
+1562+ CD22
+1563+ CD22 00           is_ts	DB 0
+1564+ CD23
+1565+ CD23              ;ChannelsVars
+1566+ CD23              	STRUCT	CHP
+1567+ CD23 ~            ;reset group
+1568+ CD23 ~            PsInOr	DB 0
+1569+ CD23 ~            PsInSm	DB 0
+1570+ CD23 ~            CrAmSl	DB 0
+1571+ CD23 ~            CrNsSl	DB 0
+1572+ CD23 ~            CrEnSl	DB 0
+1573+ CD23 ~            TSlCnt	DB 0
+1574+ CD23 ~            CrTnSl	DW 0
+1575+ CD23 ~            TnAcc	DW 0
+1576+ CD23 ~            COnOff	DB 0
+1577+ CD23 ~            ;reset group
+1578+ CD23 ~
+1579+ CD23 ~            OnOffD	DB 0
+1580+ CD23 ~
+1581+ CD23 ~            ;IX for PTDECOD here (+12)
+1582+ CD23 ~            OffOnD	DB 0
+1583+ CD23 ~            OrnPtr	DW 0
+1584+ CD23 ~            SamPtr	DW 0
+1585+ CD23 ~            NNtSkp	DB 0
+1586+ CD23 ~            Note	DB 0
+1587+ CD23 ~            SlToNt	DB 0
+1588+ CD23 ~            Env_En	DB 0
+1589+ CD23 ~            Flags	DB 0
+1590+ CD23 ~             ;Enabled - 0, SimpleGliss - 2
+1591+ CD23 ~            TnSlDl	DB 0
+1592+ CD23 ~            TSlStp	DW 0
+1593+ CD23 ~            TnDelt	DW 0
+1594+ CD23 ~            NtSkCn	DB 0
+1595+ CD23 ~            Volume	DB 0
+1596+ CD23              	ENDS
+1597+ CD23
+1598+ CD23              	STRUCT	VRS
+1599+ CD23 ~
+1600+ CD23 ~            ;IF not works in STRUCT in SjASM :(
+1601+ CD23 ~            ;	IF CurPosCounter
+1602+ CD23 ~            CurPos	DB 0
+1603+ CD23 ~            PosSub	DB 0
+1604+ CD23 ~            ;	ENDIF
+1605+ CD23 ~
+1606+ CD23 ~            ModNum	DB 0 ;bit0: ChipNum
+1607+ CD23 ~            	     ;bit1: 1-reversed patterns order (AlCo TS)
+1608+ CD23 ~
+1609+ CD23 ~            ChanA	DS CHP
+1610+ CD23 ~            ChanB	DS CHP
+1611+ CD23 ~            ChanC	DS CHP
+1612+ CD23 ~
+1613+ CD23 ~            ;GlobalVars
+1614+ CD23 ~            MODADDR	DW 0
+1615+ CD23 ~            OrnPtrs	DW 0
+1616+ CD23 ~            SamPtrs	DW 0
+1617+ CD23 ~            PatsPtr	DW 0
+1618+ CD23 ~            AdInPtA	DW 0
+1619+ CD23 ~            AdInPtB	DW 0
+1620+ CD23 ~            AdInPtC	DW 0
+1621+ CD23 ~            CrPsPtr	DW 0
+1622+ CD23 ~            LPosPtr	DW 0
+1623+ CD23 ~            Delay	DB 0
+1624+ CD23 ~            DelyCnt	DB 0
+1625+ CD23 ~            ESldAdd	DW 0
+1626+ CD23 ~            CurESld	DW 0
+1627+ CD23 ~            Env_Del	DB 0
+1628+ CD23 ~            CurEDel	DB 0
+1629+ CD23 ~            Ns_Base	DB 0
+1630+ CD23 ~            AddToNs	DB 0
+1631+ CD23 ~            AddToEn	DB 0
+1632+ CD23 ~            EnvBase	DW 0
+1633+ CD23 ~            AYREGS	DS 14
+1634+ CD23              	ENDS
+1635+ CD23
+1636+ CD23 00 00 00...  VARS1	DS VRS
+1637+ CDAA 00 00 00...  VARS2	DS VRS
+1638+ CE31
+1639+ CE31              VT_	EQU $-16
+1640+ CE31 00 00 00...  	DS 256-16 ;CreatedVolumeTableAddress
+1641+ CF21
+1642+ CF21              T1_	EQU VT_+16 ;Tone tables data depacked here
+1643+ CF21
+1644+ CF21              T_OLD_1	EQU T1_
+1645+ CF21              T_OLD_2	EQU T_OLD_1+24
+1646+ CF21              T_OLD_3	EQU T_OLD_2+24
+1647+ CF21              T_OLD_0	EQU T_OLD_3+2
+1648+ CF21              T_NEW_0	EQU T_OLD_0
+1649+ CF21              T_NEW_1	EQU T_OLD_1
+1650+ CF21              T_NEW_2	EQU T_NEW_0+24
+1651+ CF21              T_NEW_3	EQU T_OLD_3
+1652+ CF21
+1653+ CF21              PT2EMPTYORN EQU VT_+31 ;1,0,0 sequence
+1654+ CF21
+1655+ CF21 00 00 00...  NT_	DS 192 ;CreatedNoteTableAddress
+1656+ CFE1
+1657+ CFE1              VAR0END	EQU VT_+16 ;INIT zeroes from VARS to VAR0END-1
+1658+ CFE1
+1659+ CFE1              VARSEND EQU $
+1660+ CFE1
+1661+ CFE1              MDLADDR EQU songdata
+1662+ CFE1
+1663+ CFE1              ;Release 0 steps:
+1664+ CFE1              ;04/21/2007
+1665+ CFE1              ;Works start (PTxPlay adaptation); first beta.
+1666+ CFE1              ;04/22/2007
+1667+ CFE1              ;Job finished; beta-testing.
+1668+ CFE1              ;04/23/2007
+1669+ CFE1              ;PT v3.7 TS mode corrected (after AlCo remarks).
+1670+ CFE1              ;04/29/2007
+1671+ CFE1              ;Added 1.XX and 2.XX special commands interpretation for PT3
+1672+ CFE1              ;modules of v3.7+.
+1673+ CFE1
+1674+ CFE1              ;Size (minimal build for ZX Spectrum):
+1675+ CFE1              ;Code block #908 bytes
+1676+ CFE1              ;Variables #2BF bytes (can be stripped)
+1677+ CFE1              ;Total size #908+#2BF=#BC7 (3015) bytes
+1678+ CFE1              	ENDMODULE
+1679+ CFE1
+# file closed: ptx_vtpl.i.asm
+ 485  CFE1
+ 486  CFE1              plugin_end
+ 487  CFE1                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
+ 488  CFE1                      SAVEBIN "plugin/pt3test.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+ 489  CFE1
+# file closed: pt3test.asm

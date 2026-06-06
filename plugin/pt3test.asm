@@ -32,15 +32,18 @@ plugin_start
         call read_nextreg
         ld (savedMmu5),a
 
+        call prepare_pt3_info
         call show_player_screen
         call capture_mouse_idle
         call map_pt3_data
+        call setup_pt3_mode
 
-        xor a
-        ld (VTPL.SETUP),a       ; PT3, ABC, loop forever
+        ld a,(pt3Setup)
+        ld (VTPL.SETUP),a
         ld hl,PT3_LINEAR_ADDR
-        ld de,0
+        ld de,(secondModuleAddr)
         call VTPL.INIT
+        call show_pt3_mode
         ei
 
 .wait_release
@@ -55,6 +58,7 @@ plugin_start
         or a
         jr nz,.stop
         call VTPL.PLAY
+        call show_volume_meters
         ; VTPL sets SETUP bit 7 when the module loop point is passed.
         ; In looped playback mode this is informational, not a stop request.
         jr .play_loop
@@ -119,9 +123,58 @@ restore_mmu
         ret
 
 
+setup_pt3_mode
+        ld a,%00100000          ; PT3, ABC, loop forever, AlCo TS autodetect
+        ld (pt3Setup),a
+        ld hl,0
+        ld (secondModuleAddr),hl
+        ld ix,(ctxPtr)
+        ld a,(ix+VIEWCTX_SIZE_HI)
+        or (ix+VIEWCTX_SIZE_HI+1)
+        ret nz
+        ld l,(ix+VIEWCTX_SIZE_LO)
+        ld h,(ix+VIEWCTX_SIZE_LO+1)
+        ld a,h
+        cp $80
+        ret nc
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld de,PT3_LINEAR_ADDR
+        add hl,de
+        ld a,(hl)
+        cp "S"
+        ret nz
+        dec hl
+        ld a,(hl)
+        cp "T"
+        ret nz
+        dec hl
+        ld a,(hl)
+        cp "2"
+        ret nz
+        dec hl
+        ld a,(hl)
+        cp "0"
+        ret nz
+        ld de,8
+        or a
+        sbc hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld hl,PT3_LINEAR_ADDR
+        add hl,de
+        ld (secondModuleAddr),hl
+        ld a,%00010000          ; Two PT3 modules TS, ABC, loop forever
+        ld (pt3Setup),a
+        ret
+
+
 show_player_screen
-        ld hl,0 * 256 + 0
-        ld bc,78 * 256 + 30
+        ld hl,0 * 256 + 5
+        ld bc,78 * 256 + 20
         ld a,16
         call call_window
         ld hl,title
@@ -129,23 +182,173 @@ show_player_screen
         ld ix,(ctxPtr)
         ld e,(ix+VIEWCTX_FILENAME)
         ld d,(ix+VIEWCTX_FILENAME+1)
-        ld hl,15*256+1
+        ld hl,15*256+6
         ld a,16
         call call_print
         ld de,infoText
-        ld hl,2*256+4
+        ld hl,2*256+9
+        ld a,16
+        call call_print
+        ld de,pt3TitleLabel
+        ld hl,2*256+11
+        ld a,16
+        call call_print
+        ld de,pt3Title
+        ld hl,9*256+11
+        ld a,16
+        call call_print
+        ld de,pt3AuthorLabel
+        ld hl,2*256+13
+        ld a,16
+        call call_print
+        ld de,pt3Author
+        ld hl,10*256+13
         ld a,16
         call call_print
         ld de,stopText
-        ld hl,2*256+31
+        ld hl,30*256+24
         ld a,32
+        call call_print
+        ld de,metersHeaderText
+        ld hl,2*256+16
+        ld a,16
+        call call_print
+        ld de,meterRowAText
+        ld hl,2*256+18
+        ld a,16
+        call call_print
+        ld de,meterRowBText
+        ld hl,2*256+19
+        ld a,16
+        call call_print
+        ld de,meterRowCText
+        ld hl,2*256+20
+        ld a,16
         call call_print
         ret
 
 
+prepare_pt3_info
+        ld hl,VIEW_DATA_ADDRESS+30
+        ld de,pt3Title
+        call copy_pt3_text
+        ld hl,VIEW_DATA_ADDRESS+60
+        ld de,pt3Author
+        call copy_pt3_text
+        ret
+
+
+copy_pt3_text
+        ld b,30
+.copy
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy
+        xor a
+        ld (de),a
+        ret
+
+
+show_pt3_mode
+        call restore_mmu
+        ld de,modeSingleText
+        ld a,(VTPL.is_ts)
+        or a
+        jr z,.print
+        ld de,modeTsText
+.print
+        ld hl,2*256+9
+        ld a,16
+        call call_print
+        jp map_pt3_data
+
+
+show_volume_meters
+        call restore_mmu
+        ld a,(VTPL.VARS1+VTPL.VRS.AYREGS+VTPL.AmplA)
+        and $0f
+        ld b,a
+        ld a,(VTPL.is_ts)
+        or a
+        jr z,.meter_a
+        ld a,(VTPL.VARS2+VTPL.VRS.AYREGS+VTPL.AmplA)
+        and $0f
+        add a,b
+        jr .print_a
+.meter_a
+        ld a,b
+.print_a
+        ld hl,8*256+18
+        call print_meter
+        ld a,(VTPL.VARS1+VTPL.VRS.AYREGS+VTPL.AmplB)
+        and $0f
+        ld b,a
+        ld a,(VTPL.is_ts)
+        or a
+        jr z,.meter_b
+        ld a,(VTPL.VARS2+VTPL.VRS.AYREGS+VTPL.AmplB)
+        and $0f
+        add a,b
+        jr .print_b
+.meter_b
+        ld a,b
+.print_b
+        ld hl,8*256+19
+        call print_meter
+        ld a,(VTPL.VARS1+VTPL.VRS.AYREGS+VTPL.AmplC)
+        and $0f
+        ld b,a
+        ld a,(VTPL.is_ts)
+        or a
+        jr z,.meter_c
+        ld a,(VTPL.VARS2+VTPL.VRS.AYREGS+VTPL.AmplC)
+        and $0f
+        add a,b
+        jr .print_c
+.meter_c
+        ld a,b
+.print_c
+        ld hl,8*256+20
+        call print_meter
+        jp map_pt3_data
+
+
+print_meter
+        ld b,a
+        ld de,meterBuffer
+        ld a,"["
+        ld (de),a
+        inc de
+        ld c,30
+.loop
+        ld a,b
+        or a
+        jr z,.space
+        ld a,"#"
+        dec b
+        jr .store
+.space
+        ld a,"."
+.store
+        ld (de),a
+        inc de
+        dec c
+        jr nz,.loop
+        ld a,"]"
+        ld (de),a
+        inc de
+        xor a
+        ld (de),a
+        ld de,meterBuffer
+        ld a,16
+        jp call_print
+
+
 print_de_at_2_1
         ex de,hl
-        ld hl,2*256+1
+        ld hl,2*256+6
         ld a,16
 call_print
         call 0
@@ -261,9 +464,22 @@ savedMmu4    defb 0
 savedMmu5    defb 0
 idleMouseButtons defb 0
 dataPagesPtr defw 0
+secondModuleAddr defw 0
+pt3Setup    defb 0
 title        defb "PT3:",0
-infoText     defb "Test PT3 plugin - data mapped at $4000-$BFFF",0
+infoText     defb "Mode: detecting PT3/TS",0
+modeSingleText defb "Mode: PT3             ",0
+modeTsText   defb "Mode: PT3 TS / 2 AY   ",0
+pt3TitleLabel defb "Title:",0
+pt3AuthorLabel defb "Author:",0
+metersHeaderText defb "Meters:",0
+meterRowAText defb "A",0
+meterRowBText defb "B",0
+meterRowCText defb "C",0
 stopText     defb "SPACE stops playback",0
+pt3Title     defs 31
+pt3Author    defs 31
+meterBuffer  defs 33
 
         include "ptx_vtpl.i.asm"
 
