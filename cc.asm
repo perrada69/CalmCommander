@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.7b" : ENDM
+            MACRO VERSION : defb "0.7f" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
