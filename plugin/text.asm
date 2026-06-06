@@ -17,7 +17,7 @@ plugin_start
         call init_context
 
         ld hl,0 * 256 + 0
-        ld bc,80 * 256 + 32
+        ld bc,78 * 256 + 30
         ld a,16
         call call_window
 

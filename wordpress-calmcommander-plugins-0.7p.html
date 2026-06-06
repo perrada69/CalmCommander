@@ -1,0 +1,253 @@
+<style>
+  .cc-blog-article {
+    max-width: 920px;
+    margin: 0 auto;
+    color: #172033;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.65;
+  }
+
+  .cc-blog-article h1,
+  .cc-blog-article h2,
+  .cc-blog-article h3 {
+    color: #101828;
+    line-height: 1.2;
+  }
+
+  .cc-blog-article h1 {
+    font-size: 2.35rem;
+    margin: 0 0 0.8em;
+  }
+
+  .cc-blog-article h2 {
+    font-size: 1.55rem;
+    margin-top: 2em;
+  }
+
+  .cc-blog-article h3 {
+    font-size: 1.15rem;
+    margin-top: 1.6em;
+  }
+
+  .cc-blog-article p {
+    margin: 0 0 1em;
+  }
+
+  .cc-blog-article ul {
+    margin: 0 0 1.2em;
+    padding-left: 1.35em;
+  }
+
+  .cc-blog-article li {
+    margin-bottom: 0.4em;
+  }
+
+  .cc-blog-article code {
+    padding: 0.08em 0.28em;
+    border-radius: 4px;
+    background: #eef2f7;
+    color: #111827;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.95em;
+  }
+
+  .cc-blog-article pre {
+    overflow-x: auto;
+    padding: 1em;
+    border-radius: 8px;
+    background: #111827;
+    color: #e5eefb;
+    font-size: 0.92em;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .cc-blog-article pre code {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    box-shadow: none;
+    text-decoration: none;
+    white-space: pre-wrap;
+  }
+
+  .cc-blog-article pre code * {
+    border: 0;
+    box-shadow: none;
+    text-decoration: none;
+  }
+
+  .cc-blog-article .note {
+    margin: 1.4em 0;
+    padding: 1em 1.2em;
+    border-left: 4px solid #2367d1;
+    background: #f3f7ff;
+  }
+
+  .cc-blog-article .meta {
+    margin-bottom: 1.8em;
+    color: #526174;
+    font-size: 0.95em;
+  }
+</style>
+
+<article class="cc-blog-article">
+  <h1>Calm Commander 0.7p: modulární prohlížeče souborů přes pluginy</h1>
+
+  <p class="meta">Vývojová poznámka k novému plugin systému v Calm Commanderu pro ZX Spectrum Next.</p>
+
+  <p>
+    Calm Commander 0.7p přináší jednu z větších vnitřních změn v projektu: prohlížeče souborů už nejsou napevno zabudované v hlavním programu. Místo toho umí Calm Commander načítat externí viewer pluginy podle potřeby.
+  </p>
+
+  <p>
+    První verze systému začíná dvěma pluginy: textovým viewerem a ZX screen viewerem. Na první pohled je to jen malý začátek, ale důležitá je hlavně architektura za tím. Přidávání podpory dalších formátů by teď mělo být mnohem jednodušší a zároveň šetrnější k paměti.
+  </p>
+
+  <h2>Proč pluginy?</h2>
+
+  <p>
+    Calm Commander už dnes dělá docela dost věcí: dva panely, práci s adresáři, souborové operace, menu, podporu myši, spouštění souborů a nově také prohlížení. Na osmibitovém počítači ale každá další funkce zabírá drahocennou paměť.
+  </p>
+
+  <p>
+    Kdyby každý viewer byl trvale součástí hlavní binárky, program by velmi rychle narazil na paměťové limity. Textový viewer, prohlížeč obrázků, hudební přehrávač, prohlížeč archivů a další nástroje by v paměti seděly pořád, i když je zrovna nepoužíváme.
+  </p>
+
+  <p>
+    Plugin systém to řeší tak, že se načítá pouze ten viewer, který je potřeba pro aktuálně vybraný soubor. Calm Commander připraví data, nahraje odpovídající plugin, zavolá ho a po ukončení se vrátí zpět do file manageru.
+  </p>
+
+  <div class="note">
+    <strong>Aktuální pluginy v 0.7p:</strong>
+    <ul>
+      <li><code>text.ccp</code> - prohlížeč textových souborů</li>
+      <li><code>zxscreen.ccp</code> - prohlížeč klasických 6912b ZX Spectrum obrazovek</li>
+    </ul>
+  </div>
+
+  <h2>Jak to vypadá z pohledu uživatele</h2>
+
+  <p>
+    Viewer se dá otevřít klávesou <code>3</code>. Calm Commander se také pokusí použít viewer systém ve chvíli, kdy uživatel stiskne <code>ENTER</code> na souboru, který není rozpoznaný jako přímo spustitelný.
+  </p>
+
+  <p>
+    Pokud je vybraný textový soubor, načte se textový viewer. Pokud má soubor velikost standardní ZX Spectrum obrazovky, může se zobrazit přes ZX screen viewer. Pokud pro soubor neexistuje vhodný plugin, zobrazí se jednoduchá uživatelská hláška místo ladicího dialogu.
+  </p>
+
+  <h2>Rozpoznávání souborů</h2>
+
+  <p>
+    Současné rozpoznávání je záměrně jednoduché. Calm Commander vybere plugin podle vybraného souboru:
+  </p>
+
+  <ul>
+    <li>Textové soubory obsluhuje textový viewer.</li>
+    <li>Soubory o velikosti 6912 bajtů lze zobrazit jako ZX Spectrum screen.</li>
+    <li>Nepodporované soubory zobrazí přijatelné hlášení, že pro ně není dostupný viewer.</li>
+  </ul>
+
+  <p>
+    Je to pouze první vrstva. Cílem je postupně přidávat další formáty: grafické formáty, hudební formáty a pravděpodobně i různé specializované prohlížeče.
+  </p>
+
+  <h2>Kde pluginy leží</h2>
+
+  <p>
+    Pluginy jsou uložené mimo hlavní binárku v adresáři pro pluginy. Aktuální loader je hledá zde:
+  </p>
+
+  <pre><code>c:/CalmCommander/plugin</code></pre>
+
+  <p>
+    Podstatné je, že pluginy jsou samostatné soubory. Nejsou přilinkované do hlavního Calm Commanderu. Díky tomu se program dá rozšiřovat bez toho, aby rostla hlavní binárka při každém přidání nového vieweru.
+  </p>
+
+  <h2>Paměťové rozložení</h2>
+
+  <p>
+    Interně používá Calm Commander při volání pluginu pevné paměťové rozložení. Vybraný plugin se načítá na adresu <code>$C000</code>, zatímco připravená data souboru jsou dostupná od adresy <code>$E000</code>.
+  </p>
+
+  <pre><code>Kód pluginu:   $C000<br>Data souboru:  $E000</code></pre>
+
+  <p>
+    Na ZX Spectrum Next se to řeší přes MMU stránkování. Calm Commander nastránkuje plugin a data souboru, zavolá vstupní bod pluginu a po návratu obnoví původní mapování paměti.
+  </p>
+
+  <p>
+    Data souboru jsou připravována po 8K blocích. První implementace vieweru už počítá s více datovými stránkami, takže textový viewer není omezený jen na prvních 8 KB souboru. Plugin dostane seznam stránek, které si může mapovat a číst z nich.
+  </p>
+
+  <h2>Plugin context</h2>
+
+  <p>
+    Při startu dostane plugin malou kontextovou strukturu. Ta mu říká, jaký soubor se prohlíží, kde jsou data, jaká je velikost souboru a kde najde tabulku služeb poskytovaných Calm Commanderem.
+  </p>
+
+  <pre><code>ABI verze<br>typ vieweru<br>pointer na jméno souboru<br>velikost souboru<br>první datová stránka<br>adresa dat<br>délka prvního načteného bloku<br>počet stránek<br>seznam datových stránek<br>pointer na service table</code></pre>
+
+  <p>
+    ABI verze je v kontextu proto, aby se rozhraní dalo časem rozšiřovat bez hádání, jaký typ kontextu plugin očekává.
+  </p>
+
+  <h2>Služby poskytované Calm Commanderem</h2>
+
+  <p>
+    Plugin by neměl muset znát všechny vnitřnosti Calm Commanderu. Místo toho dostává pointery na vybrané služby. První verze předává základní rutiny pro tisk, kreslení oken, vstup z klávesnice a myši a práci s režimem zobrazení.
+  </p>
+
+  <p>
+    Důležitý detail je obsluha vstupu. Viewer pluginy používají neblokující input službu, která zároveň nechává běžet obsluhu myši. Díky tomu může být myš vidět a hýbat se i ve chvíli, kdy je aktivní plugin.
+  </p>
+
+  <h2>Textový viewer</h2>
+
+  <p>
+    Textový viewer zobrazuje textové soubory ve vlastní obrazovce. Podporuje posun po řádcích, posun po stranách a ovládání kolečkem myši. Současně ukazuje aktuální řádek a celkový počet řádků, aby bylo vidět, kde se v souboru nacházíme.
+  </p>
+
+  <p>
+    Scrollování bylo upraveno tak, aby se při každém posunu nepřekreslovala celá obrazovka. Při pohybu o jeden řádek se textová oblast pouze posune a dokreslí se nově odkrytý řádek. Viewer je díky tomu klidnější a příjemnější na používání.
+  </p>
+
+  <h2>ZX screen viewer</h2>
+
+  <p>
+    ZX screen viewer obsluhuje klasické 6912b obrazovky. Data souboru zkopíruje do standardního rozložení obrazovkové paměti a dočasně přepne zobrazení tak, aby byl obrázek vidět přímo jako Spectrum screen.
+  </p>
+
+  <p>
+    Při ukončení viewer obnoví stav zobrazení Calm Commanderu a oba file panely. Plugin také čeká, až uživatel pustí původní klávesu, kterou viewer spustil, aby se obrázek ihned nezavřel.
+  </p>
+
+  <h2>Co bude dál?</h2>
+
+  <p>
+    Plugin systém je zajímavý hlavně tím, co umožní do budoucna. První dva pluginy jsou jen začátek. Další prohlížeče by měly přibývat poměrně rychle.
+  </p>
+
+  <ul>
+    <li>Další grafické formáty</li>
+    <li>Hudební přehrávače, například PT3</li>
+    <li>Možná prohlížeče archivů nebo datových formátů</li>
+    <li>Další malé nástroje, které nemusí být trvale součástí hlavní binárky</li>
+  </ul>
+
+  <p>
+    Calm Commander se díky tomu může rozšiřovat modulárně. Hlavní program zůstane zaměřený na souborový management a specializované funkce se mohou přesunout do malých externích pluginů.
+  </p>
+
+  <h2>Shrnutí</h2>
+
+  <p>
+    Calm Commander 0.7p přidává nový plugin systém pro prohlížení souborů. Aktuálně obsahuje textový viewer a ZX screen viewer, ale architektura je připravena pro další formáty. Hlavní výhoda je jednoduchá: podporu nových souborů bude možné přidávat bez toho, aby všechny prohlížeče musely být trvale součástí hlavního programu.
+  </p>
+
+  <p>
+    Calm Commander by tak měl být snadněji rozšiřitelný, lépe udržovatelný a užitečnější jako souborový manager pro ZX Spectrum Next.
+  </p>
+</article>

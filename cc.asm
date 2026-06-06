@@ -2131,6 +2131,8 @@ ext_CFG defb ".CFG"
 
 ext_ini defb ".ini"
 ext_INI defb ".INI"
+ext_pt3 defb ".pt3"
+ext_PT3 defb ".PT3"
 
 
 ; ------------------------------------------------------------

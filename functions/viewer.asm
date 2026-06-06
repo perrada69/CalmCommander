@@ -32,6 +32,7 @@ VIEWCTX_SIZE         equ 18
 
 VIEWTYPE_TEXT        equ 1
 VIEWTYPE_ZXSCREEN    equ 2
+VIEWTYPE_PT3         equ 3
 
 view_file
         call view_prepare_current_file
@@ -171,6 +172,15 @@ view_select_plugin
         jp z,.zxscreen
 
         ld hl,cmd2
+        ld de,ext_pt3
+        call pripony
+        jp z,.pt3
+        ld hl,cmd2
+        ld de,ext_PT3
+        call pripony
+        jp z,.pt3
+
+        ld hl,cmd2
         ld de,ext_txt
         call pripony
         jr z,.text
@@ -226,6 +236,14 @@ view_select_plugin
         ld a,VIEWTYPE_ZXSCREEN
         ld (viewPluginType),a
         ld hl,viewZxScreenPluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.pt3
+        ld a,VIEWTYPE_PT3
+        ld (viewPluginType),a
+        ld hl,viewPt3PluginName
         ld (viewPluginName),hl
         xor a
         ret
@@ -759,6 +777,7 @@ viewDataPages        defb 81,85,87,89,91,93,95,97
 viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
 viewZxScreenPluginName defb "zxscreen.ccp",255
+viewPt3PluginName      defb "pt3test.ccp",255
 
 viewErrorTitleTxt       defb "Viewer:",0
 viewNoViewerTxt         defb "No viewer is available for this file.",0
