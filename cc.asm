@@ -615,6 +615,9 @@ loop0
             cp "2"
             jp z,rightwin
 
+            cp "3"
+            jp z,view_file
+
             cp "h"
             jp z,help
 
@@ -2116,6 +2119,18 @@ ext_SNA defb ".SNA"
 
 ext_bas defb ".bas"
 ext_BAS defb ".BAS"
+
+ext_txt defb ".txt"
+ext_TXT defb ".TXT"
+
+ext_asm defb ".asm"
+ext_ASM defb ".ASM"
+
+ext_cfg defb ".cfg"
+ext_CFG defb ".CFG"
+
+ext_ini defb ".ini"
+ext_INI defb ".INI"
 
 
 ; ------------------------------------------------------------
@@ -4049,6 +4064,7 @@ S3
         include "kmouse/akce.a80"
         include "functions/menu.asm"
         include "functions/input.asm"
+        include "functions/viewer.asm"
 tilemapFont_char24:
         include "tilemap_font_8x6.i.asm"
 E3

@@ -47,7 +47,7 @@ newfile		defb "New file:",0
 help1           defb    "Controls:",0
 help2           defb    "1:          switch to left panel",0
 help3           defb    "2:          switch to right panel",0
-help4           defb    "True Video: switch between panels",0
+help4           defb    "3:          View file",0
 help5           defb    "SS+I:       Info about Calm Commander ",0
 help6           defb    "5:          Copy files (directory is not not support",0
 help7           defb    "6:          Move files (directory is not not support",0
@@ -76,7 +76,7 @@ presenttxt      defb    "present",0
 notpresenttxt   defb    "not present",0
 left_txt        defb    "1: LEFT",0
 right_txt       defb    "2: RIGHT",0
-view_txt        defb    "3:     ",0
+view_txt        defb    "3: VIEW",0
 edit_txt        defb    "4:     ",0
 copy_txt        defb    "5: COPY",0
 move_txt        defb    "6: MOVE",0
