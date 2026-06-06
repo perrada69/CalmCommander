@@ -4824,8 +4824,6 @@ down_finish
         ld a,(viewNextAfterDown)
         or a
         jp z,loop0
-        xor a
-        ld (viewNextAfterDown),a
         jp view_file
 
 down_cancel

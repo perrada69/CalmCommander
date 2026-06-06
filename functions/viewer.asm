@@ -36,11 +36,11 @@ VIEWTYPE_PT3         equ 3
 
 view_file
         call view_prepare_current_file
-        jp c,view_no_viewer
+        jp c,view_no_viewer_or_skip
 
         call view_make_cmd2
         call view_select_plugin
-        jp c,view_no_viewer
+        jp c,view_no_viewer_or_skip
 
         call view_load_data_blocks
         jp c,view_file_error
@@ -67,8 +67,12 @@ view_file
         ld (viewNextAfterDown),a
         jp down
 .done
+        xor a
+        ld (viewNextAfterDown),a
         jp loop0
 .full_restore
+        xor a
+        ld (viewNextAfterDown),a
         call view_restore_full_ui
         jp loop0
 
@@ -666,6 +670,11 @@ view_read_wheel
         rrca
         ret
 
+
+view_no_viewer_or_skip
+        ld a,(viewNextAfterDown)
+        or a
+        jp nz,down
 
 view_no_viewer
         ld de,viewNoViewerTxt
