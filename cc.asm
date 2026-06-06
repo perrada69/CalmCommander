@@ -2767,13 +2767,13 @@ aREPEAT_CNT ld b,0
          jp   INKEY
 
 aREPEAT_KEY
-         ld   a,3
+         ld   a,1
          ld   (aREPEAT_CNT+1),a
          ld   a,(aLAST_KEY+1)
          jr   aSEDI_KEY
 
 aNEW_KEY push af
-         ld   a,18
+         ld   a,10
          ld   (aREPEAT_CNT+1),a
          pop  af
          ld   b,3
@@ -7415,7 +7415,7 @@ aKEY_OK_NOWAIT
         xor  a
         ret
 aKEY_REPEAT_NOWAIT
-        ld   a,3
+        ld   a,1
         ld   (aREPEAT_CNT+1),a
         ld   a,b
         jp aSEDI_KEY

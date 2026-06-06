@@ -180,56 +180,99 @@ view_make_cmd2
         ret
 
 
+view_make_short_name
+        ld hl,viewShortName
+        ld de,viewShortName+1
+        ld bc,12
+        xor a
+        ld (hl),a
+        ldir
+
+        ld de,viewShortName
+        ld hl,TMP83
+        ld b,8
+.copy_name
+        ld a,(hl)
+        cp 32
+        jr z,.name_done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy_name
+.name_done
+        ld hl,TMP83+8
+        ld a,(hl)
+        cp 32
+        jr z,.done
+        ld a,"."
+        ld (de),a
+        inc de
+        ld b,3
+.copy_ext
+        ld a,(hl)
+        cp 32
+        jr z,.done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy_ext
+.done
+        xor a
+        ld (de),a
+        ret
+
+
 view_select_plugin
+        call view_make_short_name
         call view_is_zx_screen
         jp z,.zxscreen
 
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_pt3
         call pripony
         jp z,.pt3
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_PT3
         call pripony
         jp z,.pt3
 
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_txt
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_TXT
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_asm
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_ASM
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_bas
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_BAS
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_cfg
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_CFG
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_ini
         call pripony
         jr z,.text
-        ld hl,cmd2
+        ld hl,viewShortName
         ld de,ext_INI
         call pripony
         jr z,.text
@@ -789,6 +832,7 @@ viewErrorStage       defb 0
 viewWheelOld         defb 0
 viewPluginResult     defb 0
 viewNextAfterDown    defb 0
+viewShortName        defs 13
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
 ; that expose the upper 8K of each bank at $E000.
