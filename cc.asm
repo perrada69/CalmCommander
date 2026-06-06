@@ -2729,8 +2729,6 @@ nekresliMysku
         or a
         jr nz,clickMouse
 
-        xor  a
-        ld   (aLAST_KEY+1),a
         ei
 
         ld b,2
@@ -2741,7 +2739,7 @@ ahl0
 
          ld   a,e
          inc  a
-         jr   z,INKEY
+         jr   z,aNO_KEY
          ld   a,d
          ld   hl,SYMTAB
          cp   $18
@@ -2754,12 +2752,30 @@ aHLSM2    ld   d,0
          add  hl,de
          ld   a,(hl)
          or   a
-         jr   z,INKEY
+         jr   z,aNO_KEY
 
 aLAST_KEY ld   b,0
          cp   b
-         jr   z,aSEDI_KEY
+         jr   nz,aNEW_KEY
 
+aREPEAT_CNT ld b,0
+         ld   a,b
+         or   a
+         jr   z,aREPEAT_KEY
+         dec  a
+         ld   (aREPEAT_CNT+1),a
+         jp   INKEY
+
+aREPEAT_KEY
+         ld   a,3
+         ld   (aREPEAT_CNT+1),a
+         ld   a,(aLAST_KEY+1)
+         jr   aSEDI_KEY
+
+aNEW_KEY push af
+         ld   a,18
+         ld   (aREPEAT_CNT+1),a
+         pop  af
          ld   b,3
 aLOOP_LST halt
          djnz aLOOP_LST
@@ -2769,6 +2785,11 @@ aSEDI_KEY
         call beepk
         pop af
         ret
+
+aNO_KEY xor  a
+         ld   (aLAST_KEY+1),a
+         ld   (aREPEAT_CNT+1),a
+         jp   INKEY
 
         ; KeyScan od Busyho z MRSu
 KEYSCAN  ld   l,47                                ; testovani klavesnice
@@ -7331,8 +7352,6 @@ zadnyPohybMysky
         or a
         jp nz,clickMouse                          ; pokud je evidovaný klik myši → obsluž ho místo kláves
 
-        xor  a
-        ld   (aLAST_KEY+1),a                      ; vynuluj "last key" (self-modifying operand v aLAST_KEY)
         ei                                        ; povol přerušení
 
         ; malý delay, aby KEYSCAN nebyl volán extrémně často (a současně běžely HALT timingy)
@@ -7344,7 +7363,12 @@ ahl0d   call KEYSCAN                              ; nasnímání klávesnice; vr
 
         ld   a,e
         inc  a
-        ret z                                     ; pokud E = $FF (po inc → 0), pravděpodobně "žádná klávesa"
+        jr   nz,aKEY_DOWN_NOWAIT
+        ld   (aLAST_KEY+1),a                      ; klávesa puštěna, další stisk ber jako nový
+        ld   (aREPEAT_CNT+1),a
+        ret                                       ; pokud E = $FF (po inc → 0), pravděpodobně "žádná klávesa"
+
+aKEY_DOWN_NOWAIT
 
         ld   a,d                                  ; A = stav modifikátorů (caps/symbol shift apod.)
         ld   hl,SYMTAB
@@ -7362,8 +7386,31 @@ aHLSM2s
         add  hl,de                                ; HL = tabulka + index
         ld   a,(hl)                               ; A = výsledný znak
         or   a
-        ret z                                     ; pokud tabulka vrací 0 → nic/ignoruj
-        jp aLAST_KEY                              ; pokračuj do rutiny zpracování/filtrace opakování klávesy
+        jr   nz,aKEY_OK_NOWAIT
+        ld   (aLAST_KEY+1),a
+        ld   (aREPEAT_CNT+1),a
+        ret                                       ; pokud tabulka vrací 0 → nic/ignoruj
+
+aKEY_OK_NOWAIT
+        ld   b,a
+        ld   a,(aLAST_KEY+1)
+        cp   b
+        jr   nz,aKEY_NEW_NOWAIT
+        ld   a,(aREPEAT_CNT+1)
+        or   a
+        jr   z,aKEY_REPEAT_NOWAIT
+        dec  a
+        ld   (aREPEAT_CNT+1),a
+        xor  a
+        ret
+aKEY_REPEAT_NOWAIT
+        ld   a,3
+        ld   (aREPEAT_CNT+1),a
+        ld   a,b
+        jp aSEDI_KEY
+aKEY_NEW_NOWAIT
+        ld   a,b
+        jp aNEW_KEY                               ; nová klávesa pokračuje do běžného zpracování
 
 
 sysvars 	defs 500
