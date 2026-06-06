@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.7f" : ENDM
+            MACRO VERSION : defb "0.7p" : ENDM
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -4023,6 +4023,7 @@ dirNum   defw 0
         include "functions/delete.asm"
         include "functions/file.asm"
         include "functions/compare.asm"
+        include "functions/viewer.asm"
 LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
 LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 FILEBUFF
@@ -4064,7 +4065,6 @@ S3
         include "kmouse/akce.a80"
         include "functions/menu.asm"
         include "functions/input.asm"
-        include "functions/viewer.asm"
 tilemapFont_char24:
         include "tilemap_font_8x6.i.asm"
 E3
