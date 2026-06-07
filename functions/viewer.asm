@@ -33,6 +33,7 @@ VIEWCTX_SIZE         equ 18
 VIEWTYPE_TEXT        equ 1
 VIEWTYPE_ZXSCREEN    equ 2
 VIEWTYPE_PT3         equ 3
+VIEWTYPE_PT2         equ 4
 
 view_file
         call view_prepare_current_file
@@ -60,7 +61,10 @@ view_file
         call view_restore_saved_screen
         ld a,(viewPluginType)
         cp VIEWTYPE_PT3
+        jr z,.music_result
+        cp VIEWTYPE_PT2
         jr nz,.done
+.music_result
         ld a,(viewPluginResult)
         cp 1
         jr nz,.done
@@ -228,6 +232,15 @@ view_select_plugin
         jp z,.zxscreen
 
         ld hl,viewShortName
+        ld de,ext_pt2
+        call pripony
+        jp z,.pt2
+        ld hl,viewShortName
+        ld de,ext_PT2
+        call pripony
+        jp z,.pt2
+
+        ld hl,viewShortName
         ld de,ext_pt3
         call pripony
         jp z,.pt3
@@ -300,6 +313,14 @@ view_select_plugin
         ld a,VIEWTYPE_PT3
         ld (viewPluginType),a
         ld hl,viewPt3PluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.pt2
+        ld a,VIEWTYPE_PT2
+        ld (viewPluginType),a
+        ld hl,viewPt2PluginName
         ld (viewPluginName),hl
         xor a
         ret
@@ -694,6 +715,27 @@ view_plugin_input_nowait
         add hl,de
         ld a,(hl)
         or a
+        ret z
+        ld b,a
+        ld a,(viewPluginType)
+        cp VIEWTYPE_PT3
+        jr z,.music_keyboard
+        cp VIEWTYPE_PT2
+        jr z,.music_keyboard
+        ld a,b
+        ret
+.music_keyboard
+        ld a,b
+        cp 13
+        jr z,.music_key_stop
+        cp " "
+        jr z,.music_key_next
+        ret
+.music_key_stop
+        ld a,1
+        ret
+.music_key_next
+        ld a,2
         ret
 .no_key
         xor a
@@ -701,7 +743,10 @@ view_plugin_input_nowait
 .mouse_click
         ld a,(viewPluginType)
         cp VIEWTYPE_PT3
+        jr z,.music_click
+        cp VIEWTYPE_PT2
         jr nz,.generic_mouse_click
+.music_click
         call view_pt3_mouse_click
         ret nz
 .generic_mouse_click
@@ -885,6 +930,7 @@ viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
 viewZxScreenPluginName defb "zxscreen.ccp",255
 viewPt3PluginName      defb "pt3test.ccp",255
+viewPt2PluginName      defb "pt2test.ccp",255
 
 viewErrorTitleTxt       defb "Viewer:",0
 viewNoViewerTxt         defb "No viewer is available for this file.",0
