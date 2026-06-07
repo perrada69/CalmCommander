@@ -2144,6 +2144,8 @@ ext_stp defb ".stp"
 ext_STP defb ".STP"
 ext_sqt defb ".sqt"
 ext_SQT defb ".SQT"
+ext_nxi defb ".nxi"
+ext_NXI defb ".NXI"
 
 
 ; ------------------------------------------------------------

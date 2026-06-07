@@ -1,0 +1,434 @@
+# file opened: plugin\nxi.asm
+  1   0000                      DEVICE ZXSPECTRUMNEXT
+  2   0000                      org VIEW_PLUGIN_ADDRESS
+  3   C000
+  4   C000                      include "plugin_api.i.asm"
+# file opened: plugin\plugin_api.i.asm
+  1+  C000              VIEW_PLUGIN_ADDRESS  equ 49152
+  2+  C000              VIEW_DATA_ADDRESS    equ 57344
+  3+  C000              VIEW_PLUGIN_SIZE     equ 4096
+  4+  C000
+  5+  C000              VIEWCTX_ABI          equ 0
+  6+  C000              VIEWCTX_TYPE         equ 1
+  7+  C000              VIEWCTX_FILENAME     equ 2
+  8+  C000              VIEWCTX_SIZE_LO      equ 4
+  9+  C000              VIEWCTX_SIZE_HI      equ 6
+ 10+  C000              VIEWCTX_DATA_PAGE    equ 8
+ 11+  C000              VIEWCTX_DATA_ADDR    equ 9
+ 12+  C000              VIEWCTX_READ_LEN     equ 11
+ 13+  C000              VIEWCTX_PAGE_COUNT   equ 13
+ 14+  C000              VIEWCTX_DATA_PAGES   equ 14
+ 15+  C000              VIEWCTX_SERVICES     equ 16
+ 16+  C000
+ 17+  C000              SERVICE_PRINT        equ 0
+ 18+  C000              SERVICE_INKEY        equ 2
+ 19+  C000              SERVICE_WINDOW       equ 4
+ 20+  C000              SERVICE_LAYER0       equ 6
+ 21+  C000              SERVICE_INPUT_NOWAIT equ 8
+ 22+  C000
+# file closed: plugin\plugin_api.i.asm
+  5   C000
+  6   C000              NEXTREG_SEL      equ $243B
+  7   C000              NEXTREG_DAT      equ $253B
+  8   C000
+  9   C000              NR_LAYER2_PAGE   equ $12
+ 10   C000              NR_TRANSPARENCY  equ $14
+ 11   C000              NR_LAYER2_XOFF   equ $16
+ 12   C000              NR_LAYER2_YOFF   equ $17
+ 13   C000              NR_CLIP_LAYER2   equ $18
+ 14   C000              NR_CLIP_CTRL     equ $1C
+ 15   C000              NR_PALETTE_IDX   equ $40
+ 16   C000              NR_PALETTE_CTRL  equ $43
+ 17   C000              NR_PALETTE_VAL9  equ $44
+ 18   C000              NR_FALLBACK_COL  equ $4A
+ 19   C000              NR_MMU2          equ $52
+ 20   C000              NR_MMU3          equ $53
+ 21   C000              NR_MMU7          equ $57
+ 22   C000              NR_DISPLAY_CTRL1 equ $69
+ 23   C000              NR_LAYER2_CTRL   equ $70
+ 24   C000
+ 25   C000              PALCTRL_L2_1     equ %00010000
+ 26   C000              NXI_L2_BANK      equ 49
+ 27   C000              SIZE_IMAGE       equ 49152
+ 28   C000              SIZE_PALETTE     equ 512
+ 29   C000              SRC_PAGE_SIZE    equ 8192
+ 30   C000
+ 31   C000              plugin_start
+ 32   C000 22 7C C2             ld (ctxPtr),hl
+ 33   C003 ED 53 7E C2          ld (svcPtr),de
+ 34   C007 CD 94 C0             call patch_services
+ 35   C00A
+ 36   C00A CD 69 C0             call validate_size
+ 37   C00D DA 67 C0             jp c,exit_bad
+ 38   C010
+ 39   C010 CD A6 C0             call save_state
+ 40   C013 CD 06 C1             call set_nxi_l2_bank
+ 41   C016 CD 21 C2             call l2_init_256
+ 42   C019 CD 26 C2             call l2_reset_view
+ 43   C01C CD 49 C2             call set_safe_transparency
+ 44   C01F
+ 45   C01F 3A 87 C2             ld a,(hasPalette)
+ 46   C022 B7                   or a
+ 47   C023 28 08                jr z,.no_palette
+ 48   C025 CD ED C1             call upload_palette
+ 49   C028 CD 20 C1             call init_source_after_palette
+ 50   C02B 18 06                jr .load_pixels
+ 51   C02D              .no_palette
+ 52   C02D CD 69 C2             call select_l2_palette_1
+ 53   C030 CD 0F C1             call init_source_at_start
+ 54   C033
+ 55   C033              .load_pixels
+ 56   C033 ED 73 95 C2          ld (savedSp),sp
+ 57   C037 31 97 C3             ld sp,pluginStackTop
+ 58   C03A 3A 86 C2             ld a,(l2BaseBank)
+ 59   C03D CD 31 C1             call copy_16k_to_l2
+ 60   C040 3A 86 C2             ld a,(l2BaseBank)
+ 61   C043 3C                   inc a
+ 62   C044 CD 31 C1             call copy_16k_to_l2
+ 63   C047 3A 86 C2             ld a,(l2BaseBank)
+ 64   C04A C6 02                add a,2
+ 65   C04C CD 31 C1             call copy_16k_to_l2
+ 66   C04F
+ 67   C04F CD F0 C0             call restore_mmu23
+ 68   C052 ED 7B 95 C2          ld sp,(savedSp)
+ 69   C056 CD 53 C2             call l2_show
+ 70   C059 CD 6F C2             call wait_key
+ 71   C05C CD 5E C2             call l2_hide
+ 72   C05F CD 69 C2             call select_l2_palette_1
+ 73   C062 CD D7 C0             call restore_state
+ 74   C065              exit_ok
+ 75   C065 AF                   xor a
+ 76   C066 C9                   ret
+ 77   C067
+ 78   C067              exit_bad
+ 79   C067 37                   scf
+ 80   C068 C9                   ret
+ 81   C069
+ 82   C069              validate_size
+ 83   C069 DD 2A 7C C2          ld ix,(ctxPtr)
+ 84   C06D DD 7E 06             ld a,(ix+VIEWCTX_SIZE_HI)
+ 85   C070 DD B6 07             or (ix+VIEWCTX_SIZE_HI+1)
+ 86   C073 20 11                jr nz,.bad
+ 87   C075 DD 7E 04             ld a,(ix+VIEWCTX_SIZE_LO)
+ 88   C078 B7                   or a
+ 89   C079 20 0B                jr nz,.bad
+ 90   C07B DD 7E 05             ld a,(ix+VIEWCTX_SIZE_LO+1)
+ 91   C07E FE C0                cp $C0
+ 92   C080 28 06                jr z,.image_only
+ 93   C082 FE C2                cp $C2
+ 94   C084 28 07                jr z,.with_palette
+ 95   C086              .bad
+ 96   C086 37                   scf
+ 97   C087 C9                   ret
+ 98   C088              .image_only
+ 99   C088 AF                   xor a
+100   C089 32 87 C2             ld (hasPalette),a
+101   C08C C9                   ret
+102   C08D              .with_palette
+103   C08D 3E 01                ld a,1
+104   C08F 32 87 C2             ld (hasPalette),a
+105   C092 AF                   xor a
+106   C093 C9                   ret
+107   C094
+108   C094              patch_services
+109   C094 DD 2A 7E C2          ld ix,(svcPtr)
+110   C098 DD 6E 08             ld l,(ix+SERVICE_INPUT_NOWAIT)
+111   C09B DD 66 09             ld h,(ix+SERVICE_INPUT_NOWAIT+1)
+112   C09E 22 A3 C0             ld (call_input+1),hl
+113   C0A1 C9                   ret
+114   C0A2
+115   C0A2              call_input
+116   C0A2 CD 00 00             call 0
+117   C0A5 C9                   ret
+118   C0A6
+119   C0A6              save_state
+120   C0A6 3E 52                ld a,NR_MMU2
+121   C0A8 CD FD C0             call read_nextreg
+122   C0AB 32 80 C2             ld (savedMmu2),a
+123   C0AE 3E 53                ld a,NR_MMU3
+124   C0B0 CD FD C0             call read_nextreg
+125   C0B3 32 81 C2             ld (savedMmu3),a
+126   C0B6 3E 57                ld a,NR_MMU7
+127   C0B8 CD FD C0             call read_nextreg
+128   C0BB 32 82 C2             ld (savedMmu7),a
+129   C0BE 3E 69                ld a,NR_DISPLAY_CTRL1
+130   C0C0 CD FD C0             call read_nextreg
+131   C0C3 32 83 C2             ld (savedDisplay),a
+132   C0C6 3E 43                ld a,NR_PALETTE_CTRL
+133   C0C8 CD FD C0             call read_nextreg
+134   C0CB 32 84 C2             ld (savedPalCtrl),a
+135   C0CE 3E 12                ld a,NR_LAYER2_PAGE
+136   C0D0 CD FD C0             call read_nextreg
+137   C0D3 32 85 C2             ld (savedLayer2Page),a
+138   C0D6 C9                   ret
+139   C0D7
+140   C0D7              restore_state
+141   C0D7 3A 82 C2             ld a,(savedMmu7)
+142   C0DA ED 92 57             nextreg NR_MMU7,a
+143   C0DD 3A 83 C2             ld a,(savedDisplay)
+144   C0E0 ED 92 69             nextreg NR_DISPLAY_CTRL1,a
+145   C0E3 3A 84 C2             ld a,(savedPalCtrl)
+146   C0E6 ED 92 43             nextreg NR_PALETTE_CTRL,a
+147   C0E9 3A 85 C2             ld a,(savedLayer2Page)
+148   C0EC ED 92 12             nextreg NR_LAYER2_PAGE,a
+149   C0EF C9                   ret
+150   C0F0
+151   C0F0              restore_mmu23
+152   C0F0 3A 80 C2             ld a,(savedMmu2)
+153   C0F3 ED 92 52             nextreg NR_MMU2,a
+154   C0F6 3A 81 C2             ld a,(savedMmu3)
+155   C0F9 ED 92 53             nextreg NR_MMU3,a
+156   C0FC C9                   ret
+157   C0FD
+158   C0FD              read_nextreg
+159   C0FD 01 3B 24             ld bc,NEXTREG_SEL
+160   C100 ED 79                out (c),a
+161   C102 04                   inc b
+162   C103 ED 78                in a,(c)
+163   C105 C9                   ret
+164   C106
+165   C106              set_nxi_l2_bank
+166   C106 3E 31                ld a,NXI_L2_BANK
+167   C108 32 86 C2             ld (l2BaseBank),a
+168   C10B ED 92 12             nextreg NR_LAYER2_PAGE,a
+169   C10E C9                   ret
+170   C10F
+171   C10F              init_source_at_start
+172   C10F AF                   xor a
+173   C110 32 88 C2             ld (srcPageIndex),a
+174   C113 21 00 00             ld hl,0
+175   C116 22 89 C2             ld (srcOffset),hl
+176   C119 21 00 20             ld hl,SRC_PAGE_SIZE
+177   C11C 22 8B C2             ld (srcRemain),hl
+178   C11F C9                   ret
+179   C120
+180   C120              init_source_after_palette
+181   C120 AF                   xor a
+182   C121 32 88 C2             ld (srcPageIndex),a
+183   C124 21 00 02             ld hl,SIZE_PALETTE
+184   C127 22 89 C2             ld (srcOffset),hl
+185   C12A 21 00 1E             ld hl,SRC_PAGE_SIZE-SIZE_PALETTE
+186   C12D 22 8B C2             ld (srcRemain),hl
+187   C130 C9                   ret
+188   C131
+189   C131              copy_16k_to_l2
+190   C131 87                   add a,a
+191   C132 32 8D C2             ld (destPageLo),a
+192   C135 3C                   inc a
+193   C136 32 8E C2             ld (destPageHi),a
+194   C139 21 00 40             ld hl,$4000
+195   C13C 22 8F C2             ld (destPtr),hl
+196   C13F 21 00 40             ld hl,16384
+197   C142 22 91 C2             ld (destRemain),hl
+198   C145
+199   C145              .loop
+200   C145 2A 91 C2             ld hl,(destRemain)
+201   C148 7C                   ld a,h
+202   C149 B5                   or l
+203   C14A C8                   ret z
+204   C14B
+205   C14B CD D6 C1             call map_current_source_page
+206   C14E 3A 8D C2             ld a,(destPageLo)
+207   C151 ED 92 52             nextreg NR_MMU2,a
+208   C154 3A 8E C2             ld a,(destPageHi)
+209   C157 ED 92 53             nextreg NR_MMU3,a
+210   C15A
+211   C15A CD BE C1             call set_copy_len
+212   C15D 21 00 E0             ld hl,$E000
+213   C160 ED 5B 89 C2          ld de,(srcOffset)
+214   C164 19                   add hl,de
+215   C165 ED 5B 8F C2          ld de,(destPtr)
+216   C169 ED 4B 93 C2          ld bc,(copyLen)
+217   C16D ED B0                ldir
+218   C16F
+219   C16F 2A 8F C2             ld hl,(destPtr)
+220   C172 ED 4B 93 C2          ld bc,(copyLen)
+221   C176 09                   add hl,bc
+222   C177 22 8F C2             ld (destPtr),hl
+223   C17A
+224   C17A 2A 91 C2             ld hl,(destRemain)
+225   C17D ED 4B 93 C2          ld bc,(copyLen)
+226   C181 B7                   or a
+227   C182 ED 42                sbc hl,bc
+228   C184 22 91 C2             ld (destRemain),hl
+229   C187
+230   C187 2A 89 C2             ld hl,(srcOffset)
+231   C18A ED 4B 93 C2          ld bc,(copyLen)
+232   C18E 09                   add hl,bc
+233   C18F 22 89 C2             ld (srcOffset),hl
+234   C192
+235   C192 2A 8B C2             ld hl,(srcRemain)
+236   C195 ED 4B 93 C2          ld bc,(copyLen)
+237   C199 B7                   or a
+238   C19A ED 42                sbc hl,bc
+239   C19C 22 8B C2             ld (srcRemain),hl
+240   C19F
+241   C19F 2A 91 C2             ld hl,(destRemain)
+242   C1A2 7C                   ld a,h
+243   C1A3 B5                   or l
+244   C1A4 C8                   ret z
+245   C1A5
+246   C1A5 2A 8B C2             ld hl,(srcRemain)
+247   C1A8 7C                   ld a,h
+248   C1A9 B5                   or l
+249   C1AA 20 99                jr nz,.loop
+250   C1AC
+251   C1AC 21 88 C2             ld hl,srcPageIndex
+252   C1AF 34                   inc (hl)
+253   C1B0 21 00 00             ld hl,0
+254   C1B3 22 89 C2             ld (srcOffset),hl
+255   C1B6 21 00 20             ld hl,SRC_PAGE_SIZE
+256   C1B9 22 8B C2             ld (srcRemain),hl
+257   C1BC 18 87                jr .loop
+258   C1BE
+259   C1BE              set_copy_len
+260   C1BE 2A 91 C2             ld hl,(destRemain)
+261   C1C1 ED 5B 8B C2          ld de,(srcRemain)
+262   C1C5 B7                   or a
+263   C1C6 ED 52                sbc hl,de
+264   C1C8 38 05                jr c,.use_dest
+265   C1CA 2A 8B C2             ld hl,(srcRemain)
+266   C1CD 18 03                jr .store
+267   C1CF              .use_dest
+268   C1CF 2A 91 C2             ld hl,(destRemain)
+269   C1D2              .store
+270   C1D2 22 93 C2             ld (copyLen),hl
+271   C1D5 C9                   ret
+272   C1D6
+273   C1D6              map_current_source_page
+274   C1D6 DD 2A 7C C2          ld ix,(ctxPtr)
+275   C1DA DD 6E 0E             ld l,(ix+VIEWCTX_DATA_PAGES)
+276   C1DD DD 66 0F             ld h,(ix+VIEWCTX_DATA_PAGES+1)
+277   C1E0 3A 88 C2             ld a,(srcPageIndex)
+278   C1E3 85                   add a,l
+279   C1E4 6F                   ld l,a
+280   C1E5 30 01                jr nc,.ok
+281   C1E7 24                   inc h
+282   C1E8              .ok
+283   C1E8 7E                   ld a,(hl)
+284   C1E9 ED 92 57             nextreg NR_MMU7,a
+285   C1EC C9                   ret
+286   C1ED
+287   C1ED              upload_palette
+288   C1ED AF                   xor a
+289   C1EE 32 88 C2             ld (srcPageIndex),a
+290   C1F1 CD D6 C1             call map_current_source_page
+291   C1F4
+292   C1F4 3E 10                ld a,PALCTRL_L2_1
+293   C1F6 ED 92 43             nextreg NR_PALETTE_CTRL,a
+294   C1F9 3E 40                ld a,NR_PALETTE_IDX
+295   C1FB 01 3B 24             ld bc,NEXTREG_SEL
+296   C1FE ED 79                out (c),a
+297   C200 04                   inc b
+298   C201 AF                   xor a
+299   C202 ED 79                out (c),a
+300   C204
+301   C204 01 3B 24             ld bc,NEXTREG_SEL
+302   C207 3E 44                ld a,NR_PALETTE_VAL9
+303   C209 ED 79                out (c),a
+304   C20B 21 00 E0             ld hl,$E000
+305   C20E 01 3B 25             ld bc,NEXTREG_DAT
+306   C211 16 00                ld d,0
+307   C213              .loop
+308   C213 7E                   ld a,(hl)
+309   C214 23                   inc hl
+310   C215 ED 79                out (c),a
+311   C217 7E                   ld a,(hl)
+312   C218 23                   inc hl
+313   C219 E6 01                and 1
+314   C21B ED 79                out (c),a
+315   C21D 15                   dec d
+316   C21E 20 F3                jr nz,.loop
+317   C220 C9                   ret
+318   C221
+319   C221              l2_init_256
+320   C221 AF                   xor a
+321   C222 ED 92 70             nextreg NR_LAYER2_CTRL,a
+322   C225 C9                   ret
+323   C226
+324   C226              l2_reset_view
+325   C226 AF                   xor a
+326   C227 ED 92 16             nextreg NR_LAYER2_XOFF,a
+327   C22A ED 92 17             nextreg NR_LAYER2_YOFF,a
+328   C22D
+329   C22D 3E 01                ld a,1
+330   C22F ED 92 1C             nextreg NR_CLIP_CTRL,a
+331   C232
+332   C232 01 3B 24             ld bc,NEXTREG_SEL
+333   C235 3E 18                ld a,NR_CLIP_LAYER2
+334   C237 ED 79                out (c),a
+335   C239 04                   inc b
+336   C23A AF                   xor a
+337   C23B ED 79                out (c),a
+338   C23D 3E FF                ld a,255
+339   C23F ED 79                out (c),a
+340   C241 AF                   xor a
+341   C242 ED 79                out (c),a
+342   C244 3E BF                ld a,191
+343   C246 ED 79                out (c),a
+344   C248 C9                   ret
+345   C249
+346   C249              set_safe_transparency
+347   C249 3E 55                ld a,$55
+348   C24B ED 92 14             nextreg NR_TRANSPARENCY,a
+349   C24E AF                   xor a
+350   C24F ED 92 4A             nextreg NR_FALLBACK_COL,a
+351   C252 C9                   ret
+352   C253
+353   C253              l2_show
+354   C253 3E 69                ld a,NR_DISPLAY_CTRL1
+355   C255 CD FD C0             call read_nextreg
+356   C258 F6 80                or %10000000
+357   C25A ED 92 69             nextreg NR_DISPLAY_CTRL1,a
+358   C25D C9                   ret
+359   C25E
+360   C25E              l2_hide
+361   C25E 3E 69                ld a,NR_DISPLAY_CTRL1
+362   C260 CD FD C0             call read_nextreg
+363   C263 E6 7F                and %01111111
+364   C265 ED 92 69             nextreg NR_DISPLAY_CTRL1,a
+365   C268 C9                   ret
+366   C269
+367   C269              select_l2_palette_1
+368   C269 3E 10                ld a,PALCTRL_L2_1
+369   C26B ED 92 43             nextreg NR_PALETTE_CTRL,a
+370   C26E C9                   ret
+371   C26F
+372   C26F              wait_key
+373   C26F              .release
+374   C26F CD A2 C0             call call_input
+375   C272 B7                   or a
+376   C273 20 FA                jr nz,.release
+377   C275              .press
+378   C275 CD A2 C0             call call_input
+379   C278 B7                   or a
+380   C279 28 FA                jr z,.press
+381   C27B C9                   ret
+382   C27C
+383   C27C 00 00        ctxPtr       defw 0
+384   C27E 00 00        svcPtr       defw 0
+385   C280 00           savedMmu2    defb 0
+386   C281 00           savedMmu3    defb 0
+387   C282 00           savedMmu7    defb 0
+388   C283 00           savedDisplay defb 0
+389   C284 00           savedPalCtrl defb 0
+390   C285 00           savedLayer2Page defb 0
+391   C286 00           l2BaseBank   defb 0
+392   C287 00           hasPalette   defb 0
+393   C288 00           srcPageIndex defb 0
+394   C289 00 00        srcOffset    defw 0
+395   C28B 00 00        srcRemain    defw 0
+396   C28D 00           destPageLo   defb 0
+397   C28E 00           destPageHi   defb 0
+398   C28F 00 00        destPtr      defw 0
+399   C291 00 00        destRemain   defw 0
+400   C293 00 00        copyLen      defw 0
+401   C295 00 00        savedSp      defw 0
+402   C297 00 00 00...  pluginStack  defs 256
+403   C397              pluginStackTop equ $
+404   C397
+405   C397              plugin_end
+406   C397                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
+407   C397                      SAVEBIN "plugin/nxi.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+408   C397
+# file closed: plugin\nxi.asm

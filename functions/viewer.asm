@@ -37,6 +37,7 @@ VIEWTYPE_PT2         equ 4
 VIEWTYPE_STC         equ 5
 VIEWTYPE_STP         equ 6
 VIEWTYPE_SQT         equ 7
+VIEWTYPE_NXI         equ 8
 
 view_file
         call view_prepare_current_file
@@ -251,6 +252,15 @@ view_make_short_name
 
 view_select_plugin
         call view_make_short_name
+        ld hl,viewShortName
+        ld de,ext_nxi
+        call pripony
+        jp z,.nxi
+        ld hl,viewShortName
+        ld de,ext_NXI
+        call pripony
+        jp z,.nxi
+
         call view_is_zx_screen
         jp z,.zxscreen
 
@@ -395,6 +405,14 @@ view_select_plugin
         ld a,VIEWTYPE_SQT
         ld (viewPluginType),a
         ld hl,viewSqtPluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.nxi
+        ld a,VIEWTYPE_NXI
+        ld (viewPluginType),a
+        ld hl,viewNxiPluginName
         ld (viewPluginName),hl
         xor a
         ret
@@ -1543,12 +1561,13 @@ viewDataBanks        defb 40,42,43,44,45,46,47,48
 viewDataPages        defb 81,85,87,89,91,93,95,97
 
 VIEW_PLUGIN_MENU_VISIBLE equ 7
-VIEW_PLUGIN_MENU_COUNT equ 7
+VIEW_PLUGIN_MENU_COUNT equ 8
 VIEW_PLUGIN_MENU_LAST equ VIEW_PLUGIN_MENU_COUNT-1
 viewPluginMenuMouseArea defb 45,88,115,143
 viewPluginMenuTable
         defb VIEWTYPE_TEXT : defw viewTextPluginName : defw viewPluginMenuTextTxt
         defb VIEWTYPE_ZXSCREEN : defw viewZxScreenPluginName : defw viewPluginMenuZxTxt
+        defb VIEWTYPE_NXI : defw viewNxiPluginName : defw viewPluginMenuNxiTxt
         defb VIEWTYPE_PT3 : defw viewPt3PluginName : defw viewPluginMenuPt3Txt
         defb VIEWTYPE_PT2 : defw viewPt2PluginName : defw viewPluginMenuPt2Txt
         defb VIEWTYPE_STC : defw viewStcPluginName : defw viewPluginMenuStcTxt
@@ -1558,6 +1577,7 @@ viewPluginMenuTable
 viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
 viewZxScreenPluginName defb "zxscreen.ccp",255
+viewNxiPluginName      defb "nxi.ccp",255
 viewPt3PluginName      defb "pt3test.ccp",255
 viewPt2PluginName      defb "pt2test.ccp",255
 viewStcPluginName      defb "stctest.ccp",255
@@ -1574,6 +1594,7 @@ viewMusicAcbActiveTxt  defb "[ACB]",0
 viewPluginMenuTitleTxt defb "Select viewer plugin:",0
 viewPluginMenuTextTxt  defb "Text viewer     text.ccp",0
 viewPluginMenuZxTxt    defb "ZX screen       zxscreen.ccp",0
+viewPluginMenuNxiTxt   defb "NXI image       nxi.ccp",0
 viewPluginMenuPt3Txt   defb "PT3 player      pt3test.ccp",0
 viewPluginMenuPt2Txt   defb "PT2 player      pt2test.ccp",0
 viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
