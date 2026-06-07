@@ -34,6 +34,9 @@ VIEWTYPE_TEXT        equ 1
 VIEWTYPE_ZXSCREEN    equ 2
 VIEWTYPE_PT3         equ 3
 VIEWTYPE_PT2         equ 4
+VIEWTYPE_STC         equ 5
+VIEWTYPE_STP         equ 6
+VIEWTYPE_SQT         equ 7
 
 view_file
         call view_prepare_current_file
@@ -63,6 +66,12 @@ view_file
         cp VIEWTYPE_PT3
         jr z,.music_result
         cp VIEWTYPE_PT2
+        jr z,.music_result
+        cp VIEWTYPE_STC
+        jr z,.music_result
+        cp VIEWTYPE_STP
+        jr z,.music_result
+        cp VIEWTYPE_SQT
         jr nz,.done
 .music_result
         ld a,(viewPluginResult)
@@ -232,6 +241,33 @@ view_select_plugin
         jp z,.zxscreen
 
         ld hl,viewShortName
+        ld de,ext_stc
+        call pripony
+        jp z,.stc
+        ld hl,viewShortName
+        ld de,ext_STC
+        call pripony
+        jp z,.stc
+
+        ld hl,viewShortName
+        ld de,ext_stp
+        call pripony
+        jp z,.stp
+        ld hl,viewShortName
+        ld de,ext_STP
+        call pripony
+        jp z,.stp
+
+        ld hl,viewShortName
+        ld de,ext_sqt
+        call pripony
+        jp z,.sqt
+        ld hl,viewShortName
+        ld de,ext_SQT
+        call pripony
+        jp z,.sqt
+
+        ld hl,viewShortName
         ld de,ext_pt2
         call pripony
         jp z,.pt2
@@ -321,6 +357,30 @@ view_select_plugin
         ld a,VIEWTYPE_PT2
         ld (viewPluginType),a
         ld hl,viewPt2PluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.stc
+        ld a,VIEWTYPE_STC
+        ld (viewPluginType),a
+        ld hl,viewStcPluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.stp
+        ld a,VIEWTYPE_STP
+        ld (viewPluginType),a
+        ld hl,viewStpPluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.sqt
+        ld a,VIEWTYPE_SQT
+        ld (viewPluginType),a
+        ld hl,viewSqtPluginName
         ld (viewPluginName),hl
         xor a
         ret
@@ -722,6 +782,12 @@ view_plugin_input_nowait
         jr z,.music_keyboard
         cp VIEWTYPE_PT2
         jr z,.music_keyboard
+        cp VIEWTYPE_STC
+        jr z,.music_keyboard
+        cp VIEWTYPE_STP
+        jr z,.music_keyboard
+        cp VIEWTYPE_SQT
+        jr z,.music_keyboard
         ld a,b
         ret
 .music_keyboard
@@ -745,6 +811,12 @@ view_plugin_input_nowait
         cp VIEWTYPE_PT3
         jr z,.music_click
         cp VIEWTYPE_PT2
+        jr z,.music_click
+        cp VIEWTYPE_STC
+        jr z,.music_click
+        cp VIEWTYPE_STP
+        jr z,.music_click
+        cp VIEWTYPE_SQT
         jr nz,.generic_mouse_click
 .music_click
         call view_pt3_mouse_click
@@ -931,6 +1003,9 @@ viewTextPluginName     defb "text.ccp",255
 viewZxScreenPluginName defb "zxscreen.ccp",255
 viewPt3PluginName      defb "pt3test.ccp",255
 viewPt2PluginName      defb "pt2test.ccp",255
+viewStcPluginName      defb "stctest.ccp",255
+viewStpPluginName      defb "stptest.ccp",255
+viewSqtPluginName      defb "sqtest.ccp",255
 
 viewErrorTitleTxt       defb "Viewer:",0
 viewNoViewerTxt         defb "No viewer is available for this file.",0

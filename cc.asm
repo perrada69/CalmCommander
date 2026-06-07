@@ -2135,6 +2135,12 @@ ext_pt2 defb ".pt2"
 ext_PT2 defb ".PT2"
 ext_pt3 defb ".pt3"
 ext_PT3 defb ".PT3"
+ext_stc defb ".stc"
+ext_STC defb ".STC"
+ext_stp defb ".stp"
+ext_STP defb ".STP"
+ext_sqt defb ".sqt"
+ext_SQT defb ".SQT"
 
 
 ; ------------------------------------------------------------
