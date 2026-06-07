@@ -455,9 +455,9 @@ savedMmu5    defb 0
 secondModuleAddr defw 0
 pt3Setup    defb 0
 title        defb "PT2:",0
-infoText     defb "Mode: detecting PT2   ",0
-modeSingleText defb "Mode: PT2             ",0
-modeTsText   defb "Mode: PT2 TS / 2 AY   ",0
+infoText     defb "M:PT2 [AY] YM [ABC] ACB",0
+modeSingleText defb "M:PT2 [AY] YM [ABC] ACB",0
+modeTsText   defb "M:PT2TS [AY] YM [ABC] ACB",0
 pt3TitleLabel defb "Info:",0
 pt3AuthorLabel defb "More:",0
 metersHeaderText defb "Meters:",0

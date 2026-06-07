@@ -377,9 +377,9 @@ savedMmu5    defb 0
 secondModuleAddr defw 0
 pt3Setup    defb 0
 title        defb "SQT:",0
-infoText     defb "Mode: detecting SQT   ",0
-modeSingleText defb "Mode: SQT             ",0
-modeTsText   defb "Mode: SQT             ",0
+infoText     defb "M:SQT [AY] YM [ABC] ACB",0
+modeSingleText defb "M:SQT [AY] YM [ABC] ACB",0
+modeTsText   defb "M:SQT [AY] YM [ABC] ACB",0
 pt3TitleLabel defb "Info:",0
 pt3AuthorLabel defb "More:",0
 metersHeaderText defb "Meters:",0

@@ -642,6 +642,9 @@ view_fill_context
 
 
 view_call_plugin
+        ld a,$52
+        call ReadNextReg2A
+        ld (viewSavedMmu2),a
         ld a,$56
         call ReadNextReg2A
         ld (viewSavedMmu6),a
@@ -709,6 +712,26 @@ view_init_plugin_input
         ld (TLACITKO),a
         call view_read_wheel
         ld (viewWheelOld),a
+        xor a
+        ld (viewMusicSetupDirty),a
+        ld a,(viewPluginType)
+        cp VIEWTYPE_PT3
+        jr z,.music
+        cp VIEWTYPE_PT2
+        jr z,.music
+        cp VIEWTYPE_STC
+        jr z,.music
+        cp VIEWTYPE_STP
+        jr z,.music
+        cp VIEWTYPE_SQT
+        ret nz
+.music
+        ld a,1
+        ld (viewMusicChipMode),a
+        xor a
+        ld (viewMusicStereoMode),a
+        ld a,1
+        ld (viewMusicSetupDirty),a
         ret
 
 
@@ -730,10 +753,19 @@ view_plugin_input_nowait
         ld hl,(COORD)
         ld (lastCoordMouse),hl
         pop af
+        push af
+        ld a,(viewMusicSetupDirty)
+        or a
+        jr z,.setup_ok
+        xor a
+        ld (viewMusicSetupDirty),a
+        call view_music_show_setup
+.setup_ok
+        pop af
         bit 0,a
-        jr nz,.mouse_click
+        jp nz,.mouse_click
         bit 1,a
-        jr nz,.mouse_click
+        jp nz,.mouse_click
 
         call view_read_wheel
         ld b,a
@@ -761,7 +793,29 @@ view_plugin_input_nowait
         call KEYSCAN
         ld a,e
         inc a
-        jr z,.no_key
+        jp z,.no_key
+        ld a,(viewPluginType)
+        cp VIEWTYPE_PT3
+        jp z,.music_scan_keyboard
+        cp VIEWTYPE_PT2
+        jp z,.music_scan_keyboard
+        cp VIEWTYPE_STC
+        jp z,.music_scan_keyboard
+        cp VIEWTYPE_STP
+        jp z,.music_scan_keyboard
+        cp VIEWTYPE_SQT
+        jp nz,.map_keyboard
+.music_scan_keyboard
+        ld a,e
+        cp 38
+        jp z,view_music_set_ay
+        cp 2
+        jp z,view_music_set_ym
+        cp 0
+        jp z,view_music_set_abc
+        cp 15
+        jp z,view_music_set_acb
+.map_keyboard
         ld a,d
         ld hl,SYMTAB
         cp $18
@@ -796,6 +850,22 @@ view_plugin_input_nowait
         jr z,.music_key_stop
         cp " "
         jr z,.music_key_next
+        cp "a"
+        jp z,view_music_set_ay
+        cp "A"
+        jp z,view_music_set_ay
+        cp "y"
+        jp z,view_music_set_ym
+        cp "Y"
+        jp z,view_music_set_ym
+        cp "b"
+        jp z,view_music_set_abc
+        cp "B"
+        jp z,view_music_set_abc
+        cp "c"
+        jp z,view_music_set_acb
+        cp "C"
+        jp z,view_music_set_acb
         ret
 .music_key_stop
         ld a,1
@@ -827,6 +897,36 @@ view_plugin_input_nowait
 
 
 view_pt3_mouse_click
+        ld a,(COORD+1)
+        cp 68
+        jr c,.not_setup
+        cp 84
+        jr nc,.not_setup
+        ld a,(COORD+0)
+        ld b,a
+        ld a,(viewMusicDrawOffset)
+        or a
+        jr z,.no_setup_offset
+        ld c,a
+        ld a,b
+        sub c
+        jr c,.window
+        jr .setup_x
+.no_setup_offset
+        ld a,b
+.setup_x
+        cp 16
+        jr c,.window
+        cp 24
+        jr c,view_music_set_ay
+        cp 32
+        jr c,view_music_set_ym
+        cp 40
+        jr c,view_music_set_abc
+        cp 52
+        jr c,view_music_set_acb
+        jr .window
+.not_setup
         ld a,(COORD+1)
         cp 188
         jr c,.window
@@ -860,6 +960,147 @@ view_pt3_mouse_click
         jr nc,.outside
         xor a
         ret
+
+
+view_music_set_ay
+        ld a,$06
+        call ReadNextReg2A
+        and $FC
+        or $01
+        nextreg $06,a
+        ld a,1
+        ld (viewMusicChipMode),a
+        jp view_music_show_setup
+
+
+view_music_set_ym
+        ld a,$06
+        call ReadNextReg2A
+        and $FC
+        nextreg $06,a
+        xor a
+        ld (viewMusicChipMode),a
+        jp view_music_show_setup
+
+
+view_music_set_abc
+        ld a,$08
+        call ReadNextReg2A
+        and $DF
+        nextreg $08,a
+        xor a
+        ld (viewMusicStereoMode),a
+        jp view_music_show_setup
+
+
+view_music_set_acb
+        ld a,$08
+        call ReadNextReg2A
+        or $20
+        nextreg $08,a
+        ld a,1
+        ld (viewMusicStereoMode),a
+        jp view_music_show_setup
+
+
+view_music_mark_setup_dirty
+        ld a,1
+        ld (viewMusicSetupDirty),a
+        xor a
+        ret
+
+
+view_music_show_setup
+        ld a,$52
+        call ReadNextReg2A
+        ld (viewTempMmu2),a
+        ld a,(viewSavedMmu2)
+        nextreg $52,a
+        ld a,(viewSavedMmu6)
+        nextreg $56,a
+        ld a,(viewSavedMmu7)
+        nextreg $57,a
+
+        xor a
+        ld (viewMusicDrawOffset),a
+        ld a,($45B0)
+        cp "["
+        jr z,.offset_ok
+        cp " "
+        jr z,.offset_ok
+        ld a,4
+        ld (viewMusicDrawOffset),a
+.offset_ok
+
+        ld hl,$45B0
+        call view_music_apply_offset
+        ld de,viewMusicAyActiveTxt
+        ld a,(viewMusicChipMode)
+        or a
+        jr nz,.print_ay
+        ld de,viewMusicAyTxt
+.print_ay
+        call view_music_draw_text
+
+        ld hl,$45B8
+        call view_music_apply_offset
+        ld de,viewMusicYmActiveTxt
+        ld a,(viewMusicChipMode)
+        or a
+        jr z,.print_ym
+        ld de,viewMusicYmTxt
+.print_ym
+        call view_music_draw_text
+
+        ld hl,$45C0
+        call view_music_apply_offset
+        ld de,viewMusicAbcActiveTxt
+        ld a,(viewMusicStereoMode)
+        or a
+        jr z,.print_abc
+        ld de,viewMusicAbcTxt
+.print_abc
+        call view_music_draw_text
+
+        ld hl,$45CA
+        call view_music_apply_offset
+        ld de,viewMusicAcbActiveTxt
+        ld a,(viewMusicStereoMode)
+        or a
+        jr nz,.print_acb
+        ld de,viewMusicAcbTxt
+.print_acb
+        call view_music_draw_text
+
+        ld a,(viewTempMmu2)
+        nextreg $52,a
+        ld a,VIEW_PLUGIN_PAGE
+        nextreg $56,a
+        ld a,VIEW_DATA_PAGE
+        nextreg $57,a
+        xor a
+        ret
+
+
+view_music_apply_offset
+        ld a,(viewMusicDrawOffset)
+        add a,l
+        ld l,a
+        ret nc
+        inc h
+        ret
+
+
+view_music_draw_text
+        ld a,(de)
+        or a
+        ret z
+        ld (hl),a
+        inc hl
+        ld (hl),16
+        inc hl
+        inc de
+        jr view_music_draw_text
 
 
 view_read_wheel
@@ -986,11 +1227,17 @@ viewFirstReadLen     defw 0
 viewDataPageCount    defb 0
 viewSavedMmu6        defb 0
 viewSavedMmu7        defb 0
+viewSavedMmu2        defb 0
+viewTempMmu2         defb 0
 viewSavedOKNO        defb 3
 viewErrorStage       defb 0
 viewWheelOld         defb 0
 viewPluginResult     defb 0
 viewNextAfterDown    defb 0
+viewMusicSetupDirty  defb 0
+viewMusicChipMode    defb 1
+viewMusicStereoMode  defb 0
+viewMusicDrawOffset  defb 0
 viewShortName        defs 13
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
@@ -1006,6 +1253,14 @@ viewPt2PluginName      defb "pt2test.ccp",255
 viewStcPluginName      defb "stctest.ccp",255
 viewStpPluginName      defb "stptest.ccp",255
 viewSqtPluginName      defb "sqtest.ccp",255
+viewMusicAyTxt         defb " AY ",0
+viewMusicYmTxt         defb " YM ",0
+viewMusicAbcTxt        defb " ABC ",0
+viewMusicAcbTxt        defb " ACB ",0
+viewMusicAyActiveTxt   defb "[AY]",0
+viewMusicYmActiveTxt   defb "[YM]",0
+viewMusicAbcActiveTxt  defb "[ABC]",0
+viewMusicAcbActiveTxt  defb "[ACB]",0
 
 viewErrorTitleTxt       defb "Viewer:",0
 viewNoViewerTxt         defb "No viewer is available for this file.",0
