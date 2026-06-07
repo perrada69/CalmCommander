@@ -44,7 +44,11 @@ view_file
 
         call view_make_cmd2
         call view_select_plugin
-        jp c,view_no_viewer_or_skip
+        jr nc,view_run_selected_plugin
+        call view_choose_plugin_dialog
+        jp c,loop0
+
+view_run_selected_plugin
 
         call view_load_data_blocks
         jp c,view_file_error
@@ -88,6 +92,16 @@ view_file
         ld (viewNextAfterDown),a
         call view_restore_full_ui
         jp loop0
+
+
+view_plugin_menu
+        call view_prepare_current_file
+        jp c,view_no_viewer_or_skip
+
+        call view_make_cmd2
+        call view_choose_plugin_dialog
+        jp c,loop0
+        jp view_run_selected_plugin
 
 
 ; Prepare TMP83/LFNNAME for the current cursor item.
@@ -395,6 +409,164 @@ view_is_zx_screen
         ld de,6912
         or a
         sbc hl,de
+        ret
+
+
+view_choose_plugin_dialog
+        call savescr
+        xor a
+        ld (viewPluginMenuCursor),a
+
+        ld hl,23*256+8
+        ld bc,34*256+12
+        ld a,144
+        call window
+        ld hl,25*256+9
+        ld a,144
+        ld de,viewPluginMenuTitleTxt
+        call print
+        call view_plugin_menu_print_items
+        ld a,64
+        call view_plugin_menu_write_cursor
+
+.loop
+        xor a
+        ld (TLACITKO),a
+        call INKEY
+        cp 1
+        jr z,.cancel
+        cp 10
+        jr z,.down
+        cp 11
+        jr z,.up
+        cp 13
+        jr z,.enter
+
+        ld a,(TLACITKO)
+        bit 1,a
+        jr nz,.mouse
+        jr .loop
+
+.down
+        ld a,(viewPluginMenuCursor)
+        cp VIEW_PLUGIN_MENU_LAST
+        jr z,.loop
+        ld a,144
+        call view_plugin_menu_write_cursor
+        ld hl,viewPluginMenuCursor
+        inc (hl)
+        ld a,64
+        call view_plugin_menu_write_cursor
+        jr .loop
+
+.up
+        ld a,(viewPluginMenuCursor)
+        or a
+        jr z,.loop
+        ld a,144
+        call view_plugin_menu_write_cursor
+        ld hl,viewPluginMenuCursor
+        dec (hl)
+        ld a,64
+        call view_plugin_menu_write_cursor
+        jr .loop
+
+.mouse
+        ld hl,viewPluginMenuMouseArea
+        call CONTROL
+        jr c,.loop
+        ld a,(COORD+1)
+        ld d,a
+        ld e,8
+        call deleno8
+        ld a,d
+        cp 11
+        jr c,.loop
+        cp 18
+        jr nc,.loop
+        sub 11
+        ld (viewPluginMenuCursor),a
+        jr .enter
+
+.enter
+        call loadscr
+        call view_plugin_menu_set_plugin
+        xor a
+        ret
+
+.cancel
+        call loadscr
+        scf
+        ret
+
+
+view_plugin_menu_print_items
+        ld hl,27*256+11
+        ld a,144
+        ld de,viewPluginMenuTextTxt
+        call print
+        ld hl,27*256+12
+        ld a,144
+        ld de,viewPluginMenuZxTxt
+        call print
+        ld hl,27*256+13
+        ld a,144
+        ld de,viewPluginMenuPt3Txt
+        call print
+        ld hl,27*256+14
+        ld a,144
+        ld de,viewPluginMenuPt2Txt
+        call print
+        ld hl,27*256+15
+        ld a,144
+        ld de,viewPluginMenuStcTxt
+        call print
+        ld hl,27*256+16
+        ld a,144
+        ld de,viewPluginMenuStpTxt
+        call print
+        ld hl,27*256+17
+        ld a,144
+        ld de,viewPluginMenuSqtTxt
+        call print
+        ret
+
+
+view_plugin_menu_write_cursor
+        ld (viewPluginMenuColor+1),a
+        ld a,(viewPluginMenuCursor)
+        add a,11
+        ld e,a
+        ld d,160
+        mul d,e
+        ld hl,$4000+27*2+1
+        add hl,de
+viewPluginMenuColor
+        ld a,144
+        ld b,28
+.loop
+        ld (hl),a
+        inc hl
+        inc hl
+        djnz .loop
+        ret
+
+
+view_plugin_menu_set_plugin
+        ld a,(viewPluginMenuCursor)
+        ld e,a
+        ld d,3
+        mul d,e
+        ld hl,viewPluginMenuTable
+        add hl,de
+        ld a,(hl)
+        ld (viewPluginType),a
+        inc hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (viewPluginName),hl
         ret
 
 
@@ -1262,12 +1434,24 @@ viewMusicSetupDirty  defb 0
 viewMusicChipMode    defb 1
 viewMusicStereoMode  defb 0
 viewMusicDrawOffset  defb 0
+viewPluginMenuCursor defb 0
 viewShortName        defs 13
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
 ; that expose the upper 8K of each bank at $E000.
 viewDataBanks        defb 40,42,43,44,45,46,47,48
 viewDataPages        defb 81,85,87,89,91,93,95,97
+
+VIEW_PLUGIN_MENU_LAST equ 6
+viewPluginMenuMouseArea defb 45,88,115,143
+viewPluginMenuTable
+        defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defb VIEWTYPE_ZXSCREEN : defw viewZxScreenPluginName
+        defb VIEWTYPE_PT3 : defw viewPt3PluginName
+        defb VIEWTYPE_PT2 : defw viewPt2PluginName
+        defb VIEWTYPE_STC : defw viewStcPluginName
+        defb VIEWTYPE_STP : defw viewStpPluginName
+        defb VIEWTYPE_SQT : defw viewSqtPluginName
 
 viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
@@ -1285,6 +1469,14 @@ viewMusicAyActiveTxt   defb "[AY]",0
 viewMusicYmActiveTxt   defb "[YM]",0
 viewMusicAbcActiveTxt  defb "[ABC]",0
 viewMusicAcbActiveTxt  defb "[ACB]",0
+viewPluginMenuTitleTxt defb "Select viewer plugin:",0
+viewPluginMenuTextTxt  defb "Text viewer     text.ccp",0
+viewPluginMenuZxTxt    defb "ZX screen       zxscreen.ccp",0
+viewPluginMenuPt3Txt   defb "PT3 player      pt3test.ccp",0
+viewPluginMenuPt2Txt   defb "PT2 player      pt2test.ccp",0
+viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
+viewPluginMenuStpTxt   defb "STP player      stptest.ccp",0
+viewPluginMenuSqtTxt   defb "SQT player      sqtest.ccp",0
 
 viewErrorTitleTxt       defb "Viewer:",0
 viewNoViewerTxt         defb "No viewer is available for this file.",0

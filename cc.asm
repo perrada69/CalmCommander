@@ -618,6 +618,9 @@ loop0
             cp "3"
             jp z,view_file
 
+            cp "P"
+            jp z,view_plugin_menu
+
             cp "h"
             jp z,help
 
@@ -6418,13 +6421,12 @@ snuly   ld a,(hl)
 
 ; ============================================================
 ; help
-; Zobrazí vícestránkový help dialog (18 řádků vysoký),
-; vypíše řádky help1..help17 a čeká na ESC/Break (INKEY==1).
+; Zobrazi help dialog a ceka na ESC/Break (INKEY==1).
 ; ============================================================
 help
         call savescr
         ld hl,8 * 256 + 4
-        ld bc,60 * 256 + 18
+        ld bc,60 * 256 + 20
         ld a,16
         call window
 
@@ -6512,6 +6514,11 @@ help
         ld hl,11*256+22
         ld a,16
         ld de,help17
+        call print
+
+        ld hl,11*256+23
+        ld a,16
+        ld de,help18
         call print
 
 help0
