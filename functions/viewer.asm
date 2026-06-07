@@ -726,12 +726,36 @@ view_init_plugin_input
         cp VIEWTYPE_SQT
         ret nz
 .music
-        ld a,1
-        ld (viewMusicChipMode),a
-        xor a
-        ld (viewMusicStereoMode),a
+        call view_music_apply_saved_setup
         ld a,1
         ld (viewMusicSetupDirty),a
+        ret
+
+
+view_music_apply_saved_setup
+        ld a,$06
+        call ReadNextReg2A
+        and $FC
+        ld b,a
+        ld a,(viewMusicChipMode)
+        or a
+        ld a,b
+        jr z,.set_chip
+        or $01
+.set_chip
+        nextreg $06,a
+
+        ld a,$08
+        call ReadNextReg2A
+        and $DF
+        ld b,a
+        ld a,(viewMusicStereoMode)
+        or a
+        ld a,b
+        jr z,.set_stereo
+        or $20
+.set_stereo
+        nextreg $08,a
         ret
 
 
