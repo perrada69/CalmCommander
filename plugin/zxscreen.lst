@@ -320,7 +320,7 @@
 295   C1D4 ED 79                out (c),a
 296   C1D6 AF                   xor a
 297   C1D7 ED 79                out (c),a
-298   C1D9 3E AF                ld a,175
+298   C1D9 3E BF                ld a,191
 299   C1DB ED 79                out (c),a
 300   C1DD C9                   ret
 301   C1DE
@@ -339,11 +339,11 @@
 314   C1F3 C9                   ret
 315   C1F4
 316   C1F4              draw_controls
-317   C1F4 21 1B 0C             ld hl,12*256+27
+317   C1F4 21 1D 0C             ld hl,12*256+29
 318   C1F7 3E 90                ld a,144
 319   C1F9 11 10 C3             ld de,enterText
 320   C1FC CD 5B C0             call call_print
-321   C1FF 21 1B 34             ld hl,52*256+27
+321   C1FF 21 1D 30             ld hl,48*256+29
 322   C202 3E 90                ld a,144
 323   C204 11 20 C3             ld de,spaceText
 324   C207 CD 5B C0             call call_print

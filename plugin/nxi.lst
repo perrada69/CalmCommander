@@ -364,7 +364,7 @@
 339   C232 ED 79                out (c),a
 340   C234 AF                   xor a
 341   C235 ED 79                out (c),a
-342   C237 3E AF                ld a,175
+342   C237 3E BF                ld a,191
 343   C239 ED 79                out (c),a
 344   C23B C9                   ret
 345   C23C
@@ -395,11 +395,11 @@
 370   C261 C9                   ret
 371   C262
 372   C262              draw_controls
-373   C262 21 1B 0C             ld hl,12*256+27
+373   C262 21 1D 0C             ld hl,12*256+29
 374   C265 3E 90                ld a,144
 375   C267 11 7F C4             ld de,enterText
 376   C26A CD B7 C0             call call_print
-377   C26D 21 1B 34             ld hl,52*256+27
+377   C26D 21 1D 30             ld hl,48*256+29
 378   C270 3E 90                ld a,144
 379   C272 11 8F C4             ld de,spaceText
 380   C275 CD B7 C0             call call_print

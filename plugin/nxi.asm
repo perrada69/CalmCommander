@@ -339,7 +339,7 @@ l2_reset_view
         out (c),a
         xor a
         out (c),a
-        ld a,175
+        ld a,191
         out (c),a
         ret
 
@@ -370,11 +370,11 @@ select_l2_palette_1
         ret
 
 draw_controls
-        ld hl,12*256+27
+        ld hl,12*256+29
         ld a,144
         ld de,enterText
         call call_print
-        ld hl,52*256+27
+        ld hl,48*256+29
         ld a,144
         ld de,spaceText
         call call_print
