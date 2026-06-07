@@ -36,6 +36,7 @@ plugin_start
         call validate_size
         jp c,exit_bad
 
+        di
         call save_state
         call set_nxi_l2_bank
         call l2_init_256
@@ -49,7 +50,7 @@ plugin_start
         call init_source_after_palette
         jr .load_pixels
 .no_palette
-        call select_l2_palette_1
+        call upload_default_palette
         call init_source_at_start
 
 .load_pixels
@@ -66,13 +67,18 @@ plugin_start
 
         call restore_mmu23
         ld sp,(savedSp)
+        call draw_controls
         call l2_show
-        call wait_key
+        ei
+        call wait_command
+        ld (pluginResult),a
+        di
         call l2_hide
         call select_l2_palette_1
         call restore_state
+        ei
 exit_ok
-        xor a
+        ld a,(pluginResult)
         ret
 
 exit_bad
@@ -107,9 +113,16 @@ validate_size
 
 patch_services
         ld ix,(svcPtr)
+        ld l,(ix+SERVICE_PRINT)
+        ld h,(ix+SERVICE_PRINT+1)
+        ld (call_print+1),hl
         ld l,(ix+SERVICE_INPUT_NOWAIT)
         ld h,(ix+SERVICE_INPUT_NOWAIT+1)
         ld (call_input+1),hl
+        ret
+
+call_print
+        call 0
         ret
 
 call_input
@@ -173,8 +186,6 @@ init_source_at_start
         ld (srcPageIndex),a
         ld hl,0
         ld (srcOffset),hl
-        ld hl,SRC_PAGE_SIZE
-        ld (srcRemain),hl
         ret
 
 init_source_after_palette
@@ -182,8 +193,6 @@ init_source_after_palette
         ld (srcPageIndex),a
         ld hl,SIZE_PALETTE
         ld (srcOffset),hl
-        ld hl,SRC_PAGE_SIZE-SIZE_PALETTE
-        ld (srcRemain),hl
         ret
 
 copy_16k_to_l2
@@ -193,81 +202,46 @@ copy_16k_to_l2
         ld (destPageHi),a
         ld hl,$4000
         ld (destPtr),hl
-        ld hl,16384
-        ld (destRemain),hl
-
+        ld b,64
 .loop
-        ld hl,(destRemain)
-        ld a,h
-        or l
-        ret z
+        push bc
+        call copy_source_chunk_to_scratch
 
-        call map_current_source_page
         ld a,(destPageLo)
         nextreg NR_MMU2,a
         ld a,(destPageHi)
         nextreg NR_MMU3,a
-
-        call set_copy_len
-        ld hl,$E000
-        ld de,(srcOffset)
-        add hl,de
+        ld hl,scratchBuf
         ld de,(destPtr)
-        ld bc,(copyLen)
+        ld bc,256
         ldir
 
         ld hl,(destPtr)
-        ld bc,(copyLen)
-        add hl,bc
+        inc h
         ld (destPtr),hl
+        pop bc
+        djnz .loop
+        ret
 
-        ld hl,(destRemain)
-        ld bc,(copyLen)
-        or a
-        sbc hl,bc
-        ld (destRemain),hl
+copy_source_chunk_to_scratch
+        call map_current_source_page
+        ld hl,$E000
+        ld de,(srcOffset)
+        add hl,de
+        ld de,scratchBuf
+        ld bc,256
+        ldir
 
         ld hl,(srcOffset)
-        ld bc,(copyLen)
-        add hl,bc
+        inc h
         ld (srcOffset),hl
-
-        ld hl,(srcRemain)
-        ld bc,(copyLen)
-        or a
-        sbc hl,bc
-        ld (srcRemain),hl
-
-        ld hl,(destRemain)
-        ld a,h
-        or l
-        ret z
-
-        ld hl,(srcRemain)
-        ld a,h
-        or l
-        jr nz,.loop
-
         ld hl,srcPageIndex
+        ld a,(srcOffset+1)
+        cp $20
+        ret nz
         inc (hl)
         ld hl,0
         ld (srcOffset),hl
-        ld hl,SRC_PAGE_SIZE
-        ld (srcRemain),hl
-        jr .loop
-
-set_copy_len
-        ld hl,(destRemain)
-        ld de,(srcRemain)
-        or a
-        sbc hl,de
-        jr c,.use_dest
-        ld hl,(srcRemain)
-        jr .store
-.use_dest
-        ld hl,(destRemain)
-.store
-        ld (copyLen),hl
         ret
 
 map_current_source_page
@@ -316,6 +290,32 @@ upload_palette
         jr nz,.loop
         ret
 
+upload_default_palette
+        ld a,PALCTRL_L2_1
+        nextreg NR_PALETTE_CTRL,a
+        ld a,NR_PALETTE_IDX
+        ld bc,NEXTREG_SEL
+        out (c),a
+        inc b
+        xor a
+        out (c),a
+
+        ld bc,NEXTREG_SEL
+        ld a,NR_PALETTE_VAL9
+        out (c),a
+        ld bc,NEXTREG_DAT
+        ld d,0
+        ld e,0
+.loop
+        ld a,e
+        out (c),a
+        xor a
+        out (c),a
+        inc e
+        dec d
+        jr nz,.loop
+        ret
+
 l2_init_256
         xor a
         nextreg NR_LAYER2_CTRL,a
@@ -326,7 +326,7 @@ l2_reset_view
         nextreg NR_LAYER2_XOFF,a
         nextreg NR_LAYER2_YOFF,a
 
-        ld a,1
+        ld a,15
         nextreg NR_CLIP_CTRL,a
 
         ld bc,NEXTREG_SEL
@@ -339,7 +339,7 @@ l2_reset_view
         out (c),a
         xor a
         out (c),a
-        ld a,191
+        ld a,175
         out (c),a
         ret
 
@@ -369,7 +369,14 @@ select_l2_palette_1
         nextreg NR_PALETTE_CTRL,a
         ret
 
-wait_key
+draw_controls
+        ld hl,7*256+24
+        ld a,144
+        ld de,controlsText
+        call call_print
+        ret
+
+wait_command
 .release
         call call_input
         or a
@@ -378,6 +385,28 @@ wait_key
         call call_input
         or a
         jr z,.press
+        cp 13
+        jr z,.stop
+        cp 1
+        jr z,.stop
+        cp " "
+        jr z,.next
+        cp 2
+        jr z,.next
+        jr .press
+.stop
+        call wait_release
+        xor a
+        ret
+.next
+        call wait_release
+        ld a,1
+        ret
+
+wait_release
+        call call_input
+        or a
+        jr nz,wait_release
         ret
 
 ctxPtr       defw 0
@@ -392,15 +421,15 @@ l2BaseBank   defb 0
 hasPalette   defb 0
 srcPageIndex defb 0
 srcOffset    defw 0
-srcRemain    defw 0
 destPageLo   defb 0
 destPageHi   defb 0
 destPtr      defw 0
-destRemain   defw 0
-copyLen      defw 0
+pluginResult defb 0
 savedSp      defw 0
 pluginStack  defs 256
 pluginStackTop equ $
+controlsText defb "ENTER close      SPACE next",0
+scratchBuf   defs 256
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE

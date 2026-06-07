@@ -66,6 +66,8 @@ view_run_selected_plugin
         ld a,(viewPluginType)
         cp VIEWTYPE_ZXSCREEN
         jr z,.full_restore
+        cp VIEWTYPE_NXI
+        jr z,.full_restore
         call view_restore_saved_screen
         ld a,(viewPluginType)
         cp VIEWTYPE_PT3
@@ -89,6 +91,13 @@ view_run_selected_plugin
         ld (viewNextAfterDown),a
         jp loop0
 .full_restore
+        ld a,(viewPluginResult)
+        cp 1
+        jr nz,.full_restore_done
+        ld (viewNextAfterDown),a
+        call view_restore_full_ui
+        jp down
+.full_restore_done
         xor a
         ld (viewNextAfterDown),a
         call view_restore_full_ui
@@ -1190,6 +1199,11 @@ view_plugin_input_nowait
         ret
 .mouse_click
         ld a,(viewPluginType)
+        cp VIEWTYPE_ZXSCREEN
+        jp z,view_image_mouse_click
+        cp VIEWTYPE_NXI
+        jp z,view_image_mouse_click
+        ld a,(viewPluginType)
         cp VIEWTYPE_PT3
         jr z,.music_click
         cp VIEWTYPE_PT2
@@ -1205,6 +1219,32 @@ view_plugin_input_nowait
         ret nz
 .generic_mouse_click
         ld a,13
+        ret
+
+
+view_image_mouse_click
+        ld a,(COORD+1)
+        cp 196
+        jr c,.outside
+        cp 214
+        jr nc,.outside
+        ld a,(COORD+0)
+        cp 48
+        jr c,.outside
+        cp 124
+        jr c,.stop
+        cp 132
+        jr c,.outside
+        cp 208
+        jr c,.next
+.outside
+        ld a,1
+        ret
+.stop
+        ld a,1
+        ret
+.next
+        ld a,2
         ret
 
 
