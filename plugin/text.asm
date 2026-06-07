@@ -13,8 +13,10 @@ HEX_BYTES_PER_ROW equ 16
 DEC_BYTES_PER_ROW equ 8
 STATUS_LINE     equ SCREEN_BASE+160*31
 STATUS_INNER    equ STATUS_LINE+2
-FIND_INPUT_POS  equ STATUS_LINE+14*2
+FIND_INPUT_POS  equ STATUS_LINE+7*2
 SEARCH_MAX      equ 24
+FIND_INPUT_ATTR equ 32
+FIND_CURSOR_ATTR equ 64
 
 plugin_start
         ld (ctxPtr),hl
@@ -799,68 +801,215 @@ render_ascii_tail
 find_prompt
         call clear_status_line
         ld hl,1*256+31
-        ld a,32
+        ld a,FIND_INPUT_ATTR
         ld de,findLabel
         call call_print
         xor a
         ld (searchLen),a
+        ld (searchCursor),a
         ld (searchBuf),a
         ld hl,FIND_INPUT_POS
         ld (searchScreenPtr),hl
+        call find_render_input
+        call find_wait_input_release
 .input
         call call_input
         or a
         jr z,.input
+        call find_beep
         cp 1
         ret z
         cp 13
         jp z,find_execute
+        cp 8
+        jr z,.left
+        cp 9
+        jr z,.right
         cp 12
         jr z,.backspace
         cp 199
-        jr z,.backspace
+        jr z,.delete
         cp 32
-        jr c,.input
+        jr c,.ignored
         cp 128
-        jr nc,.input
+        jr nc,.ignored
+        call find_insert_char
+        call find_render_input
+        call find_wait_input_release
+        jr .input
+.left
+        ld a,(searchCursor)
+        or a
+        jr z,.ignored
+        dec a
+        ld (searchCursor),a
+        call find_render_input
+        call find_wait_input_release
+        jr .input
+.right
+        ld a,(searchCursor)
+        ld b,a
+        ld a,(searchLen)
+        cp b
+        jr z,.ignored
+        ld a,b
+        inc a
+        ld (searchCursor),a
+        call find_render_input
+        call find_wait_input_release
+        jr .input
+.backspace
+        ld a,(searchCursor)
+        or a
+        jr z,.ignored
+        dec a
+        ld (searchCursor),a
+        call find_delete_at_cursor
+        call find_render_input
+        call find_wait_input_release
+        jr .input
+.delete
+        call find_delete_at_cursor
+        call find_render_input
+        call find_wait_input_release
+        jr .input
+.ignored
+        call find_wait_input_release
+        jp .input
+
+
+find_render_input
+        ld de,FIND_INPUT_POS
+        ld hl,searchBuf
+        ld b,SEARCH_MAX
+        xor a
+        ld (findRenderPos),a
+.loop
+        ld a,(findRenderPos)
+        ld c,a
+        ld a,(searchLen)
+        cp c
+        jr z,.blank
+        jr c,.blank
+        ld a,(hl)
+        inc hl
+        jr .char_ready
+.blank
+        ld a,32
+.char_ready
+        ld (de),a
+        inc de
+        push hl
+        ld a,(findRenderPos)
+        ld c,a
+        ld a,(searchCursor)
+        cp SEARCH_MAX
+        jr nz,.cursor_ready
+        ld a,SEARCH_MAX-1
+.cursor_ready
+        cp c
+        ld a,FIND_INPUT_ATTR
+        jr nz,.attr_ready
+        ld a,FIND_CURSOR_ATTR
+.attr_ready
+        ld (de),a
+        inc de
+        ld hl,findRenderPos
+        inc (hl)
+        pop hl
+        djnz .loop
+        ret
+
+
+find_insert_char
         ld c,a
         ld a,(searchLen)
         cp SEARCH_MAX
-        jr nc,.input
+        ret nc
+        ld b,a
+        ld a,(searchCursor)
+        ld e,b
+        sub e
+        neg
+        ld b,a
+        ld a,(searchLen)
+        ld e,a
+        ld d,0
+        ld hl,searchBuf
+        add hl,de
+        ld a,b
+        or a
+        jr z,.store
+.shift
+        dec hl
+        ld a,(hl)
+        inc hl
+        ld (hl),a
+        dec hl
+        djnz .shift
+.store
+        ld a,(searchCursor)
         ld e,a
         ld d,0
         ld hl,searchBuf
         add hl,de
         ld (hl),c
-        inc hl
-        ld (hl),0
-        ld a,(searchLen)
-        inc a
-        ld (searchLen),a
-        ld a,c
-        ld de,(searchScreenPtr)
-        call put_char
-        ld (searchScreenPtr),de
-        jr .input
-.backspace
-        ld a,(searchLen)
-        or a
-        jr z,.input
-        dec a
-        ld (searchLen),a
+        ld hl,searchLen
+        inc (hl)
+        ld a,(hl)
         ld e,a
         ld d,0
         ld hl,searchBuf
         add hl,de
         ld (hl),0
-        ld hl,(searchScreenPtr)
-        dec hl
-        dec hl
-        ld (searchScreenPtr),hl
+        ld hl,searchCursor
+        inc (hl)
+        ret
+
+
+find_delete_at_cursor
+        ld a,(searchCursor)
+        ld b,a
+        ld a,(searchLen)
+        cp b
+        ret z
+        ret c
+        ld e,b
+        ld d,0
+        ld hl,searchBuf
+        add hl,de
         ex de,hl
-        ld a,32
-        call put_char
-        jr .input
+        inc hl
+.shift
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        or a
+        jr nz,.shift
+        ld hl,searchLen
+        dec (hl)
+        ret
+
+
+find_wait_input_release
+        call call_input
+        or a
+        jr nz,find_wait_input_release
+        ret
+
+
+find_beep
+        push af
+        ld a,$11
+        out ($fe),a
+        ld b,$18
+.wait
+        djnz .wait
+        ld a,$09
+        out ($fe),a
+        pop af
+        ret
 
 
 find_execute
@@ -882,6 +1031,7 @@ find_execute
         ld a,32
         ld de,notFoundText
         call call_print
+        call find_wait_input_release
 .wait
         call call_input
         or a
@@ -1463,6 +1613,8 @@ textRow      defb 0
 pageCount    defb 0
 viewMode     defb 0
 searchLen    defb 0
+searchCursor defb 0
+findRenderPos defb 0
 tmpChar      defb 0
 tmpMappedH   defb 0
 numBuf       defs 6

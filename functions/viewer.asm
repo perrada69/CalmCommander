@@ -38,6 +38,7 @@ VIEWTYPE_STC         equ 5
 VIEWTYPE_STP         equ 6
 VIEWTYPE_SQT         equ 7
 VIEWTYPE_NXI         equ 8
+VIEWTYPE_HELLO       equ 9
 
 view_file
         call view_prepare_current_file
@@ -67,6 +68,8 @@ view_run_selected_plugin
         cp VIEWTYPE_ZXSCREEN
         jr z,.full_restore
         cp VIEWTYPE_NXI
+        jr z,.full_restore
+        cp VIEWTYPE_HELLO
         jr z,.full_restore
         call view_restore_saved_screen
         ld a,(viewPluginType)
@@ -964,6 +967,8 @@ view_call_plugin
         nextreg $56,a
         ld a,(viewSavedMmu7)
         nextreg $57,a
+        ld a,(viewSavedMmu2)
+        nextreg $52,a
         ret
 
 
@@ -1163,7 +1168,16 @@ view_plugin_input_nowait
         jr z,.music_keyboard
         cp VIEWTYPE_SQT
         jr z,.music_keyboard
+        cp VIEWTYPE_HELLO
+        jr z,.player_keyboard
         ld a,b
+        ret
+.player_keyboard
+        ld a,b
+        cp 13
+        jr z,.music_key_stop
+        cp " "
+        jr z,.music_key_next
         ret
 .music_keyboard
         ld a,b
@@ -1213,9 +1227,15 @@ view_plugin_input_nowait
         cp VIEWTYPE_STP
         jr z,.music_click
         cp VIEWTYPE_SQT
-        jr nz,.generic_mouse_click
+        jr z,.music_click
+        cp VIEWTYPE_HELLO
+        jr z,.hello_click
+        jr .generic_mouse_click
 .music_click
         call view_pt3_mouse_click
+        ret nz
+.hello_click
+        call view_player_mouse_click
         ret nz
 .generic_mouse_click
         ld a,13
@@ -1270,13 +1290,13 @@ view_pt3_mouse_click
         cp 16
         jr c,.window
         cp 24
-        jr c,view_music_set_ay
+        jp c,view_music_set_ay
         cp 32
-        jr c,view_music_set_ym
+        jp c,view_music_set_ym
         cp 40
-        jr c,view_music_set_abc
+        jp c,view_music_set_abc
         cp 52
-        jr c,view_music_set_acb
+        jp c,view_music_set_acb
         jr .window
 .not_setup
         ld a,(COORD+1)
@@ -1311,6 +1331,45 @@ view_pt3_mouse_click
         cp 157
         jr nc,.outside
         xor a
+        ret
+
+
+view_player_mouse_click
+        ld a,(COORD+1)
+        cp 188
+        jr c,.window
+        cp 204
+        jr nc,.outside
+        ld a,(COORD+0)
+        cp 3
+        jr c,.outside
+        cp 28
+        jr c,.stop
+        cp 132
+        jr c,.outside
+        cp 154
+        jr nc,.outside
+        ld a,2
+        or a
+        ret
+.stop
+        ld a,1
+        or a
+        ret
+.window
+        ld a,(COORD+1)
+        cp 40
+        jr c,.outside
+        cp 164
+        jr nc,.outside
+        ld a,(COORD+0)
+        cp 157
+        jr nc,.outside
+        xor a
+        ret
+.outside
+        ld a,1
+        or a
         ret
 
 
@@ -1601,7 +1660,7 @@ viewDataBanks        defb 40,42,43,44,45,46,47,48
 viewDataPages        defb 81,85,87,89,91,93,95,97
 
 VIEW_PLUGIN_MENU_VISIBLE equ 7
-VIEW_PLUGIN_MENU_COUNT equ 8
+VIEW_PLUGIN_MENU_COUNT equ 9
 VIEW_PLUGIN_MENU_LAST equ VIEW_PLUGIN_MENU_COUNT-1
 viewPluginMenuMouseArea defb 45,88,115,143
 viewPluginMenuTable
@@ -1613,6 +1672,7 @@ viewPluginMenuTable
         defb VIEWTYPE_STC : defw viewStcPluginName : defw viewPluginMenuStcTxt
         defb VIEWTYPE_STP : defw viewStpPluginName : defw viewPluginMenuStpTxt
         defb VIEWTYPE_SQT : defw viewSqtPluginName : defw viewPluginMenuSqtTxt
+        defb VIEWTYPE_HELLO : defw viewHelloPluginName : defw viewPluginMenuHelloTxt
 
 viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
@@ -1623,6 +1683,7 @@ viewPt2PluginName      defb "pt2test.ccp",255
 viewStcPluginName      defb "stctest.ccp",255
 viewStpPluginName      defb "stptest.ccp",255
 viewSqtPluginName      defb "sqtest.ccp",255
+viewHelloPluginName    defb "HelloWord.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
 viewMusicAbcTxt        defb " ABC ",0
@@ -1640,6 +1701,7 @@ viewPluginMenuPt2Txt   defb "PT2 player      pt2test.ccp",0
 viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
 viewPluginMenuStpTxt   defb "STP player      stptest.ccp",0
 viewPluginMenuSqtTxt   defb "SQT player      sqtest.ccp",0
+viewPluginMenuHelloTxt defb "Hello demo     HelloWord.ccp",0
 viewPluginMenuBlankTxt defb "                            ",0
 
 viewErrorTitleTxt       defb "Viewer:",0
