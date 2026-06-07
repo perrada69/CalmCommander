@@ -699,7 +699,49 @@ view_plugin_input_nowait
         xor a
         ret
 .mouse_click
+        ld a,(viewPluginType)
+        cp VIEWTYPE_PT3
+        jr nz,.generic_mouse_click
+        call view_pt3_mouse_click
+        ret nz
+.generic_mouse_click
         ld a,13
+        ret
+
+
+view_pt3_mouse_click
+        ld a,(COORD+1)
+        cp 188
+        jr c,.window
+        cp 204
+        jr nc,.outside
+        ld a,(COORD+0)
+        cp 3
+        jr c,.outside
+        cp 28
+        jr c,.stop
+        cp 126
+        jr c,.outside
+        cp 154
+        jr nc,.outside
+        ld a,2
+        or a
+        ret
+.stop
+.outside
+        ld a,1
+        or a
+        ret
+.window
+        ld a,(COORD+1)
+        cp 40
+        jr c,.outside
+        cp 164
+        jr nc,.outside
+        ld a,(COORD+0)
+        cp 157
+        jr nc,.outside
+        xor a
         ret
 
 

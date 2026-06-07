@@ -34,7 +34,6 @@ plugin_start
 
         call prepare_pt3_info
         call show_player_screen
-        call capture_mouse_idle
         call map_pt3_data
         call setup_pt3_mode
 
@@ -220,7 +219,11 @@ show_player_screen
         ld a,16
         call call_print
         ld de,stopText
-        ld hl,30*256+24
+        ld hl,2*256+24
+        ld a,32
+        call call_print
+        ld de,nextText
+        ld hl,63*256+24
         ld a,32
         call call_print
         ld de,metersHeaderText
@@ -391,7 +394,6 @@ input_arm_delay
 .wait
         halt
         djnz .wait
-        call capture_mouse_idle
         ret
 
 
@@ -408,25 +410,14 @@ wait_stop_release
 
 raw_input
         call call_input
+        or a
+        ret nz
         call raw_control
         ret
 
 
 call_input
         call 0
-        ret
-
-
-capture_mouse_idle
-        call read_mouse_buttons
-        ld (idleMouseButtons),a
-        ret
-
-
-read_mouse_buttons
-        ld bc,$fadf
-        in a,(c)
-        and 3
         ret
 
 
@@ -461,7 +452,6 @@ savedMmu2    defb 0
 savedMmu3    defb 0
 savedMmu4    defb 0
 savedMmu5    defb 0
-idleMouseButtons defb 0
 secondModuleAddr defw 0
 pt3Setup    defb 0
 title        defb "PT3:",0
@@ -474,7 +464,8 @@ metersHeaderText defb "Meters:",0
 meterRowAText defb "A",0
 meterRowBText defb "B",0
 meterRowCText defb "C",0
-stopText     defb "ENTER exits  SPACE next",0
+stopText     defb "[ ENTER stop ]",0
+nextText     defb "[ SPACE next ]",0
 pt3Title     defs 31
 pt3Author    defs 31
 meterBuffer  defs 33
