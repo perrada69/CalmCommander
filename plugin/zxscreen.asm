@@ -314,9 +314,13 @@ l2_hide
         ret
 
 draw_controls
-        ld hl,7*256+24
+        ld hl,12*256+27
         ld a,144
-        ld de,controlsText
+        ld de,enterText
+        call call_print
+        ld hl,52*256+27
+        ld a,144
+        ld de,spaceText
         call call_print
         ret
 
@@ -370,10 +374,11 @@ attrByte    defb 0
 inkColor    defb 0
 paperColor  defb 0
 
-pluginStack  defs 256
+pluginStack  defs 192
 pluginStackTop equ $
 
-controlsText defb "ENTER close      SPACE next",0
+enterText    defb "[ ENTER close ]",0
+spaceText    defb "[ SPACE next ]",0
 
 zxPalette
         defb $00,$02,$A0,$A2,$14,$16,$B4,$B6

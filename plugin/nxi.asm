@@ -370,9 +370,13 @@ select_l2_palette_1
         ret
 
 draw_controls
-        ld hl,7*256+24
+        ld hl,12*256+27
         ld a,144
-        ld de,controlsText
+        ld de,enterText
+        call call_print
+        ld hl,52*256+27
+        ld a,144
+        ld de,spaceText
         call call_print
         ret
 
@@ -426,10 +430,11 @@ destPageHi   defb 0
 destPtr      defw 0
 pluginResult defb 0
 savedSp      defw 0
-pluginStack  defs 256
+pluginStack  defs 192
 pluginStackTop equ $
-controlsText defb "ENTER close      SPACE next",0
 scratchBuf   defs 256
+enterText    defb "[ ENTER close ]",0
+spaceText    defb "[ SPACE next ]",0
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE

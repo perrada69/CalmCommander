@@ -1223,28 +1223,20 @@ view_plugin_input_nowait
 
 
 view_image_mouse_click
-        ld a,(COORD+1)
-        cp 196
-        jr c,.outside
-        cp 214
-        jr nc,.outside
-        ld a,(COORD+0)
-        cp 48
-        jr c,.outside
-        cp 124
-        jr c,.stop
-        cp 132
-        jr c,.outside
-        cp 208
-        jr c,.next
-.outside
+        ld hl,viewImageEnterMouseArea
+        call CONTROL
+        jr c,.check_next
         ld a,1
         ret
-.stop
-        ld a,1
-        ret
+.check_next
+        ld hl,viewImageSpaceMouseArea
+        call CONTROL
+        jr c,.outside
 .next
         ld a,2
+        ret
+.outside
+        xor a
         ret
 
 
@@ -1604,6 +1596,8 @@ VIEW_PLUGIN_MENU_VISIBLE equ 7
 VIEW_PLUGIN_MENU_COUNT equ 8
 VIEW_PLUGIN_MENU_LAST equ VIEW_PLUGIN_MENU_COUNT-1
 viewPluginMenuMouseArea defb 45,88,115,143
+viewImageEnterMouseArea defb 40,208,112,232
+viewImageSpaceMouseArea defb 144,208,216,232
 viewPluginMenuTable
         defb VIEWTYPE_TEXT : defw viewTextPluginName : defw viewPluginMenuTextTxt
         defb VIEWTYPE_ZXSCREEN : defw viewZxScreenPluginName : defw viewPluginMenuZxTxt

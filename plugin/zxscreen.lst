@@ -49,8 +49,8 @@
  24   C000              SCR_L2_BANK      equ 49
  25   C000
  26   C000              plugin_start
- 27   C000 22 30 C2             ld (ctxPtr),hl
- 28   C003 ED 53 32 C2          ld (svcPtr),de
+ 27   C000 22 3B C2             ld (ctxPtr),hl
+ 28   C003 ED 53 3D C2          ld (svcPtr),de
  29   C007 CD 44 C0             call patch_services
  30   C00A F3                   di
  31   C00B CD 63 C0             call save_state
@@ -59,26 +59,26 @@
  34   C014 CD BB C1             call l2_reset_view
  35   C017 CD 8C C1             call upload_zx_palette
  36   C01A
- 37   C01A ED 73 3A C2          ld (savedSp),sp
- 38   C01E 31 45 C3             ld sp,pluginStackTop
+ 37   C01A ED 73 45 C2          ld (savedSp),sp
+ 38   C01E 31 10 C3             ld sp,pluginStackTop
  39   C021 CD C9 C0             call convert_scr_to_l2
  40   C024 CD AD C0             call restore_mmu23
- 41   C027 ED 7B 3A C2          ld sp,(savedSp)
+ 41   C027 ED 7B 45 C2          ld sp,(savedSp)
  42   C02B
  43   C02B CD F4 C1             call draw_controls
  44   C02E CD DE C1             call l2_show
  45   C031 FB                   ei
- 46   C032 CD 00 C2             call wait_command
- 47   C035 32 3C C2             ld (pluginResult),a
+ 46   C032 CD 0B C2             call wait_command
+ 47   C035 32 47 C2             ld (pluginResult),a
  48   C038 F3                   di
  49   C039 CD E9 C1             call l2_hide
  50   C03C CD 94 C0             call restore_state
  51   C03F FB                   ei
- 52   C040 3A 3C C2             ld a,(pluginResult)
+ 52   C040 3A 47 C2             ld a,(pluginResult)
  53   C043 C9                   ret
  54   C044
  55   C044              patch_services
- 56   C044 DD 2A 32 C2          ld ix,(svcPtr)
+ 56   C044 DD 2A 3D C2          ld ix,(svcPtr)
  57   C048 DD 6E 00             ld l,(ix+SERVICE_PRINT)
  58   C04B DD 66 01             ld h,(ix+SERVICE_PRINT+1)
  59   C04E 22 5C C0             ld (call_print+1),hl
@@ -98,39 +98,39 @@
  73   C063              save_state
  74   C063 3E 52                ld a,NR_MMU2
  75   C065 CD BA C0             call read_nextreg
- 76   C068 32 34 C2             ld (savedMmu2),a
+ 76   C068 32 3F C2             ld (savedMmu2),a
  77   C06B 3E 53                ld a,NR_MMU3
  78   C06D CD BA C0             call read_nextreg
- 79   C070 32 35 C2             ld (savedMmu3),a
+ 79   C070 32 40 C2             ld (savedMmu3),a
  80   C073 3E 57                ld a,NR_MMU7
  81   C075 CD BA C0             call read_nextreg
- 82   C078 32 36 C2             ld (savedMmu7),a
+ 82   C078 32 41 C2             ld (savedMmu7),a
  83   C07B 3E 69                ld a,NR_DISPLAY_CTRL1
  84   C07D CD BA C0             call read_nextreg
- 85   C080 32 37 C2             ld (savedDisplay),a
+ 85   C080 32 42 C2             ld (savedDisplay),a
  86   C083 3E 43                ld a,NR_PALETTE_CTRL
  87   C085 CD BA C0             call read_nextreg
- 88   C088 32 38 C2             ld (savedPalCtrl),a
+ 88   C088 32 43 C2             ld (savedPalCtrl),a
  89   C08B 3E 12                ld a,NR_LAYER2_PAGE
  90   C08D CD BA C0             call read_nextreg
- 91   C090 32 39 C2             ld (savedLayer2Page),a
+ 91   C090 32 44 C2             ld (savedLayer2Page),a
  92   C093 C9                   ret
  93   C094
  94   C094              restore_state
- 95   C094 3A 36 C2             ld a,(savedMmu7)
+ 95   C094 3A 41 C2             ld a,(savedMmu7)
  96   C097 ED 92 57             nextreg NR_MMU7,a
- 97   C09A 3A 37 C2             ld a,(savedDisplay)
+ 97   C09A 3A 42 C2             ld a,(savedDisplay)
  98   C09D ED 92 69             nextreg NR_DISPLAY_CTRL1,a
- 99   C0A0 3A 38 C2             ld a,(savedPalCtrl)
+ 99   C0A0 3A 43 C2             ld a,(savedPalCtrl)
 100   C0A3 ED 92 43             nextreg NR_PALETTE_CTRL,a
-101   C0A6 3A 39 C2             ld a,(savedLayer2Page)
+101   C0A6 3A 44 C2             ld a,(savedLayer2Page)
 102   C0A9 ED 92 12             nextreg NR_LAYER2_PAGE,a
 103   C0AC C9                   ret
 104   C0AD
 105   C0AD              restore_mmu23
-106   C0AD 3A 34 C2             ld a,(savedMmu2)
+106   C0AD 3A 3F C2             ld a,(savedMmu2)
 107   C0B0 ED 92 52             nextreg NR_MMU2,a
-108   C0B3 3A 35 C2             ld a,(savedMmu3)
+108   C0B3 3A 40 C2             ld a,(savedMmu3)
 109   C0B6 ED 92 53             nextreg NR_MMU3,a
 110   C0B9 C9                   ret
 111   C0BA
@@ -148,16 +148,16 @@
 123   C0C9
 124   C0C9              convert_scr_to_l2
 125   C0C9 AF                   xor a
-126   C0CA 32 3D C2             ld (yCounter),a
+126   C0CA 32 48 C2             ld (yCounter),a
 127   C0CD              .row_loop
 128   C0CD CD 0F C1             call map_dest_row
 129   C0D0 CD 30 C1             call calc_scr_row_ptr
-130   C0D3 22 3E C2             ld (srcPtr),hl
+130   C0D3 22 49 C2             ld (srcPtr),hl
 131   C0D6 CD 4C C1             call calc_attr_row_ptr
 132   C0D9 E5                   push hl
 133   C0DA DD E1                pop ix
-134   C0DC 2A 3E C2             ld hl,(srcPtr)
-135   C0DF ED 5B 40 C2          ld de,(destPtr)
+134   C0DC 2A 49 C2             ld hl,(srcPtr)
+135   C0DF ED 5B 4B C2          ld de,(destPtr)
 136   C0E3 06 20                ld b,32
 137   C0E5              .byte_loop
 138   C0E5 C5                   push bc
@@ -170,10 +170,10 @@
 145   C0F2              .pixel_loop
 146   C0F2 CB 21                sla c
 147   C0F4 38 05                jr c,.ink
-148   C0F6 3A 44 C2             ld a,(paperColor)
+148   C0F6 3A 4F C2             ld a,(paperColor)
 149   C0F9 18 03                jr .store_pixel
 150   C0FB              .ink
-151   C0FB 3A 43 C2             ld a,(inkColor)
+151   C0FB 3A 4E C2             ld a,(inkColor)
 152   C0FE              .store_pixel
 153   C0FE 12                   ld (de),a
 154   C0FF 13                   inc de
@@ -181,7 +181,7 @@
 156   C102 C1                   pop bc
 157   C103 10 E0                djnz .byte_loop
 158   C105
-159   C105 21 3D C2             ld hl,yCounter
+159   C105 21 48 C2             ld hl,yCounter
 160   C108 34                   inc (hl)
 161   C109 7E                   ld a,(hl)
 162   C10A FE C0                cp 192
@@ -189,7 +189,7 @@
 164   C10E C9                   ret
 165   C10F
 166   C10F              map_dest_row
-167   C10F 3A 3D C2             ld a,(yCounter)
+167   C10F 3A 48 C2             ld a,(yCounter)
 168   C112 E6 C0                and $C0
 169   C114 07                   rlca
 170   C115 07                   rlca
@@ -201,16 +201,16 @@
 176   C11E 3C                   inc a
 177   C11F ED 92 53             nextreg NR_MMU3,a
 178   C122
-179   C122 3A 3D C2             ld a,(yCounter)
+179   C122 3A 48 C2             ld a,(yCounter)
 180   C125 E6 3F                and $3F
 181   C127 C6 40                add a,$40
 182   C129 67                   ld h,a
 183   C12A 2E 00                ld l,0
-184   C12C 22 40 C2             ld (destPtr),hl
+184   C12C 22 4B C2             ld (destPtr),hl
 185   C12F C9                   ret
 186   C130
 187   C130              calc_scr_row_ptr
-188   C130 3A 3D C2             ld a,(yCounter)
+188   C130 3A 48 C2             ld a,(yCounter)
 189   C133 5F                   ld e,a
 190   C134 E6 07                and 7
 191   C136 67                   ld h,a
@@ -235,7 +235,7 @@
 210   C14B C9                   ret
 211   C14C
 212   C14C              calc_attr_row_ptr
-213   C14C 3A 3D C2             ld a,(yCounter)
+213   C14C 3A 48 C2             ld a,(yCounter)
 214   C14F CB 3F                srl a
 215   C151 CB 3F                srl a
 216   C153 CB 3F                srl a
@@ -251,24 +251,24 @@
 226   C161 C9                   ret
 227   C162
 228   C162              set_attr_colors
-229   C162 32 42 C2             ld (attrByte),a
+229   C162 32 4D C2             ld (attrByte),a
 230   C165 E6 07                and 7
-231   C167 32 43 C2             ld (inkColor),a
-232   C16A 3A 42 C2             ld a,(attrByte)
+231   C167 32 4E C2             ld (inkColor),a
+232   C16A 3A 4D C2             ld a,(attrByte)
 233   C16D E6 38                and $38
 234   C16F 0F                   rrca
 235   C170 0F                   rrca
 236   C171 0F                   rrca
-237   C172 32 44 C2             ld (paperColor),a
-238   C175 3A 42 C2             ld a,(attrByte)
+237   C172 32 4F C2             ld (paperColor),a
+238   C175 3A 4D C2             ld a,(attrByte)
 239   C178 CB 77                bit 6,a
 240   C17A C8                   ret z
-241   C17B 3A 43 C2             ld a,(inkColor)
+241   C17B 3A 4E C2             ld a,(inkColor)
 242   C17E C6 08                add a,8
-243   C180 32 43 C2             ld (inkColor),a
-244   C183 3A 44 C2             ld a,(paperColor)
+243   C180 32 4E C2             ld (inkColor),a
+244   C183 3A 4F C2             ld a,(paperColor)
 245   C186 C6 08                add a,8
-246   C188 32 44 C2             ld (paperColor),a
+246   C188 32 4F C2             ld (paperColor),a
 247   C18B C9                   ret
 248   C18C
 249   C18C              upload_zx_palette
@@ -284,7 +284,7 @@
 259   C19C 01 3B 24             ld bc,NEXTREG_SEL
 260   C19F 3E 44                ld a,NR_PALETTE_VAL9
 261   C1A1 ED 79                out (c),a
-262   C1A3 21 61 C3             ld hl,zxPalette
+262   C1A3 21 2F C3             ld hl,zxPalette
 263   C1A6 01 3B 25             ld bc,NEXTREG_DAT
 264   C1A9 16 10                ld d,16
 265   C1AB              .loop
@@ -339,81 +339,86 @@
 314   C1F3 C9                   ret
 315   C1F4
 316   C1F4              draw_controls
-317   C1F4 21 18 07             ld hl,7*256+24
+317   C1F4 21 1B 0C             ld hl,12*256+27
 318   C1F7 3E 90                ld a,144
-319   C1F9 11 45 C3             ld de,controlsText
+319   C1F9 11 10 C3             ld de,enterText
 320   C1FC CD 5B C0             call call_print
-321   C1FF C9                   ret
-322   C200
-323   C200              wait_command
-324   C200              .release
-325   C200 CD 5F C0             call call_input
-326   C203 B7                   or a
-327   C204 20 FA                jr nz,.release
-328   C206              .press
-329   C206 CD 5F C0             call call_input
-330   C209 B7                   or a
-331   C20A 28 FA                jr z,.press
-332   C20C FE 0D                cp 13
-333   C20E 28 0E                jr z,.stop
-334   C210 FE 01                cp 1
-335   C212 28 0A                jr z,.stop
-336   C214 FE 20                cp " "
-337   C216 28 0B                jr z,.next
-338   C218 FE 02                cp 2
-339   C21A 28 07                jr z,.next
-340   C21C 18 E8                jr .press
-341   C21E              .stop
-342   C21E CD 29 C2             call wait_release
-343   C221 AF                   xor a
-344   C222 C9                   ret
-345   C223              .next
-346   C223 CD 29 C2             call wait_release
-347   C226 3E 01                ld a,1
-348   C228 C9                   ret
-349   C229
-350   C229              wait_release
-351   C229 CD 5F C0             call call_input
-352   C22C B7                   or a
-353   C22D 20 FA                jr nz,wait_release
-354   C22F C9                   ret
-355   C230
-356   C230 00 00        ctxPtr       defw 0
-357   C232 00 00        svcPtr       defw 0
-358   C234 00           savedMmu2    defb 0
-359   C235 00           savedMmu3    defb 0
-360   C236 00           savedMmu7    defb 0
-361   C237 00           savedDisplay defb 0
-362   C238 00           savedPalCtrl defb 0
-363   C239 00           savedLayer2Page defb 0
-364   C23A 00 00        savedSp      defw 0
-365   C23C 00           pluginResult defb 0
-366   C23D 00           yCounter    defb 0
-367   C23E 00 00        srcPtr      defw 0
-368   C240 00 00        destPtr     defw 0
-369   C242 00           attrByte    defb 0
-370   C243 00           inkColor    defb 0
-371   C244 00           paperColor  defb 0
-372   C245
-373   C245 00 00 00...  pluginStack  defs 256
-374   C345              pluginStackTop equ $
-375   C345
-376   C345 45 4E 54 45  controlsText defb "ENTER close      SPACE next",0
-376   C349 52 20 63 6C
-376   C34D 6F 73 65 20
-376   C351 20 20 20 20
-376   C355 20 53 50 41
-376   C359 43 45 20 6E
-376   C35D 65 78 74 00
-377   C361
-378   C361              zxPalette
-379   C361 00 02 A0 A2          defb $00,$02,$A0,$A2,$14,$16,$B4,$B6
-379   C365 14 16 B4 B6
-380   C369 00 03 E0 E3          defb $00,$03,$E0,$E3,$1C,$1F,$FC,$FF
-380   C36D 1C 1F FC FF
-381   C371
-382   C371              plugin_end
-383   C371                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-384   C371                      SAVEBIN "plugin/zxscreen.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
-385   C371
+321   C1FF 21 1B 34             ld hl,52*256+27
+322   C202 3E 90                ld a,144
+323   C204 11 20 C3             ld de,spaceText
+324   C207 CD 5B C0             call call_print
+325   C20A C9                   ret
+326   C20B
+327   C20B              wait_command
+328   C20B              .release
+329   C20B CD 5F C0             call call_input
+330   C20E B7                   or a
+331   C20F 20 FA                jr nz,.release
+332   C211              .press
+333   C211 CD 5F C0             call call_input
+334   C214 B7                   or a
+335   C215 28 FA                jr z,.press
+336   C217 FE 0D                cp 13
+337   C219 28 0E                jr z,.stop
+338   C21B FE 01                cp 1
+339   C21D 28 0A                jr z,.stop
+340   C21F FE 20                cp " "
+341   C221 28 0B                jr z,.next
+342   C223 FE 02                cp 2
+343   C225 28 07                jr z,.next
+344   C227 18 E8                jr .press
+345   C229              .stop
+346   C229 CD 34 C2             call wait_release
+347   C22C AF                   xor a
+348   C22D C9                   ret
+349   C22E              .next
+350   C22E CD 34 C2             call wait_release
+351   C231 3E 01                ld a,1
+352   C233 C9                   ret
+353   C234
+354   C234              wait_release
+355   C234 CD 5F C0             call call_input
+356   C237 B7                   or a
+357   C238 20 FA                jr nz,wait_release
+358   C23A C9                   ret
+359   C23B
+360   C23B 00 00        ctxPtr       defw 0
+361   C23D 00 00        svcPtr       defw 0
+362   C23F 00           savedMmu2    defb 0
+363   C240 00           savedMmu3    defb 0
+364   C241 00           savedMmu7    defb 0
+365   C242 00           savedDisplay defb 0
+366   C243 00           savedPalCtrl defb 0
+367   C244 00           savedLayer2Page defb 0
+368   C245 00 00        savedSp      defw 0
+369   C247 00           pluginResult defb 0
+370   C248 00           yCounter    defb 0
+371   C249 00 00        srcPtr      defw 0
+372   C24B 00 00        destPtr     defw 0
+373   C24D 00           attrByte    defb 0
+374   C24E 00           inkColor    defb 0
+375   C24F 00           paperColor  defb 0
+376   C250
+377   C250 00 00 00...  pluginStack  defs 192
+378   C310              pluginStackTop equ $
+379   C310
+380   C310 5B 20 45 4E  enterText    defb "[ ENTER close ]",0
+380   C314 54 45 52 20
+380   C318 63 6C 6F 73
+380   C31C 65 20 5D 00
+381   C320 5B 20 53 50  spaceText    defb "[ SPACE next ]",0
+381   C324 41 43 45 20
+381   C328 6E 65 78 74
+381   C32C 20 5D 00
+382   C32F
+383   C32F              zxPalette
+384   C32F 00 02 A0 A2          defb $00,$02,$A0,$A2,$14,$16,$B4,$B6
+384   C333 14 16 B4 B6
+385   C337 00 03 E0 E3          defb $00,$03,$E0,$E3,$1C,$1F,$FC,$FF
+385   C33B 1C 1F FC FF
+386   C33F
+387   C33F              plugin_end
+388   C33F                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
+389   C33F                      SAVEBIN "plugin/zxscreen.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+390   C33F
 # file closed: plugin\zxscreen.asm
