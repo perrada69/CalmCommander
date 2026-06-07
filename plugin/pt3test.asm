@@ -52,12 +52,16 @@ plugin_start
         call input_arm_delay
 
 .play_loop
+        call restore_mmu
+        ei
         halt
-        call raw_input
+        di
+        call call_input
         cp 1
         jr z,.exit
         cp 2
         jr z,.next
+        call map_pt3_data
         call VTPL.PLAY
         ld a,(VTPL.SETUP)
         and %11000000
@@ -69,18 +73,18 @@ plugin_start
 
 .exit
         call VTPL.MUTE
+        call restore_mmu
         call wait_stop_release
         di
-        call restore_mmu
         ld sp,(savedSp)
         xor a
         ret
 
 .next
         call VTPL.MUTE
+        call restore_mmu
         call wait_stop_release
         di
-        call restore_mmu
         ld sp,(savedSp)
         ld a,1
         ret
@@ -177,6 +181,38 @@ setup_pt3_mode
         ld e,(hl)
         inc hl
         ld d,(hl)
+        ld a,d
+        or e
+        ret z
+        ld ix,(ctxPtr)
+        ld l,(ix+VIEWCTX_SIZE_LO)
+        ld h,(ix+VIEWCTX_SIZE_LO+1)
+        or a
+        sbc hl,de
+        ret c
+        ret z
+        ld a,h
+        or a
+        jr nz,.check_pt3
+        ld a,l
+        cp 105
+        ret c
+.check_pt3
+        ld hl,PT3_LINEAR_ADDR+100
+        add hl,de
+        ld a,(hl)
+        or a
+        ret z
+        cp $40
+        ret nc
+        inc hl
+        ld a,(hl)
+        or a
+        ret z
+        inc hl
+        cp (hl)
+        ret c
+.second_ok
         ld hl,PT3_LINEAR_ADDR
         add hl,de
         ld (secondModuleAddr),hl
@@ -218,12 +254,12 @@ show_player_screen
         ld hl,10*256+13
         ld a,16
         call call_print
-        ld de,stopText
+        ld de,controlsText
         ld hl,2*256+24
         ld a,32
         call call_print
         ld de,nextText
-        ld hl,63*256+24
+        ld hl,66*256+24
         ld a,32
         call call_print
         ld de,metersHeaderText
@@ -279,7 +315,7 @@ show_pt3_mode
         ld hl,2*256+9
         ld a,16
         call call_print
-        jp map_pt3_data
+        ret
 
 
 show_volume_meters
@@ -401,18 +437,11 @@ wait_stop_release
         call raw_control
         or a
         jr nz,wait_stop_release
+        ei
         ld b,INPUT_ARM_FRAMES
 .wait
         halt
         djnz .wait
-        ret
-
-
-raw_input
-        call call_input
-        or a
-        ret nz
-        call raw_control
         ret
 
 
@@ -455,7 +484,7 @@ savedMmu5    defb 0
 secondModuleAddr defw 0
 pt3Setup    defb 0
 title        defb "PT3:",0
-infoText     defb "M:PT3 [AY] YM [ABC] ACB",0
+infoText
 modeSingleText defb "M:PT3 [AY] YM [ABC] ACB",0
 modeTsText   defb "M:PT3TS [AY] YM [ABC] ACB",0
 pt3TitleLabel defb "Title:",0
@@ -464,8 +493,8 @@ metersHeaderText defb "Meters:",0
 meterRowAText defb "A",0
 meterRowBText defb "B",0
 meterRowCText defb "C",0
-stopText     defb "[ ENTER stop ]",0
-nextText     defb "[ SPACE next ]",0
+controlsText defb "ENTER stop",0
+nextText     defb "SPACE next",0
 pt3Title     defs 31
 pt3Author    defs 31
 meterBuffer  defs 33

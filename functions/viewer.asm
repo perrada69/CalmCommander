@@ -416,6 +416,9 @@ view_choose_plugin_dialog
         call savescr
         xor a
         ld (viewPluginMenuCursor),a
+        ld (viewPluginMenuTop),a
+        call view_read_wheel
+        ld (viewWheelOld),a
 
         ld hl,23*256+8
         ld bc,34*256+12
@@ -434,59 +437,101 @@ view_choose_plugin_dialog
         ld (TLACITKO),a
         call INKEY
         cp 1
-        jr z,.cancel
+        jp z,.cancel
         cp 10
-        jr z,.down
+        jp z,.down
         cp 11
-        jr z,.up
+        jp z,.up
         cp 13
-        jr z,.enter
+        jp z,.enter
+
+        call view_plugin_menu_wheel
+        cp 10
+        jp z,.down
+        cp 11
+        jp z,.up
 
         ld a,(TLACITKO)
         bit 1,a
-        jr nz,.mouse
-        jr .loop
+        jp nz,.mouse
+        jp .loop
 
 .down
         ld a,(viewPluginMenuCursor)
+        cp VIEW_PLUGIN_MENU_VISIBLE-1
+        jr z,.down_scroll
+        ld b,a
+        ld a,(viewPluginMenuTop)
+        add a,b
         cp VIEW_PLUGIN_MENU_LAST
-        jr z,.loop
+        jp z,.loop
         ld a,144
         call view_plugin_menu_write_cursor
         ld hl,viewPluginMenuCursor
         inc (hl)
         ld a,64
         call view_plugin_menu_write_cursor
-        jr .loop
+        jp .loop
+
+.down_scroll
+        ld a,(viewPluginMenuTop)
+        add a,VIEW_PLUGIN_MENU_VISIBLE
+        cp VIEW_PLUGIN_MENU_COUNT
+        jp nc,.loop
+        ld hl,viewPluginMenuTop
+        inc (hl)
+        call view_plugin_menu_print_items
+        ld a,64
+        call view_plugin_menu_write_cursor
+        jp .loop
 
 .up
         ld a,(viewPluginMenuCursor)
         or a
-        jr z,.loop
+        jp z,.up_scroll
         ld a,144
         call view_plugin_menu_write_cursor
         ld hl,viewPluginMenuCursor
         dec (hl)
         ld a,64
         call view_plugin_menu_write_cursor
-        jr .loop
+        jp .loop
+
+.up_scroll
+        ld a,(viewPluginMenuTop)
+        or a
+        jp z,.loop
+        ld hl,viewPluginMenuTop
+        dec (hl)
+        call view_plugin_menu_print_items
+        ld a,64
+        call view_plugin_menu_write_cursor
+        jp .loop
 
 .mouse
         ld hl,viewPluginMenuMouseArea
         call CONTROL
-        jr c,.loop
+        jp c,.loop
         ld a,(COORD+1)
         ld d,a
         ld e,8
         call deleno8
         ld a,d
         cp 11
-        jr c,.loop
+        jp c,.loop
         cp 18
-        jr nc,.loop
+        jp nc,.loop
         sub 11
+        cp VIEW_PLUGIN_MENU_VISIBLE
+        jp nc,.loop
+        ld c,a
+        ld a,(viewPluginMenuTop)
+        add a,c
+        cp VIEW_PLUGIN_MENU_COUNT
+        jp nc,.loop
+        ld a,c
         ld (viewPluginMenuCursor),a
-        jr .enter
+        jp .enter
 
 .enter
         call loadscr
@@ -500,34 +545,79 @@ view_choose_plugin_dialog
         ret
 
 
+view_plugin_menu_wheel
+        call view_read_wheel
+        ld b,a
+        ld a,(viewWheelOld)
+        ld c,a
+        cp b
+        jr z,.no_wheel
+        ld a,b
+        ld (viewWheelOld),a
+        ld a,c
+        cp 15
+        jr z,.no_wheel
+        or a
+        jr z,.no_wheel
+        ld a,b
+        cp c
+        jr c,.wheel_up
+        ld a,10
+        ret
+.wheel_up
+        ld a,11
+        ret
+.no_wheel
+        xor a
+        ret
+
+
 view_plugin_menu_print_items
-        ld hl,27*256+11
+        ld a,11
+        ld (viewPluginMenuPrintRow),a
+        ld b,VIEW_PLUGIN_MENU_VISIBLE
+.clear
+        push bc
+        ld h,27
+        ld a,(viewPluginMenuPrintRow)
+        ld l,a
         ld a,144
-        ld de,viewPluginMenuTextTxt
+        ld de,viewPluginMenuBlankTxt
         call print
-        ld hl,27*256+12
+        ld hl,viewPluginMenuPrintRow
+        inc (hl)
+        pop bc
+        djnz .clear
+
+        xor a
+.print
+        cp VIEW_PLUGIN_MENU_VISIBLE
+        ret nc
+        push af
+        call view_plugin_menu_print_visible_row
+        pop af
+        inc a
+        jr .print
+
+
+view_plugin_menu_print_visible_row
+        ld c,a
+        ld a,(viewPluginMenuTop)
+        add a,c
+        cp VIEW_PLUGIN_MENU_COUNT
+        ret nc
+        call view_plugin_menu_get_entry
+        inc hl
+        inc hl
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld a,c
+        add a,11
+        ld h,27
+        ld l,a
         ld a,144
-        ld de,viewPluginMenuZxTxt
-        call print
-        ld hl,27*256+13
-        ld a,144
-        ld de,viewPluginMenuPt3Txt
-        call print
-        ld hl,27*256+14
-        ld a,144
-        ld de,viewPluginMenuPt2Txt
-        call print
-        ld hl,27*256+15
-        ld a,144
-        ld de,viewPluginMenuStcTxt
-        call print
-        ld hl,27*256+16
-        ld a,144
-        ld de,viewPluginMenuStpTxt
-        call print
-        ld hl,27*256+17
-        ld a,144
-        ld de,viewPluginMenuSqtTxt
         call print
         ret
 
@@ -554,11 +644,10 @@ viewPluginMenuColor
 
 view_plugin_menu_set_plugin
         ld a,(viewPluginMenuCursor)
-        ld e,a
-        ld d,3
-        mul d,e
-        ld hl,viewPluginMenuTable
-        add hl,de
+        ld b,a
+        ld a,(viewPluginMenuTop)
+        add a,b
+        call view_plugin_menu_get_entry
         ld a,(hl)
         ld (viewPluginType),a
         inc hl
@@ -567,6 +656,15 @@ view_plugin_menu_set_plugin
         ld h,(hl)
         ld l,a
         ld (viewPluginName),hl
+        ret
+
+
+view_plugin_menu_get_entry
+        ld e,a
+        ld d,5
+        mul d,e
+        ld hl,viewPluginMenuTable
+        add hl,de
         ret
 
 
@@ -1133,7 +1231,7 @@ view_pt3_mouse_click
         jr c,.outside
         cp 28
         jr c,.stop
-        cp 126
+        cp 132
         jr c,.outside
         cp 154
         jr nc,.outside
@@ -1435,6 +1533,8 @@ viewMusicChipMode    defb 1
 viewMusicStereoMode  defb 0
 viewMusicDrawOffset  defb 0
 viewPluginMenuCursor defb 0
+viewPluginMenuTop    defb 0
+viewPluginMenuPrintRow defb 0
 viewShortName        defs 13
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
@@ -1442,16 +1542,18 @@ viewShortName        defs 13
 viewDataBanks        defb 40,42,43,44,45,46,47,48
 viewDataPages        defb 81,85,87,89,91,93,95,97
 
-VIEW_PLUGIN_MENU_LAST equ 6
+VIEW_PLUGIN_MENU_VISIBLE equ 7
+VIEW_PLUGIN_MENU_COUNT equ 7
+VIEW_PLUGIN_MENU_LAST equ VIEW_PLUGIN_MENU_COUNT-1
 viewPluginMenuMouseArea defb 45,88,115,143
 viewPluginMenuTable
-        defb VIEWTYPE_TEXT : defw viewTextPluginName
-        defb VIEWTYPE_ZXSCREEN : defw viewZxScreenPluginName
-        defb VIEWTYPE_PT3 : defw viewPt3PluginName
-        defb VIEWTYPE_PT2 : defw viewPt2PluginName
-        defb VIEWTYPE_STC : defw viewStcPluginName
-        defb VIEWTYPE_STP : defw viewStpPluginName
-        defb VIEWTYPE_SQT : defw viewSqtPluginName
+        defb VIEWTYPE_TEXT : defw viewTextPluginName : defw viewPluginMenuTextTxt
+        defb VIEWTYPE_ZXSCREEN : defw viewZxScreenPluginName : defw viewPluginMenuZxTxt
+        defb VIEWTYPE_PT3 : defw viewPt3PluginName : defw viewPluginMenuPt3Txt
+        defb VIEWTYPE_PT2 : defw viewPt2PluginName : defw viewPluginMenuPt2Txt
+        defb VIEWTYPE_STC : defw viewStcPluginName : defw viewPluginMenuStcTxt
+        defb VIEWTYPE_STP : defw viewStpPluginName : defw viewPluginMenuStpTxt
+        defb VIEWTYPE_SQT : defw viewSqtPluginName : defw viewPluginMenuSqtTxt
 
 viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
@@ -1477,6 +1579,7 @@ viewPluginMenuPt2Txt   defb "PT2 player      pt2test.ccp",0
 viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
 viewPluginMenuStpTxt   defb "STP player      stptest.ccp",0
 viewPluginMenuSqtTxt   defb "SQT player      sqtest.ccp",0
+viewPluginMenuBlankTxt defb "                            ",0
 
 viewErrorTitleTxt       defb "Viewer:",0
 viewNoViewerTxt         defb "No viewer is available for this file.",0
