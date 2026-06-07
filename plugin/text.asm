@@ -9,6 +9,12 @@ TEXT_ROWS       equ 27
 TEXT_COLS       equ 78
 TEXT_LINE_BYTES equ TEXT_COLS*2
 TEXT_ROW_SKIP   equ 160-TEXT_LINE_BYTES
+HEX_BYTES_PER_ROW equ 16
+DEC_BYTES_PER_ROW equ 8
+STATUS_LINE     equ SCREEN_BASE+160*31
+STATUS_INNER    equ STATUS_LINE+2
+FIND_INPUT_POS  equ STATUS_LINE+14*2
+SEARCH_MAX      equ 24
 
 plugin_start
         ld (ctxPtr),hl
@@ -31,11 +37,6 @@ plugin_start
         ld a,16
         call call_print
 
-        ld de,helpText
-        ld hl,34*256+31
-        ld a,32
-        call call_print
-
         call render_page
 
 .input
@@ -45,14 +46,28 @@ plugin_start
         cp 1
         ret z
         cp 10
-        jr z,.line_down
+        jp z,.line_down
         cp 11
-        jr z,.line_up
+        jp z,.line_up
         cp 9
-        jr z,.page_down
+        jp z,.page_down
         cp 8
-        jr z,.page_up
-        jr .input
+        jp z,.page_up
+        cp "h"
+        jp z,.hex_mode
+        cp "H"
+        jp z,.hex_mode
+        cp "d"
+        jp z,.dec_mode
+        cp "D"
+        jp z,.dec_mode
+        cp "t"
+        jp z,.text_mode
+        cp "T"
+        jp z,.text_mode
+        cp "/"
+        jp z,.find
+        jp .input
 
 .line_down
         ld hl,(curOffset)
@@ -60,21 +75,40 @@ plugin_start
         call move_line_down
         call offset_changed
         jr z,.input
+        ld a,(viewMode)
+        or a
+        jr z,.line_down_text
         call scroll_text_up
         call render_bottom_line
         call render_status
-        jr .input
+        jp .input
+.line_down_text
+        call scroll_text_up
+        call render_bottom_line
+        call render_status
+        jp .input
 .line_up
         ld hl,(curOffset)
         ld (oldOffset),hl
         call move_line_up
         call offset_changed
         jr z,.input
+        ld a,(viewMode)
+        or a
+        jr z,.line_up_text
         call scroll_text_down
         call render_top_line
         call render_status
-        jr .input
+        jp .input
+.line_up_text
+        call scroll_text_down
+        call render_top_line
+        call render_status
+        jp .input
 .page_down
+        ld a,(viewMode)
+        or a
+        jr z,.page_down_text
         ld b,TEXT_ROWS
 .pd
         push bc
@@ -82,8 +116,28 @@ plugin_start
         pop bc
         djnz .pd
         call render_page
-        jr .input
+        jp .input
+.page_down_text
+        ld hl,(curLine)
+        ld de,TEXT_ROWS
+        add hl,de
+        ld (targetOffset),hl
+        ld hl,(totalLines)
+        dec hl
+        ld de,(targetOffset)
+        or a
+        sbc hl,de
+        jr c,.page_down_use_max
+        ld hl,(targetOffset)
+.page_down_use_max
+        ld (curLine),hl
+        call seek_text_line_by_number
+        call render_page
+        jp .input
 .page_up
+        ld a,(viewMode)
+        or a
+        jr z,.page_up_text
         ld b,TEXT_ROWS
 .pu
         push bc
@@ -91,7 +145,41 @@ plugin_start
         pop bc
         djnz .pu
         call render_page
-        jr .input
+        jp .input
+.page_up_text
+        ld hl,(curLine)
+        ld de,TEXT_ROWS
+        or a
+        sbc hl,de
+        jr nc,.page_up_store
+        ld hl,0
+.page_up_store
+        ld (curLine),hl
+        call seek_text_line_by_number
+        call render_page
+        jp .input
+.hex_mode
+        ld a,1
+        ld (viewMode),a
+        call align_cur_binary
+        call render_page
+        jp .input
+.dec_mode
+        ld a,2
+        ld (viewMode),a
+        call align_cur_binary
+        call render_page
+        jp .input
+.text_mode
+        xor a
+        ld (viewMode),a
+        call seek_text_line_start
+        call render_page
+        jp .input
+.find
+        call find_prompt
+        call render_page
+        jp .input
 
 
 init_context
@@ -122,6 +210,15 @@ init_context
 
 
 render_page
+        ld a,(viewMode)
+        or a
+        jp z,render_text_page
+        cp 1
+        jp z,render_hex_page
+        jp render_dec_page
+
+
+render_text_page
         call clear_text_area
         ld hl,(curOffset)
         ld (renderOffset),hl
@@ -250,6 +347,9 @@ render_top_line
 
 
 render_bottom_line
+        ld a,(viewMode)
+        or a
+        jp nz,render_binary_bottom_line
         ld hl,(curOffset)
         ld (scanOffset),hl
         ld b,TEXT_ROWS-1
@@ -263,14 +363,46 @@ render_bottom_line
         jp render_single_line
 
 
+render_binary_bottom_line
+        ld hl,(curOffset)
+        ld (scanOffset),hl
+        ld b,TEXT_ROWS-1
+.scan
+        push bc
+        ld hl,(scanOffset)
+        call get_binary_row_bytes
+        add hl,de
+        ld (scanOffset),hl
+        pop bc
+        djnz .scan
+        ld de,TEXT_TOP+160*(TEXT_ROWS-1)
+        ld hl,(scanOffset)
+        push de
+        call offset_at_end
+        pop de
+        jp c,render_single_line
+        ld (lineStart),de
+        jp clear_screen_line
+
+
 move_scan_line_down
         ld hl,(scanOffset)
         call offset_at_end
         ret nc
+        xor a
+        ld (textCol),a
 .scan
         call read_byte_at_scan
+        cp 13
+        jr z,.next
         cp 10
         ret z
+        ld hl,textCol
+        inc (hl)
+        ld a,(hl)
+        cp TEXT_COLS
+        ret nc
+.next
         ld hl,(scanOffset)
         call offset_at_end
         jr c,.scan
@@ -278,6 +410,15 @@ move_scan_line_down
 
 
 render_single_line
+        ld a,(viewMode)
+        or a
+        jr z,render_text_single_line
+        cp 1
+        jp z,render_hex_single_line
+        jp render_dec_single_line
+
+
+render_text_single_line
         ld (renderOffset),hl
         ld (lineStart),de
         call clear_screen_line
@@ -285,6 +426,9 @@ render_single_line
         xor a
         ld (textCol),a
 .loop
+        ld a,(textCol)
+        cp TEXT_COLS
+        ret nc
         ld hl,(renderOffset)
         push de
         call offset_at_end
@@ -305,11 +449,6 @@ render_single_line
         jr nc,.char_ok
         ld a,"."
 .char_ok
-        ld (tmpChar),a
-        ld a,(textCol)
-        cp TEXT_COLS
-        ret nc
-        ld a,(tmpChar)
         ld (de),a
         inc de
         ld a,16
@@ -351,17 +490,35 @@ newline
 
 
 move_line_down
+        ld a,(viewMode)
+        or a
+        jr z,move_text_line_down
         ld hl,(curOffset)
         call offset_at_end
         ret nc
-.scan
-        call read_byte_at_cur
-        cp 10
-        jr z,.done
+        ld hl,(curOffset)
+        call get_binary_row_bytes
+        add hl,de
+        call offset_at_end
+        ret nc
+        ld (curOffset),hl
+        ld hl,(curLine)
+        inc hl
+        ld (curLine),hl
+        ret
+
+
+move_text_line_down
         ld hl,(curOffset)
         call offset_at_end
-        jr c,.scan
-.done
+        ret nc
+        ld (scanOffset),hl
+        call move_scan_line_down
+        ld hl,(scanOffset)
+        call offset_at_end
+        ret nc
+        ld hl,(scanOffset)
+        ld (curOffset),hl
         ld hl,(curLine)
         inc hl
         ld (curLine),hl
@@ -369,33 +526,65 @@ move_line_down
 
 
 move_line_up
+        ld a,(viewMode)
+        or a
+        jr z,move_text_line_up
+        ld hl,(curLine)
+        ld a,h
+        or l
+        ret z
         ld hl,(curOffset)
         ld a,h
         or l
         ret z
-        ld de,0
-        ld (prevLine),de
-        ld (scanOffset),de
-.scan
-        ld hl,(scanOffset)
-        ld de,(curOffset)
+        call get_binary_row_bytes
+        ld d,0
         or a
         sbc hl,de
-        jr nc,.done
-        call read_byte_at_scan
-        cp 10
-        jr nz,.scan
+        jr nc,.store
+        ld hl,0
+.store
+        ld (curOffset),hl
+        ld hl,(curLine)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld (curLine),hl
+        ret
+
+
+move_text_line_up
+        ld hl,(curOffset)
+        ld a,h
+        or l
+        ret z
+        ld (targetOffset),hl
+        ld hl,0
+        ld (prevLine),hl
+        ld (scanOffset),hl
+.forward
         ld hl,(scanOffset)
-        ld de,(curOffset)
+        ld (matchOffset),hl
+        call move_scan_line_down
+        ld hl,(scanOffset)
+        ld de,(matchOffset)
         or a
         sbc hl,de
-        jr nc,.done
+        jr z,.use_prev
+        ld hl,(scanOffset)
+        ld de,(targetOffset)
+        or a
+        sbc hl,de
+        jr nc,.use_prev
         ld hl,(scanOffset)
         ld (prevLine),hl
-        jr .scan
-.done
+        jr .forward
+.use_prev
         ld hl,(prevLine)
         ld (curOffset),hl
+        jr .line_done
+.line_done
         ld hl,(curLine)
         ld a,h
         or l
@@ -427,6 +616,557 @@ read_byte_at_scan
         ld hl,(scanOffset)
         inc hl
         ld (scanOffset),hl
+        ret
+
+
+render_hex_page
+        call clear_text_area
+        ld hl,(curOffset)
+        ld (renderOffset),hl
+        ld de,TEXT_TOP
+        xor a
+        ld (textRow),a
+        call render_status
+        ld de,TEXT_TOP
+.loop
+        ld a,(textRow)
+        cp TEXT_ROWS
+        ret nc
+        push de
+        ld hl,(renderOffset)
+        call offset_at_end
+        pop de
+        ret nc
+        push de
+        ld hl,(renderOffset)
+        call render_hex_single_line
+        pop de
+        ld hl,160
+        add hl,de
+        ex de,hl
+        ld hl,textRow
+        inc (hl)
+        jr .loop
+
+
+render_dec_page
+        call clear_text_area
+        ld hl,(curOffset)
+        ld (renderOffset),hl
+        ld de,TEXT_TOP
+        xor a
+        ld (textRow),a
+        call render_status
+        ld de,TEXT_TOP
+.loop
+        ld a,(textRow)
+        cp TEXT_ROWS
+        ret nc
+        push de
+        ld hl,(renderOffset)
+        call offset_at_end
+        pop de
+        ret nc
+        push de
+        ld hl,(renderOffset)
+        call render_dec_single_line
+        pop de
+        ld hl,160
+        add hl,de
+        ex de,hl
+        ld hl,textRow
+        inc (hl)
+        jr .loop
+
+
+render_hex_single_line
+        ld (renderOffset),hl
+        ld (lineStart),de
+        call clear_screen_line
+        ld de,(lineStart)
+        ld hl,(renderOffset)
+        call print_word_hex
+        ld a,":"
+        call put_char
+        ld a,32
+        call put_char
+        ld b,HEX_BYTES_PER_ROW
+.bytes
+        push bc
+        ld hl,(renderOffset)
+        call offset_at_end
+        jr nc,.blank_byte
+        call read_byte_at_offset
+        call print_byte_hex
+        jr .byte_done
+.blank_byte
+        ld a,32
+        call put_char
+        call put_char
+.byte_done
+        ld a,32
+        call put_char
+        ld hl,(renderOffset)
+        inc hl
+        ld (renderOffset),hl
+        pop bc
+        djnz .bytes
+        ld a,32
+        call put_char
+        ld hl,(lineStart)
+        ld de,(6+HEX_BYTES_PER_ROW*3+2)*2
+        add hl,de
+        ex de,hl
+        ld hl,(renderOffset)
+        ld bc,-HEX_BYTES_PER_ROW
+        add hl,bc
+        ld (renderOffset),hl
+        ld b,HEX_BYTES_PER_ROW
+        jr render_ascii_tail
+
+
+render_dec_single_line
+        ld (renderOffset),hl
+        ld (lineStart),de
+        call clear_screen_line
+        ld de,(lineStart)
+        ld hl,(renderOffset)
+        call print_word_hex
+        ld a,":"
+        call put_char
+        ld a,32
+        call put_char
+        ld b,DEC_BYTES_PER_ROW
+.bytes
+        push bc
+        ld hl,(renderOffset)
+        call offset_at_end
+        jr nc,.blank_byte
+        call read_byte_at_offset
+        call print_byte_dec
+        jr .byte_done
+.blank_byte
+        ld a,32
+        call put_char
+        call put_char
+        call put_char
+.byte_done
+        ld a,32
+        call put_char
+        ld hl,(renderOffset)
+        inc hl
+        ld (renderOffset),hl
+        pop bc
+        djnz .bytes
+        ld hl,(lineStart)
+        ld de,(6+DEC_BYTES_PER_ROW*4+2)*2
+        add hl,de
+        ex de,hl
+        ld hl,(renderOffset)
+        ld bc,-DEC_BYTES_PER_ROW
+        add hl,bc
+        ld (renderOffset),hl
+        ld b,DEC_BYTES_PER_ROW
+
+render_ascii_tail
+.ascii
+        push bc
+        ld hl,(renderOffset)
+        call offset_at_end
+        jr nc,.blank
+        call read_byte_at_offset
+        cp 32
+        jr c,.dot
+        cp 127
+        jr c,.ok
+.dot
+        ld a,"."
+.ok
+        call put_char
+        jr .next
+.blank
+        ld a,32
+        call put_char
+.next
+        ld hl,(renderOffset)
+        inc hl
+        ld (renderOffset),hl
+        pop bc
+        djnz .ascii
+        ret
+
+
+find_prompt
+        call clear_status_line
+        ld hl,1*256+31
+        ld a,32
+        ld de,findLabel
+        call call_print
+        xor a
+        ld (searchLen),a
+        ld (searchBuf),a
+        ld hl,FIND_INPUT_POS
+        ld (searchScreenPtr),hl
+.input
+        call call_input
+        or a
+        jr z,.input
+        cp 1
+        ret z
+        cp 13
+        jp z,find_execute
+        cp 12
+        jr z,.backspace
+        cp 199
+        jr z,.backspace
+        cp 32
+        jr c,.input
+        cp 128
+        jr nc,.input
+        ld c,a
+        ld a,(searchLen)
+        cp SEARCH_MAX
+        jr nc,.input
+        ld e,a
+        ld d,0
+        ld hl,searchBuf
+        add hl,de
+        ld (hl),c
+        inc hl
+        ld (hl),0
+        ld a,(searchLen)
+        inc a
+        ld (searchLen),a
+        ld a,c
+        ld de,(searchScreenPtr)
+        call put_char
+        ld (searchScreenPtr),de
+        jr .input
+.backspace
+        ld a,(searchLen)
+        or a
+        jr z,.input
+        dec a
+        ld (searchLen),a
+        ld e,a
+        ld d,0
+        ld hl,searchBuf
+        add hl,de
+        ld (hl),0
+        ld hl,(searchScreenPtr)
+        dec hl
+        dec hl
+        ld (searchScreenPtr),hl
+        ex de,hl
+        ld a,32
+        call put_char
+        jr .input
+
+
+find_execute
+        ld a,(searchLen)
+        or a
+        ret z
+        ld hl,(curOffset)
+        inc hl
+        call clamp_hl_to_size
+        ld (scanOffset),hl
+        call find_from_scan
+        jr z,.found
+        ld hl,0
+        ld (scanOffset),hl
+        call find_from_scan
+        jr z,.found
+        call clear_status_line
+        ld hl,1*256+31
+        ld a,32
+        ld de,notFoundText
+        call call_print
+.wait
+        call call_input
+        or a
+        jr z,.wait
+        ret
+.found
+        ld hl,(scanOffset)
+        ld (curOffset),hl
+        ld a,(viewMode)
+        or a
+        jp nz,align_cur_binary
+        jp seek_text_line_start
+
+
+find_from_scan
+.loop
+        ld hl,(scanOffset)
+        call offset_at_end
+        jr nc,.fail
+        call compare_at_scan
+        ret z
+        ld hl,(scanOffset)
+        inc hl
+        ld (scanOffset),hl
+        jr .loop
+.fail
+        or 1
+        ret
+
+
+compare_at_scan
+        ld hl,(scanOffset)
+        ld (matchOffset),hl
+        ld de,searchBuf
+        ld a,(searchLen)
+        ld b,a
+.loop
+        ld hl,(matchOffset)
+        call offset_at_end
+        jr nc,.fail
+        call read_byte_at_offset
+        call to_upper
+        ld c,a
+        ld a,(de)
+        call to_upper
+        cp c
+        jr nz,.fail
+        inc de
+        ld hl,(matchOffset)
+        inc hl
+        ld (matchOffset),hl
+        djnz .loop
+        xor a
+        ret
+.fail
+        or 1
+        ret
+
+
+seek_text_line_start
+        ld hl,(curOffset)
+        ld (targetOffset),hl
+        ld hl,0
+        ld (curLine),hl
+        ld (prevLine),hl
+        ld (scanOffset),hl
+        ld hl,(targetOffset)
+        ld a,h
+        or l
+        ret z
+.loop
+        ld hl,(scanOffset)
+        ld (prevLine),hl
+        call move_scan_line_down
+        ld hl,(scanOffset)
+        ld de,(targetOffset)
+        or a
+        sbc hl,de
+        jr z,.exact
+        jr nc,.done
+        ld hl,(scanOffset)
+        ld hl,(curLine)
+        inc hl
+        ld (curLine),hl
+        jr .loop
+.exact
+        ld hl,(curLine)
+        inc hl
+        ld (curLine),hl
+        ld hl,(scanOffset)
+        ld (curOffset),hl
+        ret
+.done
+        ld hl,(prevLine)
+        ld (curOffset),hl
+        ret
+
+
+seek_text_line_by_number
+        ld hl,(curLine)
+        ld (targetOffset),hl
+        ld hl,0
+        ld (scanOffset),hl
+.loop
+        ld hl,(targetOffset)
+        ld a,h
+        or l
+        jr z,.done
+        call move_scan_line_down
+        ld hl,(scanOffset)
+        call offset_at_end
+        jr nc,.done
+        ld hl,(targetOffset)
+        dec hl
+        ld (targetOffset),hl
+        jr .loop
+.done
+        ld hl,(scanOffset)
+        ld (curOffset),hl
+        ret
+
+
+to_upper
+        cp "a"
+        ret c
+        cp "z"+1
+        ret nc
+        sub 32
+        ret
+
+
+clear_status_line
+        ld de,STATUS_INNER
+        ld b,TEXT_COLS
+.loop
+        ld a,32
+        ld (de),a
+        inc de
+        ld a,32
+        ld (de),a
+        inc de
+        djnz .loop
+        ret
+
+
+put_char
+        push af
+        ld (de),a
+        inc de
+        ld a,16
+        ld (de),a
+        inc de
+        pop af
+        ret
+
+
+print_word_hex
+        ld a,h
+        call print_byte_hex
+        ld a,l
+        jp print_byte_hex
+
+
+print_byte_hex
+        push af
+        rrca
+        rrca
+        rrca
+        rrca
+        call print_nibble
+        pop af
+print_nibble
+        and $0f
+        add a,"0"
+        cp "9"+1
+        jr c,.ok
+        add a,7
+.ok
+        jp put_char
+
+
+print_byte_dec
+        ld c,a
+        ld b,0
+.hund
+        ld a,c
+        cp 100
+        jr c,.tens
+        sub 100
+        ld c,a
+        inc b
+        jr .hund
+.tens
+        ld a,b
+        add a,"0"
+        call put_char
+        ld b,0
+.ten_loop
+        ld a,c
+        cp 10
+        jr c,.ones
+        sub 10
+        ld c,a
+        inc b
+        jr .ten_loop
+.ones
+        ld a,b
+        add a,"0"
+        call put_char
+        ld a,c
+        add a,"0"
+        jp put_char
+
+
+align_cur_binary
+        ld hl,(curOffset)
+        ld a,(viewMode)
+        cp 1
+        jr nz,.dec
+        ld a,l
+        and $f0
+        ld l,a
+        ld (curOffset),hl
+        srl h
+        rr l
+        srl h
+        rr l
+        srl h
+        rr l
+        srl h
+        rr l
+        ld (curLine),hl
+        ret
+.dec
+        ld a,l
+        and $f8
+        ld l,a
+        ld (curOffset),hl
+        srl h
+        rr l
+        srl h
+        rr l
+        srl h
+        rr l
+        ld (curLine),hl
+        ret
+
+
+get_binary_row_bytes
+        ld d,0
+        ld a,(viewMode)
+        cp 1
+        ld e,HEX_BYTES_PER_ROW
+        ret z
+        ld e,DEC_BYTES_PER_ROW
+        ret
+
+
+get_binary_total_rows
+        ld hl,(loadedSize)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld a,(viewMode)
+        cp 1
+        ld b,4
+        jr z,.shift
+        ld b,3
+.shift
+        srl h
+        rr l
+        djnz .shift
+        inc hl
+        ret
+
+
+clamp_hl_to_size
+        push hl
+        ld de,(loadedSize)
+        or a
+        sbc hl,de
+        pop hl
+        ret c
+        ld hl,(loadedSize)
         ret
 
 
@@ -508,9 +1248,11 @@ read_byte_at_offset
 
 offset_at_end
         push de
+        push hl
         ld de,(loadedSize)
         or a
         sbc hl,de
+        pop hl
         pop de
         ret
 
@@ -527,18 +1269,25 @@ count_lines
         ld hl,0
         ld (totalLines),hl
         ld (scanOffset),hl
+        ld hl,(loadedSize)
+        ld a,h
+        or l
+        jr z,.finish_empty
 .loop
         ld hl,(scanOffset)
         call offset_at_end
         jr nc,.finish
-        call read_byte_at_scan
-        cp 10
-        jr nz,.loop
         ld hl,(totalLines)
         inc hl
         ld (totalLines),hl
+        call move_scan_line_down
         jr .loop
 .finish
+        ld hl,(totalLines)
+        ld a,h
+        or l
+        ret nz
+.finish_empty
         ld hl,(totalLines)
         inc hl
         ld (totalLines),hl
@@ -546,9 +1295,16 @@ count_lines
 
 
 render_status
+        call clear_status_line
         ld hl,1*256+31
         ld a,32
         ld de,lineLabel
+        ld a,(viewMode)
+        or a
+        jr z,.label_ready
+        ld de,rowLabel
+.label_ready
+        ld a,32
         call call_print
         ld hl,(curLine)
         inc hl
@@ -561,12 +1317,47 @@ render_status
         ld a,32
         ld de,slashText
         call call_print
+        ld a,(viewMode)
+        or a
+        jr z,.text_total
+        call get_binary_total_rows
+        jr .total_ready
+.text_total
         ld hl,(totalLines)
+.total_ready
         call make_decimal
         ld hl,15*256+31
         ld a,32
         ld de,numBuf
         call call_print
+        ld hl,23*256+31
+        ld a,32
+        ld de,modeLabel
+        call call_print
+        call get_mode_text
+        ld hl,29*256+31
+        ld a,32
+        call call_print
+        ld hl,36*256+31
+        ld a,32
+        ld de,helpText
+        call call_print
+        ret
+
+
+get_mode_text
+        ld a,(viewMode)
+        or a
+        jr z,.text
+        cp 1
+        jr z,.hex
+        ld de,modeDecText
+        ret
+.hex
+        ld de,modeHexText
+        ret
+.text
+        ld de,modeTextText
         ret
 
 
@@ -664,16 +1455,29 @@ oldOffset    defw 0
 curLine      defw 0
 totalLines   defw 0
 lineStart    defw 0
+searchScreenPtr defw 0
+matchOffset  defw 0
+targetOffset defw 0
 textCol      defb 0
 textRow      defb 0
 pageCount    defb 0
+viewMode     defb 0
+searchLen    defb 0
 tmpChar      defb 0
 tmpMappedH   defb 0
 numBuf       defs 6
+searchBuf    defs SEARCH_MAX+1
 title        defb "VIEW:",0
 lineLabel    defb "Line:",0
+rowLabel     defb "Row:",0
 slashText    defb "/",0
-helpText     defb "BREAK close  UP/DOWN line  LEFT/RIGHT page",0
+modeLabel    defb "Mode:",0
+modeTextText defb "TEXT",0
+modeHexText  defb "HEX",0
+modeDecText  defb "DEC",0
+findLabel    defb "Find:",0
+notFoundText defb "Not found - press any key",0
+helpText     defb "BREAK=exit T=text H=hex D=dec /=find",0
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
