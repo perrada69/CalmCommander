@@ -1633,4 +1633,4 @@ helpText     defb "BREAK=exit T=text H=hex D=dec /=find",0
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/text.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/TXT,ASM,BAS,CFG,INI_Text-Viewer.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

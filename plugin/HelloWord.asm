@@ -386,4 +386,4 @@ nextText          defb "[ SPACE next ]",0
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/HelloWord.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/HLO_Hello-Demo.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

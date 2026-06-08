@@ -444,6 +444,9 @@ stop
             call PROHOD
             call GETDIR                           ; externí
             call PROHOD
+
+            call view_discover_plugins            ; najdi viewer pluginy v c:/CalmCommander/plugin
+
             call dospage
 
             ld hl,pathl
@@ -471,7 +474,9 @@ stop
             xor a
             call $01b1                            ; externí
             call basicpage
-
+            call reload_dir
+            call getroot_reload
+            call showwin
 
             ; ------------------------------------------------------------
             ; Hlavní smyčka UI
@@ -4059,6 +4064,18 @@ dirNum   defw 0
         include "functions/delete.asm"
         include "functions/file.asm"
         include "functions/compare.asm"
+
+PLUGIN_MAX              equ 10
+EXT_MAX                 equ 20
+VIEW_PLUGIN_FILENAME_LEN equ 40
+VIEW_PLUGIN_DISCOVERY_PAGE equ 80
+VIEW_PLUGIN_ENTRY_NAME  equ 0
+VIEW_PLUGIN_ENTRY_SIZE  equ VIEW_PLUGIN_FILENAME_LEN
+PLUGIN_TABLE_SIZE       equ PLUGIN_MAX*VIEW_PLUGIN_ENTRY_SIZE
+EXT_ENTRY_SIZE          equ 4
+EXT_TABLE_SIZE          equ EXT_MAX*EXT_ENTRY_SIZE
+
+        include "functions/plugin_discovery.asm"
 LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
 LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 FILEBUFF

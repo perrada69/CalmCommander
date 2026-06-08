@@ -398,4 +398,4 @@ meterBuffer  defs 33
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/sqtest.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/SQT_SQT-Player.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

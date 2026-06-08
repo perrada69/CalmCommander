@@ -438,4 +438,4 @@ spaceText    defb "[ SPACE next ]",0
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/nxi.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/NXI_NXI-Image.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

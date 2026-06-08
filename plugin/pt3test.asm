@@ -503,4 +503,4 @@ meterBuffer  defs 33
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/pt3test.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/PT3_PT3-Player.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

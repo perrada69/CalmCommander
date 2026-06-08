@@ -389,4 +389,4 @@ meterBuffer  defs 33
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/stctest.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/STC_STC-Player.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

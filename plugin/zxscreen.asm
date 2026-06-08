@@ -386,4 +386,4 @@ zxPalette
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
-        SAVEBIN "plugin/zxscreen.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+        SAVEBIN "plugin/SCR_ZX-Screen.CCP", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE

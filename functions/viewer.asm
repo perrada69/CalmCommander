@@ -108,13 +108,9 @@ view_run_selected_plugin
 
 
 view_plugin_menu
-        call view_prepare_current_file
-        jp c,view_no_viewer_or_skip
-
-        call view_make_cmd2
         call view_choose_plugin_dialog
         jp c,loop0
-        jp view_run_selected_plugin
+        jp loop0
 
 
 ; Prepare TMP83/LFNNAME for the current cursor item.
@@ -263,170 +259,38 @@ view_make_short_name
 
 
 view_select_plugin
-        call view_make_short_name
-        ld hl,viewShortName
-        ld de,ext_nxi
-        call pripony
-        jp z,.nxi
-        ld hl,viewShortName
-        ld de,ext_NXI
-        call pripony
-        jp z,.nxi
-
-        call view_is_zx_screen
-        jp z,.zxscreen
-
-        ld hl,viewShortName
-        ld de,ext_stc
-        call pripony
-        jp z,.stc
-        ld hl,viewShortName
-        ld de,ext_STC
-        call pripony
-        jp z,.stc
-
-        ld hl,viewShortName
-        ld de,ext_stp
-        call pripony
-        jp z,.stp
-        ld hl,viewShortName
-        ld de,ext_STP
-        call pripony
-        jp z,.stp
-
-        ld hl,viewShortName
-        ld de,ext_sqt
-        call pripony
-        jp z,.sqt
-        ld hl,viewShortName
-        ld de,ext_SQT
-        call pripony
-        jp z,.sqt
-
-        ld hl,viewShortName
-        ld de,ext_pt2
-        call pripony
-        jp z,.pt2
-        ld hl,viewShortName
-        ld de,ext_PT2
-        call pripony
-        jp z,.pt2
-
-        ld hl,viewShortName
-        ld de,ext_pt3
-        call pripony
-        jp z,.pt3
-        ld hl,viewShortName
-        ld de,ext_PT3
-        call pripony
-        jp z,.pt3
-
-        ld hl,viewShortName
-        ld de,ext_txt
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_TXT
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_asm
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_ASM
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_bas
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_BAS
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_cfg
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_CFG
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_ini
-        call pripony
-        jr z,.text
-        ld hl,viewShortName
-        ld de,ext_INI
-        call pripony
-        jr z,.text
-
+        call view_current_ext_to_buffer
+        ret c
+        ld a,(viewExtCount)
+        or a
+        jr z,.not_found
+        ld b,a
+        ld hl,extTable
+.loop
+        push bc
+        push hl
+        ld de,viewCurrentExt
+        ld b,3
+.cmp
+        ld a,(de)
+        cp (hl)
+        jr nz,.next
+        inc de
+        inc hl
+        djnz .cmp
+        pop hl
+        pop bc
+        call view_set_plugin_from_ext_entry
+        xor a
+        ret
+.next
+        pop hl
+        ld de,EXT_ENTRY_SIZE
+        add hl,de
+        pop bc
+        djnz .loop
+.not_found
         scf
-        ret
-
-.text
-        ld a,VIEWTYPE_TEXT
-        ld (viewPluginType),a
-        ld hl,viewTextPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.zxscreen
-        ld a,VIEWTYPE_ZXSCREEN
-        ld (viewPluginType),a
-        ld hl,viewZxScreenPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.pt3
-        ld a,VIEWTYPE_PT3
-        ld (viewPluginType),a
-        ld hl,viewPt3PluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.pt2
-        ld a,VIEWTYPE_PT2
-        ld (viewPluginType),a
-        ld hl,viewPt2PluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.stc
-        ld a,VIEWTYPE_STC
-        ld (viewPluginType),a
-        ld hl,viewStcPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.stp
-        ld a,VIEWTYPE_STP
-        ld (viewPluginType),a
-        ld hl,viewStpPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.sqt
-        ld a,VIEWTYPE_SQT
-        ld (viewPluginType),a
-        ld hl,viewSqtPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.nxi
-        ld a,VIEWTYPE_NXI
-        ld (viewPluginType),a
-        ld hl,viewNxiPluginName
-        ld (viewPluginName),hl
-        xor a
         ret
 
 
@@ -442,6 +306,71 @@ view_is_zx_screen
         ret
 
 
+view_current_ext_to_buffer
+        ld hl,TMP83+8
+        ld de,viewCurrentExt
+        ld b,3
+.copy
+        ld a,(hl)
+        cp 32
+        jr z,.bad
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy
+        xor a
+        ret
+.bad
+        scf
+        ret
+
+
+view_set_plugin_from_ext_entry
+        push hl
+        call view_type_from_ext_entry
+        ld (viewPluginType),a
+        pop hl
+        ld de,3
+        add hl,de
+        ld a,(hl)
+        call view_plugin_entry_ptr
+        ld (viewPluginName),hl
+        ret
+
+
+view_type_from_ext_entry
+        ld a,(hl)
+        cp "S"
+        jr nz,.nxi
+        inc hl
+        ld a,(hl)
+        cp "C"
+        jr nz,.text
+        inc hl
+        ld a,(hl)
+        cp "R"
+        jr nz,.text
+        ld a,VIEWTYPE_ZXSCREEN
+        ret
+.nxi
+        ld a,(hl)
+        cp "N"
+        jr nz,.text
+        inc hl
+        ld a,(hl)
+        cp "X"
+        jr nz,.text
+        inc hl
+        ld a,(hl)
+        cp "I"
+        jr nz,.text
+        ld a,VIEWTYPE_NXI
+        ret
+.text
+        ld a,VIEWTYPE_TEXT
+        ret
+
+
 view_choose_plugin_dialog
         call savescr
         xor a
@@ -454,6 +383,7 @@ view_choose_plugin_dialog
         ld bc,34*256+12
         ld a,144
         call window
+        call view_plugin_debug_title
         ld hl,25*256+9
         ld a,144
         ld de,viewPluginMenuTitleTxt
@@ -493,7 +423,10 @@ view_choose_plugin_dialog
         ld b,a
         ld a,(viewPluginMenuTop)
         add a,b
-        cp VIEW_PLUGIN_MENU_LAST
+        ld b,a
+        ld a,(viewExtCount)
+        dec a
+        cp b
         jp z,.loop
         ld a,144
         call view_plugin_menu_write_cursor
@@ -506,8 +439,11 @@ view_choose_plugin_dialog
 .down_scroll
         ld a,(viewPluginMenuTop)
         add a,VIEW_PLUGIN_MENU_VISIBLE
-        cp VIEW_PLUGIN_MENU_COUNT
-        jp nc,.loop
+        ld b,a
+        ld a,(viewExtCount)
+        cp b
+        jp z,.loop
+        jp c,.loop
         ld hl,viewPluginMenuTop
         inc (hl)
         call view_plugin_menu_print_items
@@ -557,8 +493,11 @@ view_choose_plugin_dialog
         ld c,a
         ld a,(viewPluginMenuTop)
         add a,c
-        cp VIEW_PLUGIN_MENU_COUNT
-        jp nc,.loop
+        ld b,a
+        ld a,(viewExtCount)
+        cp b
+        jp z,.loop
+        jp c,.loop
         ld a,c
         ld (viewPluginMenuCursor),a
         jp .enter
@@ -634,18 +573,27 @@ view_plugin_menu_print_visible_row
         ld c,a
         ld a,(viewPluginMenuTop)
         add a,c
-        cp VIEW_PLUGIN_MENU_COUNT
-        ret nc
+        ld b,a
+        ld a,(viewExtCount)
+        cp b
+        ret z
+        ret c
+        ld a,b
         call view_plugin_menu_get_entry
-        inc hl
-        inc hl
-        inc hl
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
+        push hl
+        call view_prepare_menu_ext_text
         ld a,c
         add a,11
         ld h,27
+        ld l,a
+        ld a,144
+        ld de,viewPluginMenuExtTxt
+        call print
+        pop hl
+        call view_plugin_display_from_ext_entry
+        ld a,c
+        add a,11
+        ld h,31
         ld l,a
         ld a,144
         call print
@@ -678,23 +626,219 @@ view_plugin_menu_set_plugin
         ld a,(viewPluginMenuTop)
         add a,b
         call view_plugin_menu_get_entry
-        ld a,(hl)
-        ld (viewPluginType),a
-        inc hl
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
-        ld (viewPluginName),hl
+        call view_set_plugin_from_ext_entry
         ret
 
 
 view_plugin_menu_get_entry
         ld e,a
-        ld d,5
+        ld d,EXT_ENTRY_SIZE
         mul d,e
-        ld hl,viewPluginMenuTable
+        ld hl,extTable
         add hl,de
+        ret
+
+
+view_plugin_entry_ptr
+        ld e,a
+        ld d,VIEW_PLUGIN_ENTRY_SIZE
+        mul d,e
+        ld hl,pluginTable
+        add hl,de
+        ret
+
+
+view_ext_entry_ptr
+        ld e,a
+        ld d,EXT_ENTRY_SIZE
+        mul d,e
+        ld hl,extTable
+        add hl,de
+        ret
+
+
+view_plugin_debug_title
+        ld a,(viewDbgCatalogCount)
+        call view_debug_hex
+        ld (viewPluginMenuTitleTxt+8),a
+        ld a,(viewDbgScanCount)
+        call view_debug_hex
+        ld (viewPluginMenuTitleTxt+11),a
+        ld a,(viewPluginCount)
+        call view_debug_hex
+        ld (viewPluginMenuTitleTxt+14),a
+        ld a,(viewExtCount)
+        call view_debug_hex
+        ld (viewPluginMenuTitleTxt+17),a
+        ret
+
+
+view_debug_hex
+        and $0f
+        add a,"0"
+        cp "9"+1
+        ret c
+        add a,7
+        ret
+
+
+view_try_add_plugin_lfn
+        ld a,(viewPluginCount)
+        cp PLUGIN_MAX
+        ret nc
+
+        ld a,(viewPluginCount)
+        call view_plugin_entry_ptr
+
+        ex de,hl
+        ld hl,LFNNAME
+        ld bc,VIEW_PLUGIN_FILENAME_LEN-1
+.copy_name
+        ld a,(hl)
+        cp 255
+        jr z,.name_done
+        or a
+        jr z,.name_done
+        ld (de),a
+        inc hl
+        inc de
+        dec bc
+        ld a,b
+        or c
+        jr nz,.copy_name
+.name_done
+        xor a
+        ld (de),a
+
+        ld hl,LFNNAME
+.ext_loop
+        ld a,(viewExtCount)
+        cp EXT_MAX
+        ret nc
+
+        call view_parse_one_ext
+        ret c
+
+        push hl
+        ld a,(viewExtCount)
+        call view_ext_entry_ptr
+        ld de,bufftmp
+        ld a,(de)
+        ld (hl),a
+        inc de
+        inc hl
+        ld a,(de)
+        ld (hl),a
+        inc de
+        inc hl
+        ld a,(de)
+        ld (hl),a
+        inc hl
+        ld a,(viewPluginCount)
+        ld (hl),a
+        ld hl,viewExtCount
+        inc (hl)
+        pop hl
+
+        ld a,(hl)
+        cp ","
+        jr nz,.added
+        inc hl
+        jr .ext_loop
+
+.added
+        ld hl,viewPluginCount
+        inc (hl)
+        ret
+
+
+view_parse_one_ext
+        ld de,bufftmp
+        ld b,3
+.loop
+        ld a,(hl)
+        cp 255
+        jr z,.bad
+        cp "_"
+        jr z,.bad
+        cp ","
+        jr z,.bad
+        or a
+        jr z,.bad
+        ld (de),a
+        inc de
+        inc hl
+        djnz .loop
+        ld a,(hl)
+        cp ","
+        ret z
+        cp "_"
+        ret z
+.bad
+        scf
+        ret
+
+
+view_prepare_menu_ext_text
+        ld de,viewPluginMenuExtTxt
+        ld b,3
+.copy
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy
+        ld a,32
+        ld (de),a
+        inc de
+        xor a
+        ld (de),a
+        ret
+
+
+view_plugin_display_from_ext_entry
+        push hl
+        ld de,3
+        add hl,de
+        ld a,(hl)
+        call view_plugin_entry_ptr
+        call view_prepare_menu_name_text
+        ld de,viewPluginMenuNameTxt
+        pop hl
+        ret
+
+
+view_prepare_menu_name_text
+.find
+        ld a,(hl)
+        or a
+        jr z,.empty
+        cp "_"
+        jr z,.copy_start
+        inc hl
+        jr .find
+.copy_start
+        inc hl
+        ld de,viewPluginMenuNameTxt
+        ld b,23
+.copy
+        ld a,(hl)
+        or a
+        jr z,.done
+        cp "."
+        jr z,.done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy
+.done
+        xor a
+        ld (de),a
+        ret
+.empty
+        ld de,viewPluginMenuNameTxt
+        xor a
+        ld (de),a
         ret
 
 
@@ -1653,6 +1797,15 @@ viewPluginMenuCursor defb 0
 viewPluginMenuTop    defb 0
 viewPluginMenuPrintRow defb 0
 viewShortName        defs 13
+viewCurrentExt       defs 3
+viewPluginMenuExtTxt defs 5
+viewPluginMenuNameTxt defs 24
+viewDbgCatalogCount defb 0
+viewDbgScanCount    defb 0
+viewPluginCount      defb 0
+viewExtCount         defb 0
+pluginTable          defs PLUGIN_TABLE_SIZE
+extTable             defs EXT_TABLE_SIZE
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
 ; that expose the upper 8K of each bank at $E000.
@@ -1660,30 +1813,9 @@ viewDataBanks        defb 40,42,43,44,45,46,47,48
 viewDataPages        defb 81,85,87,89,91,93,95,97
 
 VIEW_PLUGIN_MENU_VISIBLE equ 7
-VIEW_PLUGIN_MENU_COUNT equ 9
-VIEW_PLUGIN_MENU_LAST equ VIEW_PLUGIN_MENU_COUNT-1
 viewPluginMenuMouseArea defb 45,88,115,143
-viewPluginMenuTable
-        defb VIEWTYPE_TEXT : defw viewTextPluginName : defw viewPluginMenuTextTxt
-        defb VIEWTYPE_ZXSCREEN : defw viewZxScreenPluginName : defw viewPluginMenuZxTxt
-        defb VIEWTYPE_NXI : defw viewNxiPluginName : defw viewPluginMenuNxiTxt
-        defb VIEWTYPE_PT3 : defw viewPt3PluginName : defw viewPluginMenuPt3Txt
-        defb VIEWTYPE_PT2 : defw viewPt2PluginName : defw viewPluginMenuPt2Txt
-        defb VIEWTYPE_STC : defw viewStcPluginName : defw viewPluginMenuStcTxt
-        defb VIEWTYPE_STP : defw viewStpPluginName : defw viewPluginMenuStpTxt
-        defb VIEWTYPE_SQT : defw viewSqtPluginName : defw viewPluginMenuSqtTxt
-        defb VIEWTYPE_HELLO : defw viewHelloPluginName : defw viewPluginMenuHelloTxt
 
 viewPluginDir          defb "c:/CalmCommander/plugin",255
-viewTextPluginName     defb "text.ccp",255
-viewZxScreenPluginName defb "zxscreen.ccp",255
-viewNxiPluginName      defb "nxi.ccp",255
-viewPt3PluginName      defb "pt3test.ccp",255
-viewPt2PluginName      defb "pt2test.ccp",255
-viewStcPluginName      defb "stctest.ccp",255
-viewStpPluginName      defb "stptest.ccp",255
-viewSqtPluginName      defb "sqtest.ccp",255
-viewHelloPluginName    defb "HelloWord.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
 viewMusicAbcTxt        defb " ABC ",0
@@ -1692,16 +1824,7 @@ viewMusicAyActiveTxt   defb "[AY]",0
 viewMusicYmActiveTxt   defb "[YM]",0
 viewMusicAbcActiveTxt  defb "[ABC]",0
 viewMusicAcbActiveTxt  defb "[ACB]",0
-viewPluginMenuTitleTxt defb "Select viewer plugin:",0
-viewPluginMenuTextTxt  defb "Text viewer     text.ccp",0
-viewPluginMenuZxTxt    defb "ZX screen       zxscreen.ccp",0
-viewPluginMenuNxiTxt   defb "NXI image       nxi.ccp",0
-viewPluginMenuPt3Txt   defb "PT3 player      pt3test.ccp",0
-viewPluginMenuPt2Txt   defb "PT2 player      pt2test.ccp",0
-viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
-viewPluginMenuStpTxt   defb "STP player      stptest.ccp",0
-viewPluginMenuSqtTxt   defb "SQT player      sqtest.ccp",0
-viewPluginMenuHelloTxt defb "Hello demo     HelloWord.ccp",0
+viewPluginMenuTitleTxt defb "Plugin C0 S0 P0 E0",0
 viewPluginMenuBlankTxt defb "                            ",0
 
 viewErrorTitleTxt       defb "Viewer:",0
