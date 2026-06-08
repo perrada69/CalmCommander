@@ -39,14 +39,14 @@ rem -- Hlavni binaries --
 %HDF% put %IMG% cc.bin CalmCommander/
 
 rem -- Viewer pluginy --
-%HDF% put %IMG% plugin\TXT,ASM,BAS,CFG,INI_Text-Viewer.CCP %PLUG%/
-%HDF% put %IMG% plugin\SCR_ZX-Screen.CCP %PLUG%/
-%HDF% put %IMG% plugin\NXI_NXI-Image.CCP %PLUG%/
-%HDF% put %IMG% plugin\PT2_PT2-Player.CCP %PLUG%/
-%HDF% put %IMG% plugin\PT3_PT3-Player.CCP %PLUG%/
-%HDF% put %IMG% plugin\STC_STC-Player.CCP %PLUG%/
-%HDF% put %IMG% plugin\STP_STP-Player.CCP %PLUG%/
-%HDF% put %IMG% plugin\SQT_SQT-Player.CCP %PLUG%/
-%HDF% put %IMG% plugin\HLO_Hello-Demo.CCP %PLUG%/
+%HDF% put %IMG% plugin\text.ccp %PLUG%/
+%HDF% put %IMG% plugin\zxscreen.ccp %PLUG%/
+%HDF% put %IMG% plugin\nxi.ccp %PLUG%/
+%HDF% put %IMG% plugin\pt2test.ccp %PLUG%/
+%HDF% put %IMG% plugin\pt3test.ccp %PLUG%/
+%HDF% put %IMG% plugin\stctest.ccp %PLUG%/
+%HDF% put %IMG% plugin\stptest.ccp %PLUG%/
+%HDF% put %IMG% plugin\sqtest.ccp %PLUG%/
+%HDF% put %IMG% plugin\HelloWord.ccp %PLUG%/
 
 D:\Source\Assembler\CSpect\CSpect.exe -zxnext -basickeys -nextrom -map=player.map -tv -mmc=%IMG%
