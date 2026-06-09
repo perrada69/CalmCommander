@@ -570,6 +570,8 @@ view_choose_plugin_dialog
         ret
 
 .cancel
+        xor a
+        ld (viewNextAfterDown),a
         call loadscr
         scf
         ret
@@ -973,7 +975,8 @@ view_call_plugin
 
 
 view_restore_saved_screen
-
+        xor a
+        ld (viewNextAfterDown),a
         nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
         ld hl,sipka
         ld bc,16*16*1
@@ -988,6 +991,15 @@ view_restore_saved_screen
 
 
 view_restore_full_ui
+        xor a
+        ld (viewNextAfterDown),a
+
+        nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
+        ld hl,sipka
+        ld bc,16*16*1
+        ld a,0
+        call LoadSprites                      ; externí
+
         call VSE_NASTAV
         call kresli
         ld a,3
