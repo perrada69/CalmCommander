@@ -975,8 +975,8 @@ view_call_plugin
 
 
 view_restore_saved_screen
-        xor a
-        ld (viewNextAfterDown),a
+        ;xor a
+        ;ld (viewNextAfterDown),a
         nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
         ld hl,sipka
         ld bc,16*16*1
@@ -991,8 +991,8 @@ view_restore_saved_screen
 
 
 view_restore_full_ui
-        xor a
-        ld (viewNextAfterDown),a
+        ;xor a
+        ;ld (viewNextAfterDown),a
 
         nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
         ld hl,sipka
