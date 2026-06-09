@@ -973,6 +973,13 @@ view_call_plugin
 
 
 view_restore_saved_screen
+
+        nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
+        ld hl,sipka
+        ld bc,16*16*1
+        ld a,0
+        call LoadSprites                      ; externí
+
         call VSE_NASTAV
         ld a,(viewSavedOKNO)
         ld (OKNO),a
