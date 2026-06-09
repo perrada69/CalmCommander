@@ -1676,12 +1676,12 @@ bass
         ld a,$22
         ld (cmd2-1),a
 
-        ; zkopíruj připravený token+uvozovku+řetězec do BASIC oblasti $5D23
+        ; zkopíruj připravený token+uvozovku+řetězec do BASIC oblasti $5D3D
         ; (BC se zvětší o 2 kvůli těm dvěma prefix bajtům)
         inc bc
         inc bc
         ld hl,cmd2-2
-        ld de,$5d23
+        ld de,$5d3d
         ldir
 
         ; doplň koncovou uvozovku a CR (0x0D) do BASIC řádku
@@ -1700,10 +1700,10 @@ bass
                                                   ; “vyremování” tokenu SPECTRUM v BASIC hlavičce
                                                   ; (0xEA = REM token)
         ld a,$ea
-        ld ($5d1d),a
+        ld ($5d37),a
         ret
 
-delkaRadku  equ $5d21
+delkaRadku  equ $5d3b
 
 
 ; ------------------------------------------------------------
@@ -1797,7 +1797,7 @@ taptxt  defb $fd,$36,$35,$33,$36,$37,$0E,$0,$0,$57,$ff,$00,$3a,$ef,$22,$74,$61,$
 taptxt2 defb $22,$3A,$61,$64,$6A,$3D,$30,$0E,$00,$00,$00,$00,$00,$3A,$ec,$31,$0e,$00,$00,$01,$00,$00,$0d
 taptxt3
 
-uvozovkyVBasicu  equ $5d58                        ; adresa v BASIC oblasti pro uvozovky/řetězec
+uvozovkyVBasicu  equ $5d72                        ; adresa v BASIC oblasti pro uvozovky/řetězec
 
 
                                                   ; ------------------------------------------------------------
@@ -1822,6 +1822,12 @@ st
         ld bc,500
         ldir
 
+        ; reset DATADD ($5C57) na PROG-1 ($5C53): ROM LOAD neresetuje DATADD,
+        ; takže stará hodnota ze sysvars snapshotu by způsobila OUT OF DATA při READ
+        ld hl,($5c53)
+        dec hl
+        ld ($5c57),hl
+
         ; zkopíruj filename (cmd2) do BASIC oblasti uvozovek
         ld hl,cmd2
         ld de,uvozovkyVBasicu
@@ -1840,18 +1846,18 @@ delkaNazvu
         add hl,de
         ld de,9
         add hl,de
-        ld ($5d21),hl
+        ld ($5d3b),hl
 
 savesp   ld sp,0                                  ; self-modify: obnov původní SP uložený na STARTu
 
-                                                  ; vyber hodnotu z tabComp podle cursorComp a ulož do $5D4B (BASIC sysvar)
+                                                  ; vyber hodnotu z tabComp podle cursorComp a ulož do $5D65 (BASIC sysvar)
         ld a,(cursorComp)
         ld e,a
         ld d,0
         ld hl,tabComp
         add hl,de
         ld a,(hl)
-        ld ($5d4B),a
+        ld ($5d65),a
 
         ; další inicializace systému před návratem do BASIC
         ld   iy,23610
@@ -1873,7 +1879,7 @@ savesp   ld sp,0                                  ; self-modify: obnov původní
 
         ; pro Next config: vyremuj token SPECTRUM
         ld a,$ea
-        ld ($5d1d),a
+        ld ($5d37),a
 
         ; znovu překopíruj filename a použij loadTapNext variantu (s "t:")
         ld hl,cmd2
@@ -1893,14 +1899,14 @@ savesp   ld sp,0                                  ; self-modify: obnov původní
         add hl,de
         ld (delkaRadku),hl
 
-        ; znovu nastav $5D4B podle tabComp
+        ; znovu nastav $5D65 podle tabComp
         ld a,(cursorComp)
         ld e,a
         ld d,0
         ld hl,tabComp
         add hl,de
         ld a,(hl)
-        ld ($5d4B),a
+        ld ($5d65),a
         call spravneStranky
 
         ret
