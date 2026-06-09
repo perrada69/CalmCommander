@@ -79,6 +79,13 @@ if errorlevel 1 (
     echo *** KOPIROVANI BIN SELHALO ***
     exit /b 1
 )
+echo   [PUT] build\cc_xb.bin -^> CalmCommander/
+"%HDF%" rm "%IMG%" CalmCommander/cc_xb.bin 2>nul
+"%HDF%" put "%IMG%" build\cc_xb.bin CalmCommander/
+if errorlevel 1 (
+    echo *** KOPIROVANI XB SELHALO ***
+    exit /b 1
+)
 echo   [PUT] %BAS% -^> CalmCommander/
 "%HDF%" put "%IMG%" "%BAS%" CalmCommander/
 if errorlevel 1 (
@@ -124,9 +131,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-rem -- sjasmplus vytvari cc.bin a cc.bas v rootu, prekopirujem do build\ --
+rem -- sjasmplus vytvari cc.bin, cc.bas a cc_xb.bin v rootu, prekopirujem do build\ --
 if exist cc.bin copy /Y cc.bin "%BIN%" >nul
 if exist cc.bas copy /Y cc.bas "%BAS%" >nul
+if exist cc_xb.bin copy /Y cc_xb.bin "build\cc_xb.bin" >nul
 
 if not exist "%BIN%" (
     echo.

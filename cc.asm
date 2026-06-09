@@ -9,7 +9,9 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.7p" : ENDM
+            MACRO VERSION : defb "0.9" : ENDM
+
+            DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
@@ -226,7 +228,10 @@ xc
             call KOREKCE                          ; externí: nastaví počáteční souřadnice
 
             call dospage                          ; externí: přepnutí stránkování/ROM pro DOS funkce?
-            call createCfg                        ; externí: vytvoření/načtení CFG
+
+            call createCfg                        ; externí: vytvoření/načtení CFG (změní path na c:/sys)
+
+            ; cc_xb.bin je již v stránce 90 – načteno cc.bas (LOAD "cc_xb.bin" BANK 90,0)
 
                                                   ; inicializace “staré” hodnoty kolečka myši z portu $FADF (horní nibble)
             ld bc,$fadf
@@ -292,12 +297,15 @@ neskenuj
             call basicpage                        ; externí: přepnutí “basic” stránkování?
 
                                                   ; načti sprite grafiku “sipka” do sprite systému (externí LoadSprites)
+            nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
             ld hl,sipka
             ld bc,16*16*1
             ld a,0
             call LoadSprites                      ; externí
 
             call VSE_NASTAV                       ; externí: globální nastavení aplikace/GUI?
+            nextreg MMU7_E000_NR_57,1             ; obnov MMU7 na default po inicializaci
+
 
             
 
@@ -4101,8 +4109,6 @@ S3
         include "functions/menu.asm"
         include "functions/input.asm"
         include "functions/viewer.asm"
-tilemapFont_char24:
-        include "tilemap_font_8x6.i.asm"
 E3
         org 49152
 S2
@@ -6422,114 +6428,17 @@ snuly   ld a,(hl)
 
 
 ; ============================================================
-; help
-; Zobrazi help dialog a ceka na ESC/Break (INKEY==1).
+; help - trampoline do extra banky (EXTRA_BANK_PAGE)
 ; ============================================================
 help
-        call savescr
-        ld hl,8 * 256 + 4
-        ld bc,60 * 256 + 20
-        ld a,16
-        call window
-
-        ; postupně vypiš help texty
-        ld hl,11*256+5
-        ld a,16
-        ld de,help1
-        call print
-
-        ld hl,11*256+7
-        ld a,16
-        ld de,help2
-        call print
-
-        ld hl,11*256+8
-        ld a,16
-        ld de,help3
-        call print
-
-        ld hl,11*256+9
-        ld a,16
-        ld de,help4
-        call print
-
-        ld hl,11*256+10
-        ld a,16
-        ld de,help5
-        call print
-
-        ld hl,11*256+11
-        ld a,16
-        ld de,help6
-        call print
-
-        ld hl,11*256+12
-        ld a,16
-        ld de,help7
-        call print
-
-        ld hl,11*256+13
-        ld a,16
-        ld de,help8
-        call print
-
-        ld hl,11*256+14
-        ld a,16
-        ld de,help9
-        call print
-
-        ld hl,11*256+15
-        ld a,16
-        ld de,help10
-        call print
-
-        ld hl,11*256+16
-        ld a,16
-        ld de,help11
-        call print
-
-        ld hl,11*256+17
-        ld a,16
-        ld de,help12
-        call print
-
-        ld hl,11*256+18
-        ld a,16
-        ld de,help13
-        call print
-
-        ld hl,11*256+19
-        ld a,16
-        ld de,help14
-        call print
-
-        ld hl,11*256+20
-        ld a,16
-        ld de,help15
-        call print
-
-        ld hl,11*256+21
-        ld a,16
-        ld de,help16
-        call print
-
-        ld hl,11*256+22
-        ld a,16
-        ld de,help17
-        call print
-
-        ld hl,11*256+23
-        ld a,16
-        ld de,help18
-        call print
-
-help0
-        xor a
-        ld (TLACITKO),a
-        call INKEY
-        cp 1
-        jp z,infoend                                ; ESC/Break → konec helpu (obvykle loadscr uvnitř infoend)
-        jr help0
+        NEXTREG2A MMU7_E000_NR_57
+        push af
+        nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
+        call EXTRA_HELP
+        pop af
+        nextreg MMU7_E000_NR_57, a
+        call loadscr
+        jp loop0
 
 
 ; ============================================================
@@ -7442,7 +7351,6 @@ aKEY_NEW_NOWAIT
 
 
 sysvars 	defs 500
-sipka	incbin "sipka.spr"
 
 last:
 E2
@@ -7456,6 +7364,133 @@ E2
             DISPLAY "Volne misto v prvni casti:",/A,S3 - E1
             DISPLAY "Volne misto v druhe casti:",/A,S2 - E3
             DISPLAY "Volne misto v treti casti:",/A,57344 - E2
+
+; ============================================================
+; EXTRA BANKA - strana EXTRA_BANK_PAGE mapovana na $E000
+; Obsahuje: specialchar (font), sipka (sprite), help (kod+texty)
+; Nacita se z cc_xb.bin pri startu programu.
+; ============================================================
+            MMU 7, EXTRA_BANK_PAGE
+            ORG $E000
+
+; --- Font data (specialchar) - label je definovan uvnitr include na radku 1 ---
+            include "tilemap_font_8x6.i.asm"
+; specialchar2 je definovana uvnitr include
+
+; --- Sprite data (sipka) - nacita se pri startu ---
+sipka:
+            incbin "sipka.spr"
+
+; --- Help dialog ---
+EXTRA_HELP:
+            call savescr
+            ld hl,8 * 256 + 4
+            ld bc,60 * 256 + 20
+            ld a,16
+            call window
+            ld hl,11*256+5
+            ld a,16
+            ld de,help1
+            call print
+            ld hl,11*256+7
+            ld a,16
+            ld de,help2
+            call print
+            ld hl,11*256+8
+            ld a,16
+            ld de,help3
+            call print
+            ld hl,11*256+9
+            ld a,16
+            ld de,help4
+            call print
+            ld hl,11*256+10
+            ld a,16
+            ld de,help5
+            call print
+            ld hl,11*256+11
+            ld a,16
+            ld de,help6
+            call print
+            ld hl,11*256+12
+            ld a,16
+            ld de,help7
+            call print
+            ld hl,11*256+13
+            ld a,16
+            ld de,help8
+            call print
+            ld hl,11*256+14
+            ld a,16
+            ld de,help9
+            call print
+            ld hl,11*256+15
+            ld a,16
+            ld de,help10
+            call print
+            ld hl,11*256+16
+            ld a,16
+            ld de,help11
+            call print
+            ld hl,11*256+17
+            ld a,16
+            ld de,help12
+            call print
+            ld hl,11*256+18
+            ld a,16
+            ld de,help13
+            call print
+            ld hl,11*256+19
+            ld a,16
+            ld de,help14
+            call print
+            ld hl,11*256+20
+            ld a,16
+            ld de,help15
+            call print
+            ld hl,11*256+21
+            ld a,16
+            ld de,help16
+            call print
+            ld hl,11*256+22
+            ld a,16
+            ld de,help17
+            call print
+            ld hl,11*256+23
+            ld a,16
+            ld de,help18
+            call print
+.help0:
+            xor a
+            ld (TLACITKO),a
+            call INKEY
+            cp 1
+            ret z
+            jr .help0
+
+; --- Help texty ---
+help1       defb    "Controls:",0
+help2       defb    "1:          switch to left panel",0
+help3       defb    "2:          switch to right panel",0
+help4       defb    "3:          View file",0
+help5       defb    "CAPS+P:     Choose viewer plugin",0
+help6       defb    "5:          Copy files (directory is not not support",0
+help7       defb    "6:          Move files (directory is not not support",0
+help8       defb    "7:          Create directory",0
+help9       defb    "8:          Delete files/directory",0
+help10      defb    "9:          Rename files/directory",0
+help11      defb    "0:          Menu (items is not activ",0
+help12      defb    "+:          Search and select files/directory",0
+help13      defb    "-:          Search and deselect files/directory",0
+help14      defb    "BREAK:      Cancel operations (copy, move, delete, ",0
+help15      defb    "            close this window...)",0
+help16      defb    "CAPS+1      Change drive in left window",0
+help17      defb    "CAPS+2      Change drive in right window",0
+help18      defb    "SS+I:       Info about Calm Commander ",0
+
+EXTRA_BANK_END:
+            SAVEBIN "cc_xb.bin", $E000, EXTRA_BANK_END - $E000
+            DISPLAY "Velikost extra banky:",/A,EXTRA_BANK_END - $E000
 
               CSPECTMAP player.map
               ; savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
