@@ -39,6 +39,7 @@ VIEWTYPE_STP         equ 6
 VIEWTYPE_SQT         equ 7
 VIEWTYPE_NXI         equ 8
 VIEWTYPE_HELLO       equ 9
+VIEWTYPE_BAS         equ 10
 
 view_file
         call view_prepare_current_file
@@ -340,11 +341,11 @@ view_select_plugin
         ld hl,viewShortName
         ld de,ext_bas
         call pripony
-        jr z,.text
+        jr z,.bas_plugin
         ld hl,viewShortName
         ld de,ext_BAS
         call pripony
-        jr z,.text
+        jr z,.bas_plugin
         ld hl,viewShortName
         ld de,ext_cfg
         call pripony
@@ -369,6 +370,14 @@ view_select_plugin
         ld a,VIEWTYPE_TEXT
         ld (viewPluginType),a
         ld hl,viewTextPluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.bas_plugin
+        ld a,VIEWTYPE_BAS
+        ld (viewPluginType),a
+        ld hl,viewBasPluginName
         ld (viewPluginName),hl
         xor a
         ret
@@ -1679,7 +1688,7 @@ viewDataBanks        defb 40,42,43,44,45,46,47,48
 viewDataPages        defb 81,85,87,89,91,93,95,97
 
 VIEW_PLUGIN_MENU_VISIBLE equ 7
-VIEW_PLUGIN_MENU_COUNT equ 9
+VIEW_PLUGIN_MENU_COUNT equ 10
 VIEW_PLUGIN_MENU_LAST equ VIEW_PLUGIN_MENU_COUNT-1
 viewPluginMenuMouseArea defb 45,88,115,143
 viewPluginMenuTable
@@ -1692,6 +1701,7 @@ viewPluginMenuTable
         defb VIEWTYPE_STP : defw viewStpPluginName : defw viewPluginMenuStpTxt
         defb VIEWTYPE_SQT : defw viewSqtPluginName : defw viewPluginMenuSqtTxt
         defb VIEWTYPE_HELLO : defw viewHelloPluginName : defw viewPluginMenuHelloTxt
+        defb VIEWTYPE_BAS : defw viewBasPluginName : defw viewPluginMenuBasTxt
 
 viewPluginDir          defb "c:/CalmCommander/plugin",255
 viewTextPluginName     defb "text.ccp",255
@@ -1703,6 +1713,7 @@ viewStcPluginName      defb "stctest.ccp",255
 viewStpPluginName      defb "stptest.ccp",255
 viewSqtPluginName      defb "sqtest.ccp",255
 viewHelloPluginName    defb "HelloWord.ccp",255
+viewBasPluginName      defb "bas.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
 viewMusicAbcTxt        defb " ABC ",0
@@ -1721,6 +1732,7 @@ viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
 viewPluginMenuStpTxt   defb "STP player      stptest.ccp",0
 viewPluginMenuSqtTxt   defb "SQT player      sqtest.ccp",0
 viewPluginMenuHelloTxt defb "Hello demo     HelloWord.ccp",0
+viewPluginMenuBasTxt   defb "BAS viewer      bas.ccp",0
 viewPluginMenuBlankTxt defb "                            ",0
 
 viewErrorTitleTxt       defb "Viewer:",0

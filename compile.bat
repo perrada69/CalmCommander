@@ -61,6 +61,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/stptest.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/sqtest.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/HelloWord.ccp 2>nul
+"%HDF%" rm "%IMG%" %PLUG%/bas.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/asctest.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/TXT,ASM,BAS,CFG,INI_Text-Viewer.CCP 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/SCR_ZX-Screen.CCP 2>nul
@@ -102,6 +103,7 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\stptest.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\sqtest.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\HelloWord.ccp %PLUG%/
+"%HDF%" put "%IMG%" build\plugin\bas.ccp %PLUG%/
 
 echo.
 echo [OK] Soubory zkopirovany na SD kartu.
@@ -178,6 +180,10 @@ if exist plugin\sqtest.ccp ( copy /Y plugin\sqtest.ccp build\plugin\sqtest.ccp >
 "%SJASMPLUS%" plugin\HelloWord.asm
 if errorlevel 1 ( echo *** BUILD FAILED: HelloWord.asm *** & exit /b 1 )
 if exist plugin\HelloWord.ccp ( copy /Y plugin\HelloWord.ccp build\plugin\HelloWord.ccp >nul )
+
+"%SJASMPLUS%" plugin\bas.asm
+if errorlevel 1 ( echo *** BUILD FAILED: bas.asm *** & exit /b 1 )
+if exist plugin\bas.ccp ( copy /Y plugin\bas.ccp build\plugin\bas.ccp >nul )
 
 echo.
 echo [OK] Build hotov.
