@@ -40,6 +40,7 @@ VIEWTYPE_SQT         equ 7
 VIEWTYPE_NXI         equ 8
 VIEWTYPE_HELLO       equ 9
 VIEWTYPE_BAS         equ 10
+VIEWTYPE_TAP         equ 11
 
 view_file
         call view_prepare_current_file
@@ -325,45 +326,62 @@ view_select_plugin
         ld hl,viewShortName
         ld de,ext_txt
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_TXT
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_asm
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_ASM
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_bas
         call pripony
-        jr z,.bas_plugin
+        jp z,.bas_plugin
         ld hl,viewShortName
         ld de,ext_BAS
         call pripony
-        jr z,.bas_plugin
+        jp z,.bas_plugin
         ld hl,viewShortName
         ld de,ext_cfg
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_CFG
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_ini
         call pripony
-        jr z,.text
+        jp z,.text
         ld hl,viewShortName
         ld de,ext_INI
         call pripony
-        jr z,.text
+        jp z,.text
+
+        ld hl,viewShortName
+        ld de,ext_tap
+        call pripony
+        jp z,.tap_plugin
+        ld hl,viewShortName
+        ld de,ext_TAP
+        call pripony
+        jp z,.tap_plugin
 
         scf
+        ret
+
+.tap_plugin
+        ld a,VIEWTYPE_TAP
+        ld (viewPluginType),a
+        ld hl,viewTapPluginName
+        ld (viewPluginName),hl
+        xor a
         ret
 
 .text
@@ -1714,6 +1732,7 @@ viewStpPluginName      defb "stptest.ccp",255
 viewSqtPluginName      defb "sqtest.ccp",255
 viewHelloPluginName    defb "HelloWord.ccp",255
 viewBasPluginName      defb "bas.ccp",255
+viewTapPluginName      defb "tap.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
 viewMusicAbcTxt        defb " ABC ",0
