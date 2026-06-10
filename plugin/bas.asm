@@ -61,14 +61,16 @@ plugin_start
 .line_down
         call move_visual_down             ; move by one visible screen row
         jr z,.input
+        call prepare_bottom_after_down    ; fast if cache valid, resync after line_up/page render
         call scroll_up
-        call render_bottom_line           ; redraw only the new bottom row
+        call render_cached_bottom_line    ; redraw only the new bottom row
         call render_status
         jp .input
 
 .line_up
         call move_visual_up               ; move by one visible screen row
         jr z,.input
+        call invalidate_bottom_cache      ; do not scan 26 rows while moving up
         call scroll_down
         call render_top_line              ; redraw only the new top row
         call render_status
@@ -226,7 +228,12 @@ render_page
         xor a
         ld (textRow),a
         call render_status
-        ld de,TEXT_TOP                  ; reload: render_status clobbers de
+        call cache_bottom_from_current  ; cache visual row at bottom of viewport
+        ld hl,(curOffset)               ; cache scan clobbers renderOffset/renderWrap
+        ld (renderOffset),hl
+        ld a,(curWrap)
+        ld (renderWrap),a
+        ld de,TEXT_TOP                  ; reload: render_status/cache clobber de
 .loop
         ld a,(textRow)
         cp TEXT_ROWS
@@ -604,6 +611,13 @@ render_top_line
 
 
 render_bottom_line
+        call cache_bottom_from_current
+        call render_cached_bottom_line
+        ret
+
+
+; recompute cached bottom visual row from current top of viewport
+cache_bottom_from_current
         ld hl,(curOffset)
         ld (scanOffset),hl
         ld a,(curWrap)
@@ -615,8 +629,50 @@ render_bottom_line
         pop bc
         djnz .scan
         ld hl,(scanOffset)
-        ld (renderOffset),hl
+        ld (bottomOffset),hl
         ld a,(scanWrap)
+        ld (bottomWrap),a
+        ld a,1
+        ld (bottomCacheValid),a
+        ret
+
+
+; mark cached bottom row stale; used by fast line_up to avoid a full-page scan
+invalidate_bottom_cache
+        xor a
+        ld (bottomCacheValid),a
+        ret
+
+
+; after moving the top down, either advance cached bottom by one row,
+; or rebuild it if previous upward movement made it stale
+prepare_bottom_after_down
+        ld a,(bottomCacheValid)
+        or a
+        jp nz,advance_bottom_cache
+        jp cache_bottom_from_current
+
+
+; advance cached bottom visual row by one row; used by fast line_down
+advance_bottom_cache
+        ld hl,(bottomOffset)
+        ld (scanOffset),hl
+        ld a,(bottomWrap)
+        ld (scanWrap),a
+        call move_scan_visual_down
+        ld hl,(scanOffset)
+        ld (bottomOffset),hl
+        ld a,(scanWrap)
+        ld (bottomWrap),a
+        ld a,1
+        ld (bottomCacheValid),a
+        ret
+
+
+render_cached_bottom_line
+        ld hl,(bottomOffset)
+        ld (renderOffset),hl
+        ld a,(bottomWrap)
         ld (renderWrap),a
         ld de,TEXT_TOP+160*(TEXT_ROWS-1)
         ld hl,(renderOffset)
@@ -1022,6 +1078,9 @@ curLine         defw 0
 curWrap         defb 0
 renderWrap      defb 0
 scanWrap        defb 0
+bottomOffset    defw 0
+bottomWrap      defb 0
+bottomCacheValid defb 0
 skipRows        defb 0
 rowDone         defb 0
 lineRows        defb 0
