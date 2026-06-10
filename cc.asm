@@ -4387,10 +4387,9 @@ VSE_NASTAV
         ld      a,(hl)
         inc     hl
         nextreg PALETTE_VALUE_9BIT_NR_44,a
-
+        dec bc
         ld a,b
         or c
-        dec bc
         jr nz,.setPalLoop
         ld hl,$4000
         ld de,$4001
@@ -4501,6 +4500,21 @@ tilemapPalette:
                 db  %000'000'00,0                 ; 0 cerne pozadi				192 - BAS plugin: barva REM komentaru
                 ds 4
                 db  %000'111'11,1                 ; 3 cyan ink (R=0,G=7,B=7)
+                ds 24
+
+                db  %000'000'00,0                 ; 0 cerne pozadi				208 - VU metr: zelena
+                ds 4
+                db  %000'111'00,0                 ; 3 green ink (R=0,G=7,B=0)
+                ds 24
+
+                db  %000'000'00,0                 ; 0 cerne pozadi				224 - VU metr: zluta
+                ds 4
+                db  %111'111'00,0                 ; 3 yellow ink (R=7,G=7,B=0)
+                ds 24
+
+                db  %000'000'00,0                 ; 0 cerne pozadi				240 - VU metr: cervena
+                ds 4
+                db  %111'000'00,0                 ; 3 red ink (R=7,G=0,B=0)
                 ds 24
 
 

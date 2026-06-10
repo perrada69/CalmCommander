@@ -3,7 +3,12 @@
 
         include "plugin_api.i.asm"
 
-PT3_LINEAR_ADDR equ $4000
+PT3_LINEAR_ADDR   equ $4000
+METER_CHAR        equ 28
+METER_ATTR_NORM   equ 16
+METER_ATTR_GREEN  equ 208
+METER_ATTR_YELLOW equ 224
+METER_ATTR_RED    equ 240
 PT3_STACK       equ $DFFE
 INPUT_ARM_FRAMES equ 25
 
@@ -369,34 +374,60 @@ show_volume_meters
 
 
 print_meter
+        ; A = volume (0-30), HL = col*256+row
         ld b,a
-        ld de,meterBuffer
-        ld a,"["
-        ld (de),a
-        inc de
-        ld c,30
+        ld d,l
+        ld e,160
+        mul d,e
+        ld a,h
+        add a,a
+        ld l,a
+        ld h,0
+        add hl,de
+        ld de,$4000
+        add hl,de
+        ld (hl),'['
+        inc hl
+        ld (hl),METER_ATTR_NORM
+        inc hl
+        ld c,1
 .loop
         ld a,b
         or a
-        jr z,.space
-        ld a,"#"
+        jr z,.dot
+        ld (hl),METER_CHAR
+        inc hl
+        ld a,c
+        cp 21
+        jr nc,.red
+        cp 11
+        jr nc,.yellow
+        ld a,METER_ATTR_GREEN
+        jr .write_attr
+.yellow
+        ld a,METER_ATTR_YELLOW
+        jr .write_attr
+.red
+        ld a,METER_ATTR_RED
+.write_attr
+        ld (hl),a
+        inc hl
         dec b
-        jr .store
-.space
-        ld a,"."
-.store
-        ld (de),a
-        inc de
-        dec c
+        jr .next
+.dot
+        ld (hl),'.'
+        inc hl
+        ld (hl),METER_ATTR_NORM
+        inc hl
+.next
+        inc c
+        ld a,c
+        cp 31
         jr nz,.loop
-        ld a,"]"
-        ld (de),a
-        inc de
-        xor a
-        ld (de),a
-        ld de,meterBuffer
-        ld a,16
-        jp call_print
+        ld (hl),']'
+        inc hl
+        ld (hl),METER_ATTR_NORM
+        ret
 
 
 print_de_at_2_1
@@ -497,7 +528,6 @@ controlsText defb "ENTER stop",0
 nextText     defb "SPACE next",0
 pt3Title     defs 31
 pt3Author    defs 31
-meterBuffer  defs 33
 
         include "ptx_vtpl.i.asm"
 
