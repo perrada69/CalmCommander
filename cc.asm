@@ -4479,7 +4479,7 @@ tilemapPalette:
                 db  %000'100'00,0                 ; 6 green
                 ds 18
 
-                db  %111'000'00,0                 ; 0 modra (paper)					144 - 
+                db  %111'000'00,0                 ; 0 modra (paper)					144 -
                 db  %100'111'00,1                 ; 1 light grey (25% ink)
                 db  %010'010'01,1                 ; 2 dark grey (75% ink)
                 db  %101'101'11,0                 ; 0 white-blueish (ink)
@@ -4487,6 +4487,21 @@ tilemapPalette:
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'110'00,0                 ; 6 green
                 ds 18
+
+                db  %000'000'00,0                 ; 0 cerne pozadi				160 - BAS plugin: barva klicovych slov
+                ds 4                              ; 1-2 (nezajima)
+                db  %111'111'00,0                 ; 3 zluta ink (R=7,G=7,B=0)
+                ds 24                             ; 4-15 (nezajima)
+
+                db  %000'000'00,0                 ; 0 cerne pozadi				176 - BAS plugin: barva cisel radku
+                ds 4
+                db  %000'111'00,0                 ; 3 zelena ink (R=0,G=7,B=0)
+                ds 24
+
+                db  %000'000'00,0                 ; 0 cerne pozadi				192 - BAS plugin: barva REM komentaru
+                ds 4
+                db  %000'111'11,1                 ; 3 cyan ink (R=0,G=7,B=7)
+                ds 24
 
 
 tilemapPalette_SZ:  EQU $ - tilemapPalette

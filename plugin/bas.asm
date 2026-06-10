@@ -12,6 +12,13 @@ TEXT_ROW_SKIP   equ 160-TEXT_LINE_BYTES
 STATUS_LINE     equ SCREEN_BASE+160*31
 STATUS_INNER    equ STATUS_LINE+2
 
+ATTR_NORMAL     equ 16
+ATTR_KEYWORD    equ 160     ; group 10: black bg (160), yellow ink (163) in tilemapPalette
+ATTR_LINENUM    equ 176     ; group 11: black bg (176), green ink (179)
+ATTR_COMMENT    equ 192     ; group 12: black bg (192), cyan ink (195)
+
+TOKEN_REM       equ $EA-$81         ; REM token index (0-based from $81)
+
 plugin_start
         ld (ctxPtr),hl
         ld (svcPtr),de
@@ -52,18 +59,18 @@ plugin_start
         jp .input
 
 .line_down
-        call move_line_down
+        call move_visual_down             ; move by one visible screen row
         jr z,.input
         call scroll_up
-        call render_bottom_line
+        call render_bottom_line           ; redraw only the new bottom row
         call render_status
         jp .input
 
 .line_up
-        call move_line_up
+        call move_visual_up               ; move by one visible screen row
         jr z,.input
         call scroll_down
-        call render_top_line
+        call render_top_line              ; redraw only the new top row
         call render_status
         jp .input
 
@@ -71,7 +78,7 @@ plugin_start
         ld b,TEXT_ROWS
 .pd
         push bc
-        call move_line_down
+        call move_visual_down
         pop bc
         jr z,.pd_done
         djnz .pd
@@ -83,7 +90,7 @@ plugin_start
         ld b,TEXT_ROWS
 .pu
         push bc
-        call move_line_up
+        call move_visual_up
         pop bc
         jr z,.pu_done
         djnz .pu
@@ -116,6 +123,8 @@ init_context
         ld (curOffset),hl
         ld hl,0
         ld (curLine),hl
+        xor a
+        ld (curWrap),a
         call count_lines
         ret
 
@@ -130,12 +139,19 @@ detect_plus3dos
         ld hl,5    : call read_byte_at_offset : cp 'D' : jr nz,.raw
         ld hl,6    : call read_byte_at_offset : cp 'O' : jr nz,.raw
         ld hl,7    : call read_byte_at_offset : cp 'S' : jr nz,.raw
+        ; +3DOS confirmed: read param2 (bytes 20-21 LE) = PROG area length (without VARS)
+        ld hl,20   : call read_byte_at_offset : ld e,a
+        ld hl,21   : call read_byte_at_offset : ld d,a
         ld hl,128
         ld (basStart),hl
+        add hl,de                       ; basEnd = 128 + prog_length
+        ld (basEnd),hl
         ret
 .raw
         ld hl,0
         ld (basStart),hl
+        ld hl,(loadedSize)
+        ld (basEnd),hl
         ret
 
 
@@ -148,36 +164,55 @@ count_lines
         ld hl,(scanOffset)
         call offset_at_end
         jr nc,.done
+        push hl                         ; save old scanOffset
         call skip_bas_line
+        pop de                          ; DE = old scanOffset
+        ld hl,(scanOffset)              ; HL = new scanOffset
+        or a
+        sbc hl,de
+        jr z,.set_end                   ; no advance = stuck in VARS → stop
         ld hl,(totalLines)
         inc hl
         ld (totalLines),hl
         jr .loop
+.set_end
+        ex de,hl                        ; HL = stuck scanOffset = end of BASIC
+        ld (basEnd),hl                  ; update basEnd for raw BASIC files
 .done
         ret
 
 
 ; advance scanOffset past one BASIC line
 ; line: [line_hi][line_lo][len_lo][len_hi][content+$0D (len bytes total)]
+; validates that the last byte of content is $0D; if not, does NOT advance
 skip_bas_line
         ld hl,(scanOffset)
         call offset_at_end
         ret nc
-        push hl                         ; save scanOffset value
+        push hl                         ; save scanOffset
         inc hl
-        inc hl                          ; hl = scanOffset+2 = len_lo position
-        call read_byte_at_offset        ; A = len_lo
+        inc hl                          ; hl = scanOffset+2 = len_lo
+        call read_byte_at_offset
         ld e,a
         ld hl,(scanOffset)
         inc hl
         inc hl
-        inc hl                          ; hl = scanOffset+3 = len_hi position
-        call read_byte_at_offset        ; A = len_hi
-        ld d,a
+        inc hl                          ; hl = scanOffset+3 = len_hi
+        call read_byte_at_offset
+        ld d,a                          ; DE = len
         pop hl                          ; hl = scanOffset
+        ld a,d
+        or e
+        ret z                           ; len=0: invalid, don't advance
         ld bc,4
         add hl,bc
-        add hl,de                       ; hl = scanOffset + 4 + len
+        add hl,de                       ; hl = scanOffset + 4 + len (next line)
+        push hl                         ; save next-line offset
+        dec hl                          ; hl = position of $0D terminator
+        call read_byte_at_offset        ; A = last byte of line content
+        pop hl
+        cp $0D
+        ret nz                          ; not $0D: not a valid BASIC line, don't advance
         ld (scanOffset),hl
         ret
 
@@ -186,7 +221,8 @@ render_page
         call clear_text_area
         ld hl,(curOffset)
         ld (renderOffset),hl
-        ld de,TEXT_TOP
+        ld a,(curWrap)
+        ld (renderWrap),a
         xor a
         ld (textRow),a
         call render_status
@@ -199,30 +235,42 @@ render_page
         call offset_at_end
         ret nc
         push de
-        call render_bas_line            ; de = screen row addr, renderOffset = data
+        call render_bas_visual_line     ; draw one physical screen row
         pop de
         ld hl,160
         add hl,de
         ex de,hl                        ; de = next screen row
         ld hl,textRow
         inc (hl)
+
+        ; advance renderOffset/renderWrap by one visible row
         ld hl,(renderOffset)
         ld (scanOffset),hl
+        ld a,(renderWrap)
+        ld (scanWrap),a
         push de
-        call skip_bas_line              ; skip_bas_line clobbers de via d,e
+        call move_scan_visual_down
         pop de
         ld hl,(scanOffset)
         ld (renderOffset),hl
+        ld a,(scanWrap)
+        ld (renderWrap),a
         jr .loop
 
 
-; render one BASIC line: data from renderOffset, screen at de
-render_bas_line
+; render one visible/wrapped screen row of a BASIC line
+; input: renderOffset = BASIC line offset, renderWrap = visible row index, DE = screen row
+render_bas_visual_line
         ld (lineStart),de
         xor a
         ld (textCol),a
+        ld (rowDone),a
+        ld (inRem),a                    ; clear REM flag for each new line parse
+        ld a,(renderWrap)
+        ld (skipRows),a
         call clear_screen_line
         ld de,(lineStart)
+
         ; read big-endian line number into HL
         ld hl,(renderOffset)
         call read_byte_at_offset
@@ -235,23 +283,32 @@ render_bas_line
         push de
         call make_decimal               ; fills numBuf, clobbers de
         pop de
-        call print_numBuf               ; print numBuf chars via de
-        ld a,(textCol)
-        cp TEXT_COLS
-        ret nc
+
+        ld a,ATTR_LINENUM
+        ld (curAttr),a                  ; green for line numbers
+        call emit_numBuf_wrapped
+        ld a,(rowDone)
+        or a
+        ret nz
+
         ld a," "
-        call put_char
-        ld hl,textCol
-        inc (hl)
+        call emit_wrapped_char
+        ld a,(rowDone)
+        or a
+        ret nz
+
+        ld a,ATTR_NORMAL
+        ld (curAttr),a                  ; back to normal after line number
+
         ; content starts at renderOffset+4
         ld hl,(renderOffset)
         ld bc,4
         add hl,bc
         ld (contentOffset),hl
 .loop
-        ld a,(textCol)
-        cp TEXT_COLS
-        ret nc
+        ld a,(rowDone)
+        or a
+        ret nz
         ld hl,(contentOffset)
         call offset_at_end
         ret nc
@@ -267,9 +324,7 @@ render_bas_line
         jr nc,.keyword
         cp $20
         jr c,.loop                      ; skip control codes below space
-        call put_char
-        ld hl,textCol
-        inc (hl)
+        call emit_wrapped_char
         jr .loop
 .skip_float
         ; $0E is a number marker; 5-byte ZX float follows — skip it
@@ -280,20 +335,107 @@ render_bas_line
         jr .loop
 .keyword
         sub $81                         ; convert token to 0-based index
-        call print_token
-        ld a,(textCol)
-        cp TEXT_COLS
-        jr nc,.loop
+        ld c,a                          ; save index for REM check
+        ld a,ATTR_KEYWORD
+        ld (curAttr),a
+        ld a,c
+        call emit_token_wrapped
+        ld a,(rowDone)
+        or a
+        ret nz
+
         ld a,' '
-        call put_char
-        ld hl,textCol
-        inc (hl)
+        call emit_wrapped_char          ; keep the same spacing as old renderer
+        ld a,(rowDone)
+        or a
+        ret nz
+
+        ld a,c
+        cp TOKEN_REM
+        jr z,.kw_is_rem
+        ld a,(inRem)
+        or a
+        jr nz,.kw_in_rem
+        ld a,ATTR_NORMAL
+        ld (curAttr),a
+        jr .loop
+.kw_is_rem
+        ld a,1
+        ld (inRem),a
+.kw_in_rem
+        ld a,ATTR_COMMENT
+        ld (curAttr),a
         jr .loop
 
 
-; print zero-terminated token string by 0-based index in A
-; uses DE (tilemap write pointer) and (textCol)
-print_token
+; A = char. Emits only when current wrapped row is visible.
+emit_wrapped_char
+        push af
+        ld a,(rowDone)
+        or a
+        jr nz,.drop
+
+        ld a,(textCol)
+        cp TEXT_COLS
+        jr c,.check_skip
+
+        xor a
+        ld (textCol),a
+        ld a,(skipRows)
+        or a
+        jr z,.visible_done
+        dec a
+        ld (skipRows),a
+
+.check_skip
+        ld a,(skipRows)
+        or a
+        jr nz,.skip_only
+
+        pop af
+        call put_char
+        ld hl,textCol
+        inc (hl)
+        ld a,(textCol)
+        cp TEXT_COLS
+        ret c
+        ld a,1
+        ld (rowDone),a
+        ret
+
+.skip_only
+        ld hl,textCol
+        inc (hl)
+.drop
+        pop af
+        ret
+
+.visible_done
+        ld a,1
+        ld (rowDone),a
+        pop af
+        ret
+
+
+; emit zero-terminated decimal buffer through the wrapped renderer
+emit_numBuf_wrapped
+        ld hl,numBuf
+.loop
+        ld a,(hl)
+        or a
+        ret z
+        push hl
+        call emit_wrapped_char
+        pop hl
+        ld a,(rowDone)
+        or a
+        ret nz
+        inc hl
+        jr .loop
+
+
+; emit zero-terminated token string by 0-based index in A through the wrapped renderer
+emit_token_wrapped
         ld b,a
         ld hl,tokenTable
         or a
@@ -309,34 +451,106 @@ print_token
         or a
         ret z
         push hl
-        call put_char
-        ld hl,textCol
-        inc (hl)
-        ld a,(textCol)
+        call emit_wrapped_char
         pop hl
+        ld a,(rowDone)
+        or a
+        ret nz
         inc hl
-        cp TEXT_COLS
-        ret nc
         jr .print
 
 
-; print zero-terminated string from numBuf to tilemap at DE
-print_numBuf
-        ld hl,numBuf
+; input: renderOffset = BASIC line offset
+; output: A = number of visible screen rows occupied by this BASIC line, minimum 1
+get_bas_line_rows
+        xor a
+        ld (textCol),a
+        ld a,1
+        ld (lineRows),a
+
+        ; line number is printed as fixed-width numBuf: 5 chars
+        ld b,5
+.num
+        push bc
+        call count_visual_char
+        pop bc
+        djnz .num
+
+        ; one space after line number
+        call count_visual_char
+
+        ld hl,(renderOffset)
+        ld bc,4
+        add hl,bc
+        ld (contentOffset),hl
 .loop
+        ld hl,(contentOffset)
+        call offset_at_end
+        jr nc,.done
+        call read_byte_at_offset
+        ld hl,(contentOffset)
+        inc hl
+        ld (contentOffset),hl
+        cp $0D
+        jr z,.done
+        cp $0E
+        jr z,.skip_float
+        cp $81
+        jr nc,.keyword
+        cp $20
+        jr c,.loop
+        call count_visual_char
+        jr .loop
+.skip_float
+        ld hl,(contentOffset)
+        ld bc,5
+        add hl,bc
+        ld (contentOffset),hl
+        jr .loop
+.keyword
+        sub $81
+        call count_token_chars
+        call count_visual_char          ; one space after token
+        jr .loop
+.done
+        ld a,(lineRows)
+        ret
+
+
+count_visual_char
+        ld a,(textCol)
+        cp TEXT_COLS
+        jr c,.inc_col
+        xor a
+        ld (textCol),a
+        ld hl,lineRows
+        inc (hl)
+.inc_col
+        ld hl,textCol
+        inc (hl)
+        ret
+
+
+count_token_chars
+        ld b,a
+        ld hl,tokenTable
+        or a
+        jr z,.count
+.skip
+        ld a,(hl)
+        inc hl
+        or a
+        jr nz,.skip
+        djnz .skip
+.count
         ld a,(hl)
         or a
         ret z
         push hl
-        call put_char
-        ld hl,textCol
-        inc (hl)
-        ld a,(textCol)
+        call count_visual_char
         pop hl
         inc hl
-        cp TEXT_COLS
-        ret nc
-        jr .loop
+        jr .count
 
 
 scroll_up
@@ -382,31 +596,123 @@ scroll_down
 render_top_line
         ld hl,(curOffset)
         ld (renderOffset),hl
+        ld a,(curWrap)
+        ld (renderWrap),a
         ld de,TEXT_TOP
-        call render_bas_line
+        call render_bas_visual_line
         ret
 
 
 render_bottom_line
         ld hl,(curOffset)
         ld (scanOffset),hl
+        ld a,(curWrap)
+        ld (scanWrap),a
         ld b,TEXT_ROWS-1
 .scan
         push bc
-        call skip_bas_line
+        call move_scan_visual_down
         pop bc
         djnz .scan
         ld hl,(scanOffset)
         ld (renderOffset),hl
+        ld a,(scanWrap)
+        ld (renderWrap),a
         ld de,TEXT_TOP+160*(TEXT_ROWS-1)
         ld hl,(renderOffset)
         call offset_at_end
         jr nc,.blank
-        call render_bas_line
+        call render_bas_visual_line
         ret
 .blank
         ld (lineStart),de
         call clear_screen_line
+        ret
+
+
+; advance scanOffset/scanWrap by one visible screen row
+move_scan_visual_down
+        ld hl,(scanOffset)
+        call offset_at_end
+        ret nc
+        ld hl,(scanOffset)
+        ld (renderOffset),hl
+        call get_bas_line_rows
+        ld (lineRows),a
+        ld a,(scanWrap)
+        inc a
+        ld b,a
+        ld a,(lineRows)
+        cp b
+        jr z,.next_basic
+        jr c,.next_basic
+        ld a,b
+        ld (scanWrap),a
+        ret
+.next_basic
+        call skip_bas_line
+        xor a
+        ld (scanWrap),a
+        ret
+
+
+; returns NZ if moved, Z if already at end
+move_visual_down
+        ld hl,(curOffset)
+        call offset_at_end
+        jr nc,.no_move
+        ld hl,(curOffset)
+        ld (renderOffset),hl
+        call get_bas_line_rows
+        ld (lineRows),a
+        ld a,(curWrap)
+        inc a
+        ld b,a
+        ld a,(lineRows)
+        cp b
+        jr z,.next_basic
+        jr c,.next_basic
+        ld a,b
+        ld (curWrap),a
+        xor a
+        inc a
+        ret
+.next_basic
+        call move_line_down
+        jr z,.no_move
+        xor a
+        ld (curWrap),a
+        xor a
+        inc a
+        ret
+.no_move
+        xor a
+        ret
+
+
+; returns NZ if moved, Z if already at beginning
+move_visual_up
+        ld a,(curWrap)
+        or a
+        jr z,.prev_basic
+        dec a
+        ld (curWrap),a
+        xor a
+        inc a
+        ret
+.prev_basic
+        call move_line_up
+        jr z,.no_move
+        ld hl,(curOffset)
+        ld (renderOffset),hl
+        call get_bas_line_rows
+        dec a
+        ld (curWrap),a
+        xor a
+        inc a
+        ret
+.no_move
+        xor a
         ret
 
 
@@ -446,11 +752,13 @@ move_line_up
         dec hl                          ; hl = target line index
         ld a,h
         or l
-        jr z,.done                      ; target is line 0; scanOffset already 0
+        jr z,.done                      ; target is line 0; scanOffset already basStart
         ld b,h
         ld c,l
 .scan
+        push bc                         ; skip_bas_line uses BC internally
         call skip_bas_line
+        pop bc
         dec bc
         ld a,b
         or c
@@ -507,7 +815,7 @@ clear_screen_line
 put_char
         ld (de),a
         inc de
-        ld a,16
+        ld a,(curAttr)
         ld (de),a
         inc de
         ret
@@ -663,7 +971,7 @@ read_byte_at_offset
 offset_at_end
         push de
         push hl
-        ld de,(loadedSize)
+        ld de,(basEnd)
         or a
         sbc hl,de
         pop hl
@@ -706,16 +1014,25 @@ dataPagesPtr    defw 0
 loadedSize      defw 0
 curOffset       defw 0
 basStart        defw 0
+basEnd          defw 0
 renderOffset    defw 0
 scanOffset      defw 0
 contentOffset   defw 0
 curLine         defw 0
+curWrap         defb 0
+renderWrap      defb 0
+scanWrap        defb 0
+skipRows        defb 0
+rowDone         defb 0
+lineRows        defb 0
 totalLines      defw 0
 lineStart       defw 0
 textCol         defb 0
 textRow         defb 0
 pageCount       defb 0
 tmpMappedH      defb 0
+curAttr         defb ATTR_NORMAL
+inRem           defb 0
 numBuf          defs 6
 title           defb "BASIC:",0
 lineLabel       defb "Line:",0
