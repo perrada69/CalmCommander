@@ -302,67 +302,165 @@ do_extract_one
 
 do_extract_all
         xor a
-        call set_all_index
+        ld (bulkIdx),a
+        ld hl,0
+        ld (bulkPtr),hl
 .loop
-        call get_all_index
+        ld hl,(bulkPtr)
+        ld de,(loadedSize)
+        or a
+        sbc hl,de
+        jp nc,.all_ok
+
+        ld a,(bulkIdx)
         ld b,a
         ld a,(totalBlocks)
         cp b
-        jr z,.all_ok
+        jp z,.all_ok
+        jp c,.all_ok
 
-        call get_all_index
-        call is_standard_header
-        jr z,.export_header
+        ld a,(bulkIdx)
+        ld (extractEntry),a
+        ld (payloadEntry),a
 
-        call get_all_index
-        call get_immediate_parent
-        cp 255
-        jr nz,.next_entry         ; DATA already exported by its header
+        ld hl,(bulkPtr)
+        call read_byte_at_offset
+        ld (tmpBlockLen),a
+        ld hl,(bulkPtr)
+        inc hl
+        call read_byte_at_offset
+        ld (tmpBlockLen+1),a
+        ld hl,(tmpBlockLen)
+        ld a,h
+        or l
+        jp z,.all_ok
 
-.export_this
-        call get_all_index
-        ld b,a
+        ld hl,(bulkPtr)
+        inc hl
+        inc hl
+        call read_byte_at_offset
+        ld (tmpBlockFlag),a
+
+        ld hl,(bulkPtr)
+        ld de,(tmpBlockLen)
+        add hl,de
+        inc hl
+        inc hl
+        ld (bulkNextPtr),hl
+
+        ld a,(tmpBlockFlag)
+        or a
+        jr nz,.raw_block
+        ld hl,(tmpBlockLen)
+        ld de,19
+        or a
+        sbc hl,de
+        jr nz,.raw_block
+        jr .header_block
+
+.raw_block
+        ld a,(bulkIdx)
+        ld (extractEntry),a
+        ld (payloadEntry),a
+        call build_blk_name
+        ld hl,(bulkPtr)
+        inc hl
+        inc hl
+        inc hl
+        ld (extractOff),hl
+        ld hl,(tmpBlockLen)
+        dec hl
+        dec hl
+        ld (extractCnt),hl
+        ld hl,(bulkNextPtr)
+        push hl
+        ld a,(bulkIdx)
         inc a
-        push af                    ; next entry after this export
-        ld a,b
-        call do_extract
-        pop bc
-        ld a,b
-        call set_all_index
+        push af
+        call do_extract_prepared
+        pop af
+        ld (bulkIdx),a
+        pop hl
+        ld (bulkPtr),hl
         ld a,(extractStatus)
         or a
-        jr nz,.all_fail
-        jr .loop
+        jp nz,.all_fail
+        jp .loop
 
-.export_header
-        call get_all_index
-        call get_header_data_entry
-        cp 255
-        jr z,.next_entry
-        call get_all_index
+.header_block
+        ld a,(bulkIdx)
+        ld (nameSourceEntry),a
+        call build_name_from_source
+
+        ld a,(bulkIdx)
+        inc a
         ld b,a
+        ld a,(totalBlocks)
+        cp b
+        jp z,.skip_header
+        jp c,.skip_header
+
+        ld hl,(bulkNextPtr)
+        call read_byte_at_offset
+        ld (tmpBlockLen),a
+        ld hl,(bulkNextPtr)
+        inc hl
+        call read_byte_at_offset
+        ld (tmpBlockLen+1),a
+        ld hl,(tmpBlockLen)
+        ld a,h
+        or l
+        jp z,.skip_header
+
+        ld hl,(bulkNextPtr)
+        inc hl
+        inc hl
+        call read_byte_at_offset
+        or a
+        jp z,.skip_header
+
+        ld a,(bulkIdx)
+        inc a
+        ld (payloadEntry),a
+        ld hl,(bulkNextPtr)
+        inc hl
+        inc hl
+        inc hl
+        ld (extractOff),hl
+        ld hl,(tmpBlockLen)
+        dec hl
+        dec hl
+        ld (extractCnt),hl
+
+        ld hl,(bulkNextPtr)
+        ld de,(tmpBlockLen)
+        add hl,de
+        inc hl
+        inc hl
+        push hl
+        ld a,(bulkIdx)
         inc a
         inc a
-        push af                    ; skip header + paired DATA block
-        ld a,b
-        call do_extract
-        pop bc
-        ld a,b
-        call set_all_index
+        push af
+        call do_extract_prepared
+        pop af
+        ld (bulkIdx),a
+        pop hl
+        ld (bulkPtr),hl
         ld a,(extractStatus)
         or a
-        jr nz,.all_fail
-        jr .loop
+        jp nz,.all_fail
+        jp .loop
 
-.next_entry
-        call get_all_index
+.skip_header
+        ld hl,(bulkNextPtr)
+        ld (bulkPtr),hl
+        ld a,(bulkIdx)
         inc a
-        call set_all_index
-        jr .loop
+        ld (bulkIdx),a
+        jp .loop
 
 .all_ok
-        xor a
-        call set_all_index
         call clear_debug_area
         ld de,strExportAllOK
         ld hl,42*256+CONTENT_ROW
@@ -378,16 +476,6 @@ do_extract_all
         ld hl,42*256+CONTENT_ROW
         ld a,ATTR_CODE
         call call_print
-        ret
-
-
-get_all_index
-        ld a,(allEntry)
-        ret
-
-
-set_all_index
-        ld (allEntry),a
         ret
 
 
@@ -1571,7 +1659,9 @@ tmpRangeStart   defw 0
 extractHeaderType defb 0
 extractNamePtr  defw 0
 extractStatus   defb 0
-allEntry        defb 0
+bulkIdx         defb 0
+bulkPtr         defw 0
+bulkNextPtr     defw 0
 scanIndex       defb 0
 lastHeader      defb 0
 parentCandidate defb 0
