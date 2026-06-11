@@ -59,6 +59,7 @@ plugin_start
         call render_col_header
         call render_help
         call render_page
+        call render_name_preview
 
 .input
         call call_input
@@ -92,6 +93,7 @@ plugin_start
         ld a,(curEntry)
         inc a
         ld (curEntry),a
+        call set_selected_entry
         ; scroll if new curEntry >= topEntry + CONTENT_ROWS
         ld b,a
         ld a,(topEntry)
@@ -109,6 +111,7 @@ plugin_start
         jp z,.input     ; already at first
         dec a
         ld (curEntry),a
+        call set_selected_entry
         ; scroll if new curEntry < topEntry
         ld b,a
         ld a,(topEntry)
@@ -134,10 +137,12 @@ plugin_start
         cp b
         jp nc,.pgdn_cap
         ld (curEntry),a
+        call set_selected_entry
         jp .pgdn_top
 .pgdn_cap
         ld a,b
         ld (curEntry),a
+        call set_selected_entry
 .pgdn_top
         ld a,(curEntry)
         sub CONTENT_ROWS-1
@@ -157,10 +162,12 @@ plugin_start
         xor a
 .pgup_set
         ld (curEntry),a
+        call set_selected_entry
         ld (topEntry),a
 
 .do_render
         call render_page
+        call render_name_preview
         ; wait for key release before accepting next input
 .wait_release
         call call_input
@@ -171,8 +178,7 @@ plugin_start
 
 ; ---- extract ('E' key) ----
 .extract
-        ld a,(curEntry)
-        call do_extract_one
+        call do_extract_prepared
         jp .wait_release
 
 
@@ -198,74 +204,40 @@ get_entry_offset
         ret
 
 
-; ================================================================
-; write_dec2_to_hl: A = value (0-63), write 2-char decimal to (HL), HL+=2
-; ================================================================
-write_dec2_to_hl
-        ld b,0
-.wdt    cp 10
-        jr c,.wdt_done
-        sub 10
-        inc b
-        jr .wdt
-.wdt_done
-        ld c,a                      ; C = units digit
-        ld a,b : add a,'0' : ld (hl),a : inc hl
-        ld a,c : add a,'0' : ld (hl),a : inc hl
+set_selected_entry
+        ld (selectedEntry),a
         ret
 
 
 ; ================================================================
 ; do_extract: A = entry index. Extracts payload to file.
 ; HEADER (flag=0, len=19) → extracts paired DATA block, names it from header.
-; DATA/other → extracts this block's payload, names it BLKnn.BIN.
-; The host viewer performs the actual esxDOS write after the plugin returns.
+; DATA/other → extracts this block's payload, names it BLCKnn.BIN.
+; The viewer extract service performs the actual esxDOS write.
 ; ================================================================
 do_extract
         ld (extractEntry),a
         xor a
         ld (extractStatus),a
-        call is_standard_header
-        jr nz,.de_raw
-
-        ; Header line: name comes from this header, bytes come from the
-        ; following data block.
-        ld a,(extractEntry)
-        ld l,a
-        ld a,(totalBlocks)
-        dec a
-        cp l
-        jp z,.de_ret
-        ld a,(extractEntry)
-        call build_name_from_header
-        ld a,(extractEntry)
-        inc a
-        call get_payload_range
-        jr .de_save
-
-.de_raw
-        ld a,(extractEntry)
-        or a
-        jr z,.raw_fallback
-        dec a
-        call is_standard_header
-        jr nz,.raw_fallback
-        ld a,(extractEntry)
-        dec a
-        call build_name_from_header
-        jr .raw_range
-.raw_fallback
-        ld a,(extractEntry)
-        call build_blk_name
-.raw_range
-        ld a,(extractEntry)
+        call prepare_extract_payload
+        cp 255
+        ret z
+        ld (payloadEntry),a
+        ld a,(payloadEntry)
         call get_payload_range
 
-.de_save
         ; HL = source offset (16-bit), BC = byte count
         ld (extractOff),hl
         ld h,b : ld l,c : ld (extractCnt),hl
+        ld a,(extractEntry)
+        call prepare_extract_name
+        call do_extract_prepared
+        ret
 
+
+do_extract_prepared
+        xor a
+        ld (extractStatus),a
         call clear_debug_area
         ld de,strExportName
         ld hl,42*256+CONTENT_ROW
@@ -273,6 +245,29 @@ do_extract
         call call_print
         ld de,extractName
         ld hl,48*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+        ld hl,(extractCnt)
+        call make_decimal
+        ld de,strExportLen
+        ld hl,42*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ld de,numBuf
+        ld hl,48*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ld de,strExportIdx
+        ld hl,56*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ld a,(payloadEntry)
+        inc a
+        ld l,a
+        ld h,0
+        call make_decimal
+        ld de,numBuf+3
+        ld hl,60*256+(CONTENT_ROW+1)
         ld a,ATTR_CODE
         call call_print
 
@@ -284,7 +279,7 @@ do_extract
         xor a
         ld (extractStatus),a
         ld de,strExportOK
-        ld hl,42*256+(CONTENT_ROW+1)
+        ld hl,42*256+(CONTENT_ROW+2)
         ld a,ATTR_CODE
         call call_print
         ret
@@ -293,7 +288,7 @@ do_extract
         add a,'0'
         ld (strExportFailCode),a
         ld de,strExportFail
-        ld hl,42*256+(CONTENT_ROW+1)
+        ld hl,42*256+(CONTENT_ROW+2)
         ld a,ATTR_CODE
         call call_print
 .de_ret
@@ -301,61 +296,73 @@ do_extract
 
 
 do_extract_one
-        ld (singleEntry),a
-        call is_standard_header
-        jr z,.export
-        ld a,(singleEntry)
-        call get_entry_parent
-        cp 255
-        jr z,.export
-.export
         call do_extract
         ret
 
 
 do_extract_all
         xor a
-        ld (allEntry),a
+        call set_all_index
 .loop
-        ld a,(allEntry)
+        call get_all_index
         ld b,a
         ld a,(totalBlocks)
         cp b
         jr z,.all_ok
 
-        ld a,(allEntry)
+        call get_all_index
         call is_standard_header
         jr z,.export_header
 
-        ld a,(allEntry)
-        call get_entry_parent
+        call get_all_index
+        call get_immediate_parent
         cp 255
         jr nz,.next_entry         ; DATA already exported by its header
 
 .export_this
-        ld a,(allEntry)
+        call get_all_index
+        ld b,a
+        inc a
+        push af                    ; next entry after this export
+        ld a,b
         call do_extract
+        pop bc
+        ld a,b
+        call set_all_index
         ld a,(extractStatus)
         or a
         jr nz,.all_fail
-        jr .next_entry
+        jr .loop
 
 .export_header
-        ld a,(allEntry)
+        call get_all_index
+        call get_header_data_entry
+        cp 255
+        jr z,.next_entry
+        call get_all_index
+        ld b,a
+        inc a
+        inc a
+        push af                    ; skip header + paired DATA block
+        ld a,b
         call do_extract
+        pop bc
+        ld a,b
+        call set_all_index
         ld a,(extractStatus)
         or a
         jr nz,.all_fail
-        ld hl,allEntry
-        inc (hl)                  ; skip paired DATA block
-        jr .next_entry
+        jr .loop
 
 .next_entry
-        ld hl,allEntry
-        inc (hl)
+        call get_all_index
+        inc a
+        call set_all_index
         jr .loop
 
 .all_ok
+        xor a
+        call set_all_index
         call clear_debug_area
         ld de,strExportAllOK
         ld hl,42*256+CONTENT_ROW
@@ -374,6 +381,91 @@ do_extract_all
         ret
 
 
+get_all_index
+        ld a,(allEntry)
+        ret
+
+
+set_all_index
+        ld (allEntry),a
+        ret
+
+
+render_name_preview
+        ld a,(curEntry)
+        call set_selected_entry
+        ld (extractEntry),a
+        call prepare_extract_payload
+        ld (payloadEntry),a
+        ld a,(curEntry)
+        call prepare_extract_name
+        call clear_debug_area
+        ld de,strExportName
+        ld hl,42*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+        ld de,extractName
+        ld hl,48*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+        ld a,(payloadEntry)
+        cp 255
+        ret z
+        call get_payload_range
+        ld (extractOff),hl
+        ld h,b : ld l,c : ld (extractCnt),hl
+        ld h,b
+        ld l,c
+        call make_decimal
+        ld de,strExportLen
+        ld hl,42*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ld de,numBuf
+        ld hl,48*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ld de,strExportIdx
+        ld hl,56*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ld a,(payloadEntry)
+        inc a
+        ld l,a
+        ld h,0
+        call make_decimal
+        ld de,numBuf+3
+        ld hl,60*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ret
+
+
+prepare_extract_payload
+        ld (extractEntry),a
+        call is_standard_header
+        jr nz,.raw
+        ld a,(extractEntry)
+        jp get_header_data_entry
+.raw
+        ld a,(extractEntry)
+        ret
+
+
+prepare_extract_name
+        ld (extractEntry),a
+        call is_standard_header
+        jr nz,.raw
+        ld a,(extractEntry)
+        ld (nameSourceEntry),a
+        jp build_name_from_source
+.raw
+        ld a,(extractEntry)
+        call set_immediate_name_source
+        jp nz,build_blk_name
+        jp build_name_from_source
+
+
 ; A = entry index. Returns A = parent header index, or 255 if none.
 get_entry_parent
         ld l,a
@@ -381,6 +473,56 @@ get_entry_parent
         ld de,entryParents
         add hl,de
         ld a,(hl)
+        ret
+
+
+; A = header entry index. Returns following data entry, or 255 if not paired.
+get_header_data_entry
+        ld (parentCandidate),a
+        ld l,a
+        ld a,(totalBlocks)
+        dec a
+        cp l
+        jr z,.none
+        ld a,(parentCandidate)
+        inc a
+        ld (parentCandidate),a
+        call is_standard_header
+        jr z,.none
+        ld a,(parentCandidate)
+        ret
+.none
+        ld a,255
+        ret
+
+
+; A = entry index. Returns previous entry if it is a standard header, else 255.
+get_immediate_parent
+        or a
+        jr z,.none
+        dec a
+        ld (parentCandidate),a
+        call is_standard_header
+        jr nz,.none
+        ld a,(parentCandidate)
+        ret
+.none
+        ld a,255
+        ret
+
+
+; A = entry index. Z if previous entry is a header and nameSourceEntry was set.
+set_immediate_name_source
+        or a
+        jr z,.none
+        dec a
+        ld (nameSourceEntry),a
+        call is_standard_header
+        jr nz,.none
+        xor a
+        ret
+.none
+        or 1
         ret
 
 
@@ -411,33 +553,72 @@ is_standard_header
 ; A = entry index. Returns HL = payload offset, BC = payload length.
 get_payload_range
         call get_entry_offset
-        ld (readPtr),hl
-        call read_next_byte : ld c,a
-        call read_next_byte : ld b,a
-        call read_next_byte
-        ld hl,(readPtr)                ; source is past flag byte
+        ld (tmpRangeStart),hl
+        push hl
+        call read_byte_at_offset
+        ld c,a
+        pop hl
+        inc hl
+        push hl
+        call read_byte_at_offset
+        ld b,a
+        pop hl
+        ld hl,(tmpRangeStart)
+        inc hl
+        inc hl
+        inc hl                         ; source is past length + flag
         dec bc                         ; skip flag
         dec bc                         ; skip checksum
         ret
 
 
 build_blk_name
+        ld hl,strBlkNameTemplate
+        ld de,extractName
+        ld bc,11
+        ldir
         ld hl,extractName
-        ld a,'B' : ld (hl),a : inc hl
-        ld a,'L' : ld (hl),a : inc hl
-        ld a,'K' : ld (hl),a : inc hl
-        ld a,(extractEntry) : inc a
-        call write_dec2_to_hl
-        ld a,'.' : ld (hl),a : inc hl
-        ld a,'B' : ld (hl),a : inc hl
-        ld a,'I' : ld (hl),a : inc hl
-        ld a,'N' : ld (hl),a : inc hl
-        ld (hl),0
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+        ld a,(extractEntry)
+        inc a
+        ld b,'0'
+.tens
+        cp 10
+        jr c,.ones
+        sub 10
+        inc b
+        jr .tens
+.ones
+        ld c,a
+        ld a,b : ld (hl),a : inc hl
+        ld a,c : add a,'0' : ld (hl),a
+        ret
+
+
+clear_extract_name
+        push af
+        push bc
+        push hl
+        ld hl,extractName
+        ld b,16
+.loop
+        xor a
+        ld (hl),a
+        inc hl
+        djnz .loop
+        pop hl
+        pop bc
+        pop af
         ret
 
 
 ; A = standard header entry index. Builds output name from the header name.
-build_name_from_header
+build_name_from_source
+        ld a,(nameSourceEntry)
+        call clear_extract_name
         call get_entry_offset
         ld (readPtr),hl
         call read_next_byte
@@ -544,45 +725,6 @@ clear_debug_area
         ret
 
 
-queue_extract_request
-        ld ix,(ctxPtr)
-        ld hl,(extractOff)
-        ld (ix+VIEWCTX_EXTRACT_OFF),l
-        ld (ix+VIEWCTX_EXTRACT_OFF+1),h
-        ld hl,(extractCnt)
-        ld (ix+VIEWCTX_EXTRACT_CNT),l
-        ld (ix+VIEWCTX_EXTRACT_CNT+1),h
-        ld de,(ctxPtr)
-        ld hl,VIEWCTX_EXTRACT_NAME
-        add hl,de
-        ex de,hl
-        ld hl,extractName
-        ld b,16
-.copy_name
-        ld a,(hl)
-        ld (de),a
-        inc hl
-        inc de
-        or a
-        jr z,.name_done
-        djnz .copy_name
-        jr .set_flag
-.name_done
-        djnz .pad_name
-        jr .set_flag
-.pad_name
-        xor a
-.pad_loop
-        ld (de),a
-        inc de
-        djnz .pad_loop
-.set_flag
-        ld a,1
-        ld ix,(ctxPtr)
-        ld (ix+VIEWCTX_EXTRACT_FLAG),a
-        ret
-
-
 ; ================================================================
 ; init_context: read plugin context into local variables
 ; ================================================================
@@ -603,6 +745,7 @@ init_context
         xor a
         ld (curEntry),a
         ld (topEntry),a
+        call set_selected_entry
         ret
 
 
@@ -654,6 +797,7 @@ scan_tap_blocks
         ld e,a
         call read_next_byte
         ld d,a              ; DE = block length
+        ld (tmpBlockLen),de
 
         ; zero-length block = malformed, stop
         ld a,d
@@ -671,10 +815,10 @@ scan_tap_blocks
         ld a,(tmpBlockFlag)
         or a
         jr nz,.not_header
-        ld a,d
+        ld a,(tmpBlockLen+1)
         or a
         jr nz,.not_header
-        ld a,e
+        ld a,(tmpBlockLen)
         cp 19
         jr nz,.not_header
         ld (hl),255
@@ -691,6 +835,7 @@ scan_tap_blocks
         ; advance readPtr past remaining block data after the flag byte
         ; if addition overflows 16 bits the next block is past the 64KB
         ; address window, so its start address is unknowable — stop here.
+        ld de,(tmpBlockLen)
         dec de
         ld hl,(readPtr)
         add hl,de
@@ -843,7 +988,9 @@ render_std_header
         jr z,.acode
         ld a,ATTR_NORMAL
         jr .aset
-.sel    ld a,ATTR_SELECTED
+.sel    ld a,(renderIdx)
+        call set_selected_entry
+        ld a,ATTR_SELECTED
         jr .aset
 .abasic ld a,ATTR_BASIC
         jr .aset
@@ -936,7 +1083,9 @@ render_raw_block
         jr z,.sel
         ld a,ATTR_DATA
         jr .aset
-.sel    ld a,ATTR_SELECTED
+.sel    ld a,(renderIdx)
+        call set_selected_entry
+        ld a,ATTR_SELECTED
 .aset   ld (curAttr),a
 
         ld de,(screenPos)
@@ -1398,6 +1547,7 @@ curAttr         defb ATTR_NORMAL
 totalBlocks     defb 0
 topEntry        defb 0
 curEntry        defb 0
+selectedEntry   defb 0
 blockLen        defw 0
 tapFlag         defb 0
 tapType         defb 0
@@ -1412,17 +1562,20 @@ extractName     defs 16     ; output filename for 'e' extraction (255-terminated
 extractOff      defw 0      ; current write offset into loaded data
 extractCnt      defw 0      ; remaining bytes to write
 extractEntry    defb 0
+payloadEntry    defb 0
 extractNameUsed defb 0
 extractNameHasDot defb 0
 tmpBlockLen     defw 0
 tmpBlockFlag    defb 0
+tmpRangeStart   defw 0
 extractHeaderType defb 0
 extractNamePtr  defw 0
 extractStatus   defb 0
 allEntry        defb 0
-singleEntry     defb 0
 scanIndex       defb 0
 lastHeader      defb 0
+parentCandidate defb 0
+nameSourceEntry defb 0
 
 ; ================================================================
 ; Strings
@@ -1441,10 +1594,13 @@ strSArray       defb "SARRAY ",0
 strData         defb "DATA   ",0
 strUnknown      defb "???    ",0
 strDashes       defb "----------",0
+strBlkNameTemplate defb "BLCK00.BIN",0
 strExportOK     defb "OK",0
 strExportFail   defb "FAIL "
 strExportFailCode defb "?",0
 strExportName   defb "NAME:",0
+strExportLen    defb "LEN:",0
+strExportIdx    defb "IDX:",0
 strExportAllOK  defb "ALL OK",0
 strExportAllFail defb "ALL FAIL "
 strExportAllFailCode defb "?",0
