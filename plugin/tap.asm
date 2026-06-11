@@ -28,7 +28,7 @@ ATTR_TITLE      equ 208
 ATTR_HEADER     equ 176
 ATTR_BASIC      equ 160
 ATTR_CODE       equ 192
-ATTR_SELECTED   equ 224
+ATTR_SELECTED   equ 112
 ATTR_DATA       equ 16
 
 TYPE_BASIC      equ 0
@@ -75,6 +75,8 @@ plugin_start
         jp z,.pgdn
         cp 8
         jp z,.pgup
+        cp "E"
+        jp z,.extract_all
         cp "e"
         jp z,.extract
         jp .input
@@ -170,7 +172,13 @@ plugin_start
 ; ---- extract ('E' key) ----
 .extract
         ld a,(curEntry)
-        call do_extract
+        call do_extract_one
+        jp .wait_release
+
+
+; ---- extract all ('CAPS+E') ----
+.extract_all
+        call do_extract_all
         jp .wait_release
 
 
@@ -215,6 +223,8 @@ write_dec2_to_hl
 ; ================================================================
 do_extract
         ld (extractEntry),a
+        xor a
+        ld (extractStatus),a
         call is_standard_header
         jr nz,.de_raw
 
@@ -234,8 +244,6 @@ do_extract
         jr .de_save
 
 .de_raw
-        ; Data/raw line: prefer the previous standard header name when this
-        ; block is paired with one, otherwise fall back to BLKnn.BIN.
         ld a,(extractEntry)
         or a
         jr z,.raw_fallback
@@ -273,12 +281,15 @@ do_extract
         ld bc,(extractCnt)
         call call_extract
         jr c,.export_fail
+        xor a
+        ld (extractStatus),a
         ld de,strExportOK
         ld hl,42*256+(CONTENT_ROW+1)
         ld a,ATTR_CODE
         call call_print
         ret
 .export_fail
+        ld (extractStatus),a
         add a,'0'
         ld (strExportFailCode),a
         ld de,strExportFail
@@ -286,6 +297,90 @@ do_extract
         ld a,ATTR_CODE
         call call_print
 .de_ret
+        ret
+
+
+do_extract_one
+        ld (singleEntry),a
+        call is_standard_header
+        jr z,.export
+        ld a,(singleEntry)
+        call get_entry_parent
+        cp 255
+        jr z,.export
+.export
+        call do_extract
+        ret
+
+
+do_extract_all
+        xor a
+        ld (allEntry),a
+.loop
+        ld a,(allEntry)
+        ld b,a
+        ld a,(totalBlocks)
+        cp b
+        jr z,.all_ok
+
+        ld a,(allEntry)
+        call is_standard_header
+        jr z,.export_header
+
+        ld a,(allEntry)
+        call get_entry_parent
+        cp 255
+        jr nz,.next_entry         ; DATA already exported by its header
+
+.export_this
+        ld a,(allEntry)
+        call do_extract
+        ld a,(extractStatus)
+        or a
+        jr nz,.all_fail
+        jr .next_entry
+
+.export_header
+        ld a,(allEntry)
+        call do_extract
+        ld a,(extractStatus)
+        or a
+        jr nz,.all_fail
+        ld hl,allEntry
+        inc (hl)                  ; skip paired DATA block
+        jr .next_entry
+
+.next_entry
+        ld hl,allEntry
+        inc (hl)
+        jr .loop
+
+.all_ok
+        call clear_debug_area
+        ld de,strExportAllOK
+        ld hl,42*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+        ret
+
+.all_fail
+        add a,'0'
+        ld (strExportAllFailCode),a
+        call clear_debug_area
+        ld de,strExportAllFail
+        ld hl,42*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+        ret
+
+
+; A = entry index. Returns A = parent header index, or 255 if none.
+get_entry_parent
+        ld l,a
+        ld h,0
+        ld de,entryParents
+        add hl,de
+        ld a,(hl)
         ret
 
 
@@ -520,6 +615,8 @@ init_context
 scan_tap_blocks
         xor a
         ld (totalBlocks),a
+        dec a
+        ld (lastHeader),a
         ld hl,0
         ld (readPtr),hl     ; readPtr = current file offset
 
@@ -535,6 +632,7 @@ scan_tap_blocks
         ld a,(totalBlocks)
         cp MAX_ENTRIES
         jr nc,.done
+        ld (scanIndex),a
 
         ; store current readPtr in entryOffsets[totalBlocks]
         add a,a             ; index * 2
@@ -562,9 +660,38 @@ scan_tap_blocks
         or e
         jr z,.done
 
-        ; advance readPtr past the block data
+        ; read flag byte and store parent relationship for this entry
+        call read_next_byte
+        ld (tmpBlockFlag),a
+        ld a,(scanIndex)
+        ld c,a
+        ld b,0
+        ld hl,entryParents
+        add hl,bc
+        ld a,(tmpBlockFlag)
+        or a
+        jr nz,.not_header
+        ld a,d
+        or a
+        jr nz,.not_header
+        ld a,e
+        cp 19
+        jr nz,.not_header
+        ld (hl),255
+        ld a,(scanIndex)
+        ld (lastHeader),a
+        jr .advance
+.not_header
+        ld a,(lastHeader)
+        ld (hl),a
+        ld a,255
+        ld (lastHeader),a
+
+.advance
+        ; advance readPtr past remaining block data after the flag byte
         ; if addition overflows 16 bits the next block is past the 64KB
         ; address window, so its start address is unknowable — stop here.
+        dec de
         ld hl,(readPtr)
         add hl,de
         jr c,.done          ; overflow: stop scanning
@@ -1291,6 +1418,11 @@ tmpBlockLen     defw 0
 tmpBlockFlag    defb 0
 extractHeaderType defb 0
 extractNamePtr  defw 0
+extractStatus   defb 0
+allEntry        defb 0
+singleEntry     defb 0
+scanIndex       defb 0
+lastHeader      defb 0
 
 ; ================================================================
 ; Strings
@@ -1300,7 +1432,7 @@ strBlk          defb "blk",0
 ; Column header aligned with data rows:
 ;  col: 1-2=## 3=sp 4-10=Type 11=sp 12-21=Name 22=sp 23-27=Size 28=b 29=sp 30+=Info
 strColHdr       defb "## Type    Name        Size   Info",0
-strHelp         defb "BREAK=exit   Up/Dn navigate   PgUp/PgDn",0
+strHelp         defb "BREAK=exit   Up/Dn   PgUp/PgDn   e=export   E=all",0
 strLine         defb "LINE:",0
 strBasic        defb "BASIC  ",0
 strCode         defb "CODE   ",0
@@ -1313,12 +1445,16 @@ strExportOK     defb "OK",0
 strExportFail   defb "FAIL "
 strExportFailCode defb "?",0
 strExportName   defb "NAME:",0
+strExportAllOK  defb "ALL OK",0
+strExportAllFail defb "ALL FAIL "
+strExportAllFailCode defb "?",0
 strDebugBlank   defb "                                ",0
 
 ; ================================================================
 ; Entry offset table (2 bytes per entry, up to MAX_ENTRIES)
 ; ================================================================
 entryOffsets    defs MAX_ENTRIES*2
+entryParents    defs MAX_ENTRIES
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
