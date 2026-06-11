@@ -13,9 +13,16 @@ VIEWCTX_READ_LEN     equ 11
 VIEWCTX_PAGE_COUNT   equ 13
 VIEWCTX_DATA_PAGES   equ 14
 VIEWCTX_SERVICES     equ 16
+VIEWCTX_CURPATH      equ 18   ; pointer to active panel path string
+VIEWCTX_EXTRACT_FLAG equ 20
+VIEWCTX_EXTRACT_OFF  equ 21
+VIEWCTX_EXTRACT_CNT  equ 23
+VIEWCTX_EXTRACT_NAME equ 25   ; 16 bytes, 0/255 terminated
+VIEWCTX_DIRTY        equ 40
 
 SERVICE_PRINT        equ 0
 SERVICE_INKEY        equ 2
 SERVICE_WINDOW       equ 4
 SERVICE_LAYER0       equ 6
 SERVICE_INPUT_NOWAIT equ 8
+SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)

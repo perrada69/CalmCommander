@@ -1,0 +1,5881 @@
+NextZXOS API (Updated 2 Sep 2018)
+This document describes the NextZXOS API, which directly descends from the +3DOS
+API present in the Sinclair ZX Spectrum +2A/+2B/+3 and the IDEDOS API
+additionally provided with the ZX Spectrum +3e ROMs.
+It also describes the provided esxDOS-compatible API, which is compatible with
+esxDOS 0.8.x, but contains several enhancements.
+This should be read in conjunction with the other documents:
+NextBASIC file-related commands and features
+NextBASIC new commands and features
+NextZXOS Editor features
+NextZXOS Unimplemented features
+A list of updates made to this document is now provided at the end.
+
+Page 1 of 81
+
+Available APIs
+NextZXOS provides 2 distinct and separate APIs:
+• a +3DOS-compatible API, providing the main NextZXOS API
+• an esxDOS-compatible API, providing file-based calls for SD card access
+The +3DOS-compatible API descends directly from the original +3DOS, provided
+with the Sinclair ZX Spectrum +3/+2A/+2B.
+The esxDOS-compatible API is provided by a thin layer on top of +3DOS, and is
+compatible with esxDOS 0.8.x, with some additional facilities such as support
+for long filenames (LFNs), wildcards in filenames, enhanced dot command features
+and a low-overhead file streaming facility.
+Both APIs provide general file-access calls. The esxDOS-compatible API is
+generally easier to use, but lacks the ability to access files on filesystems
+which are not FAT16/32 (such as the RAMdisk, and mounted CP/M and +3 disk
+images). It also lacks some of the more advanced features of the +3DOScompatible API, such as bank allocation, BASIC command execution and filebrowser dialogs.
+The +3DOS-compatible API is described in the first section of the following
+pages, with the esxDOS-compatible API described in second section.
+IMPORTANT NOTE:
+When calling either the +3DOS-compatible or esxDOS-compatible API, make sure you
+have not left layer 2 writes enabled (ie bit 0 of port $123b should be zero when
+making any API call).
+This is important because if layer 2 writes are left enabled, they can interfere
+with the operation of the system calls, which page in DivMMC RAM to the same
+region of memory ($0000-$3fff).
+It is perfectly okay to leave layer 2 turned on and displayed (with bit 1 of
+port $123b) during API calls; only the writes need to be disabled.
+
+Page 2 of 81
+
+The +3DOS-compatible API
+The +3DOS-compatible API provides most of the facilities available on both the
+original +3/+2A/+2B, and the later +3e ROMs, with many additional facilities
+specific to the Next.
+To make a +3DOS API call, you must first ensure that the memory bank
+configuration is set up correctly (with ROM 2 selected at the bottom of memory,
+RAM bank 7 at the top of memory and the stack located below $BFE0).
+Once this is done, call the address indicated in the API call. You then probably
+want to restore the memory configuration to normal (with ROM 3 selected at the
+bottom of memory, and RAM bank 0 at the top of memory).
+Please note that a few calls require the memory configuration to be slightly
+different on entry (with RAM bank 0 at the top of memory); this is noted in the
+individual documentation for those calls, which are generally BASIC-releated (eg
+IDE_STREAM_* and IDE_BASIC).
+Useful example code showing how to use the API is available in the original +3
+manual (section “Calling +3DOS from BASIC”), online here:
+http://www.worldofspectrum.org/ZXSpectrum128+3Manual/chapter8pt26.html
+This document does not describe unchanged calls, which are available in these
+online documents:
+http://www.worldofspectrum.org/ZXSpectrum128+3Manual/chapter8pt27.html
+http://www.worldofspectrum.org/zxplus3e/idedos.html
+
+Page 3 of 81
+
+The following filesystem-related API calls are provided (*=effects have changed
+since originally documented in +3 manual or on +3e website; %=new for NextZXOS):
+DOS_VERSION ($0103)
+*DOS_OPEN ($0106)
+DOS_CLOSE ($0109)
+DOS_ABANDON ($010C)
+DOS_REF_HEAD ($010F)
+DOS_READ ($0112)
+DOS_WRITE ($0115)
+DOS_BYTE_READ ($0118)
+DOS_BYTE_WRITE ($011B)
+*DOS_CATALOG ($011E)
+*DOS_FREE_SPACE ($0121)
+DOS_DELETE ($0124)
+DOS_RENAME ($0127)
+DOS_BOOT ($012A)
+DOS_SET_DRIVE ($012D)
+DOS_SET_USER ($0130)
+*DOS_GET_POSITION ($0133)
+DOS_SET_POSITION ($0136)
+*DOS_GET_EOF ($0139)
+DOS_GET_1346 ($013C)
+DOS_SET_1346 ($013F)
+DOS_FLUSH ($0142)
+DOS_SET_ACCESS ($0145)
+DOS_SET_ATTRIBUTES ($0148)
+DOS_SET_MESSAGE ($014E)
+
+Get +3DOS issue and version numbers
+Create and/or open a file
+Close a file
+Abandon a file
+Point at the header data for this file
+Read bytes into memory
+Write bytes from memory
+Read a byte
+Write a byte
+Catalog disk directory
+Free space on disk
+Delete a file
+Rename a file
+Boot an operating system or other program
+Set/get default drive
+Set/get default user number
+Get file pointer for random access
+Set file pointer for random access
+Get end of file position for random access
+Get memory usage in pages 1, 3, 4, 6
+Re-allocate memory usage in pages 1, 3, 4, 6
+Bring disk up to date
+Change open file's access mode
+Change a file's attributes
+Enable/disable error messages
+
+IDE_VERSION ($00A0)
+*IDE_SWAP_OPEN ($00D9)
+IDE_SWAP_CLOSE ($00DC)
+IDE_SWAP_OUT ($00DF)
+IDE_SWAP_IN ($00E2)
+*IDE_SWAP_EX ($00E5)
+IDE_SWAP_POS ($00E8)
+IDE_SWAP_MOVE ($00EB)
+IDE_SWAP_RESIZE ($00EE)
+IDE_PARTITION_FIND ($00B5)
+*IDE_DOS_MAP ($00F1)
+*IDE_DOS_UNMAP ($00F4)
+*IDE_DOS_MAPPING ($00F7)
+*IDE_SNAPLOAD ($00FD)
+*IDE_PATH ($01b1)
+%IDE_CAPACITY ($01b4)
+%IDE_GET_LFN ($01b7)
+%IDE_BROWSER ($01ba)
+%IDE_MOUNT ($01d2)
+
+Get IDEDOS version number
+Open a swap partition
+Close a swap partition
+Write block to swap partition
+Read block from swap partition
+Exchange block with swap partition
+Get current block number in swap partition
+Set current block number in swap partition
+Change block size of swap partition
+Find named partition
+Map drive to partition
+Unmap drive
+Get drive mapping
+Load a snapshot
+Create, delete, change or get directory
+Get card capacity
+Get long filename
+File browser
+Unmount/remount SD cards
+
+Page 4 of 81
+
+The following non-filesystem-related API calls are provided:
+IDE_STREAM_OPEN ($0056)
+IDE_STREAM_CLOSE ($0059)
+IDE_STREAM_IN ($005c)
+IDE_STREAM_OUT ($005f)
+IDE_STREAM_PTR ($0062)
+%IDE_BANK ($01bd)
+%IDE_BASIC ($01c0)
+%IDE_WINDOW_LINEIN ($01c3)
+%IDE_WINDOW_STRING ($01c6)
+%IDE_INTEGER_VAR ($01c9)
+%IDE_RTC ($01cc)
+%IDE_DRIVER ($01cf)
+%IDE_MODE ($01d5)
+
+Open stream to a channel
+Close stream and attached channel
+Get byte from current stream
+Write byte to current stream
+Get or set pointer information for current stream
+Allocate or free 8K banks in ZX or DivMMC memory
+Execute a BASIC command line
+Input line from current window stream
+Output string to current window stream
+Get or set NextBASIC integer variable
+Query the real-time-clock module
+Access the driver API
+Query NextBASIC display mode info, or change mode
+
+The following API calls are related to floppy drives and will not be useful for
+most software (included for legacy software use only):
+DOS_REF_XDPB ($0151)
+DD_L_XDPB ($0187)
+DD_L_DPB ($018A)
+
+Point at XDPB for low level disk access
+Initialise an XDPB from a disk specification
+Initialise a DPB from a disk specification
+
+The following API calls are present but generally for system use only and not
+useful for games/applications:
+DOS_INITIALISE ($0100)
+IDE_INTERFACE ($00A3)
+IDE_INIT ($00A6)
+IDE_DRIVE ($00A9)
+*IDE_SECTOR_READ ($00AC)
+*IDE_SECTOR_WRITE ($00AF)
+IDE_PARTITON_READ ($00C4)
+IDE_PARTITION_OPEN ($00CD)
+IDE_PARTITION_CLOSE ($00D0)
+IDE_PARTITIONS ($01a5)
+
+Initialise +3DOS
+Initialise card interfaces
+Initialise IDEDOS
+Get unit handle
+Low-level sector read
+Low-level sector write
+Read a partition entry
+Open a partition
+Close a partition
+Get number of open partitions
+
+The following API calls were previously available in +3DOS/IDEDOS but are now
+deprecated and will return an error of rc_notimp:
+DOS_OPEN_DRIVE ($014B)
+DOS_MAP_B ($0154)
+DD_INTERFACE ($0157)
+DD_INIT ($015A)
+DD_SETUP ($015D)
+DD_SET_RETRY ($0160)
+DD_READ_SECTOR ($0163)
+DD_WRITE_SECTOR ($0166)
+DD_CHECK_SECTOR ($0169)
+DD_FORMAT ($016C)
+DD_READ_ID ($016F)
+DD_TEST_UNSUITABLE ($0172)
+DD_LOGIN ($0175)
+DD_SEL_FORMAT ($0178)
+DD_ASK_1 ($017B)
+DD_DRIVE_STATUS ($017E)
+DD_EQUIPMENT ($0181)
+DD_ENCODE ($0184)
+DD_L_SEEK ($018D)
+DD_L_READ ($0190)
+DD_L_WRITE ($0193)
+DD_L_ON_MOTOR ($0196)
+
+Open a drive as a single file
+Map B: onto unit 0 or 1
+Is the floppy disk driver interface present?
+Initialise disk driver
+Specify drive parameters
+Set try/retry count
+Read a sector
+Write a sector
+Check a sector
+Format a track
+Read a sector identifier
+Test media suitability
+Log in disk, initialise XDPB
+Pre-initialise XDPB for DD FORMAT
+Is unit 1 (external drive) present?
+Fetch drive status
+What type of drive?
+Set intercept routine for copy protection
+uPD765A seek driver
+uPD765A read driver
+uPD765A write driver
+Motor on, wait for motor-on time
+Page 5 of 81
+
+DD_L_T_OFF_MOTOR ($0199)
+DD_L_OFF_MOTOR ($019C)
+
+Start the motor-off ticker
+Turn the motor off
+
+IDE_FORMAT ($00B2)
+Format a partition
+IDE_PARTITION_NEW ($00B8)
+Create partition
+IDE_PARTITION_INIT ($00BB)
+Initialise partition
+IDE_PARTITION_ERASE ($00BE)
+Delete a partition
+IDE_PARTITION_RENAME ($00C1) Rename a partition
+IDE_PARTITION_WRITE ($00C7)
+Write a partition entry
+IDE_PARTITION_WINFO ($00CA)
+Write type-specific partition information
+IDE_PARTITION_GETINFO ($00D3) Get byte from type-specific partition information
+IDE_PARTITION_SETINFO ($00D6) Set byte in type-specific partition information
+IDE_DOS_UNPERMANENT ($00FA)
+Remove permanent drive mapping
+IDE_IDENTIFY ($01a2)
+Return IDE drive identity information
+
+Page 6 of 81
+
+Updated calls
+The following calls have new/updated features, which are highlighted in GREEN.
+(Some changes are due to removed parameters which are not shown). NOTE: Calls
+for internal use only have not yet been included here.
+As well as the changes described here, the following calls take a 16K page
+number in either C or B which indicates what memory should be present at
+$c000..$ffff for the read/write operation. On the +3/+3e, page numbers 0-7 were
+allowed; on NextZXOS any valid 16K RAM page 0-111 may be used:
+DOS_READ (0112h)
+DOS_WRITE (0115h)
+IDE_SWAP_OUT (00DFh)
+IDE_SWAP_IN (00E2h)
+It should additionally be noted that the IDE_STREAM_* calls may corrupt the
+alternate register set, in addition to the effects on the standard register set
+noted for each individual call.
+As well as describing additional features, DOS_CATALOG contains additional text
+which clarifies points that are not obvious from the documentation in the
+original +3 manual.
+
+DOS_OPEN
+0106h (262)
+Create and/or open a file
+There is a choice of action depending on whether or not the file
+already exists. The choices are 'open action' or 'create action', and
+are specified in DE. If the file already exists, then the open action
+is followed; otherwise the create action is followed.
+Open action
+0. Error - File already exists.
+1. Open the file, read the header (if any). Position file
+pointer after header.
+2. Open the file, ignore any header. Position file pointer at
+000000h (0).
+3. Assume given filename is 'filename.type'. Erase
+'filename.BAK' (if it exists). Rename 'filename.type' to
+'filename.BAK'. Follow create action.
+4. Erase existing version. Follow create action.
+Create action
+0. Error - File does not exist.
+1. Create and open new file with a header. Position file
+pointer after header.
+2. Create and open new file without a header. Position file
+pointer at 000000h (0).
+
+Page 7 of 81
+
+(Example: To simulate the tape action of... 'if the file exists open
+it, otherwise create it with a header', set open action = 1, create
+action = 1.)
+(Example: To open a file and report an error if it does not exist, set
+open action = 1, create action = 0.)
+(Example: To create a new file with a header, first renaming any
+existing version to '.BAK', set open action = 3, create action = 1.)
+Files with headers have their EOF position recorded as the smallest
+byte position greater than all written byte positions.
+Files without headers have their EOF position recorded as the byte at
+the start of the smallest 128 byte record position greater than all
+written record positions.
+Soft-EOF is the character 1Ah (26) and is nothing to do with the EOF
+position, only the routine DOS BYTE READ knows about soft-EOF.
+The header data area is 8 bytes long and may be used by the caller for
+any purpose whatsoever. If open action = 1, and the file exists (and
+has a header), then the header data is read from the file, otherwise
+the header data is zeroised. The header data is available even if the
+file does not have a header. Call DOS REF HEAD to access the header
+data.
+Note that +3 BASIC makes use of the first 7 of these 8 bytes as
+follows:
++---------------+-------+-------+-------+-------+-------+-------+-------+
+| BYTE
+|
+0
+|
+1
+|
+2
+|
+3
+|
+4
+|
+5
+|
+6
+|
++---------------+-------+-------+-------+-------+-------+-------+-------+
+| Program
+0
+file length
+8000h or LINE
+offset to prog |
+| Numeric array
+1
+file length
+xxx
+name
+xxx
+xxx
+|
+| Character array
+2
+file length
+xxx
+name
+xxx
+xxx
+|
+| CODE or SCREEN$
+3
+file length
+load address
+xxx
+xxx
+|
++-----------------------------------------------------------------------+
+(xxx = doesn't matter)
+If creating a file that will subsequently be LOADed within BASIC, then
+these bytes should be filled with the relevant values.
+If the file is opened with exclusive-write or exclusive-read-write
+access (and the file has a header), then the header is updated when
+the file is closed.
+A file that is already open for shared-read access on another file
+number may only be opened for shared-read access on this file number.
+A file that is already open for exclusive-read or exclusive-write or
+exclusive-read-write access on another file number may not be opened
+on this file number.
+If the open action is 1 or 2 and the create action is 0 (ie only an existing
+file is to be opened) then the filename may optionally contain the wildcard
+characters * and ?. In this case, the first file that matches the wildcard will
+be opened.
+ENTRY CONDITIONS
+B = File number 0...15
+Page 8 of 81
+
+C = Access mode required
+Bits 0...2 values:
+1 = exclusive-read
+2 = exclusive-write
+3 = exclusive-read-write
+5 = shared-read
+Bits 3...7 = 0 (reserved)
+D = Create action
+E = Open action
+HL = Address of filename (no wildcards, unless D=0 and E=1 or 2)
+EXIT CONDITIONS
+If file newly created:
+Carry true
+Zero true
+A corrupt
+If existing file opened:
+Carry true
+Zero false
+A corrupt
+Otherwise:
+Carry false
+A = Error code
+Always:
+BC DE HL IX corrupt
+All other registers preserved
+
+DOS_CATALOG
+011Eh (286)
+Fills a buffer with part of the directory.
+The filename optionally specifies the drive, path, user and a (possibly
+ambiguous) filename (which may contain wildcard characters ? and *).
+Since the size of a directory is variable (and may be quite large),
+this routine permits the directory to be catalogued in a number of
+small sections. The caller passes a buffer pre-loaded with the first
+required filename, or zeroes for the start of the directory. The
+buffer is loaded with part (or all, if it fits) of the directory
+sorted in ASCII order. If more of the directory is required, this
+routine is re-called with the buffer re-initialised with the last file
+previously returned. This procedure is followed repeatedly until all
+of the directory has been catalogued.
+Note that +3DOS format disks (which are the same as single-sided,
+single track AMSTRAD PCW range format disks) may have a maximum of 64
+directory entries.
+Buffer format:
+Entry 0
+Entry 1
+Entry 2
+Entry 3
+...to...
+Entry n
+Entry 0 must be preloaded with the first 'filename.type'
+required. Entry 1 will contain the first matching filename greater
+Page 9 of 81
+
+than the preloaded entry (if any). A zeroised preload entry is OK.
+If the buffer is too small for the directory, this routine can be
+called again with entry 0 replaced by entry n to fetch the next part
+of the directory.
+Entry format (13 bytes long):
+Bytes 0...7
+Bytes 6...10
+Bytes 11...12
+
+- Filename (ASCII) left justified, space
+filled
+- Type (ASCII) left justified, space filledd
+- Size in kilobytes (binary)
+
+Any of the filename or extension characters may have bit 7 set, as described in
+the section on file attributes, so these should be masked off if not required.
+The file size is the amount of disk space allocated to the file, not
+necessarily the same as the amount used by the file.
+ENTRY CONDITIONS
+B = n+1, size of buffer in entries, >=2
+C = Filter (if bit is set)
+bit 0 = include system files
+bit 1 = set bit 7 of f7 (the 7th character in the filename) if
+the entry has a valid LFN (long filename) which can be
+obtained with the IDE_GET_LFN call
+bit 2 = include directories, and set bit 7 of f8 (the 8th
+character in the filename) if the entry is a directory
+bits 3...7 = 0 (reserved)
+DE = Address of buffer (first entry initialised)
+HL = Address of filename (wildcards permitted)
+EXIT CONDITIONS
+If OK:
+Carry true
+A corrupt
+B = Number of completed entries in buffer, 0...n.
+(If B = n, there may be more to come).
+HL = Directory handle, required to obtain long filenames
+with IDE_GET_LFN
+Otherwise:
+Carry false
+A = Error code
+B HL corrupt
+Always:
+C DE HL IX corrupt
+All other registers preserved
+
+DOS_FREE_SPACE
+0121h (289)
+How much free space is there on this drive?
+ENTRY CONDITIONS
+A = Drive, ASCII 'A'...'P'
+EXIT CONDITIONS
+If OK:
+Page 10 of 81
+
+Carry true
+A corrupt
+HL = Free space (in kilobytes, clamped to maximum 65535K)
+BCDE = Free space (in kilobytes)
+Otherwise:
+Carry false
+A = Error code
+HL corrupt
+Always:
+BC DE IX corrupt
+All other registers preserved
+
+DOS_GET_POSITION
+0133h (307)
+Get the file pointer.
+ENTRY CONDITIONS
+B = File number
+EXIT CONDITIONS
+If OK:
+
+Carry true
+A corrupt
+DEHL = File pointer
+(D holds most significant byte; L holds least
+significant byte)
+Otherwise:
+Carry false
+A = Error code
+DE HL corrupt
+Always:
+BC IX corrupt
+All other registers preserved
+
+DOS_GET_EOF
+0139h (313)
+Get the end of file (EOF) file position greater than all written byte
+positions.
+Does not affect the file pointer.
+Does not consider soft-EOF.
+ENTRY CONDITIONS
+B = File number
+EXIT CONDITIONS
+If OK:
+
+Carry true
+A corrupt
+DEHL = File pointer
+(D holds most significant byte; L holds least
+significant byte)
+Otherwise:
+Carry false
+Page 11 of 81
+
+A = Error code
+DE HL corrupt
+Always:
+
+BC IX corrupt
+All other registers preserved
+
+IDE_SWAP_OPEN ($00D9)
+Open a swap file
+IN:
+
+A(bits 6..0)=block size in sectors, 1 (0.5K) to 32 (16K)
+If bit 7 of A is 0, then:
+BC=max block number required
+and NextZXOS will open an available system swap file
+(c:/nextzxos/swp-N.p3d) large enough
+If bit 7 of A is 1, then:
+BC=$ff-terminated name of file to use
+(maximum block number will be determined from file)
+
+OUT(s):
+OUT(f):
+
+Fc=1
+IX=swap handle
+Fc=0, A=error code
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE: The block size specified (any multiple of 0.5K up to 16K) determines the
+amount of data that is swapped in and out with the other IDE_SWAP_ calls. The
+size of the swap partition required is calculated as (blocksize)* (max block
+number+1). The current block number is set to 0.
+NOTE: Only unfragmented files can be opened as swap files. The error code
+rc_fragmented ($4a) will be returned for fragmented files.
+IDE_SWAP_EX ($00E5)
+IN:
+OUT(f): Fc=0, A=rc_notimp
+NOTE: This call is inefficient and has been deprecated.
+Use IDE_SWAP_IN and IDE_SWAP_OUT instead.
+IDE_DOS_MAP ($00F1)
+Map a drive to the specified partition or physical device
+IN:
+
+A=unit (0..15), including special device:
+4=RAMdisk
+$ff=filesystem image (.P3D or .DSK file)
+BC=partition number (if A!=4 or $ff)
+BC=image filename ($ff-terminated) (if A=$ff)
+L=drive letter 'A' to 'P' (uppercase)
+
+OUT(s):
+OUT(f):
+
+Fc=1
+Fc=0, A=error code
+
+Page 12 of 81
+
+Register status on return:
+......../IX same
+AFBCDEHL/.. different
+IDE_DOS_UNMAP ($00F4)
+Remove mapping from the specified drive
+IN:
+
+L=drive letter 'A' to 'P' (uppercase)
+
+OUT(s):
+OUT(f):
+
+Fc=1
+Fc=0, A=error code
+
+Register status on return:
+......../IX same
+AFBCDEHL/.. different
+
+IDE_DOS_MAPPING ($00F7)
+Obtain mapping information for the specified drive
+IN:
+
+L=drive letter 'A' to 'P' (uppercase)
+BC=buffer (18 bytes in length)
+
+OUT(s):
+
+OUT(f):
+
+Fc=1
+Fz=1 if drive not mapped (and other info not valid)
+Fz=0, mapping is as follows:
+A=unit (0..15), including special device:
+4=RAMdisk
+$ff=filesystem image (.P3D or .DSK file)
+BC=partition number (not for special devices)
+buffer is filled with text description, or blanked if no mapping
+Fc=0, A=error code
+
+Register status on return:
+......../IX same
+AFBCDEHL/.. different
+
+IDE_SNAPLOAD ($00FD)
+Load a snapshot
+IN:
+
+HL=filespec, terminated with $ff
+
+OUT(s):
+OUT(f):
+
+Does not return if successful
+Fc=0, A=error code
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+Loads and runs a supported snapshot file (files with extension .Z80, .SNA, .O
+and .P are supported, with others potentially supported in future).
+NOTE: SP must be <$8000 if a ZX80 or ZX81 snapshot (.O or .P) is to be loaded.
+NOTE: This call should only be made in LAYER 0 mode. You can force this mode
+simply (if not intending to return to BASIC on an error) by disabling
+Timex, layer2 and lo-res modes (using ports $ff & $123b, and NextReg $15)
+Page 13 of 81
+
+and ensuring MMU3 is set to the default of $0b.
+
+IDE_PATH ($01b1)
+IN:
+
+A=reason code,
+rc_path_change (0),
+rc_path_get (1),
+rc_path_make (2),
+rc_path_delete (3)
+HL=address of pathspec (terminated with $ff)
+NB: For rc_path_get, this must also be a 256-byte buffer
+into which the returned path will be written
+
+OUT(s):
+OUT(f):
+
+Fc=1
+Fc=0, A=error code
+
+Register status on return:
+......../.... same
+AFBCDEHL/IXIY different
+This call allows the current directory or path for a particular drive (and user
+area) to be changed or obtained. It also allows creation and deletion of
+directories.
+For rc_path_change, rc_path_make and rc_path_delete, HL points to a directory
+specification, terminated by $ff. This may optionally include a drive letter,
+user area and full path (if not, the current default values are used). For
+rc_path_change, the current path on that drive is changed to the directory or
+path specified. For rc_path_make and rc_path_delete, the named directory is
+created or deleted.
+For rc_path_get, HL points to a location specification (ie a drive and/or user
+area, terminated with a colon and $ff). The current path for that location will
+then be written to the buffer at HL and terminated with $ff.
+Note that this call will return an error of rc_notimp if the drive on which it
+is operating is formatted with a filesystem that does not support directories
+(eg a +3DOS floppy drive or RAMdisk).
+Note that for rc_path_change, the current default drive is *not* changed; only
+the current directory for the specified drive. To change the default drive, use
+the DOS_SET_DRIVE call (and, optionally, change the system variables LODDRV
+and/or SAVDRV which affect the default drives for NextBASIC's
+LOAD/SAVE/VERIFY/MERGE commands).
+
+Page 14 of 81
+
+New calls
+The following calls are new for NextZXOS.
+
+IDE_CAPACITY ($01b4)
+Get card capacity
+IN: C=unit (0 or 1)
+OUT(s):
+OUT(f):
+
+Fc=1
+DEHL=total card capacity in 512-byte sectors
+Fc=0, A=error code
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+
+IDE_GET_LFN ($01b7)
+Obtain a long filename and other file information
+IN: HL=address of filespec provided to the last DOS_CATALOG call
+IX=directory handle returned by the last DOS_CATALOG call
+DE=address of a file entry within buffer filled by the last DOS_CATALOG call
+BC=address of a 261-byte buffer to receive the long filename
+OUT(s):
+
+OUT(f):
+
+Fc=1
+Buffer at BC is filled with the long filename for the requested entry,
+terminated with $ff. If no long filename was available, the buffer will
+contain the properly-formatted short filename instead.
+BC=date (in MS-DOS format)
+DE=time (in MS-DOS format)
+HLIX=filesize (in bytes)
+Fc=0, A=error code
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+This call allows a long filename (or properly-formatted short filename) for an
+entry in the buffer returned by DOS_CATALOG to be obtained. It also returns
+additional directory entry details (date, time, file size).
+NOTE: No other +3DOS calls should be made between the DOS_CATALOG call and the
+(multiple) IDE_GET_LFN calls used to obtain the long filenames.
+NOTE: If the file entry is a directory, the filesize returned in HLIX will be
+zero.
+IDE_BROWSER ($01ba)
+Run the file browser
+IN:
+
+HL=address of supported filetypes buffer, laid out as follows:
++0 (1 byte) Length of next entry, n
+Page 15 of 81
+
++1 (n bytes) 1-3 byte extension, colon, optional BASIC command(s)
+If n=$ff there are no further entries.
+DE=address of $ff-terminated help text for 2 lines at bottom of screen
+A=browser capabilities mask, made by ORing together any of:
+$01, BROWSERCAPS_COPY
+- files may be copied
+$02, BROWSERCAPS_RENAME - files/dirs may be renamed
+$04, BROWSERCAPS_MKDIR - directories may be created
+$08, BROWSERCAPS_ERASE - files/dirs may be erased
+$10, BROWSERCAPS_REMOUNT- SD card may be remounted
+$20, BROWSERCAPS_UNMOUNT- drives may be unmounted
+$80, BROWSERCAPS_SYSCFG - system use only - use browser.cfg
+Alternatively just use one of the two special values:
+$00, BROWSERCAPS_NONE
+- no special capabilities
+$3f, BROWSERCAPS_ALL
+- all capabilities enabled
+OUT(s):
+
+OUT(f):
+
+Fc=1
+If Fz=1, ENTER was pressed with a filetype that is present in the
+filetype buffer, and:
+HL=address of short filename (terminated with $ff) in RAM 7
+DE=address of long filename (terminated with $ff) in RAM 7
+If Fz=0, SPACE/BREAK was pressed
+Fc=0, A=error
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTES:
+The help text can contain any standard full-screen mode window control codes,
+but if the character size is changed, it should be changed back to size 5 at the
+end.
+It is intended that applications wishing to use the Browser as a “save file”
+dialog should direct the user to navigate to the correct drive/directory and
+press SPACE. At this point the call will exit with the current drive and
+directory set as the user selected and Fz=0 to indicate SPACE was pressed. Since
+the screen is not cleared on exit, the application can then request input of the
+filename on the bottom two lines of the screen, giving a seamless user
+experience.
+Call does not return if a supported filetype was selected which had anything
+following the colon in the filetype buffer. In this case, the additional data is
+treated as plain text, then tokenized and executed as a BASIC command. NOTE: No
+terminator should be added to the end of the command.
+The ? character may be used as a wildcard to match a single character in the
+filetype.
+The * character may be used as a wildcard to match remaining characters in the
+filetype.
+Most applications will not want a BASIC command to be executed and so should
+provide a simple list of all the filetypes that they want to be selectable.
+Example filetype buffer contents:
+defb 4
+; length of first entry
+defm “XYZ:”
+; match this filetype and return to caller with it
+defb 12
+; length of second entry
+defm “X:.hexdump |”
+; match this filetype and execute .hexdump on it
+defb 3
+; length of third entry
+defm “Z?:”
+; matches .z3, .z4, .z5 etc
+Page 16 of 81
+
+defb
+defm
+defb
+
+3
+“Z*:”
+$ff
+
+; length of fourth entry
+; matches .z, .zip etc
+; table terminator
+
+To match all files, you can provide a simple table like this:
+defb 2
+defm “*:”
+defb $ff
+IDE_BANK ($01bd)
+Allocate or free 8K RAM banks in main ZX memory or DivMMC memory
+IN:
+
+H=bank type:
+rc_banktype_zx (0), ZX memory half-banks (8K size)
+rc_banktype_mmc (1), DivMMC memory banks (8K size)
+L=reason:
+rc_bank_total (0), return total number of 8K banks of specified type
+rc_bank_alloc (1), allocate next available 8K bank
+rc_bank_reserve (2), reserve bank specified in E (0..total-1)
+rc_bank_free (3), free bank specified in E (0..total-1)
+rc_bank_available (4), return number of currently-available 8K banks
+of specified type
+E=8K bank ID (0..total-1), for rc_bank_reserve/rc_bank_free
+
+OUT(s):
+
+Fc=1
+E=8K bank ID (0..total-1), for rc_bank_alloc
+E=total number of 8K banks of specified type, for rc_bank_total
+E=available number of 8K banks of specified type, for rc_bank_available
+
+OUT(f):
+
+Fc=0
+A=error: rc_inuse if no available banks to allocate
+rc_badparam if H, L or E is invalid
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE:
+This call is provided for applications that wish to co-exist with other
+applications, dot commands and BASIC programs without overwriting each other's
+memory.
+Bank IDs are for 8K half-banks, numbered from 0 upwards. For ZX memory they can
+be paged using the MMU instructions.
+Banks are allocated starting with the highest-numbered available bank. This
+helps to ensure low-numbered banks remain available for longer (important for
+layer 2 which can only use banks within the first RAM chip).
+NextZXOS/NextBASIC normally reserves the first 18 x 8K banks of ZX memory for
+its own use, and the first 6 x 8K banks of DivMMC memory. However, BASIC
+programs or TSR machine code programs could also reserve memory before your
+program is loaded, so it is usually easier to allocate using rc_bank_alloc
+rather than rc_bank_reserve.
+NextZXOS/NextBASIC also owns the layer 2 banks (normally 16K banks 9,10,11: 8K
+banks 18-23, but may have been changed by the LAYER BANK command). However, you
+can use such banks if you are in control of the system and not using layer 2:
+the current layer 2 banks can be found by reading Next registers $12 and $13 to
+Page 17 of 81
+
+find the base of the current front and back buffers, respectively.
+Take care to free any banks you allocate before exiting, otherwise they will be
+unavailable to the user until after a reset. A NEW command *does not* free
+reserved banks back into the system.
+
+IDE_BASIC ($01c0)
+Execute a BASIC command line
+IN:
+
+HL=address of tokenized BASIC command line, terminated with $0d
+
+OUT(s):
+
+Fc=1
+System variable ERR_NR contains generated BASIC error code-1
+($ff means BASIC command completed successfully)
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTES:
+This call must be made with the ROM2/RAM5/RAM2/RAM0 memory configuration rather
+than the usual +3DOS configuration. The stack must be located between STKEND and
+RAMTOP (the normal location for the stack during BASIC operation).
+Any number of BASIC commands may be executed, separated by colons (:), and the
+line must be terminated with an ENTER character ($0d).
+This call may be particularly useful for setting particular screen modes with
+the LAYER command, which will ensure that the system variables are correctly set
+up for printing to windows or the main screen in the selected mode.
+
+IDE_WINDOW_LINEIN ($01c3)
+Input line from current window stream
+IN:
+
+required window has been made current via ROM 3 / $1601
+HL=buffer address (must lie entirely below $c000)
+A=buffer size (1..255 bytes)
+E=number of characters already in the input buffer (0 for an entirely new
+input). Must be less than A.
+
+OUT: E=number of characters returned in input buffer
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTES:
+This call invokes the window line input handler, allowing the user to enter new
+characters and edit the input with the cursor keys and delete.
+The input buffer can be primed with an initial string for the user to edit. If
+this is the case, E should be set to the number of characters in the initial
+Page 18 of 81
+
+string (otherwise, set E=0).
++3 BASIC errors may be invoked
+IDE_WINDOW_STRING ($01c6)
+Output string to current window stream
+IN:
+
+required window has been made current via ROM 3 / $1601
+HL=address of string (must lie entirely below $c000)
+E=string termination condition:
+if E=$ff, string is terminated with a $ff character
+if E=$80, last character in the string has bit 7 set
+if E<$80, E=number of characters in the string (may be
+terminated earlier with $ff)
+OUT: Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTES:
+This call is intended for efficient outputting of strings to window channels,
+avoiding the significant per-character overhead associated with outputting each
+individual character via RST $10 or IDE_STREAM_OUT.
++3 BASIC errors may be invoked
+
+IDE_INTEGER_VAR ($01c9)
+Get or set NextBASIC integer variable
+IN:
+
+B=0 for standard variable, B=1 for array
+C=variable number (0=A,1=B...25=Z)
+L=array index (0..63) if B=1
+H=0 to get variable, 1 to set variable
+DE=value (if H=1)
+
+OUT(s):
+
+Fc=1
+DE=value (if H=0)
+
+OUT(f):
+
+Fc=0
+A=error: rc_badparam if H, L or E is invalid
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE:
+This call provides a convenient interface to pass values between BASIC and
+machine-code processes.
+
+Page 19 of 81
+
+IDE_RTC ($01cc)
+Query the real-time-clock module
+IN:
+
+-
+
+OUT(s):
+
+Fc=1
+BC=date, in MS-DOS format
+DE=time, in MS-DOS format
+
+OUT(f):
+
+Fc=0, real-time-clock module not present
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE:
+This call returns the results provided by the RTC.SYS loadable module.
+IDE_DRIVER ($01cf)
+Access the driver API
+IN:
+
+C=driver id
+B=call id
+HL,DE=other input parameters as described in driver API
+
+OUT(s):
+
+Fc=1
+Other results as described in M_DRVAPI
+
+OUT(f):
+
+Fc=0, error
+Other results as described in M_DRVAPI
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE:
+This call is equivalent to the M_DRVAPI hook provided in the esxDOS API.
+Applications will probably find M_DRVAPI more convenient to use; this call is
+designed for use by the NextZXOS ROMs.
+This call should be made with the ROM2/RAM5/RAM2/RAM0 memory configuration
+rather than the usual +3DOS configuration.
+HL is used as an input value instead of IX (ie same as calling M_DRVAPI from a
+dot command).
+IDE_MOUNT ($01d2)
+Unmount/remount SD cards
+IN:
+
+A=0, close all files, unmap all drives and swap partitions
+A=1, mount SD cards and automap drives
+
+OUT(s):
+
+Fc=1
+
+OUT(f):
+
+Fc=0, error
+Page 20 of 81
+
+A=error code
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE:
+This call can be used to allow users to change SD cards, as if the REMOUNT
+command was being executed.
+First, call IDE_MOUNT with A=0 to close all files and unmap drives.
+If successful, request the user to change the SD card(s) and then call IDE_MOUNT
+with A=1 to mount the new SD cards and automap drives.
+IDE_MODE ($01d5)
+Query current NextBASIC display mode information, or change mode
+IN:
+
+A=0, query current mode information
+A=1, change mode to:
+B=layer (0,1,2)
+C=sub-mode (if B=1): 0=lo-res, 1=ula, 2=hi-res, 3=hi-col
+
+OUT(f):
+
+Fc=0
+A=rc_badparam (bad parameter)
+
+OUT(s):
+
+Fc=1
+A=current (or new) mode/layer (same as lower 4 bits of GMODE):
+bits 0..1=layer (0,1,2)
+bits 2..3=sub-mode for layer 1 (0=lores,1=ula,2=hires,3=hicol)
+H=printable lines on screen:
+22 for layer 0
+12 for lo-res, standard height printing
+16 for lo-res, reduced height printing
+24 for ula/hi-res/hi-col/layer2, standard height printing
+32 for ula/hi-res/hi-col/layer2, reduced height printing
+L=printable columns on screen:
+32 for layer 0
+from 16 to 170 on other modes, depending on character size
+E=current attributes, for layer 0/ula/hi-res/hi-col
+current ink, for lo-res/layer2
+D=current paper, for lo-res/layer2
+B=character width in pixels (3-8)
+C=flags: bit 0=1 if reduced-height mode is currently in force
+bit 4=1 if double-width mode is currently in force
+bit 5=1 if double-height mode is currently in force
+IX=mode window handle (not valid if A=0, layer 0)
+
+Register status on return:
+......../.. same
+AFBCDEHL/IX different
+NOTE: H and L don't take account of the double-width/height flags in C, so
+Page 21 of 81
+
+if those bits are set then the current number of printable lines/columns
+will be half the reported values. (The number of lines in H *does* take
+account of the reduced height setting, bit 0 of C).
+NOTE: For layer 1 and 2 modes, the mode window handle is returned in IX. This
+can be stored in the system variable CURCHL before making calls to
+IDE_WINDOW_STRING or IDE_WINDOW_LINEIN, so that these calls use the
+full-screen mode windows. It is important to restore the original value
+of CURCHL after doing this.
+NOTE: Changing the mode does *not* cause the screen to be cleared. This can be
+useful if switching between layer 0 and layer 1,1 (or if switching between
+layer 2 and one of the other modes, since layer 2 uses different memory
+to the ULA modes).
+Simple dot commands can just use the standard RST $10 call to output characters
+and assume a screen width of 32 characters, which will work regardless of the
+current layer/mode.
+The information provided by this call can be useful if, however, you want to
+write a dot command that respects the user's current display settings, and
+formats output appropriately to use the entire screen.
+If the current mode is layer 0 (ie A=0 on return from this call), you can clear
+the screen using a standard 48K ROM call:
+rst $18
+defw $0D6B ; 48K ROM CLS call
+For all other layers/modes this will not work correctly. Instead you should just
+send the “clear window” control code using RST $10:
+ld
+a,14 ; clear window control code
+rst
+$10
+For all layers/modes except for layer 0, you can also use the other window
+control codes in this way (for example to change character width, enable doublewidth/height etc). It is good practice to restore any settings that you change
+before exiting your dot command.
+If you wish to use the windowing controls but the current mode is layer 0, you
+can use this call to first change to layer 1 mode 1. However, be sure to change
+the mode back to layer 0 before exiting the dot command.
+
+Page 22 of 81
+
+Error codes
+The error codes that may be returned by +3DOS/IDEDOS calls are as follows:
+Recoverable disk errors:
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+rc_ready
+rc_wp
+rc_seek
+rc_crc
+rc_nodata
+rc_mark
+rc_unrecog
+rc_unknown
+rc_diskchg
+rc_unsuit
+
+Drive not ready
+Disk is write protected
+Seek fail
+CRC data error
+No data
+Missing address mark
+Unrecognised disk format
+Unknown disk error
+Disk changed whilst +3DOS was using it
+Unsuitable media for drive
+
+Non-recoverable errors:
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+
+rc_badname
+rc_badparam
+rc_nodrive
+rc_nofile
+rc_exists
+rc_eof
+rc_diskfull
+rc_dirfull
+rc_ro
+rc_number
+rc_denied
+rc_norename
+rc_extent
+rc_uncached
+rc_toobig
+rc_notboot
+rc_inuse
+
+Bad filename
+Bad parameter
+Drive not found
+File not found
+File already exists
+End of file
+Disk full
+Directory full
+Read-only file
+File number not open (or open with wrong access)
+Access denied
+Cannot rename between drives
+Extent missing
+Uncached
+File too big
+Disk not bootable
+Drive in use
+
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+67
+68
+69
+74
+
+rc_invpartition
+rc_partexist
+rc_notimp
+rc_partopen
+rc_nohandle
+rc_notswap
+rc_mapped
+rc_noxdpb
+rc_noswap
+rc_invdevice
+rc_cmdphase
+rc_dataphase
+rc_notdir
+rc_fragmented
+
+Invalid partition
+Partition already exists
+Not implemented
+Partition open
+Out of handles
+Not a swap partition
+Drive already mapped
+No XDPB
+No suitable swap partition
+Invalid device
+Command phase error
+Data phase error
+Not a directory
+File is fragmented, use .DEFRAG
+
+Page 23 of 81
+
+The esxDOS-compatible API
+The esxDOS-compatible API is a bit simpler to use than the +3DOS-compatible API.
+To make a call, you only need to set up the entry parameters as indicated and
+perform a RST $08; DEFB hook_code. On return, registers AF,BC,DE,HL will all be
+changed. IX,IY and the alternate registers are never changed (except for
+M_P3DOS).
+(Note that the standard 48K BASIC ROM must be paged in to the bottom of memory,
+but this is the usual situation after starting a machine code program with a USR
+function call).
+Notice that error codes are different from those returned by +3DOS calls, and
+also the carry flag is SET for an error condition when returning from an esxDOS
+call (instead of RESET, as is the case for +3DOS).
+If desired, you can use the M_GETERR hook to generate a BASIC error report for
+any error returned, or even use it to generate your own custom BASIC error
+report.
+All of the calls where a filename is specified will accept long filenames (LFNs)
+and most will accept wildcards (for an operation such as F_OPEN where a single
+file is always used, the first matching filename will be used).
+
+Page 24 of 81
+
+Dot commands
+Dot commands can also be written using the esxDOS-compatible API. Normally dot
+commands run from the C:/DOT/ directory, but they can be run from anywhere if
+fully-pathed. For example:
+.mydot
+./mydot
+../mydot
+
+; executes C:/DOT/mydot
+; executes /mydot on current drive
+; executes mydot from current directory on current drive
+
+The default Browser configuration supports selecting and running dot commands if
+they have a .DOT extension.
+Requirements
+A dot command must be assembled to run at origin $2000, and will be loaded into
+DivMMC RAM to execute. The maximum code/data size available is 8K.
+It is permissable to relocate the stack to within the 8K area if desired (except
+when calling an external ROM with RST $10, RST $18 or the M_P3DOS hook code).
+On entry to your dot command, HL contains the address of the arguments following
+the command name (or 0 if there are no arguments). Additionally, BC contains the
+address of the entire command line (including the command name but excluding the
+leading “.”).
+The arguments/command line may be terminated by $00, $0d or ':' (since the
+address usually points within a BASIC statement, but may also be a systemsupplied null-terminated line). A ':' character within double-quotes does *not*
+indicate the end of the command line. For example the termination of the
+following command line is the second ':', not the first:
+.mydot “c:/dir/file”:
+On exit from your dot command, return with the the carry flag reset if execution
+was successful.
+To report a standard esxDOS error, set the carry flag and return with A=error.
+To generate a custom error report, set the carry flag and return with A=0 and
+HL=address of error message (last character must have bit 7 set).
+Calling esxDOS-compatible API hooks
+When called from within dot commands, the entry parameters used for RST $8 hook
+codes are slightly different: HL should be used instead of IX. Exit parameters
+are unchanged.
+Calling external ROM routines
+Within dot commands, two further restarts are available to call routines in the
+standard 48K BASIC ROM:
+RST $10
+Print the character in A (NOTE: A must not be $80).
+RST $18; DEFW address
+Call any routine in the standard 48K BASIC ROM.
+If a BASIC error occurs during a RST $10 or RST $18 call (eg the user presses
+BREAK at a “scroll?” prompt) the dot command will be terminated and the error
+reported, unless you have registered an error handler with the M_ERRH hook.
+Page 25 of 81
+
+Large dot commands
+If your dot command is >8K in length, only the first 8K is loaded (at $2000),
+but the file is left open (with the pointer directly after the first 8K). It is
+possible to obtain the file handle using the M_GETHANDLE hook. This allows you
+to read further code/data from your dot command into another memory area
+(perhaps a bank allocated using IDE_BANK via M_P3DOS) or into the standard 8K
+area as required.
+Bootstrapping a game/application from a dot command
+You can write large dot commands that load all the initial assets for a
+game/application into memory (probably in the way described for large dot
+commands above) and then start running them.
+The recommended way to start your game/application after loading from within a
+dot command is to use RST $20 with HL=address. This will cleanly terminate your
+dot command, and return to the address provided in HL.
+Note that this still leaves your dot command file open (as well as any other
+files you may have opened), so you may continue to load further assets from it
+if desired.
+NOTE:
+Although it is possible to start your game/application by simply jumping to the
+code you have loaded (rather than using the RST $20 mechanism), this is not
+recommended since doing so will leave the DivMMC ROM/RAM paged in place of the
+standard 48K BASIC ROM. The main disadvantages of this would be:
+•
+•
+•
+•
+•
+
+writing to Next registers MMU0/1 will have no effect
+needing to continue to use RST $8 hooks as if the dot command was running
+inability to run any further dot commands
+standard IM1 interrupt routine (including ROM keyscanning) unavailable
+NMI unavailable, so Multiface replacement can't be activated
+
+(NOTE: If you don't want your game to be interruptible/snapshottable by the
+Multiface replacement, this can be achieved anyway by clearing the multiface
+enable bit (bit 3) in the Next's peripheral2 register, $06).
+
+Page 26 of 81
+
+Installable device drivers
+NextZXOS allows for a number of drivers to be installed/uninstalled at will
+using the .install/.uninstall dot commands (currently a maximum of 4 drivers may
+be installed at any one time). These are mainly intended for use as drivers for
+external peripherals such as printers, mice, network devices etc, but could be
+used for other purposes.
+Each driver occupies a maximum of 512 bytes, which is loaded into DivMMC RAM and
+relocated by the .install command. It is possible to allocate additional 8K
+banks of DivMMC RAM and/or standard ZX Spectrum Next RAM during installation if
+required (note that RAM is a limited resource).
+Drivers have two entry points: an (optional) routine which is run during
+interrupts, and an API routine which allows the driver to respond to user
+requests. The driver's API is accessible from the M_DRVAPI hook (in the esxDOScompatible API), the IDE_DRIVER call (in the +3DOS-compatible API) and the
+DRIVER command in NextBASIC.
+Each driver is identified by a unique single-byte id, so when writing a new
+driver you should ensure that it's id does not clash with any other existing
+driver. However, it would be acceptable for multiple different drivers to all
+use the same identifier as long as they provide the same functionality via their
+APIs (for example, multiple drivers for different printer interfaces might all
+use the 'P' identifier).
+Keyboard driver
+In addition to the 4 general-purpose drivers, it is also possible to replace the
+standard keyboard driver with a 512-byte driver. This is defined in the same
+way, except that it always has a fixed id (0) and provides only a single entry
+point, for the interrupt routine; no driver API is supported for this special
+driver.
+It might be desired to replace the standard keyboard driver in order to support
+different international keyboard layouts, or perhaps to add support for a multikeystroke buffer.
+An example keyboard driver (keyboard.asm and keyboard_drv.asm) is available
+separately, and included at the end of this document.
+Printer drivers
+The id “P” is reserved for printer drivers. If such a driver is installed in the
+system then NextBASIC will automatically send any output on #3 (ie LLIST,
+LPRINT, PRINT #3 etc) to it. CP/M will also use any such driver as its LPT
+device.
+CP/M will also use any driver with id “X” as its AUX device. AUX drivers can be
+written in a similar way to printer drivers.
+An example printer driver (sample_prt.asm and sample_prt_drv.asm) is available
+separately, and included at the end of this document.
+Channel support
+Drivers can optionally be written to support i/o via the streams and channels
+system of the Spectrum Next. This would allow the following BASIC commands to
+open and close streams to the device (it is up to your documentation to describe
+which of the OPEN # variants should be used):
+
+Page 27 of 81
+
+OPEN #n,”D>X”
+open stream n to simple channel for device 'X'
+OPEN #n,”D>X>string”
+open stream n to channel described by string on device 'X'
+OPEN #n,”D>X,p1”
+open stream n to channel described by numeric value p1 on device 'X'
+OPEN #n,”D>X,p1,p2”
+open stream n to channel described by numeric values p1 and p2 on device 'X'
+CLOSE #n
+close stream n
+Once a channel is open, devices can (optionally) accept any of stream input,
+output or pointer manipulation through their APIs which will allow other streamrelated BASIC commands to be used, eg:
+PRINT #n;....
+INPUT #n;....
+INKEY$ #n
+GOTO #n,value
+RETURN #n TO var
+DIM #n TO var
+NEXT #n TO var
+
+(set current stream pointer)
+(get current stream pointer to variable var)
+(get current stream size/extent to variable var)
+(wait for next input character from stream and store in var)
+
+For information on writing device drivers, see the worked example in border.asm
+and border_drv.asm (available separately or at the end of this document).
+
+Page 28 of 81
+
+The following calls are available in the esxDOS-compatible API:
+; Low-level calls
+disk_filemap
+disk_strmstart
+disk_strmend
+
+; $85 (133)
+; $86 (134)
+; $87 (135)
+
+obtain file allocation map
+start streaming operation
+end streaming operation
+
+; Miscellaneous calls.
+m_dosversion
+m_getsetdrv
+m_tapein
+m_tapeout
+m_gethandle
+m_getdate
+m_execcmd
+m_setcaps
+m_drvapi
+m_geterr
+m_p3dos
+m_errh
+
+; $88 (136)
+; $89 (137)
+; $8b (139)
+; $8c (140)
+; $8d (141)
+; $8e (142)
+; $8f (143)
+; $91 (145)
+; $92 (146)
+; $93 (147)
+; $94 (148)
+; $95 (149)
+
+get NextZXOS version/mode information
+get/set default drive
+tape redirection control (input)
+tape redirection control (output)
+get handle for current dot command
+get current date/time
+execute a dot command
+set additional capabilities
+access API for installable drivers
+get or generate error message
+execute +3DOS/IDEDOS/NextZXOS call
+register dot command error handler
+
+; $9a (154)
+; $9b (155)
+; $9c (156)
+; $9d (157)
+; $9e (158)
+; $9f (159)
+; $a0 (160)
+; $a1 (161)
+; $a2 (162)
+; $a3 (163)
+; $a4 (164)
+; $a5 (165)
+; $a6 (166)
+; $a7 (167)
+; $a8 (168)
+; $a9 (169)
+; $aa (170)
+; $ab (171)
+; $ac (172)
+; $ad (173)
+; $ae (174)
+; $af (175)
+; $b0 (176)
+; $b1 (177)
+
+open file
+close file
+sync file changes to disk
+read file
+write file
+set file position
+get file position
+get open file information
+truncate/extend open file
+open directory for reading
+read directory entry
+get directory position
+set directory position
+rewind to start of directory
+get current working directory
+change directory
+make directory
+remove directory
+get unopen file information
+delete file
+truncate/extend unopen file
+change file attributes
+rename/move file
+get free space
+
+; File calls.
+f_open
+f_close
+f_sync
+f_read
+f_write
+f_seek
+f_fgetpos
+f_fstat
+f_ftruncate
+f_opendir
+f_readdir
+f_telldir
+f_seekdir
+f_rewinddir
+f_getcwd
+f_chdir
+f_mkdir
+f_rmdir
+f_stat
+f_unlink
+f_truncate
+f_chmod
+f_rename
+f_getfree
+
+Page 29 of 81
+
+esxDOS-compatible error codes
+Unknown error
+OK
+Nonsense in esxDOS
+Statement end error
+Wrong file type
+No such file or dir
+I/O error
+Invalid filename
+Access denied
+Drive full
+Invalid i/o request
+No such drive
+Too many files open
+Bad file number
+No such device
+File pointer overflow
+Is a directory
+Not a directory
+Already exists
+Invalid path
+Missing system
+Path too long
+No such command
+In use
+Read only
+Verify failed
+Sys file load error
+Directory in use
+MAPRAM is active
+Drive busy
+Unknown filesystem
+Device busy
+
+; 0, esx_ok
+; 1, esx_eok
+; 2, esx_nonsense
+; 3, esx_estend
+; 4, esx_ewrtype
+; 5, esx_enoent
+; 6, esx_eio
+; 7, esx_einval
+; 8, esx_eacces
+; 9, esx_enospc
+; 10, esx_enxio
+; 11, esx_enodrv
+; 12, esx_enfile
+; 13, esx_ebadf
+; 14, esx_enodev
+; 15, esx_eoverflow
+; 16, esx_eisdir
+; 17, esx_enotdir
+; 18, esx_eexist
+; 19, esx_epath
+; 20, esx_esys
+; 21, esx_enametoolong
+; 22, esx_enocmd
+; 23, esx_einuse
+; 24, esx_erdonly
+; 25, esx_everify
+; 26, esx_eloadingko
+; 27, esx_edirinuse
+; 28, esx_emapramactive
+; 29, esx_edrivebusy
+; 30, esx_efsunknown
+; 31, esx_edevicebusy
+
+Page 30 of 81
+
+; ***************************************************************************
+; * DISK_FILEMAP ($85)
+*
+; ***************************************************************************
+; Obtain a map of card addresses describing the space occupied by the file.
+; Can be called multiple times if buffer is filled, continuing from previous.
+; Entry:
+;
+A=file handle (just opened, or following previous DISK_FILEMAP calls)
+;
+IX=buffer
+;
+DE=max entries (each 6 bytes: 4 byte address, 2 byte sector count)
+; Exit (success):
+;
+Fc=0
+;
+DE=max entries-number of entries returned
+;
+HL=address in buffer after last entry
+;
+A=card flags: bit 0=card id (0 or 1)
+;
+bit 1=0 for byte addressing, 1 for block addressing
+; Exit (failure):
+;
+Fc=1
+;
+A=error
+;
+; NOTES:
+; Each entry may describe an area of the file between 2K and just under 32MB
+; in size, depending upon the fragmentation and disk format.
+; Please see example application code, stream.asm, for full usage information
+; (available separately or at the end of this document).
+; ***************************************************************************
+; * DISK_STRMSTART ($86)
+*
+; ***************************************************************************
+; Start reading from the card in streaming mode.
+; Entry: IXDE=card address
+;
+BC=number of 512-byte blocks to stream
+;
+A=card flags
+; Exit (success): Fc=0
+;
+B=0 for SD/MMC protocol, 1 for IDE protocol
+;
+C=8-bit data port
+; Exit (failure): Fc=1, A=esx_edevicebusy
+;
+; NOTES:
+; On the Next, this call always returns with B=0 (SD/MMC protocol) and C=$EB
+; When streaming using the SD/MMC protocol, after every 512 bytes you must read
+; a 2-byte CRC value (which can be discarded) and then wait for a $FE value
+; indicating that the next block is ready to be read.
+; Please see example application code, stream.asm, for full usage information
+; (available separately or at the end of this document).
+; ***************************************************************************
+; * DISK_STRMEND ($87)
+*
+; ***************************************************************************
+; Stop current streaming operation.
+; Entry: A=card flags
+; Exit (success): Fc=0
+; Exit (failure): Fc=1, A=esx_edevicebusy
+;
+; NOTES:
+; This call must be made to terminate a streaming operation.
+; Please see example application code, stream.asm, for full usage information
+; (available separately or at the end of this document).
+
+Page 31 of 81
+
+; ***************************************************************************
+; * M_DOSVERSION ($88)
+*
+; ***************************************************************************
+; Get API version/mode information.
+; Entry:
+;
+; Exit:
+;
+For esxDOS <= 0.8.6
+;
+Fc=1, error
+;
+A=14 ("no such device")
+;
+;
+For NextZXOS:
+;
+Fc=0, success
+;
+B='N',C='X' (NextZXOS signature)
+;
+DE=NextZXOS version in BCD format: D=major, E=minor version
+;
+eg for NextZXOS v1.94, DE=$0194
+;
+HL=language code:
+;
+English: L='e',H='n'
+;
+Spanish: L='e',H='s'
+;
+Further languages may be available in the future
+;
+A=0 if running in NextZXOS mode (and zero flag is set)
+;
+A<>0 if running in 48K mode (and zero flag is reset)
+; ***************************************************************************
+; * M_GETSETDRV ($89)
+*
+; ***************************************************************************
+; Get or set the default drive.
+; Entry:
+;
+A=0, get the default drive
+;
+A<>0, set the default drive to A
+;
+bits 7..3=drive letter (0=A...15=P)
+;
+bits 2..0=ignored (use 1 to ensure A<>0)
+; Exit (success):
+;
+Fc=0
+;
+A=default drive, encoded as:
+;
+bits 7..3=drive letter (0=A...15=P)
+;
+bits 2..0=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTE:
+; This call isn't often useful, as it is not necessary to provide a
+; specific drive to calls which need a drive/filename.
+; For such calls, you can instead provide:
+;
+A='*'
+use the default drive
+;
+A='$'
+use the system drive (C:, where the NEXTZXOS and BIN dirs are)
+; Any drive provided in such calls is also overridden by any drive letter
+; that is specified in the filename (eg “D:/myfile.txt\0”).
+;
+; NOTE:
+; When setting a drive, this call only affects the default drive seen by other
+; esxDOS API calls. It does *not* change the default drive seen by +3DOS API
+; calls, or the default LOAD/SAVE drives used by NextBASIC. This is because the
+; RAM used to hold these defaults (RAM 7 and the system variables area) could
+; potentially be being used for other purposes by programs using only the
+; esxDOS API.
+; If running in NextZXOS mode (not 48K mode) and you intend to use +3DOS API
+; calls or return to NextBASIC, you can instead use the +3DOS DOS_SET_DRIVE
+; call (which sets the default drive for +3DOS and esxDOS), and optionally
+; change the LODDRV and SAVDRV system variables (affecting NextBASIC LOAD/SAVE).
+Page 32 of 81
+
+; ***************************************************************************
+; * M_TAPEIN ($8b)
+*
+; ***************************************************************************
+; Tape input redirection control.
+; Entry:
+;
+B=0, in_open:
+;
+Attach tap file with name at IX, drive in A
+;
+B=1, in_close:
+;
+Detach tap file
+;
+B=2, in_info:
+;
+Return attached filename to buffer at IX and drive in A
+;
+B=3, in_setpos:
+;
+Set position of tape pointer to block DE (0=start)
+;
+B=4, in_getpos:
+;
+Get position of tape pointer, in blocks, to HL
+;
+B=5, in_pause:
+;
+Toggles pause delay when loading SCREEN$
+;
+On exit, A=1 if pause now enabled, A=0 if not
+;
+B=6, in_flags:
+;
+Set tape flags to A
+;
+bit 0: 1=pause delay at SCREEN$ (as set by in_pause)
+;
+bit 1: 1=simulate tape loading with border/sound
+;
+On exit, A=previous value of the tape flags
+; ***************************************************************************
+; * M_TAPEOUT ($8c)
+*
+; ***************************************************************************
+; Tape output redirection control.
+; Entry:
+;
+B=0, out_open:
+;
+Create/attach tap file with name at IX for appending, drive A
+;
+B=1, out_close:
+;
+Detach tap file
+;
+B=2, out_info:
+;
+Return attached filename to buffer at IX and drive in A
+;
+B=3, out_trunc:
+;
+Create/overwrite tap file with name at IX, drive A
+; ***************************************************************************
+; * M_GETHANDLE ($8d)
+*
+; ***************************************************************************
+; Get the file handle of the currently running dot command
+; Entry:
+;
+; Exit:
+;
+A=handle
+;
+Fc=0
+;
+; NOTES:
+; This call allows dot commands which are >8K to read further data direct
+; from their own file (for loading into another memory area, or overlaying
+; as required into the normal 8K dot command area currently in use).
+; On entry to a dot command, the file is left open with the file pointer
+; positioned directly after the first 8K.
+; This call returns meaningless results if not called from a dot command.
+
+Page 33 of 81
+
+; ***************************************************************************
+; * M_GETDATE ($8e)
+*
+; ***************************************************************************
+; Get the current date/time.
+; Entry:
+;
+; Exit:
+;
+Fc=0 if RTC present and providing valid date/time, and:
+;
+BC=date, in MS-DOS format
+;
+DE=time, in MS-DOS format
+;
+Fc=1 if no RTC, or invalid date/time, and:
+;
+BC=0
+;
+DE=0
+; ***************************************************************************
+; * M_EXECCMD ($8f)
+*
+; ***************************************************************************
+; Execute a dot command.
+; Entry:
+;
+IX=address of commandline, excluding the leading "."
+;
+terminated with $00 (or $0d, or ':')
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code (0 means user-defined error)
+;
+HL=address of user-defined error message within dot command
+;
+; NOTES:
+; The dot command name can be fully-pathed if desired. If just a name is
+; provided, it is opened from the C:/DOT directory.
+;
+eg: defm
+"hexdump afile.txt",0
+; runs c:/dot/hexdump
+;
+defm
+"./mycommand.dot afile.txt",0
+; runs mycommand.dot in current
+;
+; directory
+; If A=0, the dot command has provided its own error message but this is not
+; normally accessible. It can be read using the M_GETERR hook.
+; This hook cannot be used from within another dot command.
+; ***************************************************************************
+; * M_SETCAPS ($91)
+*
+; ***************************************************************************
+; Entry: A=capabilities to set:
+;
+bit 7=1, do not erase new file data in f_truncate/f_ftruncate
+;
+(increases performance of these calls)
+;
+bits 0..6: reserved, must be zero
+; Exit: Fc=0, success
+;
+E=previous capabilities
+;
+; NOTE: This call is only available from NextZXOS v1.98M+.
+;
+Earlier versions will return with Fc=1 (error) and A=esx_enocmd
+; NOTE: You should save the original value of the capabilities which is
+;
+returned in E. After completing the calls you need with your altered
+;
+capabilities, restore the original value by calling M_SETCAPS again
+;
+with the value that was previously returned in E.
+;
+This will ensure that other programs running after you have exited
+;
+will continue to see the original expected behaviour.
+
+Page 34 of 81
+
+; ***************************************************************************
+; * M_DRVAPI ($92)
+*
+; ***************************************************************************
+; Access API for installable drivers.
+; Entry:
+;
+C=driver id (0=driver API)
+;
+B=call id
+;
+HL,DE=other parameters
+; Exit (success):
+;
+Fc=0
+;
+other values depend on API call
+; Exit (failure):
+;
+Fc=1
+;
+A=0, driver not found
+;
+else A=driver-specific error code (esxDOS error code for driver API)
+; If C=0, the driver API is selected and calls are as follows:
+; (Note that these are not really useful for user applications; they are used
+; by the .install/.uninstall dot commands).
+;
+; B=0, query the RTC
+; (returns the same results as M_GETDATE)
+;
+; B=1, install a driver
+;
+D=number of relocations (0-255)
+;
+E=driver id, with bit 7=1 if should be called on an IM1 interrupt
+;
+HL=address of 512-byte driver code followed by D x 2-byte reloc offsets
+; Possible error values are:
+;
+esx_eexist (18)
+driver with same id already installed
+;
+esx_einuse (23)
+no free driver slots available
+;
+esx_eloadingko (26)
+bad relocation table
+;
+; B=2, uninstall a driver
+;
+E=driver id (bit 7 ignored)
+;
+; B=3, get paging value for driver banks
+;
+C=port (always $e3 on ZXNext)
+;
+A=paging value for DivMMC bank containing drivers (usually $82)
+;
+; B=4, get driver image
+;
+E=driver id (bit 7 ignored)
+;
+HL=address of 512-byte buffer
+
+Page 35 of 81
+
+; ***************************************************************************
+; * M_GETERR ($93)
+*
+; ***************************************************************************
+; Entry:
+;
+A=esxDOS error code, or 0=user defined error from dot command
+;
+if A=0, IX=error message address from dot command
+;
+;
+B=0, generate BASIC error report (does not return)
+;
+B=1, return error message to 32-byte buffer at DE
+;
+; NOTES:
+; Dot commands may use this call to fetch a standard esxDOS error message
+; (with B=1), but must not use it to generate an error report (with B=0) as
+; this would short-circuit the tidy-up code.
+; User programs may use the call to generate any custom error message (and not
+; just a custom message returned by a dot command). To do this, enter with
+; A=0 and IX=address of custom message, where IX>=$4000.
+; Custom error messages must be terminated with bit 7 set on the final
+; character.
+; ***************************************************************************
+; * M_P3DOS ($94)
+*
+; ***************************************************************************
+; Make a +3DOS/IDEDOS/NextZXOS API call.
+; Entry:
+;
+DE=+3DOS/IDEDOS/NextZXOS call ID
+;
+C=RAM bank that needs to be paged (usually 7, but 0 for some calls)
+;
+B'C',D'E',H'L',AF,IX contain entry parameters for call
+; Exit:
+;
+exit values as described for +3DOS/IDEDOS/NextZXOS call ID
+;
+EXCEPT: any value to be returned in IX will instead be in H'L'
+;
+All registers except IX,IY may be changed.
+;
+; NOTES:
+;
+; B'C', D'E', H'L' contain the entry parameters that the +3DOS API call
+; expects to be in BC, DE, HL.
+;
+; As with other esxDOS API calls, any IX entry parameter should instead be
+; loaded into HL if making the call from within a dot command.
+;
+; Do not attempt to use this hook code unless you are running in NextZXOS mode
+; (can be determined by using the M_DOSVERSION hook).
+;
+; Any parameters which are addresses of data (eg filenames etc) must lie between
+; $4000...$BFE0.
+;
+; Any errors returned will be +3DOS/IDEDOS/NextZXOS error codes, not esxDOS
+; error codes. Additionally, carry flag RESET indicates an error condition.
+;
+; No $DFFD paging should be in force.
+;
+; MMU2 ($4000-$5fff) must be the default (lower half of RAM bank 5), containing
+; the system variables.
+;
+; The stack should be in normal configuration (not in TSTACK).
+;
+; For calls requiring normal configuration (ROM2/5/2/0), RAM0 must already
+; be paged. For other calls, any banks can be paged at $c000, and will be
+; restored when the +3DOS call has completed.
+
+Page 36 of 81
+
+; ***************************************************************************
+; * M_ERRH ($95)
+*
+; ***************************************************************************
+; Install error handler for dot command.
+; Entry: HL=address of error handler within dot command
+;
+(0 to change back to standard handler)
+;
+; NOTES:
+; Can only be used from within a dot command.
+; If any BASIC error occurs during a call to ROM3 (using RST $10 or RST $18)
+; then your error handler will be entered with:
+;
+DE=address that would have been returned to if the error had not
+;
+occurred
+;
+A=BASIC error code-1 (eg 8=9 STOP statement)
+
+Page 37 of 81
+
+; ***************************************************************************
+; * F_OPEN ($9a)
+*
+; ***************************************************************************
+; Open a file.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=filespec, null-terminated
+;
+B=access modes, a combination of:
+;
+any/all of:
+;
+esx_mode_read
+$01
+request read access
+;
+esx_mode_write
+$02
+request write access
+;
+esx_mode_use_header
+$40
+read/write +3DOS header
+;
+plus one of:
+;
+esx_mode_open_exist
+$00
+only open existing file
+;
+esx_mode_open_creat
+$08
+open existing or create file
+;
+esx_mode_creat_noexist $04
+create new file, error if exists
+;
+esx_mode_creat_trunc
+$0c
+create new file, delete existing
+;
+;
+DE=8-byte buffer with/for +3DOS header data (if specified in mode)
+;
+(NB: filetype will be set to $ff if headerless file was opened)
+; Exit (success):
+;
+Fc=0
+;
+A=file handle
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_CLOSE ($9b)
+*
+; ***************************************************************************
+; Close a file or directory.
+; Entry:
+;
+A=file handle or directory handle
+; Exit (success):
+;
+Fc=0
+;
+A=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_SYNC ($9c)
+*
+; ***************************************************************************
+; Sync file changes to disk.
+; Entry:
+;
+A=file handle
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+
+Page 38 of 81
+
+; ***************************************************************************
+; * F_READ ($9d)
+*
+; ***************************************************************************
+; Read bytes from file.
+; Entry:
+;
+A=file handle
+;
+IX=address
+;
+BC=bytes to read
+; Exit (success):
+;
+Fc=0
+;
+BC=bytes actually read (also in DE)
+;
+HL=address following bytes read
+; Exit (failure):
+;
+Fc=1
+;
+BC=bytes actually read
+;
+A=error code
+;
+; NOTES:
+; EOF is not an error, check BC to determine if all bytes requested were read.
+; ***************************************************************************
+; * F_WRITE ($9e)
+*
+; ***************************************************************************
+; Write bytes to file.
+; Entry:
+;
+A=file handle
+;
+IX=address
+;
+BC=bytes to write
+; Exit (success):
+;
+Fc=0
+;
+BC=bytes actually written
+; Exit (failure):
+;
+Fc=1
+;
+BC=bytes actually written
+; ***************************************************************************
+; * F_SEEK ($9f)
+*
+; ***************************************************************************
+; Seek to position in file.
+; Entry:
+;
+A=file handle
+;
+BCDE=bytes to seek
+;
+IXL=seek mode:
+;
+esx_seek_set
+$00
+set the fileposition to BCDE
+;
+esx_seek_fwd
+$01
+add BCDE to the fileposition
+;
+esx_seek_bwd
+$02
+subtract BCDE from the fileposition
+; Exit (success):
+;
+Fc=0
+;
+BCDE=current position
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTES:
+; Attempts to seek past beginning/end of file leave BCDE=position=0/filesize
+; respectively, with no error.
+
+Page 39 of 81
+
+; ***************************************************************************
+; * F_FGETPOS ($a0)
+*
+; ***************************************************************************
+; Get current file position.
+; Entry:
+;
+A=file handle
+; Exit (success):
+;
+Fc=0
+;
+BCDE=current position
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_FSTAT ($a1)
+*
+; ***************************************************************************
+; Get file information/status.
+; Entry:
+;
+A=file handle
+;
+IX=11-byte buffer address
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTES:
+; The following details are returned in the 11-byte buffer:
+;
++0(1)
+'*'
+;
++1(1)
+$81
+;
++2(1)
+file attributes (MS-DOS format)
+;
++3(2)
+timestamp (MS-DOS format)
+;
++5(2)
+datestamp (MS-DOS format)
+;
++7(4)
+file size in bytes
+; ***************************************************************************
+; * F_FTRUNCATE ($a2)
+*
+; ***************************************************************************
+; Truncate/extend file.
+; Entry:
+;
+A=file handle
+;
+BCDE=new filesize
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTES:
+; The M_SETCAPS ($91) hook can be used to modify the behaviour of this call
+; so that is doesn't zeroise additional file sections (improving performance).
+; Sets the filesize to precisely BCDE bytes.
+; If BCDE<current filesize, the file is trunctated.
+; If BCDE>current filesize, the file is extended. The extended part is erased
+; with zeroes.
+; The file position is unaffected. Therefore, if truncating, make sure to
+; set the file position within the file before further writes (otherwise it
+; will be extended again).
+; +3DOS headers are included as part of the filesize. Truncating such files is
+; not recommended.
+Page 40 of 81
+
+; ***************************************************************************
+; * F_OPENDIR ($a3)
+*
+; ***************************************************************************
+; Open directory.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=directory, null-terminated
+;
+B=access mode (only esx_mode_use_header and esx_mode_use_lfn matter)
+;
+any/all of:
+;
+esx_mode_use_lfn
+$10
+return long filenames
+;
+esx_mode_use_header
+$40
+read/write +3DOS headers
+; Exit (success):
+;
+A=dir handle
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTES:
+; Access modes determine how entries are formatted by F_READDIR.
+; ***************************************************************************
+; * F_READDIR ($a4)
+*
+; ***************************************************************************
+; Read next directory entry.
+; Entry:
+;
+A=handle
+;
+IX=buffer
+; Exit (success):
+;
+A=number of entries returned (0 or 1)
+;
+If 0, there are no more entries
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; Buffer format:
+; 1 byte
+file attributes (MSDOS format)
+; ? bytes file/directory name, null-terminated
+; 2 bytes timestamp (MSDOS format)
+; 2 bytes datestamp (MSDOS format)
+; 4 bytes file size
+;
+; NOTES:
+; If the directory was opened with the esx_mode_use_lfn bit, long filenames
+; (up to 260 bytes plus terminator) are returned; otherwise short filenames
+; (up to 12 bytes plus terminator) are returned.
+; If opened with the esx_mode_use_header bit, after the normal entry follows the
+; 8-byte +3DOS header (for headerless files, type=$ff, other bytes=zero).
+
+Page 41 of 81
+
+; ***************************************************************************
+; * F_TELLDIR ($a5)
+*
+; ***************************************************************************
+; Get current directory position.
+; Entry:
+;
+A=handle
+; Exit (success):
+;
+BCDE=current offset in directory
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_SEEKDIR ($a6)
+*
+; ***************************************************************************
+; Set current directory position.
+; Entry:
+;
+A=handle
+;
+BCDE=offset in directory to seek to (as returned by F_TELLDIR)
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_REWINDDIR ($a7)
+*
+; ***************************************************************************
+; Rewind directory position to the start of the directory.
+; Entry:
+;
+A=handle
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_GETCWD ($a8)
+*
+; ***************************************************************************
+; Get current working directory (or working directory for any filespec)
+; Entry:
+;
+A=drive, to obtain current working directory for that drive
+;
+or: A=$ff, to obtain working directory for a supplied filespec in DE
+;
+DE=filespec (only if A=$ff)
+;
+IX=buffer for null-terminated path
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTE:
+; If obtaining a path for a supplied filespec, the filename part (after the
+; final /, \ or :) is ignored so need not be provided, or can be the name of a
+; non-existent file/dir.
+; NOTE:
+; IX and DE may both address the same memory, if desired.
+Page 42 of 81
+
+Page 43 of 81
+
+; ***************************************************************************
+; * F_CHDIR ($a9)
+*
+; ***************************************************************************
+; Change directory.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=path, null-terminated
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_MKDIR ($aa)
+*
+; ***************************************************************************
+; Create directory.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=path, null-terminated
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_RMDIR ($ab)
+*
+; ***************************************************************************
+; Remove directory.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=path, null-terminated
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+
+Page 44 of 81
+
+; ***************************************************************************
+; * F_STAT ($ac)
+*
+; ***************************************************************************
+; Get unopened file information/status.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=filespec, null-terminated
+;
+DE=11-byte buffer address
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTES:
+; The following details are returned in the 11-byte buffer:
+;
++0(1)
+drive specifier
+;
++1(1)
+$81
+;
++2(1)
+file attributes (MS-DOS format)
+;
++3(2)
+timestamp (MS-DOS format)
+;
++5(2)
+datestamp (MS-DOS format)
+;
++7(4)
+file size in bytes
+; ***************************************************************************
+; * F_UNLINK ($ad)
+*
+; ***************************************************************************
+; Delete file.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=filespec, null-terminated
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_TRUNCATE ($ae)
+*
+; ***************************************************************************
+; Truncate/extend unopened file.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=source filespec, null-terminated
+;
+BCDE=new filesize
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+;
+; NOTES:
+; The M_SETCAPS ($91) hook can be used to modify the behaviour of this call
+; so that is doesn't zeroise additional file sections (improving performance).
+; Sets the filesize to precisely BCDE bytes.
+; If BCDE<current filesize, the file is trunctated.
+; If BCDE>current filesize, the file is extended. The extended part is erased
+; with zeroes.
+; +3DOS headers are included as part of the filesize. Truncating such files is
+; not recommended.
+
+Page 45 of 81
+
+; ***************************************************************************
+; * F_CHMOD ($af)
+*
+; ***************************************************************************
+; Modify file attributes.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=filespec, null-terminated
+;
+B=attribute values bitmap
+;
+C=bitmap of attributes to change (1=change, 0=do not change)
+;
+;
+Bitmasks for B and C are any combination of:
+;
+A_WRITE
+%00000001
+;
+A_READ
+%10000000
+;
+A_RDWR
+%10000001
+;
+A_HIDDEN
+%00000010
+;
+A_SYSTEM
+%00000100
+;
+A_ARCH
+%00100000
+;
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_RENAME ($b0)
+*
+; ***************************************************************************
+; Rename or move a file.
+; Entry:
+;
+A=drive specifier (overridden if filespec includes a drive)
+;
+IX=source filespec, null-terminated
+;
+DE=destination filespec, null-terminated
+; Exit (success):
+;
+Fc=0
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+; ***************************************************************************
+; * F_GETFREE ($b1)
+*
+; ***************************************************************************
+; Gets free space on drive.
+; Entry:
+;
+A=drive specifier
+; Exit (success):
+;
+Fc=0
+;
+BCDE=number of 512-byte blocks free on drive
+; Exit (failure):
+;
+Fc=1
+;
+A=error code
+
+Page 46 of 81
+
+Streaming API example - stream.asm
+; ***************************************************************************
+; * Streaming file access example code for NextZXOS via esxDOS API
+*
+; ***************************************************************************
+; Assemble with: pasmo stream.asm stream.bin
+;
+; Execute with stream.bin and test.scr (any 6912-byte headerless screen file)
+; in the same directory, using:
+;
+; CLEAR 32767:LOAD "stream.bin" CODE 32768
+; LET x=USR 32768
+;
+; PRINT x to show any esxDOS error code on return.
+; Additionally, 255 means "out of data"
+; and 65535 means "completed successfully".
+; ***************************************************************************
+; * esxDOS API and other definitions required
+*
+; ***************************************************************************
+; Calls
+f_open
+f_close
+disk_filemap
+disk_strmstart
+disk_strmend
+
+equ
+equ
+equ
+equ
+equ
+
+$9a
+$9b
+$85
+$86
+$87
+
+; opens a file
+; closes a file
+; obtains map of file data
+; begin streaming operation
+; end streaming operation
+
+; File access modes
+esx_mode_read
+esx_mode_open_exist
+
+equ
+equ
+
+$01
+$00
+
+; read access
+; open existing files only
+
+; Next registers
+next_register_select
+nxr_peripheral2
+
+equ
+equ
+
+$243b
+$06
+
+; Size of filemap buffer (in 6-byte entries)
+; To guarantee all entries will fit in the filemap at once, allow 1 entry for
+; every 2K of filesize. The example uses a 6.75K SCREEN$, so 4 entries is
+; sufficient.
+; (NOTE: Reducing this to 1 *may* force the example code to refill the filemap
+;
+multiple times, but only if your card has a cluster size of 2K or 4K
+;
+and the file is fragmented).
+filemap_size
+equ
+4
+; ***************************************************************************
+; * Initialisation
+*
+; ***************************************************************************
+org
+
+$8000
+
+; Before starting we will disable the Multiface button, since filesystem
+; access will not be possible during a streaming operation, and could cause
+; unexpected effects, including possibly the machine locking up until a soft
+; reset is performed.
+ld
+ld
+out
+
+bc,next_register_select
+a,nxr_peripheral2
+(c),a
+Page 47 of 81
+
+inc
+in
+and
+out
+
+b
+a,(c)
+%11110111
+(c),a
+
+; get current peripheral2 value
+; clear bit 3 (multiface enable)
+
+; First the file must be opened in the normal way
+ld
+ld
+ld
+rst
+defb
+jp
+ld
+
+a,'*'
+; use default drive if none specified
+ix,test_filename
+b,esx_mode_read+esx_mode_open_exist
+$08
+f_open
+c,exit_with_error
+(filehandle),a
+; store the returned file handle
+
+; For this example, we are going to "stream" a standard Spectrum SCREEN$
+; file to the screen. This is a convenient point to set up parameters
+; for this.
+ld
+ld
+exx
+
+hl,$4000
+de,6912
+
+; address to stream data to
+; size of data left to stream
+; save in alternate registers
+
+; ***************************************************************************
+; * Filemap buffer setup
+*
+; ***************************************************************************
+; Next, obtain the map of card addresses for the file.
+; Note that this call (DISK_FILEMAP) must be made directly after opening the
+; file - no other file access calls should be made first.
+;
+; A buffer must be provided to hold the card addresses.
+;
+; Each entry in the buffer occupies 6 bytes and describes an area of the
+; file which can be anywhere between 2K and 32MB in size (depending on the
+; way the card was formatted, and how fragmented the file is).
+; Therefore, it is possible to calculate the absolute maximum number of buffer
+; entries required by dividing the size of the file by 2K.
+;
+; It is also possible to use a smaller buffer and call disk_filemap multiple
+; times when a refill is required (provided the last streaming operation has
+; been stopped before the next disk_filemap call is made).
+;
+; Often, files are unfragmented, and so will use only 1 entry. You could
+; potentially write your code to assume this (which would therefore be simpler
+; than this example), and cause an error if more than 1 entry is returned,
+; citing "framentation" and suggesting the user run the .defrag dot command
+; on the file. (Note that some CompactFlash, and other IDE, may be limited
+; to a maximum section size of 64K).
+;
+; The byte/block addressing flag returned in bit 1 of A may be useful if you
+; wish to start streaming data from a particular 512-byte block offset within
+; the file, as it indicates how to adjust the 4-byte card addresses:
+;
+if bit 1 of A=0, then add 512 to the card address for every block
+;
+if bit 1 of A=1, then add 1 to the card address for every block
+refill_map:
+ld
+ld
+ld
+rst
+
+a,(filehandle)
+ix,filemap_buffer
+de,filemap_size
+$08
+
+; address of buffer
+; size of buffer (in 6-byte entries)
+
+Page 48 of 81
+
+defb
+jp
+
+disk_filemap
+c,close_and_exit_with_error
+
+; On exit from disk_filemap, the return values are:
+;
+DE=size of buffer unused (in 6-byte entries)
+;
+HL=address in buffer after last written entry
+;
+A=flags: bit 0=card id (0 or 1)
+;
+bit 1=0 for byte addressing, 1 for block addressing
+ld
+
+(cardflags),a
+
+; store card flags for later use
+
+; First we will check whether there were any entries returned, and exit with
+; a dummy error code ($ff) not used by esxDOS to indicate "out of data" if not.
+
+;
+
+push
+ld
+and
+sbc
+pop
+ld
+jr
+
+hl
+de,filemap_buffer
+; initialise buffer address
+a
+; not needed as no error, so carry=0
+hl,de
+; any entries in the buffer at all?
+hl
+a,$ff
+; dummy error to indicate out of data
+z,close_and_exit_with_error
+
+; ***************************************************************************
+; * Main streaming loop
+*
+; ***************************************************************************
+; Now we can enter a loop to stream data from each entry in the buffer.
+stream_loop:
+push
+ex
+ld
+inc
+ld
+inc
+ld
+inc
+ld
+inc
+push
+pop
+ld
+inc
+ld
+inc
+push
+push
+
+hl
+de,hl
+e,(hl)
+hl
+d,(hl)
+hl
+c,(hl)
+hl
+b,(hl)
+hl
+bc
+ix
+c,(hl)
+hl
+b,(hl)
+hl
+hl
+bc
+
+; save buffer end address
+; HL=address of next entry in buffer
+
+; BCDE=card address
+; IXDE=card address
+; BC=number of 512-byte blocks
+; save updated buffer address
+; save number of blocks
+
+; Streaming is initiated by calling DISK_STRMSTART with:
+;
+IXDE=card address
+;
+BC=number of 512-byte blocks to stream
+;
+A=card flags, as returned by DISK_FILEMAP
+; After this call is issued it is important that no further esxDOS calls
+; (or NextZXOS calls which might access a filesystem) are issued until the
+; matching DISK_STRMEND call has been made.
+; It is also important to ensure that the Multiface (which could access files)
+; is disabled for the duration of the streaming operation. (Done earlier in
+; this example).
+ld
+rst
+defb
+
+a,(cardflags)
+$8
+disk_strmstart
+
+; A=card flags
+
+Page 49 of 81
+
+pop
+jr
+
+ix
+; retrieve number of blocks to IX
+c,drop2_close_and_exit_with_error
+
+; If successful, the call returns with:
+;
+B=protocol: 0=SD/MMC, 1=IDE
+;
+C=data port
+; NOTE: On the Next, these values will always be:
+;
+B=0
+;
+C=$EB
+; Therefore, your code code be slightly faster and simpler if writing a
+; Next-only program. However, these values are provided to allow portable
+; streaming code to be written (if NextZXOS is later ported to other platforms).
+ld
+exx
+
+a,c
+
+ld
+
+c,a
+
+; switch back to "streaming set"
+; HL=address, DE=bytes to stream
+; C=data port
+
+; ***************************************************************************
+; * Block streaming loop
+*
+; ***************************************************************************
+stream_block_loop:
+ld
+b,0
+ld
+cp
+jr
+
+; prepare for 256-byte INIR
+
+a,d
+2
+c,stream_partial_block
+
+; at least 1 block to stream?
+
+; Read an entire 512-byte block of data.
+; These could be unrolled to INIs for maximum performance.
+inir
+inir
+dec
+dec
+
+; read 512 bytes from the port
+d
+d
+
+; Check the protocol being used.
+exx
+ld
+a,b
+exx
+and
+a
+jr
+nz,protocol_ide
+
+; update byte count
+
+; A=protocol (0=SD/MMC, 1=IDE)
+; The IDE protocol doesn't need
+; this end-of-block processing
+
+; For SD protocol we must next skip the 2-byte CRC for the block just read.
+; Note that maximum performance of the interface is 16T per byte, so nops
+; must be added if not using INI/OUTI.
+; The interface can run at CPU speeds of at least 21MHz (as in ZX-Badaloc).
+in
+nop
+in
+nop
+
+a,(c)
+a,(c)
+
+; And then wait for a token of $FE, signifying the start of the next block.
+; A value of $FF indicates "token not yet available". Any other value is an
+; error.
+wait_token:
+in
+cp
+
+a,(c)
+$ff
+
+; wait for start of next block
+; (a token is != $ff)
+Page 50 of 81
+
+jr
+cp
+jr
+
+z,wait_token
+$fe
+nz,token_error
+
+; the correct data token is $fe
+; anything else is an error
+
+; IDE protocol streaming can rejoin here.
+protocol_ide:
+ld
+a,d
+; check if any more bytes needed
+or
+e
+jr
+z,streaming_complete
+dec
+ld
+or
+jr
+
+ix
+a,ixl
+ixh
+nz,stream_block_loop
+
+exx
+
+; decrement block count
+; continue until all blocks streamed
+; switch "streaming set" to alternates
+
+; ***************************************************************************
+; * Main streaming loop end
+*
+; ***************************************************************************
+; After all the 512-byte blocks for a particular card address have been
+; streamed, the DISK_STRMEND call must be made. This just requires A=cardflags.
+ld
+rst
+defb
+jr
+
+a,(cardflags)
+$08
+disk_strmend
+c,drop2_close_and_exit_with_error
+
+; Following disk_strmend, the system is back in a state where any other esxdos
+; calls may now be used, including (if necessary) DISK_FILEMAP to refill the
+; buffer. This can be an expensive call, though, so it would be preferable to
+; ensure that the buffer is large enough to be filled with the first call.
+; This would also simplify the code a little.
+
+;
+
+pop
+pop
+and
+sbc
+jr
+add
+jr
+
+de
+hl
+a
+hl,de
+z,refill_map
+hl,de
+stream_loop
+
+; DE=current buffer address
+; HL=ending buffer address
+; not needed; carry=0 since no error
+; any more entries left in buffer?
+; if not, refill
+; re-form ending address
+; back for next entry in the buffer
+
+; ***************************************************************************
+; * Stream a partial block
+*
+; ***************************************************************************
+; It is entirely okay to stream a partial block, since the streaming operation
+; can be terminated at any point by issuing the DISK_STRMEND call.
+stream_partial_block:
+and
+a
+jr
+z,stream_final_bytes
+inir
+
+; at least 256 bytes left?
+; read 256 bytes from the port
+
+stream_final_bytes:
+ld
+b,e
+inc
+b
+dec
+b
+jr
+z,streaming_complete
+
+Page 51 of 81
+
+inir
+
+; read last few bytes from the port
+
+streaming_complete:
+ld
+a,(cardflags)
+rst
+$08
+defb
+disk_strmend
+; terminate the streaming operation
+jr
+drop2_close_and_exit_with_error
+; ***************************************************************************
+; * Tidy up and exit
+*
+; ***************************************************************************
+token_error:
+ld
+scf
+
+a,$ff
+
+drop2_close_and_exit_with_error:
+pop
+hl
+pop
+hl
+close_and_exit_with_error:
+push
+af
+ld
+rst
+defb
+
+a,(filehandle)
+$08
+f_close
+
+pop
+
+af
+
+exit_with_error:
+ld
+hl,$2758
+exx
+ld
+b,0
+ld
+c,a
+ret
+c
+ld
+bc,$ffff
+ret
+
+; dummy error to indicate out of data
+
+; discard buffer addresses
+
+; save error status
+
+; restore error status
+
+; BASIC requires H'L'=$2758 on return
+; BC=error, for return to BASIC
+; exit if there was an error
+; use 65535 to indicate "no error"
+
+; ***************************************************************************
+; * Data
+*
+; ***************************************************************************
+test_filename:
+defm
+
+"test.scr",0
+
+filehandle:
+defb
+
+0
+
+filemap_buffer:
+defs
+filemap_size*6
+cardflags:
+defb
+
+; filenames must be null-terminated
+
+; allocate 6 bytes per entry
+
+0
+
+Page 52 of 81
+
+Driver example (file 1 of 2) - border.asm
+; ***************************************************************************
+; * Simple example NextZXOS driver
+*
+; ***************************************************************************
+;
+; This file is the 512-byte NextZXOS driver itself, plus relocation table.
+;
+; Assemble with: pasmo border.asm border.bin border.sym
+;
+; After this, border_drv.asm needs to be built to generate the actual
+; driver file.
+; ***************************************************************************
+; * Entry points
+*
+; ***************************************************************************
+; Drivers are a fixed length of 512 bytes (although can have external 8K
+; banks allocated to them if required).
+;
+; They are always assembled at origin $0000 and relocated at installation time.
+;
+; Your driver always runs with interrupts disabled, and may use any of the
+; standard register set (AF,BC,DE,HL). Index registers and alternates must be
+; preserved.
+;
+; No esxDOS hooks or restarts may be used. However, 3 calls are provided
+; which drivers may use:
+;
+;
+jp
+$2000
+; drv_drvswapmmc
+;
+; Can be used to aid switching between allocated
+;
+; DivMMC banks (see example usage below).
+;
+;
+call
+$2003
+; drv_drvrtc
+;
+; Query the RTC. Returns BC=date, DE=time (as M_DATE)
+;
+;
+call
+$2006
+; drv_drvapi
+;
+; Access other drivers. Same parameters as M_DRVAPI.
+;
+; The stack is always located below $4000, so if ZX banks have been allocated
+; they may be paged in at any location (MMU2..MMU7). However, when switching
+; to other allocated DivMMC banks, the stack cannot be used unless you set
+; it up/restore it yourself.
+; If you do switch any banks, don't forget to restore the previous MMU settings
+; afterwards.
+; ***************************************************************************
+; * Switching between allocated DivMMC banks
+*
+; ***************************************************************************
+; You can request DivMMC banks to be allocated to your driver, as well as
+; (or instead of standard ZX memory banks). However, DivMMC banks are a more
+; limited resource and are more awkward to use, since they can only be paged
+; in at $2000..$3fff (where your driver code is already running in another
+; DivMMC bank).
+;
+; If you wish to use DivMMC banks, the following helper code is provided
+; in the driver's DivMMC bank at $2000 (drv_drvswapmmc):
+;
+$2000: out
+($e3),a
+;
+ret
+;
+; One suggested method for switching between your allocated DivMMC banks
+Page 53 of 81
+
+; and your driver is as follows:
+;
+; 1. In the preload data for each DivMMC bank (specified in the .DRV
+;
+file), include a copy of the above routine at the start (ie $2000).
+;
+; 2. Provide the following subroutine somewhere within your driver code:
+;
+call_externmmc:
+;
+push
+hl
+; stack external bank routine address
+;
+ex
+af,af'
+;
+in
+a,($e3)
+; save driver bank in A'
+;
+ex
+af,af'
+;
+set
+7,a
+; set bit 7 on DivMMC bank id to page
+;
+jp
+$2000
+; jump to switch banks and "return"
+;
+; to routine in external DivMMC bank
+;
+; 3. To call a routine in one of your allocated DivMMC banks, use this in
+;
+your driver code:
+;
+ld
+hl,routineaddr
+;
+ld
+a,divmmcbankid ; (to be patched by .INSTALL)
+;
+call
+call_externmmc
+;
+; 4. The routines in your allocated DivMMC banks should end with:
+;
+ex
+af,af'
+; A=driver bank id
+;
+jp
+$2000
+; switch back to driver and return
+; ***************************************************************************
+; * Entry points
+*
+; ***************************************************************************
+org
+
+$0000
+
+; At $0000 is the entry point for API calls directed to your driver.
+; B,DE,HL are available as entry parameters.
+; If your driver does not provide any API, just exit with A=0 and carry set.
+; eg:
+;
+xor
+a
+;
+scf
+;
+ret
+api_entry:
+jr
+nop
+
+border_api
+
+; At $0003 is the entry point for the interrupt handler. This will only be
+; called if bit 7 of the driver id byte has been set in your .DRV file, so
+; need not be implemented otherwise.
+im1_entry:
+reloc_1:
+ld
+inc
+and
+reloc_2:
+ld
+out
+ret
+
+a,(colour)
+a
+$07
+(colour),a
+($fe),a
+
+; increment stored border colour
+
+; set it
+
+; ***************************************************************************
+; * Simple example API
+*
+Page 54 of 81
+
+; ***************************************************************************
+; On entry, use B=call id with HL,DE other parameters.
+; (NOTE: HL will contain the value that was either provided in HL (when called
+;
+from dot commands) or IX (when called from a standard program).
+;
+; When called from the DRIVER command, DE is the first input and HL is the
+second.
+;
+; When returning values, the DRIVER command will place the contents of BC into
+; the first return variable, then DE and then HL.
+border_api:
+bit
+jr
+djnz
+
+7,b
+nz,standard_api
+
+; check if B>=$80
+; on for standard API functions if so
+
+bnot1
+
+; On if B<>1
+
+; B=1: set values.
+reloc_3:
+ld
+
+(value1),de
+
+ld
+and
+ret
+
+(value2),hl
+a
+
+reloc_4:
+
+; clear carry to indicate success
+
+; B=2: get values.
+bnot1:
+
+djnz
+
+reloc_5:
+
+ld
+ld
+ld
+
+reloc_6:
+
+ld
+
+reloc_7:
+
+ld
+and
+ret
+
+bnot2
+
+; On if B<>2
+
+a,(colour)
+b,0
+c,a
+de,(value1)
+hl,(value2)
+a
+
+; clear carry to indicate success
+
+; Unsupported values of B.
+bnot2:
+api_error:
+xor
+scf
+ret
+
+a
+
+; A=0, unsupported call id
+; Fc=1, signals error
+
+; ***************************************************************************
+; * Standard API functions
+*
+; ***************************************************************************
+; API calls $80..$ff are used in a standard way by NextZXOS.
+;
+; If (and only if) you have set bit 7 of the "mmcbanks" value in your
+; driver file's header, then 2 special calls are made to allow you to
+; perform any necessary initialisation or shutdown of your driver
+; when it is .INSTALLed and .UNINSTALLed:
+;
+; B=$80: initialise
+; B=$81: shutdown
+Page 55 of 81
+
+;
+; Each of these calls is made with the following parameters:
+; HL=address of structure containing:
+;
+byte 0: # of 8K ZX RAM banks allocated (as specified in .DRV header)
+;
+bytes 1+: list of bank ids for the allocated 8K ZX RAM banks
+; DE=address of structure containing:
+;
+byte 0: # of 8K DivMMC RAM banks allocated (as specified in .DRV header)
+;
+bytes 1+: list of bank ids for the allocated 8K DivMMC RAM banks
+;
+; These bank lists are in main RAM ($4000-$ffff) so be careful not to
+; page them out during use. They are temporary structures and only
+; available during the initialise ($80) and shutdown ($81) calls.
+;
+; Note that the initialise ($80) call is made after the allocated RAM
+; banks have been erased and preloaded with data from your .DRV file.
+; Most drivers will therefore probably not need to use these lists, as
+; the allocated bank ids can also be patched directly into your driver
+; code during the .INSTALL process.
+;
+; The shutdown ($81) call does NOT need to deallocate the RAM banks ; this will be done by the .UNINSTALL dot command.
+;
+; When exiting the calls, return with carry clear to indicate success.
+; If carry is set on call $80, the .INSTALL procedure will be aborted.
+; If carry is set on call $81, the .UNINSTALL procedure will be aborted.
+standard_api:
+; The example border driver sets bit 7 of mmcbanks,
+; so needs to provide API calls $80 and $81.
+ld
+a,b
+and
+$7f
+jr
+z,driver_init
+; on for call $80, initialise
+dec
+a
+jr
+nz,channel_api
+; if not $81, must be a channel API call
+; B=$81: shutdown driver
+;
+This call is optional and should be provided if you set bit 7 of
+;
+the mmcbanks value in the driver header.
+;
+Exit with carry clear if the driver can be safely UNINSTALLed, or
+;
+carry set to abort the UNINSTALL process.
+driver_shutdown:
+and
+a
+ret
+
+; always safe to uninstall this driver
+
+; B=$80: initialise driver
+;
+This call is optional and should be provided if you set bit 7 of
+;
+the mmcbanks value in the driver header.
+;
+Exit with carry clear if the driver can be safely INSTALLed, or
+;
+carry set to abort the INSTALL process.
+;
+This call is provided for drivers that might need additional
+;
+hardware initialisation.
+driver_init:
+and
+ret
+
+a
+
+; always safe to install this driver
+
+; The following calls are used to allow your driver to support
+; channels for i/o (manipulated with BASIC commands like OPEN #).
+; Each call is optional - just return with carry set and A=0
+; for any calls that you don't want to provide.
+;
+Page 56 of 81
+
+; B=$f7: return output status
+; B=$f8: return input status
+; B=$f9: open channel
+; B=$fa: close channel
+; B=$fb: output character
+; B=$fc: input character
+; B=$fd: get current stream pointer
+; B=$fe: set current stream pointer
+; B=$ff: get stream size/extent
+channel_api:
+ld
+sub
+jr
+ld
+jr
+
+a,b
+$f7
+c,api_error
+b,a
+nz,bnotf7
+
+; set zero flag if call $f7
+; (return output status)
+; exit if unsupported (<$f7)
+; B=0..8
+; on if not $f7 (output status)
+
+; B=$f7: return output status
+; This call is entered with D=handle.
+; You should return BC=$ffff if the device is ready to accept a character
+; to be output, or BC=$0000 if it is not ready.
+; NOTE: NextBASIC does not use this call for standard channel i/o, but it
+;
+may be useful to provide it for use by machine-code programs or
+;
+for NextBASIC programs using the DRIVER command.
+; This call is also used by CP/M for printer drivers (with id "P") and
+; AUX drivers (with id "X").
+ld
+and
+ret
+
+bc,$ffff
+a
+
+; our device always ready for output
+; clear carry to indicate success
+
+; B=$f8: return input status
+; This call is entered with D=handle.
+; You should return BC=$ffff if the device has an input character available
+; to be read, or BC=$0000 if there is no character currently available.
+; NOTE: NextBASIC does not use this call for standard channel i/o, but it
+;
+may be useful to provide it for use by machine-code programs or
+;
+for NextBASIC programs using the DRIVER command.
+; This call is also used by CP/M for AUX drivers (with id "X").
+bnotf7:
+djnz
+ld
+and
+ret
+
+bnotf8
+bc,$ffff
+a
+
+; our device always ready for input
+; clear carry to indicate success
+
+; B=$f9: open channel
+; In the documentation for your driver you should describe how it should be
+; opened. The command used will determine the input parameters provided to
+; this call (this example assumes your driver id is ASCII 'X', ie $58):
+; OPEN #n,"D>X"
+; simple open: HL=DE=0
+; OPEN #n,"D>X>string" ; open with string: HL=address, DE=length
+;
+; NOTE: be sure to check for zero-length strings
+; OPEN #n,"D>X,p1,p2"
+; open with numbers: DE=p1, HL=p2 (zeros if not
+provided)
+;
+; This call should return a channel handle in A. This allows your driver
+; to support multiple different concurrent channels if desired.
+Page 57 of 81
+
+; If your device is simple you may choose to ignore the channel handles
+; in this and other calls.
+;
+; If you return with any error (carry set), "Invalid filename" will be reported
+; and no stream will be opened.
+;
+; For this example, we will only allow a single channel to be opened at
+; a time, by performing a simple check:
+bnotf8:
+djnz
+
+bnotf9
+
+ld
+and
+jr
+ld
+
+a,(chanopen_flag)
+a
+nz,api_error
+a,1
+
+reloc_8:
+
+reloc_9:
+
+ld
+ret
+
+(chanopen_flag),a
+
+; exit with error if already open
+; signal "channel open"
+; exit with carry reset (from AND above)
+; and A=handle=1
+
+; Subroutine to validate handle for our simple channel
+validate_handle:
+dec
+d
+ret
+z
+pop
+af
+jr
+api_error
+
+; D should have been 1
+; return if so
+; otherwise discard return address
+; and exit with error
+
+; B=$fa: close channel
+; This call is entered with D=handle, and should close the channel
+; If it cannot be closed for some reason, exit with an error (this will be
+; reported as "In use").
+bnotf9:
+
+djnz
+reloc_10:
+call
+
+bnotfa
+
+; on if not call $fa
+
+validate_handle
+
+xor
+reloc_11:
+ld
+ret
+
+a
+
+; check D is our handle (does not return
+; if invalid)
+
+(chanopen_flag),a
+
+; signal "channel closed"
+; exit with carry reset (from XOR)
+
+; B=$fb: output character
+; This call is entered with D=handle and E=character.
+; If you return with carry set and A=$fe, the error "End of file" will be
+; reported. If you return with carry set and A<$fe, the error
+; "Invalid I/O device" will be reported.
+; Do not return with A=$ff and carry set; this will be treated as a successful
+; call.
+bnotfa:
+
+djnz
+reloc_12:
+call
+reloc_13:
+ld
+reloc_14:
+
+bnotfb
+
+; on if not call $fb
+
+validate_handle
+
+; check D is our handle (does not return
+; if invalid)
+
+a,(output_ptr)
+
+Page 58 of 81
+
+call
+ld
+inc
+and
+reloc_15:
+ld
+ret
+
+calc_buffer_add
+(hl),e
+a
+$1f
+
+; HL=address within buffer
+; store character
+
+(output_ptr),a
+
+; update pointer
+; exit with carry reset (from AND)
+
+; B=$fc: input character
+; This call is entered with D=handle.
+; You should return the character in A (with carry reset).
+; If no character is currently available, return with A=$ff and carry set.
+; This will cause INPUT # or NEXT # to continue calling until a character
+; is available.
+; If you return with carry set and A=$fe, the error "End of file" will be
+; reported. If you return with carry set and any other value of A, the error
+; "Invalid I/O device" will be reported.
+bnotfb:
+
+djnz
+reloc_16:
+call
+reloc_17:
+ld
+reloc_18:
+call
+ld
+inc
+and
+reloc_19:
+ld
+ld
+ret
+
+bnotfc
+
+; on if not call $fc
+
+validate_handle
+
+; check D is our handle (does not return
+; if invalid)
+
+a,(input_ptr)
+calc_buffer_add
+e,(hl)
+a
+$1f
+
+; HL=address within buffer
+; get character
+
+(input_ptr),a
+a,e
+
+; update pointer
+; A=character
+; exit with carry reset (from AND)
+
+; B=$fd: get current stream pointer
+; This call is entered with D=handle.
+; You should return the pointer in DEHL (with carry reset).
+bnotfc:
+djnz
+reloc_20:
+call
+reloc_21:
+ld
+ld
+ld
+ld
+ld
+and
+ret
+
+bnotfd
+
+; on if not call $fd
+
+validate_handle
+
+; check D is our handle (does not return
+; if invalid)
+
+a,(input_ptr)
+l,a
+h,0
+d,h
+e,h
+a
+
+; HL=stream pointer
+; reset carry (successful call)
+
+; B=$fe: set current stream pointer
+; This call is entered with D=handle and IXHL=pointer.
+; Exit with A=$fe and carry set if the pointer is invalid (will result in
+; an "end of file" error).
+; NOTE: Normally you should not use IX as an input parameter, as it cannot
+;
+be set differently to HL if calling via the esxDOS-compatible API.
+;
+This call is a special case that is only made by NextZXOS.
+
+Page 59 of 81
+
+bnotfd:
+
+djnz
+reloc_22:
+call
+
+bnotfe
+
+; on if not call $fe
+
+validate_handle
+
+ld
+and
+or
+or
+or
+scf
+ld
+ret
+ld
+reloc_23:
+ld
+and
+ret
+
+a,l
+$e0
+h
+ixl
+ixh
+
+; check D is our handle (does not return
+; if invalid)
+; check if pointer >$1f
+
+a,$fe
+nz
+a,l
+
+; exit with A=$fe and carry set if so
+
+(input_ptr),a
+a
+
+; set the pointer
+; reset carry (successful call)
+
+; B=$ff: get stream size/extent
+; This call is entered with D=handle
+; You should return the size/extent in DEHL (with carry reset).
+bnotfe:
+reloc_24:
+call
+ld
+ld
+ld
+and
+ret
+
+validate_handle
+hl,32
+d,h
+e,h
+a
+
+; check D is our handle (does not return
+; if invalid)
+; our simple channel is always size 32
+; reset carry (successful call)
+
+; ***************************************************************************
+; * Validate handle for our simple channel
+*
+; ***************************************************************************
+calc_buffer_add:
+push
+af
+reloc_25:
+ld
+hl,channel_data
+add
+a,l
+ld
+l,a
+ld
+a,0
+adc
+a,h
+ld
+h,a
+pop
+af
+ret
+
+; save offset into buffer
+; base address
+; add on offset
+
+; restore offset
+
+; ***************************************************************************
+; * Data
+*
+; ***************************************************************************
+colour:
+
+defb
+
+0
+
+defw
+
+0
+
+value1:
+
+Page 60 of 81
+
+value2:
+
+defw
+
+0
+
+chanopen_flag:
+defb
+
+0
+
+input_ptr:
+defb
+
+0
+
+output_ptr:
+defb
+
+0
+
+channel_data:
+defs
+
+32
+
+; Our driver header will specify these values to be patched with the ids
+; of the external banks allocated to us.
+bankid_mmc0:
+defb
+0
+bankid_zx0:
+defb
+0
+bankid_zx1:
+defb
+0
+bankid_zx2:
+defb
+0
+; ***************************************************************************
+; * Relocation table
+*
+; ***************************************************************************
+; This follows directly after the full 512 bytes of the driver.
+if ($ > 512)
+.ERROR Driver code exceeds 512 bytes
+else
+defs
+512-$
+endif
+; Each relocation is the offset of the high byte of an address to be relocated.
+reloc_start:
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+
+reloc_1+2
+reloc_2+2
+reloc_3+3
+reloc_4+2
+reloc_5+2
+reloc_6+3
+reloc_7+2
+reloc_8+2
+reloc_9+2
+reloc_10+2
+reloc_11+2
+reloc_12+2
+reloc_13+2
+reloc_14+2
+reloc_15+2
+reloc_16+2
+reloc_17+2
+reloc_18+2
+reloc_19+2
+reloc_20+2
+reloc_21+2
+Page 61 of 81
+
+defw
+defw
+defw
+defw
+reloc_end:
+
+reloc_22+2
+reloc_23+2
+reloc_24+2
+reloc_25+2
+
+Page 62 of 81
+
+Driver example (file 2 of 2) - border_drv.asm
+; ***************************************************************************
+; * Simple example NextZXOS driver file
+*
+; ***************************************************************************
+;
+; This file generates the actual border.drv file which can be installed or
+; uninstalled using the .install/.uninstall commands.
+;
+; The driver itself (border.asm) must first be built.
+;
+; Assemble this file with: pasmo border_drv.asm border.drv
+; ***************************************************************************
+; * Definitions
+*
+; ***************************************************************************
+; Pull in the symbol file for the driver itself and calculate the number of
+; relocations used.
+include "border.sym"
+relocs
+
+equ
+
+(reloc_end-reloc_start)/2
+
+; ***************************************************************************
+; * .DRV file header
+*
+; ***************************************************************************
+; The driver id must be unique, so current documentation on other drivers
+; should be sought before deciding upon an id. This example uses $7f as a
+; fairly meaningless value. A network driver might want to identify as 'N'
+; for example.
+org
+
+$0000
+
+defm
+
+"NDRV"
+
+; .DRV file signature
+
+defb
+
+$7f+$80
+
+; 7-bit unique driver id in bits 0..6
+; bit 7=1 if to be called on IM1 interrupts
+
+defb
+
+relocs
+
+; number of relocation entries (0..255)
+
+defb
+
+$80+$01
+
+defb
+
+3
+
+; number of additional 8K DivMMC RAM banks
+; required (0..8); call init/shutdown
+; NOTE: If bit 7 of the "mmcbanks" value above is set, .INSTALL and
+;
+.UNINSTALL will call your driver's $80 and $81 functions
+;
+to allow you to perform initialisation/shutdown tasks
+;
+(see border.asm for more details)
+; number of additional 8K Spectrum RAM banks
+; required (0..200)
+
+; ***************************************************************************
+; * Driver binary
+*
+; ***************************************************************************
+; The driver + relocation table should now be included.
+incbin
+
+"border.bin"
+
+; ***************************************************************************
+Page 63 of 81
+
+; * Additional bank images and patches
+*
+; ***************************************************************************
+; If any 8K DivMMC RAM banks or 8K Spectrum RAM banks were requested, then
+; preloaded images and patch lists should be provided.
+;
+;
+First, for each mmcbank requested:
+;
+;
+defb
+bnk_patches
+; number of driver patches for this bank id
+;
+defw
+bnk_size
+; size of data to pre-load into bank (0..8192)
+;
+; (remaining space will be erased to zeroes)
+;
+defs
+bnk_size
+; data to pre-load into bank
+;
+defs
+bnk_patches*2
+; for each patch, a 2-byte offset (0..511) in
+;
+; the 512-byte driver to write the bank id to
+;
+NOTE: The first patch for each mmcbank should never be changed by your
+;
+driver code, as .uninstall will use the value for deallocating.
+;
+;
+Then, for each zxbank requested:
+;
+;
+defb
+bnk_patches
+; number of driver patches for this bank id
+;
+defw
+bnk_size
+; size of data to pre-load into bank (0..8192)
+;
+; (remaining space will be erased to zeroes)
+;
+defs
+bnk_size
+; data to pre-load into bank
+;
+defs
+bnk_patches*2
+; for each patch, a 2-byte offset (0..511) in
+;
+; the 512-byte driver to write the bank id to
+;
+NOTE: The first patch for each zxbank should never be changed by your
+;
+driver code, as .uninstall will use the value for deallocating.
+; Although our simple driver doesn't actually need any additional memory banks,
+; we have requested 1 DivMMC bank and 3 Spectrum RAM banks as an example.
+; First, the 1 DivMMC bank that was requested:
+defb
+defw
+
+1
+0
+
+; 1 patch
+; no data to be preloaded into this bank
+; (it will be erased to zeroes)
+; List of patches to be replaced with this bank's id
+defw
+bankid_mmc0
+; offset in driver to patch the bank id
+; Then the 3 Spectrum RAM banks that were requested:
+; First bank:
+defb
+defw
+
+1
+b0data_end-b0data
+
+; 1 patch
+; size of preload data
+
+; The actual preloaded data follows (the remainder of the 8K bank will
+; be erased to zeroes)
+b0data:
+
+defs
+800,$aa
+; 800 bytes filled with $AA
+defm
+"This is the first allocated ZX bank"
+defs
+20,$55
+; 20 bytes filled with $55
+b0data_end:
+; List of patches to be replaced with this bank's id
+defw
+bankid_zx0
+; offset in driver to patch the bank id
+; Second bank:
+defb
+defw
+
+1
+0
+
+; 1 patch
+; no data to be preloaded into this bank
+; (it will be erased to zeroes)
+; List of patches to be replaced with this bank's id
+defw
+bankid_zx1
+; offset in driver to patch the bank id
+
+; Third bank:
+Page 64 of 81
+
+defb
+defw
+
+b2data:
+
+1
+b2data_end-b2data
+
+; 1 patch
+; size of preload data
+
+; The actual preloaded data follows (the remainder of the 8K bank will
+; be erased to zeroes)
+
+defm
+"This is the third allocated ZX bank"
+b2data_end:
+; List of patches to be replaced with this bank's id
+defw
+bankid_zx2
+; offset in driver to patch the bank id
+
+Page 65 of 81
+
+Printer driver example (file 1 of 2) - sample_prt.asm
+; ***************************************************************************
+; * Example NextZXOS printer driver
+*
+; ***************************************************************************
+;
+; This file is the 512-byte NextZXOS driver itself, plus relocation table.
+;
+; Assemble with: pasmo sample_prt.asm sample_prt.bin sample_prt.sym
+;
+; After this, sample_prt_drv.asm needs to be built to generate the actual
+; driver file.
+;
+; GENERAL NOTES ON PRINTER/AUX DRIVERS:
+;
+; A printer driver should use "P" as its driver id. This allows the user
+; to install whatever printer driver is appropriate for them, and for
+; software to use it in a standardised way.
+;
+; In particular, NextBASIC will automatically send data LPRINT/LLISTed
+; (or PRINTed to #3, or any other stream that has been opened to
+; BASIC channel "P") to any installed driver with id "P".
+;
+; Similarly, if a "P" driver has been installed, CP/M will use this for
+; output to its logical LST: device (also referred to as the physical
+; LPT device).
+;
+; In order to support NextBASIC and CP/M, a printer driver only needs to
+; support the standard calls $f7 (return output status) and $fb (output
+; character). You may of course support any other standard calls that
+; you like (or additional driver-specific calls, for example to set the
+; communications parameters for a serial printer).
+;
+; CP/M also supports an AUX physical device (with default input/output
+; through the logical AUXIN: and AUXOUT: devices). This will
+; automatically be routed to any installed driver with id "X".
+; An AUX driver can be written in the same way as a printer driver, but
+; should additionally support standard calls $f8 (return input status)
+; and $fc (input character).
+;
+; See the example border.asm/border_drv.asm driver if your driver needs to
+; be run on the IM1 interrupt, or if it needs additional 8K DivMMC/ZX RAM
+; banks. This sample printer driver (and probably most printer drivers) do not
+; require these, so discussion of them is not present in the example
+; printer driver.
+; ***************************************************************************
+; * Definitions
+*
+; ***************************************************************************
+; The port used by our hypothetical printer. Don't try and use this driver
+; as it won't do anything!
+printer_port
+
+equ
+
+$ff
+
+; ***************************************************************************
+; * Entry points
+*
+; ***************************************************************************
+org
+
+$0000
+
+Page 66 of 81
+
+; At $0000 is the entry point for API calls directed to the printer
+; driver.
+; NOTE: If your printer driver needs to be called on the IM1 interrupt
+;
+you will need to provide an entry point at $0003 for this (see
+;
+border.asm example driver for full details).
+;
+This simple printer driver doesn't need interrupts so there is
+;
+no need to provide the $0003 entry point.
+api_entry:
+; On entry, B=call id with HL,DE other parameters.
+; You may provide any standard or driver-specific calls that you wish.
+; See the example border.asm driver for a description of the standard calls.
+; However, a standard printer driver that supports NextBASIC and CP/M only
+; needs to provide 2 standard calls:
+;
+B=$f7: return output status
+;
+B=$fb: output character
+ld
+cp
+jr
+cp
+jr
+api_error:
+xor
+scf
+ret
+
+a,b
+$fb
+z,output_char
+$f7
+z,return_status
+a
+
+; "output character" call?
+; on if so
+; "return output status" call?
+; on if so
+; A=0, unsupported call id
+; Fc=1, signals error
+
+; ***************************************************************************
+; * Return output status ($f7)
+*
+; ***************************************************************************
+; This call is entered with D=handle.
+; CP/M always calls with D=1 (system handle) and a printer
+; driver can generally ignore the handle id unless you support standard
+; calls for opening/closing multiple different streams and wish them all
+; to be handled independently.
+; This call should return with carry clear to indicate success and
+; BC=$ffff if the printer is ready to accept a character for output, or
+; BC=$0000 if the printer is not ready.
+; Our hypothetical printer interface has a BUSY signal connected to bit
+; 0 of the input data on the printer port, so we will check this and
+; return the status accordingly.
+return_status:
+ld
+and
+in
+bit
+ret
+inc
+ret
+
+bc,$ffff
+a
+a,(printer_port)
+0,a
+z
+bc
+
+; clear carry to indicate success
+; get signals from printer
+; check BUSY signal
+; exit with BC=$ffff if not busy
+; exit with BC=$0000 if bust
+
+; ***************************************************************************
+; * Output character ($fb)
+*
+; ***************************************************************************
+; This call is entered with D=handle and E=character.
+; NextBASIC and CP/M always call with D=1 (system handle) and a printer
+; driver can generally ignore the handle id unless you support standard
+Page 67 of 81
+
+; calls for opening/closing multiple different streams and wish them all
+; to be handled independently.
+; This call should return with carry clear to indicate success.
+; If you return with carry set and A=$fe, the error "End of file" will be
+; reported. If you return with carry set and A<$fe, the error
+; "Invalid I/O device" will be reported.
+; Do not return with A=$ff and carry set; this will be treated as a successful
+; call.
+output_char:
+; It's good practice to allow the user to abort with BREAK if
+; the printer is stuck in a busy loop.
+ld
+a,$7f
+in
+a,($fe)
+rra
+jr
+c,check_printer
+; on if SPACE not pressed
+ld
+a,$fe
+in
+a,($fe)
+rra
+jr
+c,check_printer
+; on if CAPS SHIFT not pressed
+ld
+a,$fe
+; exit with A=$fe and carry set
+scf
+; so "End of file" reported
+ret
+check_printer:
+; Wait for the printer to become ready.
+in
+a,(printer_port)
+; get signals from printer
+bit
+0,a
+; check BUSY signal
+jr
+nz,output_char
+; loop back if printer is busy
+ld
+a,e
+; A=character to output
+out
+(printer_port),a
+; send to the printer
+and
+a
+; clear carry to indicate success
+ret
+; ***************************************************************************
+; * Relocation table
+*
+; ***************************************************************************
+; This follows directly after the full 512 bytes of the driver.
+if ($ > 512)
+.ERROR Driver code exceeds 512 bytes
+else
+defs
+512-$
+endif
+; Each relocation is the offset of the high byte of an address to be relocated.
+; This particular driver is so simple it doesn't contain any absolute addresses
+; needing to be relocated. (border.asm is a slightly more complex driver that
+; does have a relocation table).
+reloc_start:
+reloc_end:
+
+Page 68 of 81
+
+Printer driver example (file 2 of 2) - sample_prt_drv.asm
+; ***************************************************************************
+; * Example NextZXOS printer driver file
+*
+; ***************************************************************************
+;
+; This file generates the actual sample_prt.drv file which can be installed or
+; uninstalled using the .install/.uninstall commands.
+;
+; The driver itself (sample_prt.asm) must first be built.
+;
+; Assemble this file with: pasmo sample_prt_drv.asm sample_prt.drv
+;
+; GENERAL NOTES ON PRINTER/AUX DRIVERS:
+;
+; A printer driver should use "P" as its driver id. This allows the user
+; to install whatever printer driver is appropriate for them, and for
+; software to use it in a standardised way.
+;
+; In particular, NextBASIC will automatically send data LPRINT/LLISTed
+; (or PRINTed to #3, or any other stream that has been opened to
+; BASIC channel "P") to any installed driver with id "P".
+;
+; Similarly, if a "P" driver has been installed, CP/M will use this for
+; output to its logical LST: device (also referred to as the physical
+; LPT device).
+;
+; In order to support NextBASIC and CP/M, a printer driver only needs to
+; support the standard calls $f7 (return output status) and $fb (output
+; character). You may of course support any other standard calls that
+; you like (or additional driver-specific calls, for example to set the
+; communications parameters for a serial printer).
+;
+; CP/M also supports an AUX physical device (with default input/output
+; through the logical AUXIN: and AUXOUT: devices). This will
+; automatically be routed to any installed driver with id "X".
+; An AUX driver can be written in the same way as a printer driver, but
+; should additionally support standard calls $f8 (return input status)
+; and $fc (input character).
+;
+; See the example border.asm/border_drv.asm driver if your driver needs to
+; be run on the IM1 interrupt, or if it needs additional 8K DivMMC/ZX RAM
+; banks. This sample printer driver (and probably most printer drivers) do not
+; require these, so discussion of them is not present in the example
+; printer driver.
+; ***************************************************************************
+; * Definitions
+*
+; ***************************************************************************
+; Pull in the symbol file for the driver itself and calculate the number of
+; relocations used.
+include "sample_prt.sym"
+relocs
+
+equ
+
+(reloc_end-reloc_start)/2
+
+; ***************************************************************************
+; * .DRV file header
+*
+; ***************************************************************************
+
+Page 69 of 81
+
+org
+
+$0000
+
+defm
+
+"NDRV"
+
+; .DRV file signature
+
+defb
+
+"P"
+
+; standard driver id for printer device.
+
+defb
+
+relocs
+
+; number of relocation entries (0..255)
+
+defb
+defb
+
+0
+0
+
+; number of 8K DivMMC RAM banks needed
+; number of 8K Spectrum RAM banks needed
+
+; ***************************************************************************
+; * Driver binary
+*
+; ***************************************************************************
+; The driver + relocation table should now be included.
+incbin
+
+"sample_prt.bin"
+
+Page 70 of 81
+
+Keyboard driver example (file 1 of 2) - keyboard.asm
+; ***************************************************************************
+; * Example NextZXOS keyboard driver
+*
+; ***************************************************************************
+; The keyboard driver used by NextZXOS may be replaced by installing a
+; special driver with id 0.
+; This file is the 512-byte NextZXOS driver itself, plus relocation table.
+;
+; Assemble with: pasmo keyboard.asm keyboard.bin keyboard.sym
+;
+; After this, keyboard_drv.asm needs to be built to generate the actual
+; driver file.
+; Keyboard drivers are installed using the same .install dot command
+; as standard drivers, and immediately replace the existing keyboard
+; driver (the keyboard driver does not count towards the total number
+; of standard installable NextZXOS drivers).
+;
+; The main differences between the keyboard driver and standard drivers
+; are as follows:
+;
+1. The keyboard driver always has driver id 0.
+;
+2. The keyboard driver cannot provide an API.
+;
+3. The keyboard driver is always called at every IM1 interrupt.
+;
+4. The keyboard driver has just a single entry point, at $0000,
+;
+which is called during IM1 interrupts.
+;
+; Replacement keyboard drivers should perform the same effective
+; functionality as the standard KEYBOARD routine at $02bf in the ROM of
+; the original 48K Spectrum.
+;
+; The following driver replicates exactly the code from the original
+; ROM (although slightly re-ordered). It may be used as a base for
+; a replacement.
+;
+; Possible uses for replacement keyboard drivers might be:
+;
+* For use with alternative international keyboard layouts
+;
+* Adding a multi-byte buffer to allow faster typing
+;
+; Be aware that the driver is called by all ROMs, so should support
+; keyword tokens (unless you don't intend to use 48K BASIC mode, or only
+; intend to use 48K BASIC mode using the Gosh Wonderful ROM in standard
+; single-letter entry).
+; ***************************************************************************
+; * System variable definitions
+*
+; ***************************************************************************
+KSTATE
+LAST_K
+REPDEL
+REPPER
+
+equ
+equ
+equ
+equ
+
+$5c00
+$5c08
+$5c09
+$5c0a
+
+; ***************************************************************************
+; * KEYBOARD routine (at $02bf in original 48K ROM)
+*
+; ***************************************************************************
+org
+
+$0000
+
+; this is the entry point for the driver
+Page 71 of 81
+
+keyboard:
+reloc_1:
+call
+ret
+ld
+keyboard_2:
+bit
+jr
+inc
+dec
+dec
+jr
+ld
+keyboard_3:
+ld
+ld
+cp
+jr
+reloc_2:
+call
+ret
+ld
+cp
+jr
+ex
+ld
+cp
+jr
+bit
+jr
+ex
+bit
+ret
+keyboard_4:
+ld
+ld
+inc
+ld
+inc
+ld
+ld
+inc
+ld
+ld
+push
+reloc_3:
+call
+pop
+ld
+keyboard_5:
+ld
+set
+ret
+
+key_scan
+nz
+hl,KSTATE
+7,(hl)
+nz,keyboard_3
+hl
+(hl)
+hl
+nz,keyboard_3
+(hl),$ff
+a,l
+hl,KSTATE+$04
+l
+nz,keyboard_2
+k_test
+nc
+hl,KSTATE
+(hl)
+z,k_repeat
+de,hl
+hl,KSTATE+$04
+(hl)
+z,k_repeat
+7,(hl)
+nz,keyboard_4
+de,hl
+7,(hl)
+z
+e,a
+(hl),a
+hl
+(hl),$05
+hl
+a,(REPDEL)
+(hl),a
+hl
+c,(iy+$07)
+d,(iy+$01)
+hl
+k_decode
+hl
+(hl),a
+(LAST_K),a
+5,(iy+$01)
+
+; ***************************************************************************
+; * K-REPEAT routine (at $0310 in original 48K ROM)
+*
+; ***************************************************************************
+k_repeat:
+inc
+
+hl
+Page 72 of 81
+
+ld
+inc
+dec
+ret
+ld
+ld
+inc
+ld
+jr
+
+(hl),$05
+hl
+(hl)
+nz
+a,(REPPER)
+(hl),a
+hl
+a,(hl)
+keyboard_5
+
+; ***************************************************************************
+; * Keytables
+*
+; ***************************************************************************
+; These are copies of the key tables from original 48K ROM
+; The L-mode keytable with CAPS-SHIFT
+keytable_l:
+defm
+defm
+defm
+defm
+defm
+
+"BHY65TGV"
+"NJU74RFC"
+"MKI83EDX"
+$0e,"LO92WSZ"
+" ",$0d,"P01QA"
+
+; The extended-mode keytable (unshifted letters)
+keytable_e:
+defb
+defb
+defb
+defb
+defb
+defb
+defb
+
+$e3,$c4,$e0,$e4
+$b4,$bc,$bd,$bb
+$af,$b0,$b1,$c0
+$a7,$a6,$be,$ad
+$b2,$ba,$e5,$a5
+$c2,$e1,$b3,$b9
+$c1,$b8
+
+; The extended mode keytable (shifted letters)
+keytable_e_s:
+defb
+defb
+defb
+defb
+defb
+defb
+defb
+
+$7e,$dc,$da,$5c
+$b7,$7b,$7d,$d8
+$bf,$ae,$aa,$ab
+$dd,$de,$df,$7f
+$b5,$d6,$7c,$d5
+$5d,$db,$b6,$d9
+$5b,$d7
+
+; The control code keytable (CAPS-SHIFTed digits)
+keytable_cc:
+defb
+defb
+defb
+
+$0c,$07,$06,$04
+$05,$08,$0a,$0b
+$09,$0f
+
+; The symbol code keytable (letters with symbol shift)
+keytable_sym:
+defb
+defb
+defb
+defb
+defb
+
+$e2,$2a,$3f,$cd
+$c8,$cc,$cb,$5e
+$ac,$2d,$2b,$3d
+$2e,$2c,$3b,$22
+$c7,$3c,$c3,$3e
+Page 73 of 81
+
+defb
+defb
+
+$c5,$2f,$c9,$60
+$c6,$3a
+
+; The extended mode keytable (SYM-SHIFTed digits)
+keytable_e_d:
+defb
+defb
+defb
+
+$d0,$ce,$a8,$ca
+$d3,$d4,$d1,$d2
+$a9,$cf
+
+; ***************************************************************************
+; * KEY-SCAN routine (at $028e in original 48K ROM)
+*
+; ***************************************************************************
+key_scan:
+ld
+ld
+ld
+key_scan_2:
+in
+cpl
+and
+jr
+ld
+ld
+key_scan_3:
+inc
+ret
+key_scan_4:
+sub
+srl
+jr
+ld
+ld
+jr
+key_scan_5:
+dec
+rlc
+jr
+ld
+inc
+ret
+cp
+ret
+cp
+ret
+ld
+ld
+ld
+cp
+ret
+
+l,$2f
+de,$ffff
+bc,$fefe
+a,(c)
+$1f
+z,key_scan_5
+h,a
+a,l
+d
+nz
+$08
+h
+nc,key_scan_4
+d,e
+e,a
+nz,key_scan_3
+l
+b
+c,key_scan_2
+a,d
+a
+z
+$28
+z
+$19
+z
+a,e
+e,d
+d,a
+$18
+
+; ***************************************************************************
+; * K-TEST routine (at $031e in original 48K ROM)
+*
+; ***************************************************************************
+k_test:
+
+ld
+ld
+ld
+
+b,d
+d,$00
+a,e
+Page 74 of 81
+
+cp
+ret
+cp
+jr
+bit
+ret
+
+$27
+nc
+$18
+nz,k_test2
+7,b
+nz
+
+k_test2:
+reloc_4:
+ld
+add
+ld
+scf
+ret
+
+hl,keytable_l
+hl,de
+a,(hl)
+
+; the main keytable
+
+; ***************************************************************************
+; * K-DECODE routine (at $0333 in original 48K ROM)
+*
+; ***************************************************************************
+k_decode:
+ld
+cp
+jr
+dec
+reloc_5:
+jp
+jr
+add
+ret
+k_decode_2:
+reloc_6:
+ld
+inc
+jr
+reloc_7:
+ld
+k_decode_3:
+ld
+add
+ld
+ret
+k_decode_4:
+reloc_8:
+ld
+bit
+jr
+bit
+jr
+bit
+ret
+inc
+ret
+add
+ret
+k_decode_5:
+add
+ret
+k_decode_6:
+cp
+ret
+dec
+reloc_9:
+
+a,e
+$3a
+c,k_decode_6
+c
+m,k_decode_4
+z,k_decode_2
+a,$4f
+
+hl,keytable_e-'A'
+b
+z,k_decode_3
+hl,keytable_e_s-'A'
+d,$00
+hl,de
+a,(hl)
+
+hl,keytable_sym-'A'
+0,b
+z,k_decode_3
+3,d
+z,k_decode_5
+3,(iy+$30)
+nz
+b
+nz
+a,$20
+a,$a5
+$30
+c
+c
+
+Page 75 of 81
+
+jp
+jr
+reloc_10:
+ld
+bit
+jr
+cp
+jr
+sub
+inc
+ret
+add
+ret
+k_decode_7:
+sub
+inc
+ret
+add
+ret
+k_decode_8:
+reloc_11:
+ld
+cp
+jr
+cp
+jr
+and
+add
+inc
+ret
+xor
+ret
+k_decode_9:
+inc
+ret
+bit
+reloc_12:
+ld
+jr
+sub
+cp
+jr
+cp
+ret
+ld
+ret
+k_decode_10:
+ld
+ret
+
+m,k_decode_9
+nz,k_decode_8
+hl,keytable_e_d-'0'
+5,b
+z,k_decode_3
+$38
+nc,k_decode_7
+$20
+b
+z
+a,$08
+$36
+b
+z
+a,$fe
+
+hl,keytable_cc-'0'
+$39
+z,k_decode_3
+$30
+z,k_decode_3
+$07
+a,$80
+b
+z
+$0f
+b
+z
+5,b
+hl,keytable_cc-'0'
+nz,k_decode_3
+$10
+$22
+z,k_decode_10
+$20
+nz
+a,$5f
+a,$40
+
+; ***************************************************************************
+; * Relocation table
+*
+; ***************************************************************************
+; This follows directly after the full 512 bytes of the driver.
+defs
+
+512-$
+
+if ($ != 512)
+.ERROR Driver code exceeds 512 bytes
+endif
+
+Page 76 of 81
+
+; Each relocation is the offset of the high byte of an address to be relocated.
+reloc_start:
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+defw
+reloc_end:
+
+reloc_1+2
+reloc_2+2
+reloc_3+2
+reloc_4+2
+reloc_5+2
+reloc_6+2
+reloc_7+2
+reloc_8+2
+reloc_9+2
+reloc_10+2
+reloc_11+2
+reloc_12+2
+
+Page 77 of 81
+
+Keyboard driver example (file 2 of 2) - keyboard_drv.asm
+; ***************************************************************************
+; * Example NextZXOS keyboard driver file
+*
+; ***************************************************************************
+;
+; This file generates the actual keyboard.drv file which can be installed
+; using the .install command, to replace the built-in keyboard driver.
+;
+; The driver itself (keyboard.asm) must first be built.
+;
+; Assemble this file with: pasmo keyboard_drv.asm keyboard.drv
+; ***************************************************************************
+; * Definitions
+*
+; ***************************************************************************
+; Pull in the symbol file for the driver itself and calculate the number of
+; relocations used.
+include "keyboard.sym"
+relocs
+
+equ
+
+(reloc_end-reloc_start)/2
+
+; ***************************************************************************
+; * .DRV file header
+*
+; ***************************************************************************
+; The keyboard driver id is always zero (bit 7 may be set but will always be
+; treated as if it is set, since the keyboard driver is always called on
+; interrupts).
+org
+
+$0000
+
+defm
+
+"NDRV"
+
+; .DRV file signature
+
+defb
+
+$00
+
+; keyboard driver id
+
+defb
+
+relocs
+
+; number of relocation entries (0..255)
+
+defb
+
+0
+
+; number of additional 8K DivMMC RAM banks
+
+defb
+
+0
+
+; number of additional 8K Spectrum RAM banks
+
+; ***************************************************************************
+; * Driver binary
+*
+; ***************************************************************************
+; The driver + relocation table should now be included.
+incbin
+
+"keyboard.bin"
+
+Page 78 of 81
+
+List of updates
+Updates: 2 Sep 2018
+Noted that the IDE_MODE call also returns the mode window handle in IX.
+Updates: 30 Aug 2018
+Enhanced F_GETCWD call to additionally allow a consistently named path to be
+returned for any supplied filespec.
+Noted that M_GETSETDRV now ignores the lower 3 bits, so these can be used to
+ensure A<>0 if needing to set the current drive.
+Clarified entry parameters for M_P3DOS.
+Updates: 25 Aug 2018
+The M_TAPEIN hook with B=in_flags now also returns the original setting of the
+flags in A.
+Clarified that command-lines for dot commands may include ':' as part of the
+line if enclosed within double-quotes.
+Updates: 24 Aug 2018
+Added new IDE_MODE call in the +3DOS API for querying the current NextBASIC
+display mode setting, or changing mode.
+Updates: 19 Aug 2018
+Noted that dot commands are now loaded from C:/DOT rather than C:/BIN. This
+makes it easier for esxDOS and NextZXOS to co-exist.
+Updates: 17 Aug 2018
+Added new IDE_MOUNT call in the +3DOS API for unmounting/remounting SD cards.
+Updates: 15 Aug 2018
+Added new reason to the system driver API used by .UNINSTALL.
+Added more information to the driver section.
+Updated example driver (border.asm and border_drv.asm) with sample code for bank
+allocation and usage.
+Added sample printer driver.
+Updates: 6 Aug 2018
+Updated M_DOSVERSION which now additionally provides ROM language information.
+Updated lists of deprecated +3DOS/IDEDOS calls.
+Updates: 31 Jul 2018
+Added further notes on IDE_SNAPLOAD.
+Updates: 15 Jul 2018
+Added BROWSERCAPS_UNMOUNT capability to IDE_BROWSER.
+Updates: 13 Jul 2018
+Added new rc_fragmented error code.
+Page 79 of 81
+
+Added new options to IDE_SWAP_OPEN to allow any named (unfragmented) file to be
+opened and used as a swap file.
+Deprecated IDE_SWAP_EX.
+Noted that DOS_READ/DOS_WRITE/IDE_SWAP_IN/IDE_SWAP_OUT can take any valid 16K
+RAM page number 0-111, not just 0-7 as on the +3/+3e.
+Updates: 8 Jul 2018
+Updated IDE_DOS_MAP and IDE_DOS_MAPPING calls with special device $ff indicating
+a mounted filesystem image (.P3D or .DSK file).
+Updates: 28 Jun 2018
+Added new rc_bank_available reason to the IDE_BANK call.
+Added note about the order of bank allocation.
+Updates: 26 Jun 2018
+Added M_SETCAPS hook to modify behaviour of other calls. Currently allows
+F_FTRUNCATE/F_TRUNCATE to be sped up by omitting to zeroise any new file
+sections.
+Updates: 8 Jun 2018
+The IDE_BROWSER call now returns the address of an LFN (in DE), as well as the
+short name (in HL).
+Updates: 12 Mar 2018
+Updated driver API to allow an additional driver for the keyboard to be
+installed, replacing the standard keyboard driver.
+Added example keyboard driver (keyboard.asm & keyboard_drv.asm).
+Updates: 28 Jan 2018
+Added new M_DRVAPI hook providing acceess to a new API for installable drivers.
+Added new IDE_DRIVER call to access new driver API from +3DOS.
+Added notes on the new driver API and optional driver channel API, with a worked
+example (border.asm & border_drv.asm).
+Rewrote the notes about dot commands.
+Added RST $20 facility to terminate a dot command and bootstrap a
+game/application.
+Updates: 18 Jan 2018
+Added more information about dot commands.
+Added M_GETHANDLE, M_EXECCMD and M_GETERR hooks.
+Updates: 17 Jan 2018
+Added note about turning off layer 2 writes.
+Added note about layer 2 banks in IDE_BANK call.
+Updates: 15 Jan 2018
+Page 80 of 81
+
+Added general descriptions of the +3DOS-compatible and esxDOS-compatible APIs.
+Added full documentation for the esxDOS-compatible API.
+Updates: 12 Dec 2017
+Updated details of the IDE_GET_LFN call. This now additionally returns the
+file's size and last update time & date.
+Added new IDE_RTC call for querying the real-time-clock (if present).
+Updates: 30 Nov 2017
+Updated details of the IDE_BROWSER call. This now has a capabilities mask
+allowing selected functionality to be enabled or disabled as desired. Also added
+note about using as a save file dialog.
+Updates: 23 Nov 2017
+The IDE_STREAM_LINEIN call has been removed and replaced by a new
+IDE_WINDOW_LINEIN call.
+Added new IDE_INTEGER_VAR call for accessing NextBASIC integer variables.
+Noted that the IDE_STREAM_* calls may corrupt the alternate register set, in
+addition to the effects on the standard register set noted for each individual
+call. (The special note about memory configuration has also been removed for the
+IDE_WINDOW_* calls; this applies only to the IDE_STREAM_* calls).
+Updates: 14 Nov 2017
+Added note that it is now possible to use the wildcard character * in the
+IDE_BROWSER call to match remaining characters in the filetype (with examples).
+Added more notes on the IDE_STREAM_LINEIN call.
+Added new IDE_WINDOW_STRING call.
+
+Page 81 of 81
+
+

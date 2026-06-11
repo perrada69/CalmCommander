@@ -28,7 +28,15 @@ VIEWCTX_READ_LEN     equ 11
 VIEWCTX_PAGE_COUNT   equ 13
 VIEWCTX_DATA_PAGES   equ 14
 VIEWCTX_SERVICES     equ 16
-VIEWCTX_SIZE         equ 18
+VIEWCTX_CURPATH      equ 18   ; pointer to active panel path string
+VIEWCTX_EXTRACT_FLAG equ 20
+VIEWCTX_EXTRACT_OFF  equ 21
+VIEWCTX_EXTRACT_CNT  equ 23
+VIEWCTX_EXTRACT_NAME equ 25   ; 16 bytes, 0/255 terminated
+VIEWCTX_DIRTY        equ 40
+VIEWCTX_SIZE         equ 41
+
+
 
 VIEWTYPE_TEXT        equ 1
 VIEWTYPE_ZXSCREEN    equ 2
@@ -84,7 +92,15 @@ view_run_selected_plugin
         cp VIEWTYPE_STP
         jr z,.music_result
         cp VIEWTYPE_SQT
+        jr z,.music_result
+        cp VIEWTYPE_TAP
         jr nz,.done
+        call view_handle_plugin_extract
+        ld a,(viewPluginContext+VIEWCTX_DIRTY)
+        or a
+        jr z,.done
+        call view_reload_active_panel
+        jp loop0
 .music_result
         ld a,(viewPluginResult)
         cp 1
@@ -967,6 +983,17 @@ view_fill_context
         ld (viewPluginContext+VIEWCTX_DATA_PAGES),hl
         ld hl,viewServices
         ld (viewPluginContext+VIEWCTX_SERVICES),hl
+        ; store pointer to active panel path string
+        ld hl,pathl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a              ; HL = active panel path string address
+        ld (viewPluginContext+VIEWCTX_CURPATH),hl
+        xor a
+        ld (viewPluginContext+VIEWCTX_EXTRACT_FLAG),a
+        ld (viewPluginContext+VIEWCTX_DIRTY),a
         ret
 
 
@@ -1047,12 +1074,217 @@ view_restore_full_ui
         ret
 
 
+view_handle_plugin_extract
+        ld a,(viewPluginContext+VIEWCTX_EXTRACT_FLAG)
+        or a
+        ret z
+        xor a
+        ld (viewPluginContext+VIEWCTX_EXTRACT_FLAG),a
+        ld hl,viewPluginContext+VIEWCTX_EXTRACT_NAME
+        ld de,(viewPluginContext+VIEWCTX_EXTRACT_OFF)
+        ld bc,(viewPluginContext+VIEWCTX_EXTRACT_CNT)
+        call svc_extract_to_file
+        ret
+
+
+view_reload_active_panel
+        ld a,(viewSavedOKNO)
+        ld (OKNO),a
+        call reload_dir
+        ld hl,adrl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (adrs+1),hl
+        call showwin
+        ld a,32
+        call writecur
+        ret
+
+
+; svc_extract_to_file: HL=plugin filename, DE=file-data offset, BC=byte count.
+; Export through the native NextZXOS +3DOS-compatible API. The data chunk is
+; copied to a private buffer below $C000, then DOS_WRITE writes from that stable
+; buffer without touching the panel directory cache.
+svc_extract_to_file
+        ld a,$56
+        call ReadNextReg2A
+        ld (viewExtractSavedMmu6),a
+        ld a,$57
+        call ReadNextReg2A
+        ld (viewExtractSavedMmu7),a
+
+        ld (viewExtractOff),de
+        ld (viewExtractCnt),bc
+        call view_make_extract_path
+
+        call dospage
+        call view_set_current_path
+        ld b,1                  ; file number
+        ld c,2                  ; exclusive write
+        ld d,2                  ; create without +3DOS header
+        ld e,4                  ; erase existing, then create
+        ld hl,viewPluginDosName
+        call $0106
+        jr nc,.open_fail
+        call basicpage
+
+.write_loop
+        ld hl,(viewExtractCnt)
+        ld a,h
+        or l
+        jr z,.close_ok
+
+        call view_extract_copy_chunk
+        call dospage
+        ld b,1
+        ld c,PAGE_BUFF
+        ld de,(viewExtractChunk)
+        ld hl,49152
+        call $0115
+        jr nc,.write_fail
+        call basicpage
+
+        ld hl,(viewExtractOff)
+        ld de,(viewExtractChunk)
+        add hl,de
+        ld (viewExtractOff),hl
+        ld hl,(viewExtractCnt)
+        or a
+        sbc hl,de
+        ld (viewExtractCnt),hl
+        jr .write_loop
+
+.close_ok
+        call dospage
+        ld b,1
+        call $0109
+        jr nc,.close_error
+        call basicpage
+        ld a,1
+        ld (viewPluginContext+VIEWCTX_DIRTY),a
+        call view_restore_extract_state
+        xor a
+        ret
+
+.write_fail
+        call basicpage
+        call dospage
+        ld b,1
+        call $0109
+        call basicpage
+        ld a,2
+        jr .fail
+.close_error
+        call basicpage
+        ld a,3
+        jr .fail
+.open_fail
+        call basicpage
+        ld a,1
+.fail
+        ld (viewExtractError),a
+        call view_restore_extract_state
+        ld a,(viewExtractError)
+        scf
+        ret
+
+
+view_make_extract_path
+        ld de,viewPluginDosName
+        ld b,16
+.copy_name
+        ld a,(hl)
+        or a
+        jr z,.name_done
+        cp 255
+        jr z,.name_done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy_name
+.name_done
+        ld a,255
+        ld (de),a
+        ret
+
+
+view_restore_extract_state
+        ld a,(viewExtractSavedMmu6)
+        nextreg $56,a
+        ld a,(viewExtractSavedMmu7)
+        nextreg $57,a
+        ret
+
+
+view_extract_copy_chunk
+        ld de,(viewExtractOff)
+        ld a,d
+        and $E0
+        rlca
+        rlca
+        rlca
+        ld l,a
+        ld h,0
+        ld bc,viewDataPages
+        add hl,bc
+        ld a,(hl)
+        nextreg $57,a
+
+        ld a,d
+        and $1F
+        or $E0
+        ld h,a
+        ld l,e
+
+        push hl
+        ld a,d
+        and $1F
+        ld b,a
+        ld c,e
+        ld hl,$2000
+        or a
+        sbc hl,bc              ; bytes left in current 8K source page
+        ld bc,(viewExtractCnt)
+        or a
+        sbc hl,bc
+        jr c,.use_page_left
+        ld d,b
+        ld e,c
+        jr .cap_to_buffer
+.use_page_left
+        add hl,bc
+        ex de,hl
+.cap_to_buffer
+        ld hl,96
+        or a
+        sbc hl,de
+        jr nc,.got_chunk
+        ld de,96
+.got_chunk
+        ld (viewExtractChunk),de
+        push de
+        pop bc
+        pop hl
+        nextreg $56,PAGE_BUFF*2
+        ld de,49152
+        ldir
+        ld a,(viewExtractSavedMmu6)
+        nextreg $56,a
+        ld a,(viewExtractSavedMmu7)
+        nextreg $57,a
+        ret
+
+
 viewServices
         defw print
         defw INKEY
         defw window
         defw layer0
         defw view_plugin_input_nowait
+        defw svc_extract_to_file
 
 
 view_init_plugin_input
@@ -1773,3 +2005,11 @@ viewStageReadPluginTxt  defb "read plugin",0
 viewDebugStage          defs 24
 viewDebugPath           defs 60
 viewDebug83             defs 12
+viewPluginDosName       defs 64
+viewExtractOff          defw 0
+viewExtractCnt          defw 0
+viewExtractChunk        defw 0
+viewExtractHandle       defb 0
+viewExtractSavedMmu6    defb 0
+viewExtractSavedMmu7    defb 0
+viewExtractError        defb 0

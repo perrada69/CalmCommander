@@ -75,6 +75,8 @@ plugin_start
         jp z,.pgdn
         cp 8
         jp z,.pgup
+        cp "e"
+        jp z,.extract
         jp .input
 
 ; ---- cursor down ----
@@ -157,7 +159,333 @@ plugin_start
 
 .do_render
         call render_page
+        ; wait for key release before accepting next input
+.wait_release
+        call call_input
+        or a
+        jr nz,.wait_release
         jp .input
+
+
+; ---- extract ('E' key) ----
+.extract
+        ld a,(curEntry)
+        call do_extract
+        jp .wait_release
+
+
+; ================================================================
+; get_entry_offset: A = entry index → HL = file offset (from entryOffsets[A])
+; ================================================================
+get_entry_offset
+        add a,a             ; index * 2
+        ld l,a
+        ld h,0
+        ld de,entryOffsets
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ex de,hl
+        ret
+
+
+; ================================================================
+; write_dec2_to_hl: A = value (0-63), write 2-char decimal to (HL), HL+=2
+; ================================================================
+write_dec2_to_hl
+        ld b,0
+.wdt    cp 10
+        jr c,.wdt_done
+        sub 10
+        inc b
+        jr .wdt
+.wdt_done
+        ld c,a                      ; C = units digit
+        ld a,b : add a,'0' : ld (hl),a : inc hl
+        ld a,c : add a,'0' : ld (hl),a : inc hl
+        ret
+
+
+; ================================================================
+; do_extract: A = entry index. Extracts payload to file.
+; HEADER (flag=0, len=19) → extracts paired DATA block, names it from header.
+; DATA/other → extracts this block's payload, names it BLKnn.BIN.
+; The host viewer performs the actual esxDOS write after the plugin returns.
+; ================================================================
+do_extract
+        ld (extractEntry),a
+        call is_standard_header
+        jr nz,.de_raw
+
+        ; Header line: name comes from this header, bytes come from the
+        ; following data block.
+        ld a,(extractEntry)
+        ld l,a
+        ld a,(totalBlocks)
+        dec a
+        cp l
+        jp z,.de_ret
+        ld a,(extractEntry)
+        call build_name_from_header
+        ld a,(extractEntry)
+        inc a
+        call get_payload_range
+        jr .de_save
+
+.de_raw
+        ; Data/raw line: prefer the previous standard header name when this
+        ; block is paired with one, otherwise fall back to BLKnn.BIN.
+        ld a,(extractEntry)
+        or a
+        jr z,.raw_fallback
+        dec a
+        call is_standard_header
+        jr nz,.raw_fallback
+        ld a,(extractEntry)
+        dec a
+        call build_name_from_header
+        jr .raw_range
+.raw_fallback
+        ld a,(extractEntry)
+        call build_blk_name
+.raw_range
+        ld a,(extractEntry)
+        call get_payload_range
+
+.de_save
+        ; HL = source offset (16-bit), BC = byte count
+        ld (extractOff),hl
+        ld h,b : ld l,c : ld (extractCnt),hl
+
+        call clear_debug_area
+        ld de,strExportName
+        ld hl,42*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+        ld de,extractName
+        ld hl,48*256+CONTENT_ROW
+        ld a,ATTR_CODE
+        call call_print
+
+        ld hl,extractName
+        ld de,(extractOff)
+        ld bc,(extractCnt)
+        call call_extract
+        jr c,.export_fail
+        ld de,strExportOK
+        ld hl,42*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+        ret
+.export_fail
+        add a,'0'
+        ld (strExportFailCode),a
+        ld de,strExportFail
+        ld hl,42*256+(CONTENT_ROW+1)
+        ld a,ATTR_CODE
+        call call_print
+.de_ret
+        ret
+
+
+; A = entry index. Z if this entry is a standard Spectrum header.
+is_standard_header
+        call get_entry_offset
+        ld (readPtr),hl
+        call read_next_byte
+        ld (tmpBlockLen),a
+        call read_next_byte
+        ld (tmpBlockLen+1),a
+        call read_next_byte
+        ld (tmpBlockFlag),a
+        ld a,(tmpBlockFlag)
+        or a
+        jr nz,.not_header
+        ld a,(tmpBlockLen+1)
+        or a
+        jr nz,.not_header
+        ld a,(tmpBlockLen)
+        cp 19
+        ret z
+.not_header
+        or 1
+        ret
+
+
+; A = entry index. Returns HL = payload offset, BC = payload length.
+get_payload_range
+        call get_entry_offset
+        ld (readPtr),hl
+        call read_next_byte : ld c,a
+        call read_next_byte : ld b,a
+        call read_next_byte
+        ld hl,(readPtr)                ; source is past flag byte
+        dec bc                         ; skip flag
+        dec bc                         ; skip checksum
+        ret
+
+
+build_blk_name
+        ld hl,extractName
+        ld a,'B' : ld (hl),a : inc hl
+        ld a,'L' : ld (hl),a : inc hl
+        ld a,'K' : ld (hl),a : inc hl
+        ld a,(extractEntry) : inc a
+        call write_dec2_to_hl
+        ld a,'.' : ld (hl),a : inc hl
+        ld a,'B' : ld (hl),a : inc hl
+        ld a,'I' : ld (hl),a : inc hl
+        ld a,'N' : ld (hl),a : inc hl
+        ld (hl),0
+        ret
+
+
+; A = standard header entry index. Builds output name from the header name.
+build_name_from_header
+        call get_entry_offset
+        ld (readPtr),hl
+        call read_next_byte
+        call read_next_byte
+        call read_next_byte
+        call read_next_byte            ; type
+        ld (extractHeaderType),a
+        ld hl,extractName
+        xor a
+        ld (extractNameUsed),a
+        ld (extractNameHasDot),a
+        ld e,10
+.name_loop
+        ld (extractNamePtr),hl
+        call read_next_byte
+        ld hl,(extractNamePtr)
+        cp ' '
+        jr z,.skip_char
+        call sanitize_filename_char
+        cp '.'
+        jr nz,.store_char
+        ld a,1
+        ld (extractNameHasDot),a
+        ld a,'.'
+.store_char
+        ld (hl),a
+        inc hl
+        ld a,1
+        ld (extractNameUsed),a
+        jr .skip_char
+.skip_char
+        dec e
+        jr nz,.name_loop
+        ld a,(extractNameUsed)
+        or a
+        jr nz,.has_name
+        call build_blk_name
+        ret
+.has_name
+        ld a,(extractNameHasDot)
+        or a
+        jr z,.add_extension
+        ld (hl),0
+        ret
+.add_extension
+        ld a,(extractHeaderType)
+        or a
+        jr nz,.ext_bin
+        ld a,'.' : ld (hl),a : inc hl
+        ld a,'B' : ld (hl),a : inc hl
+        ld a,'A' : ld (hl),a : inc hl
+        ld a,'S' : ld (hl),a : inc hl
+        jr .done
+.ext_bin
+        ld a,'.' : ld (hl),a : inc hl
+        ld a,'B' : ld (hl),a : inc hl
+        ld a,'I' : ld (hl),a : inc hl
+        ld a,'N' : ld (hl),a : inc hl
+.done
+        ld (hl),0
+        ret
+
+
+sanitize_filename_char
+        cp 'A'
+        jr c,.maybe_digit
+        cp 'Z'+1
+        ret c
+.maybe_digit
+        cp '0'
+        jr c,.maybe_dot
+        cp '9'+1
+        ret c
+.maybe_dot
+        cp 'a'
+        jr c,.dot_test
+        cp 'z'+1
+        ret c
+.dot_test
+        cp '.'
+        ret z
+        cp '_'
+        ret z
+        cp '-'
+        ret z
+        ld a,'_'
+        ret
+
+
+clear_debug_area
+        ld b,CONTENT_ROW
+.row
+        ld de,strDebugBlank
+        ld h,42
+        ld l,b
+        ld a,ATTR_NORMAL
+        push bc
+        call call_print
+        pop bc
+        inc b
+        ld a,b
+        cp CONTENT_ROW+5
+        jr c,.row
+        ret
+
+
+queue_extract_request
+        ld ix,(ctxPtr)
+        ld hl,(extractOff)
+        ld (ix+VIEWCTX_EXTRACT_OFF),l
+        ld (ix+VIEWCTX_EXTRACT_OFF+1),h
+        ld hl,(extractCnt)
+        ld (ix+VIEWCTX_EXTRACT_CNT),l
+        ld (ix+VIEWCTX_EXTRACT_CNT+1),h
+        ld de,(ctxPtr)
+        ld hl,VIEWCTX_EXTRACT_NAME
+        add hl,de
+        ex de,hl
+        ld hl,extractName
+        ld b,16
+.copy_name
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        or a
+        jr z,.name_done
+        djnz .copy_name
+        jr .set_flag
+.name_done
+        djnz .pad_name
+        jr .set_flag
+.pad_name
+        xor a
+.pad_loop
+        ld (de),a
+        inc de
+        djnz .pad_loop
+.set_flag
+        ld a,1
+        ld ix,(ctxPtr)
+        ld (ix+VIEWCTX_EXTRACT_FLAG),a
+        ret
 
 
 ; ================================================================
@@ -906,6 +1234,9 @@ patch_services
         ld l,(ix+SERVICE_WINDOW)
         ld h,(ix+SERVICE_WINDOW+1)
         ld (call_window+1),hl
+        ld l,(ix+SERVICE_EXTRACT)
+        ld h,(ix+SERVICE_EXTRACT+1)
+        ld (call_extract+1),hl
         ret
 
 ; call_print: DE=string, HL=col*256+row, A=attr
@@ -918,6 +1249,10 @@ call_input
         ret
 
 call_window
+        call 0
+        ret
+
+call_extract
         call 0
         ret
 
@@ -946,6 +1281,16 @@ screenPos       defw 0
 
 numBuf          defs 7      ; 5 digits + null + 1 spare
 nameBuf         defs 11     ; 10 chars + null
+extractName     defs 16     ; output filename for 'e' extraction (255-terminated)
+extractOff      defw 0      ; current write offset into loaded data
+extractCnt      defw 0      ; remaining bytes to write
+extractEntry    defb 0
+extractNameUsed defb 0
+extractNameHasDot defb 0
+tmpBlockLen     defw 0
+tmpBlockFlag    defb 0
+extractHeaderType defb 0
+extractNamePtr  defw 0
 
 ; ================================================================
 ; Strings
@@ -964,6 +1309,11 @@ strSArray       defb "SARRAY ",0
 strData         defb "DATA   ",0
 strUnknown      defb "???    ",0
 strDashes       defb "----------",0
+strExportOK     defb "OK",0
+strExportFail   defb "FAIL "
+strExportFailCode defb "?",0
+strExportName   defb "NAME:",0
+strDebugBlank   defb "                                ",0
 
 ; ================================================================
 ; Entry offset table (2 bytes per entry, up to MAX_ENTRIES)
