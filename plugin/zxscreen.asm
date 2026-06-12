@@ -34,6 +34,8 @@ plugin_start
         call l2_reset_view
         call upload_zx_palette
 
+        call detect_p3dos_offset
+
         ld (savedSp),sp
         ld sp,pluginStackTop
         call convert_scr_to_l2
@@ -207,6 +209,8 @@ calc_scr_row_ptr
 
         ld de,VIEW_DATA_ADDRESS
         add hl,de
+        ld de,(screenOffset)
+        add hl,de
         ret
 
 calc_attr_row_ptr
@@ -223,7 +227,29 @@ calc_attr_row_ptr
         add hl,hl
         ld de,VIEW_DATA_ADDRESS+6144
         add hl,de
+        ld de,(screenOffset)
+        add hl,de
         ret
+
+detect_p3dos_offset
+        ld hl,VIEW_DATA_ADDRESS
+        ld de,p3dos_sig
+        ld b,8
+.cmp    ld a,(de)
+        cp (hl)
+        jr nz,.raw
+        inc hl
+        inc de
+        djnz .cmp
+        ld hl,128
+        ld (screenOffset),hl
+        ret
+.raw    xor a
+        ld (screenOffset),a
+        ld (screenOffset+1),a
+        ret
+
+p3dos_sig defb "PLUS3DOS"
 
 set_attr_colors
         ld (attrByte),a
@@ -373,6 +399,7 @@ destPtr     defw 0
 attrByte    defb 0
 inkColor    defb 0
 paperColor  defb 0
+screenOffset defw 0
 
 pluginStack  defs 192
 pluginStackTop equ $
