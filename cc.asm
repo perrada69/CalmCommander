@@ -4424,76 +4424,76 @@ VSE_NASTAV
         ret
 
 tilemapPalette:
-                db  %000'000'11,1                 ; 0 modra(paper)					0
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %101'101'11,0                 ; 0 white-blueish (ink)
+                db  %000'000'10,0                 ; 0 tmavá navy R=0,G=0,B=4 (paper)				0
+                db  %001'001'11,0                 ; 1 (nepoužito)
+                db  %000'000'01,0                 ; 2 (nepoužito)
+                db  %110'110'11,1                 ; 3 stříbrná bílá R=6,G=6,B=7 (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
                 ds 18
-                db  %000'000'00,0                 ; 0 modra (paper)					16
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %101'101'11,0                 ; 0 white-blueish (ink)
+                db  %000'000'01,0                 ; 0 velmi tmavá navy R=0,G=0,B=2 (paper)			16 - menu lišta, hodiny
+                db  %001'001'01,0                 ; 1 (nepoužito)
+                db  %000'000'00,1                 ; 2 (nepoužito)
+                db  %111'111'11,1                 ; 3 čistá bílá R=7,G=7,B=7 (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'110'00,0                 ; 6 green
                 ds 18
-                db  %000'011'10,1                 ; 0 modra (paper)					32
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %101'101'11,0                 ; 0 white-blueish (ink)
+                db  %000'100'11,1                 ; 0 azure modrá R=0,G=4,B=7 (paper)				32 - kurzor, F-klávesy
+                db  %001'011'11,0                 ; 1 (nepoužito)
+                db  %000'010'11,0                 ; 2 (nepoužito)
+                db  %111'111'11,1                 ; 3 čistá bílá R=7,G=7,B=7 (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
                 ds 18
-                db  %111'111'11,1                 ; 0 modra (paper)					48
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %000'000'000,0                ; 0 white-blueish (ink)
+                db  %111'111'11,1                 ; 0 bílá R=7,G=7,B=7 (paper)					48 - menu popup kurzor
+                db  %100'100'10,1                 ; 1 (nepoužito)
+                db  %010'010'01,1                 ; 2 (nepoužito)
+                db  %000'000'00,0                 ; 3 černá (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
                 ds 18
-                db  %011'101'00,1                 ; 0 zluta (paper)					64
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %000'000'00,0                 ; 0 white-blueish (ink)
+                db  %011'101'00,1                 ; 0 (paper)						64 - výběr disku kurzor
+                db  %100'100'10,1                 ; 1 (nepoužito)
+                db  %010'010'01,1                 ; 2 (nepoužito)
+                db  %000'000'00,0                 ; 3 (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
                 ds 18
-                db  %100'100'10,0                 ; 0 zluta (paper)					80
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %000'000'00,0                 ; 0 white-blueish (ink)
+                db  %110'100'00,0                 ; 0 amber R=6,G=4,B=0 (paper)					80 - označený+kurzor
+                db  %100'100'10,1                 ; 1 (nepoužito)
+                db  %010'010'01,1                 ; 2 (nepoužito)
+                db  %000'000'00,0                 ; 3 černá (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
                 ds 18
-                db  %101'101'10,1                 ; 0 zluta (paper)					96
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %000'000'00,0                 ; 0 white-blueish (ink)
-                db  %110'001'00,1                 ; 4 red
-                db  %111'110'00,1                 ; 5 yellow
-                db  %000'100'00,0                 ; 6 green
-                ds 18
-
-                db  %000'000'11,1                 ; 0 modra(paper)					112 - barva adresare
-                db  %100'100'10,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %111'111'00,0                 ; 0 white-blueish (ink)
+                db  %100'011'00,0                 ; 0 tmavý amber R=4,G=3,B=0 (paper)				96 - označený
+                db  %100'100'10,1                 ; 1 (nepoužito)
+                db  %010'010'01,1                 ; 2 (nepoužito)
+                db  %000'000'00,0                 ; 3 černá (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
                 ds 18
 
-                db  %000'000'11,1                 ; 0 modra(paper)					128 - spustitelné soubory
-                db  %100'111'00,1                 ; 1 light grey (25% ink)
-                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-                db  %000'111'00,1                 ; 0 white-blueish (ink)
+                db  %000'000'10,0                 ; 0 tmavá navy (paper)					112 - barva adresáře
+                db  %100'100'10,1                 ; 1 (nepoužito)
+                db  %010'010'01,1                 ; 2 (nepoužito)
+                db  %000'111'11,1                 ; 3 jasný cyan R=0,G=7,B=7 (ink)
+                db  %110'001'00,1                 ; 4 red
+                db  %111'110'00,1                 ; 5 yellow
+                db  %000'100'00,0                 ; 6 green
+                ds 18
+
+                db  %000'000'10,0                 ; 0 tmavá navy (paper)					128 - spustitelné soubory
+                db  %100'111'00,1                 ; 1 (nepoužito)
+                db  %010'010'01,1                 ; 2 (nepoužito)
+                db  %010'111'00,0                 ; 3 lime zelená R=2,G=7,B=0 (ink)
                 db  %110'001'00,1                 ; 4 red
                 db  %111'110'00,1                 ; 5 yellow
                 db  %000'100'00,0                 ; 6 green
