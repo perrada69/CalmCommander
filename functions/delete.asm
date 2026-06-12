@@ -417,7 +417,7 @@ smazdir	ld a,0
 		or a
 		jr z,nenidir
 		call basicpage
-		call system_delete_dir_from_index
+		call system_delete_dir_from_lfn
 		jr pokr
 nenidir
 		ld d,00000000b

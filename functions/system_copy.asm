@@ -68,6 +68,8 @@ system_delete_dir_from_index
         ld hl,(cislo_souboru+1)
         dec hl
         call FINDLFN
+
+system_delete_dir_from_lfn
         call syscopy_prepare_context
         ld a,2
         ld (sysCopyContext+SYSCOPYCTX_MODE),a
