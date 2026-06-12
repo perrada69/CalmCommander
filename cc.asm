@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.9" : ENDM
+            MACRO VERSION : defb "0.94" : ENDM
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
@@ -4499,7 +4499,7 @@ tilemapPalette:
                 db  %000'100'00,0                 ; 6 green
                 ds 18
 
-                db  %111'000'00,0                 ; 0 modra (paper)					144 -
+                db  %011'000'00,0                 ; 0 modra (paper)					144 -
                 db  %100'111'00,1                 ; 1 light grey (25% ink)
                 db  %010'010'01,1                 ; 2 dark grey (75% ink)
                 db  %101'101'11,0                 ; 0 white-blueish (ink)
@@ -4508,32 +4508,32 @@ tilemapPalette:
                 db  %000'110'00,0                 ; 6 green
                 ds 18
 
-                db  %000'000'00,0                 ; 0 cerne pozadi				160 - BAS plugin: barva klicovych slov
+                db  %000'000'01,0                 ; 0 tmavá navy R=0,G=0,B=2 (shodné s group1)	160 - BAS plugin: barva klicovych slov
                 ds 4                              ; 1-2 (nezajima)
                 db  %111'111'00,0                 ; 3 zluta ink (R=7,G=7,B=0)
                 ds 24                             ; 4-15 (nezajima)
 
-                db  %000'000'00,0                 ; 0 cerne pozadi				176 - BAS plugin: barva cisel radku
+                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			176 - BAS plugin: barva cisel radku
                 ds 4
                 db  %000'111'00,0                 ; 3 zelena ink (R=0,G=7,B=0)
                 ds 24
 
-                db  %000'000'00,0                 ; 0 cerne pozadi				192 - BAS plugin: barva REM komentaru
+                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			192 - BAS plugin: barva REM komentaru
                 ds 4
                 db  %000'111'11,1                 ; 3 cyan ink (R=0,G=7,B=7)
                 ds 24
 
-                db  %000'000'00,0                 ; 0 cerne pozadi				208 - VU metr: zelena
+                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			208 - TAP title, VU metr: zelena
                 ds 4
                 db  %000'111'00,0                 ; 3 green ink (R=0,G=7,B=0)
                 ds 24
 
-                db  %000'000'00,0                 ; 0 cerne pozadi				224 - VU metr: zluta
+                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			224 - VU metr: zluta
                 ds 4
                 db  %111'111'00,0                 ; 3 yellow ink (R=7,G=7,B=0)
                 ds 24
 
-                db  %000'000'00,0                 ; 0 cerne pozadi				240 - VU metr: cervena
+                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			240 - VU metr: cervena
                 ds 4
                 db  %111'000'00,0                 ; 3 red ink (R=7,G=0,B=0)
                 ds 24
