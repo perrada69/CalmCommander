@@ -725,6 +725,7 @@ print_counter_status
         inc de
         jr .copy_text
 .text_done
+        call append_short_root_name
         ld (hl),32
         inc hl
         ld (hl),"("
@@ -760,6 +761,43 @@ print_counter_status
         pop de
         pop bc
         pop af
+        ret
+
+
+; HL=destination. Appends root directory name, max 10 chars + "...".
+; Returns HL advanced to the new destination.
+append_short_root_name
+        push ix
+        ld ix,(ctxPtr)
+        ld e,(ix+SYSCOPYCTX_NAME)
+        ld d,(ix+SYSCOPYCTX_NAME+1)
+        ex de,hl
+        ld b,10
+.copy
+        ld a,(hl)
+        or a
+        jr z,.done
+        cp 255
+        jr z,.done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy
+        ld a,(hl)
+        or a
+        jr z,.done
+        cp 255
+        jr z,.done
+        ld a,"."
+        ld (de),a
+        inc de
+        ld (de),a
+        inc de
+        ld (de),a
+        inc de
+.done
+        ex de,hl
+        pop ix
         ret
 
 
@@ -839,9 +877,9 @@ lastChar    defb 0
 countHandle defb 0
 totalFiles  defw 0
 
-copyPhaseTxt   defb "Copying directory...",0
-deletePhaseTxt defb "Deleting source...",0
-statusLine     defs 32
+copyPhaseTxt   defb "Copying directory: ",0
+deletePhaseTxt defb "Deleting source: ",0
+statusLine     defs 56
 blankNameTxt   defb "                                             ",0
 
 plugin_end
