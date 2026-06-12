@@ -1,6 +1,6 @@
 
 RENAMETXT	defb "Rename",0
-RENAMETXT2	defb "Please insert new name:",0
+RENAMETXT2	defb "New name:",0
 
 RENAME
         ld hl,POSKURZL
@@ -26,6 +26,8 @@ RENAME
 		call find83
         pop hl
         call FINDLFN
+        call syscopy_is_dot_lfn
+        jp z,loop0
 
 		call NOBUFF83
 		ld hl,(foundfile)
@@ -116,6 +118,9 @@ rename1
 		inc hl
 		ld a,255
 		ld (hl),a
+		ld hl,23296
+		call syscopy_is_dot_name
+		jp z,end_rename
 
 		ld b,11
 		ld hl,TMP83

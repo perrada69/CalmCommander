@@ -1,5 +1,5 @@
 CRDIRTXT	defb "Create directory.",0
-CRDIRTXT2	defb "Please insert name of the new directory:",0
+CRDIRTXT2	defb "Directory name:",0
 
 MKDIR	
 
@@ -46,6 +46,9 @@ mkdir1
 		inc hl
 		ld a,255
 		ld (hl),a
+		ld hl,23296
+		call syscopy_is_dot_name
+		jp z,end_mkdir
 MK
 		call dospage
 		ld a,2

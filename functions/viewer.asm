@@ -162,6 +162,8 @@ view_prepare_current_file
         call find83
         pop hl
         call FINDLFN
+        call syscopy_is_dot_lfn
+        jr z,.unsupported
 
         ld ix,TMP83
         bit 7,(ix+7)

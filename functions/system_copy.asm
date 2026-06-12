@@ -149,16 +149,25 @@ syscopy_terminate_name
 
 
 syscopy_is_dot_lfn
-        ld a,(LFNNAME)
+        ld hl,LFNNAME
+
+syscopy_is_dot_name
+        ld a,(hl)
         cp "."
         jr nz,.no
-        ld a,(LFNNAME+1)
+        inc hl
+        ld a,(hl)
         cp 32
+        jr z,.yes
+        cp 255
         jr z,.yes
         cp "."
         jr nz,.no
-        ld a,(LFNNAME+2)
+        inc hl
+        ld a,(hl)
         cp 32
+        jr z,.yes
+        cp 255
         jr z,.yes
 .no
         ld a,1
