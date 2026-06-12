@@ -80,6 +80,8 @@ plugin_start
         jp z,.extract_all
         cp "e"
         jp z,.extract
+        cp "d"
+        jp z,.toggle_p3dos
         jp .input
 
 ; ---- cursor down ----
@@ -185,6 +187,14 @@ plugin_start
 ; ---- extract all ('CAPS+E') ----
 .extract_all
         call do_extract_all
+        jp .wait_release
+
+; ---- toggle +3DOS header ('d' key) ----
+.toggle_p3dos
+        ld a,(p3dosEnabled)
+        xor 1
+        ld (p3dosEnabled),a
+        call render_p3dos_flag
         jp .wait_release
 
 
@@ -833,6 +843,9 @@ read_full_tap_header
 ; Sets type/param1/param2 in context, or $FF if no header applies.
 ; ================================================================
 setup_p3dos_context
+        ld a,(p3dosEnabled)
+        or a
+        jp z,.no_p3dos
         ld a,(extractEntry)
         call is_standard_header
         jr z,.from_this_header
@@ -1339,6 +1352,27 @@ render_col_header
         ld hl,1*256+HEADER_ROW
         ld a,ATTR_HEADER
         call call_print
+        call render_p3dos_flag
+        ret
+
+
+; ================================================================
+; render_p3dos_flag: show "+3DOS:YES" or "+3DOS:NO " in header row
+; ================================================================
+render_p3dos_flag
+        ld de,str3dosLabel
+        ld hl,55*256+HEADER_ROW
+        ld a,ATTR_HEADER
+        call call_print
+        ld a,(p3dosEnabled)
+        or a
+        jr z,.no
+        ld de,strYes
+        jr .pr
+.no     ld de,strNo
+.pr     ld hl,61*256+HEADER_ROW
+        ld a,ATTR_HEADER
+        call call_print
         ret
 
 
@@ -1737,6 +1771,7 @@ scanIndex       defb 0
 lastHeader      defb 0
 parentCandidate defb 0
 nameSourceEntry defb 0
+p3dosEnabled    defb 1
 
 ; ================================================================
 ; Strings
@@ -1746,7 +1781,7 @@ strBlk          defb "blk",0
 ; Column header aligned with data rows:
 ;  col: 1-2=## 3=sp 4-10=Type 11=sp 12-21=Name 22=sp 23-27=Size 28=b 29=sp 30+=Info
 strColHdr       defb "## Type    Name        Size   Info",0
-strHelp         defb "BREAK=exit   Up/Dn   PgUp/PgDn   e:export   CAPS+e:export all",0
+strHelp         defb " BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header",0
 strLine         defb "LINE:",0
 strBasic        defb "BASIC  ",0
 strCode         defb "CODE   ",0
@@ -1766,6 +1801,9 @@ strExportAllOK  defb "ALL OK",0
 strExportAllFail defb "ALL FAIL "
 strExportAllFailCode defb "?",0
 strDebugBlank   defb "                                ",0
+str3dosLabel    defb "+3DOS:",0
+strYes          defb "YES",0
+strNo           defb "NO ",0
 
 ; ================================================================
 ; Entry offset table (2 bytes per entry, up to MAX_ENTRIES)
