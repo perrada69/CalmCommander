@@ -143,6 +143,10 @@ copy_dir
 
         call get_dst_path
         call esx_mkdir_ignore
+        call inc_dir_count
+        call inc_file_count
+        ld de,copyPhaseTxt
+        call print_counter_status
 
         ld a,(curDepth)
         call get_src_path
@@ -176,7 +180,6 @@ copy_dir
         and ATTR_DIR
         jr z,.file
 
-        call inc_dir_count
         ld a,(curDepth)
         push af
         ld a,(dirHandle)
@@ -427,6 +430,9 @@ delete_dir
         rst $08
         db F_RMDIR
         ret c
+        call inc_file_count
+        ld de,deletePhaseTxt
+        call print_counter_status
         xor a
         ret
 
@@ -598,6 +604,7 @@ count_dir
         db F_OPENDIR
         ret c
         ld (countHandle),a
+        call inc_total_count
 
 .next
         ld a,(countHandle)
