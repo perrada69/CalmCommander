@@ -29,12 +29,30 @@ COPY_BUFFER_LEN  equ 1024
 
 plugin_start
         ld (ctxPtr),hl
+        ld (svcPtr),de
         ld (savedSp),sp
         ld sp,PLUGIN_STACK
+        call patch_services
 
         call copy_root_paths
+        ld ix,(ctxPtr)
+        ld a,(ix+SYSCOPYCTX_MODE)
+        cp 2
+        jr nz,.copy_or_move
+        call prepare_total_count
+        ld de,deletePhaseTxt
+        call print_counter_status
+        ld a,0
+        call delete_dir
+        jr c,.failed
+        jr .success
+
+.copy_or_move
         call reject_nested_destination
         jr c,.failed
+        call prepare_total_count
+        ld de,copyPhaseTxt
+        call print_counter_status
         ld a,0
         call copy_dir
         jr c,.failed
@@ -43,6 +61,9 @@ plugin_start
         ld a,(ix+SYSCOPYCTX_MODE)
         or a
         jr z,.success
+        call prepare_total_count
+        ld de,deletePhaseTxt
+        call print_counter_status
         ld a,0
         call delete_dir
         jr c,.failed
@@ -181,6 +202,8 @@ copy_dir
 
 .file
         call inc_file_count
+        ld de,copyPhaseTxt
+        call print_counter_status
         call copy_child_file
         jr c,.read_fail
         jr .next
@@ -376,6 +399,9 @@ delete_dir
         jr .read_fail
 
 .file
+        call inc_file_count
+        ld de,deletePhaseTxt
+        call print_counter_status
         ld a,(curDepth)
         inc a
         call get_src_path
@@ -538,7 +564,271 @@ inc_dir_count
         ret
 
 
+prepare_total_count
+        ld hl,0
+        ld (totalFiles),hl
+        ld ix,(ctxPtr)
+        ld (ix+SYSCOPYCTX_FILES_LO),l
+        ld (ix+SYSCOPYCTX_FILES_LO+1),h
+        ld (ix+SYSCOPYCTX_FILES_HI),l
+        ld (ix+SYSCOPYCTX_FILES_HI+1),h
+        ld a,0
+        call count_dir
+        ld ix,(ctxPtr)
+        ld hl,0
+        ld (ix+SYSCOPYCTX_FILES_LO),l
+        ld (ix+SYSCOPYCTX_FILES_LO+1),h
+        ld (ix+SYSCOPYCTX_FILES_HI),l
+        ld (ix+SYSCOPYCTX_FILES_HI+1),h
+        ret
+
+
+; A = depth. Counts files in SRC_STACK paths.
+count_dir
+        cp MAX_DEPTH+1
+        jp nc,.depth_fail
+        ld (curDepth),a
+
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_LFN_DIR
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (countHandle),a
+
+.next
+        ld a,(countHandle)
+        ld ix,DIR_ENTRY
+        rst $08
+        db F_READDIR
+        jr c,.read_fail
+        or a
+        jr z,.done
+
+        call skip_dot_entry
+        jr z,.next
+
+        ld a,(curDepth)
+        cp MAX_DEPTH
+        jr nc,.next
+        call build_child_src_path
+
+        ld a,(DIR_ENTRY)
+        and ATTR_DIR
+        jr z,.file
+
+        ld a,(curDepth)
+        push af
+        ld a,(countHandle)
+        push af
+        ld a,(curDepth)
+        inc a
+        call count_dir
+        jr c,.dir_fail
+        pop af
+        ld (countHandle),a
+        pop af
+        ld (curDepth),a
+        jr .next
+
+.dir_fail
+        ld e,a
+        pop af
+        ld (countHandle),a
+        pop af
+        ld (curDepth),a
+        ld a,e
+        jr .read_fail
+
+.file
+        call inc_total_count
+        jr .next
+
+.done
+        ld a,(countHandle)
+        rst $08
+        db F_CLOSE
+        xor a
+        ret
+
+.read_fail
+        push af
+        ld a,(countHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        scf
+        ret
+
+.depth_fail
+        ld a,$7f
+        scf
+        ret
+
+
+inc_total_count
+        ld hl,(totalFiles)
+        inc hl
+        ld (totalFiles),hl
+        ret
+
+
+patch_services
+        ld ix,(svcPtr)
+        ld l,(ix+SYSCOPY_SERVICE_PRINT)
+        ld h,(ix+SYSCOPY_SERVICE_PRINT+1)
+        ld (call_print+1),hl
+        ret
+
+
+print_status
+        push af
+        push bc
+        push de
+        push hl
+        ld hl,11*256+13
+        ld a,16
+        call call_print
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+
+print_counter_status
+        push af
+        push bc
+        push de
+        push hl
+        push ix
+
+        ld hl,statusLine
+        ld b,31
+.clear
+        ld (hl),32
+        inc hl
+        djnz .clear
+        xor a
+        ld (hl),a
+
+        ld hl,statusLine
+.copy_text
+        ld a,(de)
+        or a
+        jr z,.text_done
+        ld (hl),a
+        inc hl
+        inc de
+        jr .copy_text
+.text_done
+        ld (hl),32
+        inc hl
+        ld (hl),"("
+        inc hl
+        push hl
+
+        ld ix,(ctxPtr)
+        ld l,(ix+SYSCOPYCTX_FILES_LO)
+        ld h,(ix+SYSCOPYCTX_FILES_LO+1)
+        pop de
+        call write_dec3
+        ld a,"/"
+        ld (de),a
+        inc de
+        ld hl,(totalFiles)
+        call write_dec3
+        ld a,")"
+        ld (de),a
+        inc de
+        xor a
+        ld (de),a
+
+        ld hl,11*256+14
+        ld a,16
+        ld de,blankNameTxt
+        call call_print
+        ld hl,11*256+13
+        ld a,16
+        ld de,statusLine
+        call call_print
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+
+; HL=value, DE=destination. Writes 3 decimal digits, advances DE.
+write_dec3
+        push de
+        ld de,1000
+        or a
+        sbc hl,de
+        jr c,.under_1000
+        ld hl,999
+        jr .capped
+.under_1000
+        add hl,de
+.capped
+        pop de
+        ld b,"0"-1
+.hundreds
+        inc b
+        ld a,l
+        sub 100
+        ld l,a
+        ld a,h
+        sbc a,0
+        ld h,a
+        jr nc,.hundreds
+        ld a,l
+        add a,100
+        ld l,a
+        ld a,h
+        adc a,0
+        ld h,a
+        ld a,b
+        ld (de),a
+        inc de
+
+        ld b,"0"-1
+.tens
+        inc b
+        ld a,l
+        sub 10
+        ld l,a
+        ld a,h
+        sbc a,0
+        ld h,a
+        jr nc,.tens
+        ld a,l
+        add a,10
+        ld l,a
+        ld a,h
+        adc a,0
+        ld h,a
+        ld a,b
+        ld (de),a
+        inc de
+
+        ld a,l
+        add a,"0"
+        ld (de),a
+        inc de
+        ret
+
+
+call_print
+        jp 0
+
+
 ctxPtr      defw 0
+svcPtr      defw 0
 savedSp     defw 0
 curDepth    defb 0
 dirHandle   defb 0
@@ -546,6 +836,13 @@ delHandle   defb 0
 srcHandle   defb 0
 dstHandle   defb 0
 lastChar    defb 0
+countHandle defb 0
+totalFiles  defw 0
+
+copyPhaseTxt   defb "Copying directory...",0
+deletePhaseTxt defb "Deleting source...",0
+statusLine     defs 32
+blankNameTxt   defb "                                             ",0
 
 plugin_end
         assert plugin_end - plugin_start <= SYSCOPY_PLUGIN_SIZE

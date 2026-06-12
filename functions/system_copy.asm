@@ -64,6 +64,30 @@ system_copy_dir_from_index
         ret
 
 
+system_delete_dir_from_index
+        ld hl,(cislo_souboru+1)
+        dec hl
+        call FINDLFN
+        call syscopy_prepare_context
+        ld a,2
+        ld (sysCopyContext+SYSCOPYCTX_MODE),a
+
+        call syscopy_load_plugin
+        ret c
+
+        call syscopy_call_plugin
+        ld a,(sysCopyContext+SYSCOPYCTX_RESULT)
+        or a
+        jr nz,.fail
+
+        call syscopy_restore_current_path
+        or a
+        ret
+.fail
+        scf
+        ret
+
+
 syscopy_error
         call syscopy_show_error
         jp copyend

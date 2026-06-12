@@ -95,6 +95,7 @@ mdeletecont
 		
 deletenext
 		push hl
+		ld (cislo_souboru+1),hl
 		call find83
 		call BUFF83	
 
@@ -140,13 +141,8 @@ ACCCAC							;vynuluj všechny stavové bity v názvu (7.)
 smazdirm	ld a,0
 		or a
 		jr z,nenidirm
-		xor a
-		ld (vymaz_vse_v_adresari+1),a
-
-		ld a,3
-		ld hl,TMP83
-		call $01b1
-		call nc,vymaz_vse_v_adresari
+		call basicpage
+		call system_delete_dir_from_index
 		jr pokrm
 nenidirm
 		ld d,00000000b
@@ -320,6 +316,7 @@ delete
 		ld a,(hl)
 		ld l,a
 		ld h,0
+		ld (cislo_souboru+1),hl
 
 		push hl
 		ld hl,STARTWINL
@@ -419,14 +416,8 @@ CCCAC							;vynuluj všechny stavové bity v názvu (7.)
 smazdir	ld a,0
 		or a
 		jr z,nenidir
-		
-		xor a
-		ld (vymaz_vse_v_adresari+1),a
-
-		ld a,3
-		ld hl,TMP83
-ED		call $01b1
-		call nc,vymaz_vse_v_adresari
+		call basicpage
+		call system_delete_dir_from_index
 		jr pokr
 nenidir
 		ld d,00000000b
@@ -575,6 +566,7 @@ vymaz_vse_v_adresari
 
 		ld a,1
 		ld (vymaz_vse_v_adresari+1),a
+		call basicpage
 	
 		call savescr
 		ld hl,10 * 256 + 10
@@ -629,6 +621,7 @@ toall	ld a,1
 		ld (hl),"|"
 
 smaz
+		call basicpage
 		ld hl,60*256+14
 		ld a,16
 		ld de,pleasewait
@@ -668,6 +661,7 @@ smaz
 ecopyend	ld a,(yestoall)
 			or a
 			ret nz
+			call basicpage
 			call loadscr
 			ret
 
