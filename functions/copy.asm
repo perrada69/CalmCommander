@@ -242,10 +242,7 @@ copycont
         bit 7,(hl)
         pop hl
         jr z,copycont_not_dir
-        ld a,(ismove)
-        or a
-        jp z,system_copy_single_dir_from_entry        ; copy adresáře → rekurzivní system copy plugin
-        jp nekopiruj_adresar                          ; move adresáře zatím nepodporujeme
+        jp system_copy_single_dir_from_entry          ; adresář → rekurzivní system copy plugin
 
 copycont_not_dir
 
@@ -654,10 +651,7 @@ moredalsi
         add hl,de
         bit 7,(hl)
         jr z,COPY_MULTI_NOT_DIR
-        ld a,(ismove)
-        or a
-        jr z,COPYDIR_MULTI                            ; copy adresáře → rekurzivní system copy plugin
-        jr NODIR                                      ; move adresáře zatím přeskočí stejně jako dřív
+        jr COPYDIR_MULTI                              ; adresář → rekurzivní system copy plugin
 COPY_MULTI_NOT_DIR
         pop hl
 

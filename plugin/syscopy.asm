@@ -10,6 +10,8 @@ F_WRITE     equ $9E
 F_OPENDIR   equ $A3
 F_READDIR   equ $A4
 F_MKDIR     equ $AA
+F_RMDIR     equ $AB
+F_UNLINK    equ $AD
 
 MODE_READ_EXIST  equ $01
 MODE_WRITE_TRUNC equ $0E
@@ -31,10 +33,21 @@ plugin_start
         ld sp,PLUGIN_STACK
 
         call copy_root_paths
+        call reject_nested_destination
+        jr c,.failed
         ld a,0
         call copy_dir
         jr c,.failed
 
+        ld ix,(ctxPtr)
+        ld a,(ix+SYSCOPYCTX_MODE)
+        or a
+        jr z,.success
+        ld a,0
+        call delete_dir
+        jr c,.failed
+
+.success
         ld ix,(ctxPtr)
         xor a
         ld (ix+SYSCOPYCTX_RESULT),a
@@ -67,6 +80,37 @@ copy_root_paths
         ld c,(ix+SYSCOPYCTX_NAME)
         ld b,(ix+SYSCOPYCTX_NAME+1)
         call build_path
+        ret
+
+
+reject_nested_destination
+        ld hl,SRC_STACK
+        ld de,DST_STACK
+.compare
+        ld a,(hl)
+        or a
+        jr z,.src_done
+        ld b,a
+        ld a,(de)
+        cp b
+        jr nz,.ok
+        inc hl
+        inc de
+        jr .compare
+.src_done
+        ld a,(de)
+        or a
+        jr z,.bad
+        cp "/"
+        jr z,.bad
+        cp 92
+        jr z,.bad
+.ok
+        xor a
+        ret
+.bad
+        ld a,$7e
+        scf
         ret
 
 
@@ -188,6 +232,20 @@ build_child_paths
         ret
 
 
+build_child_src_path
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        ld a,(curDepth)
+        inc a
+        call get_src_path
+        ex de,hl
+        pop hl
+        ld bc,DIR_ENTRY+1
+        call build_path
+        ret
+
+
 copy_child_file
         ld a,(curDepth)
         inc a
@@ -253,6 +311,116 @@ copy_child_file
         rst $08
         db F_CLOSE
         pop af
+        scf
+        ret
+
+
+; A = depth. Deletes files first, then directories bottom-up.
+delete_dir
+        cp MAX_DEPTH+1
+        jp nc,.depth_fail
+        ld (curDepth),a
+
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_LFN_DIR
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (delHandle),a
+
+.next
+        ld a,(delHandle)
+        ld ix,DIR_ENTRY
+        rst $08
+        db F_READDIR
+        jr c,.read_fail
+        or a
+        jr z,.done
+
+        call skip_dot_entry
+        jr z,.next
+
+        ld a,(curDepth)
+        cp MAX_DEPTH
+        jr nc,.depth_fail_open
+        call build_child_src_path
+
+        ld a,(DIR_ENTRY)
+        and ATTR_DIR
+        jr z,.file
+
+        ld a,(curDepth)
+        push af
+        ld a,(delHandle)
+        push af
+        ld a,(curDepth)
+        inc a
+        call delete_dir
+        jr c,.dir_fail
+        pop af
+        ld (delHandle),a
+        pop af
+        ld (curDepth),a
+        jr .next
+
+.dir_fail
+        ld e,a
+        pop af
+        ld (delHandle),a
+        pop af
+        ld (curDepth),a
+        ld a,e
+        jr .read_fail
+
+.file
+        ld a,(curDepth)
+        inc a
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        rst $08
+        db F_UNLINK
+        jr c,.read_fail
+        jr .next
+
+.done
+        ld a,(delHandle)
+        rst $08
+        db F_CLOSE
+        jr c,.close_fail
+
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        rst $08
+        db F_RMDIR
+        ret c
+        xor a
+        ret
+
+.depth_fail_open
+        ld a,$7f
+.read_fail
+        push af
+        ld a,(delHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        scf
+        ret
+
+.close_fail
+        scf
+        ret
+
+.depth_fail
+        ld a,$7f
         scf
         ret
 
@@ -374,6 +542,7 @@ ctxPtr      defw 0
 savedSp     defw 0
 curDepth    defb 0
 dirHandle   defb 0
+delHandle   defb 0
 srcHandle   defb 0
 dstHandle   defb 0
 lastChar    defb 0
