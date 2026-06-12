@@ -19,6 +19,9 @@ VIEWCTX_EXTRACT_OFF  equ 21
 VIEWCTX_EXTRACT_CNT  equ 23
 VIEWCTX_EXTRACT_NAME equ 25   ; 16 bytes, 0/255 terminated
 VIEWCTX_DIRTY        equ 40
+VIEWCTX_P3DOS_TYPE   equ 41    ; 1 byte: $FF=no header, else TAP type (0=BASIC,1=NumArr,2=StrArr,3=Code)
+VIEWCTX_P3DOS_P1     equ 42    ; 2 bytes: TAP param1 (LINE for BASIC, load address for CODE)
+VIEWCTX_P3DOS_P2     equ 44    ; 2 bytes: TAP param2
 
 SERVICE_PRINT        equ 0
 SERVICE_INKEY        equ 2

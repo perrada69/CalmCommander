@@ -34,7 +34,10 @@ VIEWCTX_EXTRACT_OFF  equ 21
 VIEWCTX_EXTRACT_CNT  equ 23
 VIEWCTX_EXTRACT_NAME equ 25   ; 16 bytes, 0/255 terminated
 VIEWCTX_DIRTY        equ 40
-VIEWCTX_SIZE         equ 41
+VIEWCTX_P3DOS_TYPE   equ 41    ; 1 byte: $FF=no header, else TAP type (0=BASIC,1=NumArr,2=StrArr,3=Code)
+VIEWCTX_P3DOS_P1     equ 42    ; 2 bytes: TAP param1
+VIEWCTX_P3DOS_P2     equ 44    ; 2 bytes: TAP param2
+VIEWCTX_SIZE         equ 46
 
 
 
@@ -994,6 +997,8 @@ view_fill_context
         xor a
         ld (viewPluginContext+VIEWCTX_EXTRACT_FLAG),a
         ld (viewPluginContext+VIEWCTX_DIRTY),a
+        ld a,$FF
+        ld (viewPluginContext+VIEWCTX_P3DOS_TYPE),a
         ret
 
 
@@ -1122,13 +1127,26 @@ svc_extract_to_file
 
         call dospage
         call view_set_current_path
+        ; d=1 creates file with +3DOS header, d=2 creates raw (no header)
+        ld a,(viewPluginContext+VIEWCTX_P3DOS_TYPE)
+        ld d,2
+        cp $FF
+        jr z,.do_open
+        ld d,1
+.do_open
         ld b,1                  ; file number
         ld c,2                  ; exclusive write
-        ld d,2                  ; create without +3DOS header
         ld e,4                  ; erase existing, then create
         ld hl,viewPluginDosName
         call $0106
         jr nc,.open_fail
+        ; if +3DOS header requested: fill 8-byte header via DOS_REF_HEAD
+        ld a,(viewPluginContext+VIEWCTX_P3DOS_TYPE)
+        cp $FF
+        jr z,.header_done
+        ld b,1
+        call svc_fill_p3dos_header
+.header_done
         call basicpage
 
 .write_loop

@@ -271,6 +271,7 @@ do_extract_prepared
         ld a,ATTR_CODE
         call call_print
 
+        call setup_p3dos_context
         ld hl,extractName
         ld de,(extractOff)
         ld bc,(extractCnt)
@@ -793,6 +794,75 @@ sanitize_filename_char
         cp '-'
         ret z
         ld a,'_'
+        ret
+
+
+; ================================================================
+; read_full_tap_header: A = header entry index.
+; Reads type, param1, param2 from the TAP header block.
+; Sets extractHeaderType, tapParam1, tapParam2.
+; ================================================================
+read_full_tap_header
+        call get_entry_offset
+        ld (readPtr),hl
+        call read_next_byte         ; len_lo  (skip)
+        call read_next_byte         ; len_hi  (skip)
+        call read_next_byte         ; flag    (skip)
+        call read_next_byte         ; type
+        ld (extractHeaderType),a
+        ld b,10
+.skip_name
+        call read_next_byte         ; name chars (skip)
+        djnz .skip_name
+        call read_next_byte         ; data_len lo (skip – viewer uses extractCnt)
+        call read_next_byte         ; data_len hi (skip)
+        call read_next_byte         ; param1 lo
+        ld (tapParam1),a
+        call read_next_byte         ; param1 hi
+        ld (tapParam1+1),a
+        call read_next_byte         ; param2 lo
+        ld (tapParam2),a
+        call read_next_byte         ; param2 hi
+        ld (tapParam2+1),a
+        ret
+
+
+; ================================================================
+; setup_p3dos_context: set VIEWCTX_P3DOS_* fields before extraction.
+; Uses extractEntry to locate the TAP header block.
+; Sets type/param1/param2 in context, or $FF if no header applies.
+; ================================================================
+setup_p3dos_context
+        ld a,(extractEntry)
+        call is_standard_header
+        jr z,.from_this_header
+        ; not a header: check if the previous entry is a paired header
+        ld a,(extractEntry)
+        call get_immediate_parent
+        cp 255
+        jr z,.no_p3dos
+        ; A = parent header entry index
+        jr .read_header
+.from_this_header
+        ld a,(extractEntry)
+.read_header
+        call read_full_tap_header
+        ld ix,(ctxPtr)
+        ld a,(extractHeaderType)
+        ld (ix+VIEWCTX_P3DOS_TYPE),a
+        ld a,(tapParam1)
+        ld (ix+VIEWCTX_P3DOS_P1),a
+        ld a,(tapParam1+1)
+        ld (ix+VIEWCTX_P3DOS_P1+1),a
+        ld a,(tapParam2)
+        ld (ix+VIEWCTX_P3DOS_P2),a
+        ld a,(tapParam2+1)
+        ld (ix+VIEWCTX_P3DOS_P2+1),a
+        ret
+.no_p3dos
+        ld ix,(ctxPtr)
+        ld a,$FF
+        ld (ix+VIEWCTX_P3DOS_TYPE),a
         ret
 
 
@@ -1657,6 +1727,7 @@ tmpBlockLen     defw 0
 tmpBlockFlag    defb 0
 tmpRangeStart   defw 0
 extractHeaderType defb 0
+tapParam2       defw 0
 extractNamePtr  defw 0
 extractStatus   defb 0
 bulkIdx         defb 0
@@ -1675,7 +1746,7 @@ strBlk          defb "blk",0
 ; Column header aligned with data rows:
 ;  col: 1-2=## 3=sp 4-10=Type 11=sp 12-21=Name 22=sp 23-27=Size 28=b 29=sp 30+=Info
 strColHdr       defb "## Type    Name        Size   Info",0
-strHelp         defb "BREAK=exit   Up/Dn   PgUp/PgDn   e=export   E=all",0
+strHelp         defb "BREAK=exit   Up/Dn   PgUp/PgDn   e:export   CAPS+e:export all",0
 strLine         defb "LINE:",0
 strBasic        defb "BASIC  ",0
 strCode         defb "CODE   ",0

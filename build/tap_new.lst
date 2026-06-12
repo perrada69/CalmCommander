@@ -1,0 +1,1906 @@
+# file opened: tap.asm
+   1  0000                      DEVICE ZXSPECTRUMNEXT
+   2  0000                      org VIEW_PLUGIN_ADDRESS
+   3  C000
+   4  C000                      include "plugin_api.i.asm"
+# file opened: plugin_api.i.asm
+   1+ C000              VIEW_PLUGIN_ADDRESS  equ 49152
+   2+ C000              VIEW_DATA_ADDRESS    equ 57344
+   3+ C000              VIEW_PLUGIN_SIZE     equ 4096
+   4+ C000
+   5+ C000              VIEWCTX_ABI          equ 0
+   6+ C000              VIEWCTX_TYPE         equ 1
+   7+ C000              VIEWCTX_FILENAME     equ 2
+   8+ C000              VIEWCTX_SIZE_LO      equ 4
+   9+ C000              VIEWCTX_SIZE_HI      equ 6
+  10+ C000              VIEWCTX_DATA_PAGE    equ 8
+  11+ C000              VIEWCTX_DATA_ADDR    equ 9
+  12+ C000              VIEWCTX_READ_LEN     equ 11
+  13+ C000              VIEWCTX_PAGE_COUNT   equ 13
+  14+ C000              VIEWCTX_DATA_PAGES   equ 14
+  15+ C000              VIEWCTX_SERVICES     equ 16
+  16+ C000              VIEWCTX_CURPATH      equ 18   ; pointer to active panel path string
+  17+ C000              VIEWCTX_EXTRACT_FLAG equ 20
+  18+ C000              VIEWCTX_EXTRACT_OFF  equ 21
+  19+ C000              VIEWCTX_EXTRACT_CNT  equ 23
+  20+ C000              VIEWCTX_EXTRACT_NAME equ 25   ; 16 bytes, 0/255 terminated
+  21+ C000              VIEWCTX_DIRTY        equ 40
+  22+ C000              VIEWCTX_P3DOS_TYPE   equ 41    ; 1 byte: $FF=no header, else TAP type (0=BASIC,1=NumArr,2=StrArr,3=Code)
+  23+ C000              VIEWCTX_P3DOS_P1     equ 42    ; 2 bytes: TAP param1 (LINE for BASIC, load address for CODE)
+  24+ C000              VIEWCTX_P3DOS_P2     equ 44    ; 2 bytes: TAP param2
+  25+ C000
+  26+ C000              SERVICE_PRINT        equ 0
+  27+ C000              SERVICE_INKEY        equ 2
+  28+ C000              SERVICE_WINDOW       equ 4
+  29+ C000              SERVICE_LAYER0       equ 6
+  30+ C000              SERVICE_INPUT_NOWAIT equ 8
+  31+ C000              SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)
+  32+ C000
+# file closed: plugin_api.i.asm
+   5  C000
+   6  C000              ; ---- screen layout ----
+   7  C000              ; Tilemap: 160 bytes/row, 2 bytes/tile (char + attr)
+   8  C000              ; Window: col=0 row=3 width=78 height=24
+   9  C000              ;   inner rows 4-25 (borders at 3 and 26)
+  10  C000              ;   row 4  : title  (TAP: filename  NN blk)
+  11  C000              ;   row 5  : column header
+  12  C000              ;   rows 6-23: entries (CONTENT_ROWS=18)
+  13  C000              ;   row 25 : help
+  14  C000
+  15  C000              WIN_COL         equ 0
+  16  C000              WIN_ROW         equ 3
+  17  C000              WIN_WIDTH       equ 78
+  18  C000              WIN_HEIGHT      equ 24
+  19  C000
+  20  C000              TITLE_ROW       equ 4
+  21  C000              HEADER_ROW      equ 5
+  22  C000              CONTENT_ROW     equ 6
+  23  C000              CONTENT_ROWS    equ 18
+  24  C000              HELP_ROW        equ 25
+  25  C000
+  26  C000              ATTR_NORMAL     equ 16
+  27  C000              ATTR_TITLE      equ 208
+  28  C000              ATTR_HEADER     equ 176
+  29  C000              ATTR_BASIC      equ 160
+  30  C000              ATTR_CODE       equ 192
+  31  C000              ATTR_SELECTED   equ 112
+  32  C000              ATTR_DATA       equ 16
+  33  C000
+  34  C000              TYPE_BASIC      equ 0
+  35  C000              TYPE_NUMARRAY   equ 1
+  36  C000              TYPE_STRARRAY   equ 2
+  37  C000              TYPE_CODE       equ 3
+  38  C000
+  39  C000              MAX_ENTRIES     equ 64
+  40  C000
+  41  C000
+  42  C000              ; ================================================================
+  43  C000              ; Plugin entry point
+  44  C000              ; HL = context pointer, DE = services pointer
+  45  C000              ; ================================================================
+  46  C000              plugin_start
+  47  C000 22 9A CA             ld (ctxPtr),hl
+  48  C003 ED 53 9C CA          ld (svcPtr),de
+  49  C007 CD 61 CA             call patch_services
+  50  C00A CD EA C5             call init_context
+  51  C00D CD 1C C6             call scan_tap_blocks
+  52  C010
+  53  C010 21 03 00             ld hl,WIN_COL*256+WIN_ROW
+  54  C013 01 18 4E             ld bc,WIN_WIDTH*256+WIN_HEIGHT
+  55  C016 3E 10                ld a,ATTR_NORMAL
+  56  C018 CD 92 CA             call call_window
+  57  C01B
+  58  C01B CD 51 C8             call render_title
+  59  C01E CD 96 C8             call render_col_header
+  60  C021 CD A9 C8             call render_help
+  61  C024 CD AA C6             call render_page
+  62  C027 CD 2C C3             call render_name_preview
+  63  C02A
+  64  C02A              .input
+  65  C02A CD 8E CA             call call_input
+  66  C02D B7                   or a
+  67  C02E 28 FA                jr z,.input
+  68  C030 FE 01                cp 1
+  69  C032 C8                   ret z           ; BREAK: return A=1 (exit viewer)
+  70  C033
+  71  C033 FE 0A                cp 10
+  72  C035 CA 54 C0             jp z,.down
+  73  C038 FE 0B                cp 11
+  74  C03A CA 7B C0             jp z,.up
+  75  C03D FE 09                cp 9
+  76  C03F CA 9C C0             jp z,.pgdn
+  77  C042 FE 08                cp 8
+  78  C044 CA D0 C0             jp z,.pgup
+  79  C047 FE 45                cp "E"
+  80  C049 CA FA C0             jp z,.extract_all
+  81  C04C FE 65                cp "e"
+  82  C04E CA F4 C0             jp z,.extract
+  83  C051 C3 2A C0             jp .input
+  84  C054
+  85  C054              ; ---- cursor down ----
+  86  C054              .down
+  87  C054 3A A9 CA             ld a,(curEntry)
+  88  C057 47                   ld b,a
+  89  C058 3A A7 CA             ld a,(totalBlocks)
+  90  C05B 3D                   dec a           ; last valid index
+  91  C05C B8                   cp b
+  92  C05D CA 2A C0             jp z,.input     ; already at last
+  93  C060 3A A9 CA             ld a,(curEntry)
+  94  C063 3C                   inc a
+  95  C064 32 A9 CA             ld (curEntry),a
+  96  C067 CD 0D C1             call set_selected_entry
+  97  C06A                      ; scroll if new curEntry >= topEntry + CONTENT_ROWS
+  98  C06A 47                   ld b,a
+  99  C06B 3A A8 CA             ld a,(topEntry)
+ 100  C06E C6 12                add a,CONTENT_ROWS
+ 101  C070 B8                   cp b
+ 102  C071 D2 E5 C0             jp nc,.do_render
+ 103  C074 21 A8 CA             ld hl,topEntry
+ 104  C077 34                   inc (hl)
+ 105  C078 C3 E5 C0             jp .do_render
+ 106  C07B
+ 107  C07B              ; ---- cursor up ----
+ 108  C07B              .up
+ 109  C07B 3A A9 CA             ld a,(curEntry)
+ 110  C07E B7                   or a
+ 111  C07F CA 2A C0             jp z,.input     ; already at first
+ 112  C082 3D                   dec a
+ 113  C083 32 A9 CA             ld (curEntry),a
+ 114  C086 CD 0D C1             call set_selected_entry
+ 115  C089                      ; scroll if new curEntry < topEntry
+ 116  C089 47                   ld b,a
+ 117  C08A 3A A8 CA             ld a,(topEntry)
+ 118  C08D B8                   cp b
+ 119  C08E DA E5 C0             jp c,.do_render ; topEntry < curEntry: no scroll
+ 120  C091 B7                   or a
+ 121  C092 CA E5 C0             jp z,.do_render ; topEntry = 0: can't scroll up
+ 122  C095 21 A8 CA             ld hl,topEntry
+ 123  C098 35                   dec (hl)
+ 124  C099 C3 E5 C0             jp .do_render
+ 125  C09C
+ 126  C09C              ; ---- page down ----
+ 127  C09C              .pgdn
+ 128  C09C 3A A7 CA             ld a,(totalBlocks)
+ 129  C09F B7                   or a
+ 130  C0A0 CA 2A C0             jp z,.input
+ 131  C0A3 3D                   dec a
+ 132  C0A4 47                   ld b,a          ; B = last valid index
+ 133  C0A5 3A A9 CA             ld a,(curEntry)
+ 134  C0A8 B8                   cp b
+ 135  C0A9 CA 2A C0             jp z,.input
+ 136  C0AC C6 12                add a,CONTENT_ROWS
+ 137  C0AE B8                   cp b
+ 138  C0AF D2 BB C0             jp nc,.pgdn_cap
+ 139  C0B2 32 A9 CA             ld (curEntry),a
+ 140  C0B5 CD 0D C1             call set_selected_entry
+ 141  C0B8 C3 C2 C0             jp .pgdn_top
+ 142  C0BB              .pgdn_cap
+ 143  C0BB 78                   ld a,b
+ 144  C0BC 32 A9 CA             ld (curEntry),a
+ 145  C0BF CD 0D C1             call set_selected_entry
+ 146  C0C2              .pgdn_top
+ 147  C0C2 3A A9 CA             ld a,(curEntry)
+ 148  C0C5 D6 11                sub CONTENT_ROWS-1
+ 149  C0C7 30 01                jr nc,.pgdn_set
+ 150  C0C9 AF                   xor a
+ 151  C0CA              .pgdn_set
+ 152  C0CA 32 A8 CA             ld (topEntry),a
+ 153  C0CD C3 E5 C0             jp .do_render
+ 154  C0D0
+ 155  C0D0              ; ---- page up ----
+ 156  C0D0              .pgup
+ 157  C0D0 3A A9 CA             ld a,(curEntry)
+ 158  C0D3 B7                   or a
+ 159  C0D4 CA 2A C0             jp z,.input
+ 160  C0D7 D6 12                sub CONTENT_ROWS
+ 161  C0D9 30 01                jr nc,.pgup_set
+ 162  C0DB AF                   xor a
+ 163  C0DC              .pgup_set
+ 164  C0DC 32 A9 CA             ld (curEntry),a
+ 165  C0DF CD 0D C1             call set_selected_entry
+ 166  C0E2 32 A8 CA             ld (topEntry),a
+ 167  C0E5
+ 168  C0E5              .do_render
+ 169  C0E5 CD AA C6             call render_page
+ 170  C0E8 CD 2C C3             call render_name_preview
+ 171  C0EB                      ; wait for key release before accepting next input
+ 172  C0EB              .wait_release
+ 173  C0EB CD 8E CA             call call_input
+ 174  C0EE B7                   or a
+ 175  C0EF 20 FA                jr nz,.wait_release
+ 176  C0F1 C3 2A C0             jp .input
+ 177  C0F4
+ 178  C0F4
+ 179  C0F4              ; ---- extract ('E' key) ----
+ 180  C0F4              .extract
+ 181  C0F4 CD 39 C1             call do_extract_prepared
+ 182  C0F7 C3 EB C0             jp .wait_release
+ 183  C0FA
+ 184  C0FA
+ 185  C0FA              ; ---- extract all ('CAPS+E') ----
+ 186  C0FA              .extract_all
+ 187  C0FA CD CD C1             call do_extract_all
+ 188  C0FD C3 EB C0             jp .wait_release
+ 189  C100
+ 190  C100
+ 191  C100              ; ================================================================
+ 192  C100              ; get_entry_offset: A = entry index → HL = file offset (from entryOffsets[A])
+ 193  C100              ; ================================================================
+ 194  C100              get_entry_offset
+ 195  C100 87                   add a,a             ; index * 2
+ 196  C101 6F                   ld l,a
+ 197  C102 26 00                ld h,0
+ 198  C104 11 F8 CB             ld de,entryOffsets
+ 199  C107 19                   add hl,de
+ 200  C108 5E                   ld e,(hl)
+ 201  C109 23                   inc hl
+ 202  C10A 56                   ld d,(hl)
+ 203  C10B EB                   ex de,hl
+ 204  C10C C9                   ret
+ 205  C10D
+ 206  C10D
+ 207  C10D              set_selected_entry
+ 208  C10D 32 AA CA             ld (selectedEntry),a
+ 209  C110 C9                   ret
+ 210  C111
+ 211  C111
+ 212  C111              ; ================================================================
+ 213  C111              ; do_extract: A = entry index. Extracts payload to file.
+ 214  C111              ; HEADER (flag=0, len=19) → extracts paired DATA block, names it from header.
+ 215  C111              ; DATA/other → extracts this block's payload, names it BLCKnn.BIN.
+ 216  C111              ; The viewer extract service performs the actual esxDOS write.
+ 217  C111              ; ================================================================
+ 218  C111              do_extract
+ 219  C111 32 DC CA             ld (extractEntry),a
+ 220  C114 AF                   xor a
+ 221  C115 32 EA CA             ld (extractStatus),a
+ 222  C118 CD A7 C3             call prepare_extract_payload
+ 223  C11B FE FF                cp 255
+ 224  C11D C8                   ret z
+ 225  C11E 32 DD CA             ld (payloadEntry),a
+ 226  C121 3A DD CA             ld a,(payloadEntry)
+ 227  C124 CD 4E C4             call get_payload_range
+ 228  C127
+ 229  C127                      ; HL = source offset (16-bit), BC = byte count
+ 230  C127 22 D8 CA             ld (extractOff),hl
+ 231  C12A 60                   ld h,b
+ 231  C12B 69             ld l,c
+ 231  C12C 22 DA CA       ld (extractCnt),hl
+ 232  C12F 3A DC CA             ld a,(extractEntry)
+ 233  C132 CD B9 C3             call prepare_extract_name
+ 234  C135 CD 39 C1             call do_extract_prepared
+ 235  C138 C9                   ret
+ 236  C139
+ 237  C139
+ 238  C139              do_extract_prepared
+ 239  C139 AF                   xor a
+ 240  C13A 32 EA CA             ld (extractStatus),a
+ 241  C13D CD D4 C5             call clear_debug_area
+ 242  C140 11 B5 CB             ld de,strExportName
+ 243  C143 21 06 2A             ld hl,42*256+CONTENT_ROW
+ 244  C146 3E C0                ld a,ATTR_CODE
+ 245  C148 CD 8A CA             call call_print
+ 246  C14B 11 C8 CA             ld de,extractName
+ 247  C14E 21 06 30             ld hl,48*256+CONTENT_ROW
+ 248  C151 3E C0                ld a,ATTR_CODE
+ 249  C153 CD 8A CA             call call_print
+ 250  C156 2A DA CA             ld hl,(extractCnt)
+ 251  C159 CD 9D C9             call make_decimal
+ 252  C15C 11 BB CB             ld de,strExportLen
+ 253  C15F 21 07 2A             ld hl,42*256+(CONTENT_ROW+1)
+ 254  C162 3E C0                ld a,ATTR_CODE
+ 255  C164 CD 8A CA             call call_print
+ 256  C167 11 B6 CA             ld de,numBuf
+ 257  C16A 21 07 30             ld hl,48*256+(CONTENT_ROW+1)
+ 258  C16D 3E C0                ld a,ATTR_CODE
+ 259  C16F CD 8A CA             call call_print
+ 260  C172 11 C0 CB             ld de,strExportIdx
+ 261  C175 21 07 38             ld hl,56*256+(CONTENT_ROW+1)
+ 262  C178 3E C0                ld a,ATTR_CODE
+ 263  C17A CD 8A CA             call call_print
+ 264  C17D 3A DD CA             ld a,(payloadEntry)
+ 265  C180 3C                   inc a
+ 266  C181 6F                   ld l,a
+ 267  C182 26 00                ld h,0
+ 268  C184 CD 9D C9             call make_decimal
+ 269  C187 11 B9 CA             ld de,numBuf+3
+ 270  C18A 21 07 3C             ld hl,60*256+(CONTENT_ROW+1)
+ 271  C18D 3E C0                ld a,ATTR_CODE
+ 272  C18F CD 8A CA             call call_print
+ 273  C192
+ 274  C192 CD 8D C5             call setup_p3dos_context
+ 275  C195 21 C8 CA             ld hl,extractName
+ 276  C198 ED 5B D8 CA          ld de,(extractOff)
+ 277  C19C ED 4B DA CA          ld bc,(extractCnt)
+ 278  C1A0 CD 96 CA             call call_extract
+ 279  C1A3 38 10                jr c,.export_fail
+ 280  C1A5 AF                   xor a
+ 281  C1A6 32 EA CA             ld (extractStatus),a
+ 282  C1A9 11 AB CB             ld de,strExportOK
+ 283  C1AC 21 08 2A             ld hl,42*256+(CONTENT_ROW+2)
+ 284  C1AF 3E C0                ld a,ATTR_CODE
+ 285  C1B1 CD 8A CA             call call_print
+ 286  C1B4 C9                   ret
+ 287  C1B5              .export_fail
+ 288  C1B5 32 EA CA             ld (extractStatus),a
+ 289  C1B8 C6 30                add a,'0'
+ 290  C1BA 32 B3 CB             ld (strExportFailCode),a
+ 291  C1BD 11 AE CB             ld de,strExportFail
+ 292  C1C0 21 08 2A             ld hl,42*256+(CONTENT_ROW+2)
+ 293  C1C3 3E C0                ld a,ATTR_CODE
+ 294  C1C5 CD 8A CA             call call_print
+ 295  C1C8              .de_ret
+ 296  C1C8 C9                   ret
+ 297  C1C9
+ 298  C1C9
+ 299  C1C9              do_extract_one
+ 300  C1C9 CD 11 C1             call do_extract
+ 301  C1CC C9                   ret
+ 302  C1CD
+ 303  C1CD
+ 304  C1CD              do_extract_all
+ 305  C1CD AF                   xor a
+ 306  C1CE 32 EB CA             ld (bulkIdx),a
+ 307  C1D1 21 00 00             ld hl,0
+ 308  C1D4 22 EC CA             ld (bulkPtr),hl
+ 309  C1D7              .loop
+ 310  C1D7 2A EC CA             ld hl,(bulkPtr)
+ 311  C1DA ED 5B A0 CA          ld de,(loadedSize)
+ 312  C1DE B7                   or a
+ 313  C1DF ED 52                sbc hl,de
+ 314  C1E1 D2 09 C3             jp nc,.all_ok
+ 315  C1E4
+ 316  C1E4 3A EB CA             ld a,(bulkIdx)
+ 317  C1E7 47                   ld b,a
+ 318  C1E8 3A A7 CA             ld a,(totalBlocks)
+ 319  C1EB B8                   cp b
+ 320  C1EC CA 09 C3             jp z,.all_ok
+ 321  C1EF DA 09 C3             jp c,.all_ok
+ 322  C1F2
+ 323  C1F2 3A EB CA             ld a,(bulkIdx)
+ 324  C1F5 32 DC CA             ld (extractEntry),a
+ 325  C1F8 32 DD CA             ld (payloadEntry),a
+ 326  C1FB
+ 327  C1FB 2A EC CA             ld hl,(bulkPtr)
+ 328  C1FE CD F8 C9             call read_byte_at_offset
+ 329  C201 32 E0 CA             ld (tmpBlockLen),a
+ 330  C204 2A EC CA             ld hl,(bulkPtr)
+ 331  C207 23                   inc hl
+ 332  C208 CD F8 C9             call read_byte_at_offset
+ 333  C20B 32 E1 CA             ld (tmpBlockLen+1),a
+ 334  C20E 2A E0 CA             ld hl,(tmpBlockLen)
+ 335  C211 7C                   ld a,h
+ 336  C212 B5                   or l
+ 337  C213 CA 09 C3             jp z,.all_ok
+ 338  C216
+ 339  C216 2A EC CA             ld hl,(bulkPtr)
+ 340  C219 23                   inc hl
+ 341  C21A 23                   inc hl
+ 342  C21B CD F8 C9             call read_byte_at_offset
+ 343  C21E 32 E2 CA             ld (tmpBlockFlag),a
+ 344  C221
+ 345  C221 2A EC CA             ld hl,(bulkPtr)
+ 346  C224 ED 5B E0 CA          ld de,(tmpBlockLen)
+ 347  C228 19                   add hl,de
+ 348  C229 23                   inc hl
+ 349  C22A 23                   inc hl
+ 350  C22B 22 EE CA             ld (bulkNextPtr),hl
+ 351  C22E
+ 352  C22E 3A E2 CA             ld a,(tmpBlockFlag)
+ 353  C231 B7                   or a
+ 354  C232 20 0D                jr nz,.raw_block
+ 355  C234 2A E0 CA             ld hl,(tmpBlockLen)
+ 356  C237 11 13 00             ld de,19
+ 357  C23A B7                   or a
+ 358  C23B ED 52                sbc hl,de
+ 359  C23D 20 02                jr nz,.raw_block
+ 360  C23F 18 3B                jr .header_block
+ 361  C241
+ 362  C241              .raw_block
+ 363  C241 3A EB CA             ld a,(bulkIdx)
+ 364  C244 32 DC CA             ld (extractEntry),a
+ 365  C247 32 DD CA             ld (payloadEntry),a
+ 366  C24A CD 6A C4             call build_blk_name
+ 367  C24D 2A EC CA             ld hl,(bulkPtr)
+ 368  C250 23                   inc hl
+ 369  C251 23                   inc hl
+ 370  C252 23                   inc hl
+ 371  C253 22 D8 CA             ld (extractOff),hl
+ 372  C256 2A E0 CA             ld hl,(tmpBlockLen)
+ 373  C259 2B                   dec hl
+ 374  C25A 2B                   dec hl
+ 375  C25B 22 DA CA             ld (extractCnt),hl
+ 376  C25E 2A EE CA             ld hl,(bulkNextPtr)
+ 377  C261 E5                   push hl
+ 378  C262 3A EB CA             ld a,(bulkIdx)
+ 379  C265 3C                   inc a
+ 380  C266 F5                   push af
+ 381  C267 CD 39 C1             call do_extract_prepared
+ 382  C26A F1                   pop af
+ 383  C26B 32 EB CA             ld (bulkIdx),a
+ 384  C26E E1                   pop hl
+ 385  C26F 22 EC CA             ld (bulkPtr),hl
+ 386  C272 3A EA CA             ld a,(extractStatus)
+ 387  C275 B7                   or a
+ 388  C276 C2 18 C3             jp nz,.all_fail
+ 389  C279 C3 D7 C1             jp .loop
+ 390  C27C
+ 391  C27C              .header_block
+ 392  C27C 3A EB CA             ld a,(bulkIdx)
+ 393  C27F 32 F3 CA             ld (nameSourceEntry),a
+ 394  C282 CD A5 C4             call build_name_from_source
+ 395  C285
+ 396  C285 3A EB CA             ld a,(bulkIdx)
+ 397  C288 3C                   inc a
+ 398  C289 47                   ld b,a
+ 399  C28A 3A A7 CA             ld a,(totalBlocks)
+ 400  C28D B8                   cp b
+ 401  C28E CA F9 C2             jp z,.skip_header
+ 402  C291 DA F9 C2             jp c,.skip_header
+ 403  C294
+ 404  C294 2A EE CA             ld hl,(bulkNextPtr)
+ 405  C297 CD F8 C9             call read_byte_at_offset
+ 406  C29A 32 E0 CA             ld (tmpBlockLen),a
+ 407  C29D 2A EE CA             ld hl,(bulkNextPtr)
+ 408  C2A0 23                   inc hl
+ 409  C2A1 CD F8 C9             call read_byte_at_offset
+ 410  C2A4 32 E1 CA             ld (tmpBlockLen+1),a
+ 411  C2A7 2A E0 CA             ld hl,(tmpBlockLen)
+ 412  C2AA 7C                   ld a,h
+ 413  C2AB B5                   or l
+ 414  C2AC CA F9 C2             jp z,.skip_header
+ 415  C2AF
+ 416  C2AF 2A EE CA             ld hl,(bulkNextPtr)
+ 417  C2B2 23                   inc hl
+ 418  C2B3 23                   inc hl
+ 419  C2B4 CD F8 C9             call read_byte_at_offset
+ 420  C2B7 B7                   or a
+ 421  C2B8 CA F9 C2             jp z,.skip_header
+ 422  C2BB
+ 423  C2BB 3A EB CA             ld a,(bulkIdx)
+ 424  C2BE 3C                   inc a
+ 425  C2BF 32 DD CA             ld (payloadEntry),a
+ 426  C2C2 2A EE CA             ld hl,(bulkNextPtr)
+ 427  C2C5 23                   inc hl
+ 428  C2C6 23                   inc hl
+ 429  C2C7 23                   inc hl
+ 430  C2C8 22 D8 CA             ld (extractOff),hl
+ 431  C2CB 2A E0 CA             ld hl,(tmpBlockLen)
+ 432  C2CE 2B                   dec hl
+ 433  C2CF 2B                   dec hl
+ 434  C2D0 22 DA CA             ld (extractCnt),hl
+ 435  C2D3
+ 436  C2D3 2A EE CA             ld hl,(bulkNextPtr)
+ 437  C2D6 ED 5B E0 CA          ld de,(tmpBlockLen)
+ 438  C2DA 19                   add hl,de
+ 439  C2DB 23                   inc hl
+ 440  C2DC 23                   inc hl
+ 441  C2DD E5                   push hl
+ 442  C2DE 3A EB CA             ld a,(bulkIdx)
+ 443  C2E1 3C                   inc a
+ 444  C2E2 3C                   inc a
+ 445  C2E3 F5                   push af
+ 446  C2E4 CD 39 C1             call do_extract_prepared
+ 447  C2E7 F1                   pop af
+ 448  C2E8 32 EB CA             ld (bulkIdx),a
+ 449  C2EB E1                   pop hl
+ 450  C2EC 22 EC CA             ld (bulkPtr),hl
+ 451  C2EF 3A EA CA             ld a,(extractStatus)
+ 452  C2F2 B7                   or a
+ 453  C2F3 C2 18 C3             jp nz,.all_fail
+ 454  C2F6 C3 D7 C1             jp .loop
+ 455  C2F9
+ 456  C2F9              .skip_header
+ 457  C2F9 2A EE CA             ld hl,(bulkNextPtr)
+ 458  C2FC 22 EC CA             ld (bulkPtr),hl
+ 459  C2FF 3A EB CA             ld a,(bulkIdx)
+ 460  C302 3C                   inc a
+ 461  C303 32 EB CA             ld (bulkIdx),a
+ 462  C306 C3 D7 C1             jp .loop
+ 463  C309
+ 464  C309              .all_ok
+ 465  C309 CD D4 C5             call clear_debug_area
+ 466  C30C 11 C5 CB             ld de,strExportAllOK
+ 467  C30F 21 06 2A             ld hl,42*256+CONTENT_ROW
+ 468  C312 3E C0                ld a,ATTR_CODE
+ 469  C314 CD 8A CA             call call_print
+ 470  C317 C9                   ret
+ 471  C318
+ 472  C318              .all_fail
+ 473  C318 C6 30                add a,'0'
+ 474  C31A 32 D5 CB             ld (strExportAllFailCode),a
+ 475  C31D CD D4 C5             call clear_debug_area
+ 476  C320 11 CC CB             ld de,strExportAllFail
+ 477  C323 21 06 2A             ld hl,42*256+CONTENT_ROW
+ 478  C326 3E C0                ld a,ATTR_CODE
+ 479  C328 CD 8A CA             call call_print
+ 480  C32B C9                   ret
+ 481  C32C
+ 482  C32C
+ 483  C32C              render_name_preview
+ 484  C32C 3A A9 CA             ld a,(curEntry)
+ 485  C32F CD 0D C1             call set_selected_entry
+ 486  C332 32 DC CA             ld (extractEntry),a
+ 487  C335 CD A7 C3             call prepare_extract_payload
+ 488  C338 32 DD CA             ld (payloadEntry),a
+ 489  C33B 3A A9 CA             ld a,(curEntry)
+ 490  C33E CD B9 C3             call prepare_extract_name
+ 491  C341 CD D4 C5             call clear_debug_area
+ 492  C344 11 B5 CB             ld de,strExportName
+ 493  C347 21 06 2A             ld hl,42*256+CONTENT_ROW
+ 494  C34A 3E C0                ld a,ATTR_CODE
+ 495  C34C CD 8A CA             call call_print
+ 496  C34F 11 C8 CA             ld de,extractName
+ 497  C352 21 06 30             ld hl,48*256+CONTENT_ROW
+ 498  C355 3E C0                ld a,ATTR_CODE
+ 499  C357 CD 8A CA             call call_print
+ 500  C35A 3A DD CA             ld a,(payloadEntry)
+ 501  C35D FE FF                cp 255
+ 502  C35F C8                   ret z
+ 503  C360 CD 4E C4             call get_payload_range
+ 504  C363 22 D8 CA             ld (extractOff),hl
+ 505  C366 60                   ld h,b
+ 505  C367 69             ld l,c
+ 505  C368 22 DA CA       ld (extractCnt),hl
+ 506  C36B 60                   ld h,b
+ 507  C36C 69                   ld l,c
+ 508  C36D CD 9D C9             call make_decimal
+ 509  C370 11 BB CB             ld de,strExportLen
+ 510  C373 21 07 2A             ld hl,42*256+(CONTENT_ROW+1)
+ 511  C376 3E C0                ld a,ATTR_CODE
+ 512  C378 CD 8A CA             call call_print
+ 513  C37B 11 B6 CA             ld de,numBuf
+ 514  C37E 21 07 30             ld hl,48*256+(CONTENT_ROW+1)
+ 515  C381 3E C0                ld a,ATTR_CODE
+ 516  C383 CD 8A CA             call call_print
+ 517  C386 11 C0 CB             ld de,strExportIdx
+ 518  C389 21 07 38             ld hl,56*256+(CONTENT_ROW+1)
+ 519  C38C 3E C0                ld a,ATTR_CODE
+ 520  C38E CD 8A CA             call call_print
+ 521  C391 3A DD CA             ld a,(payloadEntry)
+ 522  C394 3C                   inc a
+ 523  C395 6F                   ld l,a
+ 524  C396 26 00                ld h,0
+ 525  C398 CD 9D C9             call make_decimal
+ 526  C39B 11 B9 CA             ld de,numBuf+3
+ 527  C39E 21 07 3C             ld hl,60*256+(CONTENT_ROW+1)
+ 528  C3A1 3E C0                ld a,ATTR_CODE
+ 529  C3A3 CD 8A CA             call call_print
+ 530  C3A6 C9                   ret
+ 531  C3A7
+ 532  C3A7
+ 533  C3A7              prepare_extract_payload
+ 534  C3A7 32 DC CA             ld (extractEntry),a
+ 535  C3AA CD 21 C4             call is_standard_header
+ 536  C3AD 20 06                jr nz,.raw
+ 537  C3AF 3A DC CA             ld a,(extractEntry)
+ 538  C3B2 C3 DF C3             jp get_header_data_entry
+ 539  C3B5              .raw
+ 540  C3B5 3A DC CA             ld a,(extractEntry)
+ 541  C3B8 C9                   ret
+ 542  C3B9
+ 543  C3B9
+ 544  C3B9              prepare_extract_name
+ 545  C3B9 32 DC CA             ld (extractEntry),a
+ 546  C3BC CD 21 C4             call is_standard_header
+ 547  C3BF 20 09                jr nz,.raw
+ 548  C3C1 3A DC CA             ld a,(extractEntry)
+ 549  C3C4 32 F3 CA             ld (nameSourceEntry),a
+ 550  C3C7 C3 A5 C4             jp build_name_from_source
+ 551  C3CA              .raw
+ 552  C3CA 3A DC CA             ld a,(extractEntry)
+ 553  C3CD CD 10 C4             call set_immediate_name_source
+ 554  C3D0 C2 6A C4             jp nz,build_blk_name
+ 555  C3D3 C3 A5 C4             jp build_name_from_source
+ 556  C3D6
+ 557  C3D6
+ 558  C3D6              ; A = entry index. Returns A = parent header index, or 255 if none.
+ 559  C3D6              get_entry_parent
+ 560  C3D6 6F                   ld l,a
+ 561  C3D7 26 00                ld h,0
+ 562  C3D9 11 78 CC             ld de,entryParents
+ 563  C3DC 19                   add hl,de
+ 564  C3DD 7E                   ld a,(hl)
+ 565  C3DE C9                   ret
+ 566  C3DF
+ 567  C3DF
+ 568  C3DF              ; A = header entry index. Returns following data entry, or 255 if not paired.
+ 569  C3DF              get_header_data_entry
+ 570  C3DF 32 F2 CA             ld (parentCandidate),a
+ 571  C3E2 6F                   ld l,a
+ 572  C3E3 3A A7 CA             ld a,(totalBlocks)
+ 573  C3E6 3D                   dec a
+ 574  C3E7 BD                   cp l
+ 575  C3E8 28 10                jr z,.none
+ 576  C3EA 3A F2 CA             ld a,(parentCandidate)
+ 577  C3ED 3C                   inc a
+ 578  C3EE 32 F2 CA             ld (parentCandidate),a
+ 579  C3F1 CD 21 C4             call is_standard_header
+ 580  C3F4 28 04                jr z,.none
+ 581  C3F6 3A F2 CA             ld a,(parentCandidate)
+ 582  C3F9 C9                   ret
+ 583  C3FA              .none
+ 584  C3FA 3E FF                ld a,255
+ 585  C3FC C9                   ret
+ 586  C3FD
+ 587  C3FD
+ 588  C3FD              ; A = entry index. Returns previous entry if it is a standard header, else 255.
+ 589  C3FD              get_immediate_parent
+ 590  C3FD B7                   or a
+ 591  C3FE 28 0D                jr z,.none
+ 592  C400 3D                   dec a
+ 593  C401 32 F2 CA             ld (parentCandidate),a
+ 594  C404 CD 21 C4             call is_standard_header
+ 595  C407 20 04                jr nz,.none
+ 596  C409 3A F2 CA             ld a,(parentCandidate)
+ 597  C40C C9                   ret
+ 598  C40D              .none
+ 599  C40D 3E FF                ld a,255
+ 600  C40F C9                   ret
+ 601  C410
+ 602  C410
+ 603  C410              ; A = entry index. Z if previous entry is a header and nameSourceEntry was set.
+ 604  C410              set_immediate_name_source
+ 605  C410 B7                   or a
+ 606  C411 28 0B                jr z,.none
+ 607  C413 3D                   dec a
+ 608  C414 32 F3 CA             ld (nameSourceEntry),a
+ 609  C417 CD 21 C4             call is_standard_header
+ 610  C41A 20 02                jr nz,.none
+ 611  C41C AF                   xor a
+ 612  C41D C9                   ret
+ 613  C41E              .none
+ 614  C41E F6 01                or 1
+ 615  C420 C9                   ret
+ 616  C421
+ 617  C421
+ 618  C421              ; A = entry index. Z if this entry is a standard Spectrum header.
+ 619  C421              is_standard_header
+ 620  C421 CD 00 C1             call get_entry_offset
+ 621  C424 22 A3 CA             ld (readPtr),hl
+ 622  C427 CD EA C9             call read_next_byte
+ 623  C42A 32 E0 CA             ld (tmpBlockLen),a
+ 624  C42D CD EA C9             call read_next_byte
+ 625  C430 32 E1 CA             ld (tmpBlockLen+1),a
+ 626  C433 CD EA C9             call read_next_byte
+ 627  C436 32 E2 CA             ld (tmpBlockFlag),a
+ 628  C439 3A E2 CA             ld a,(tmpBlockFlag)
+ 629  C43C B7                   or a
+ 630  C43D 20 0C                jr nz,.not_header
+ 631  C43F 3A E1 CA             ld a,(tmpBlockLen+1)
+ 632  C442 B7                   or a
+ 633  C443 20 06                jr nz,.not_header
+ 634  C445 3A E0 CA             ld a,(tmpBlockLen)
+ 635  C448 FE 13                cp 19
+ 636  C44A C8                   ret z
+ 637  C44B              .not_header
+ 638  C44B F6 01                or 1
+ 639  C44D C9                   ret
+ 640  C44E
+ 641  C44E
+ 642  C44E              ; A = entry index. Returns HL = payload offset, BC = payload length.
+ 643  C44E              get_payload_range
+ 644  C44E CD 00 C1             call get_entry_offset
+ 645  C451 22 E3 CA             ld (tmpRangeStart),hl
+ 646  C454 E5                   push hl
+ 647  C455 CD F8 C9             call read_byte_at_offset
+ 648  C458 4F                   ld c,a
+ 649  C459 E1                   pop hl
+ 650  C45A 23                   inc hl
+ 651  C45B E5                   push hl
+ 652  C45C CD F8 C9             call read_byte_at_offset
+ 653  C45F 47                   ld b,a
+ 654  C460 E1                   pop hl
+ 655  C461 2A E3 CA             ld hl,(tmpRangeStart)
+ 656  C464 23                   inc hl
+ 657  C465 23                   inc hl
+ 658  C466 23                   inc hl                         ; source is past length + flag
+ 659  C467 0B                   dec bc                         ; skip flag
+ 660  C468 0B                   dec bc                         ; skip checksum
+ 661  C469 C9                   ret
+ 662  C46A
+ 663  C46A
+ 664  C46A              build_blk_name
+ 665  C46A 21 A0 CB             ld hl,strBlkNameTemplate
+ 666  C46D 11 C8 CA             ld de,extractName
+ 667  C470 01 0B 00             ld bc,11
+ 668  C473 ED B0                ldir
+ 669  C475 21 C8 CA             ld hl,extractName
+ 670  C478 23                   inc hl
+ 671  C479 23                   inc hl
+ 672  C47A 23                   inc hl
+ 673  C47B 23                   inc hl
+ 674  C47C 3A DC CA             ld a,(extractEntry)
+ 675  C47F 3C                   inc a
+ 676  C480 06 30                ld b,'0'
+ 677  C482              .tens
+ 678  C482 FE 0A                cp 10
+ 679  C484 38 05                jr c,.ones
+ 680  C486 D6 0A                sub 10
+ 681  C488 04                   inc b
+ 682  C489 18 F7                jr .tens
+ 683  C48B              .ones
+ 684  C48B 4F                   ld c,a
+ 685  C48C 78                   ld a,b
+ 685  C48D 77             ld (hl),a
+ 685  C48E 23             inc hl
+ 686  C48F 79                   ld a,c
+ 686  C490 C6 30          add a,'0'
+ 686  C492 77             ld (hl),a
+ 687  C493 C9                   ret
+ 688  C494
+ 689  C494
+ 690  C494              clear_extract_name
+ 691  C494 F5                   push af
+ 692  C495 C5                   push bc
+ 693  C496 E5                   push hl
+ 694  C497 21 C8 CA             ld hl,extractName
+ 695  C49A 06 10                ld b,16
+ 696  C49C              .loop
+ 697  C49C AF                   xor a
+ 698  C49D 77                   ld (hl),a
+ 699  C49E 23                   inc hl
+ 700  C49F 10 FB                djnz .loop
+ 701  C4A1 E1                   pop hl
+ 702  C4A2 C1                   pop bc
+ 703  C4A3 F1                   pop af
+ 704  C4A4 C9                   ret
+ 705  C4A5
+ 706  C4A5
+ 707  C4A5              ; A = standard header entry index. Builds output name from the header name.
+ 708  C4A5              build_name_from_source
+ 709  C4A5 3A F3 CA             ld a,(nameSourceEntry)
+ 710  C4A8 CD 94 C4             call clear_extract_name
+ 711  C4AB CD 00 C1             call get_entry_offset
+ 712  C4AE 22 A3 CA             ld (readPtr),hl
+ 713  C4B1 CD EA C9             call read_next_byte
+ 714  C4B4 CD EA C9             call read_next_byte
+ 715  C4B7 CD EA C9             call read_next_byte
+ 716  C4BA CD EA C9             call read_next_byte            ; type
+ 717  C4BD 32 E5 CA             ld (extractHeaderType),a
+ 718  C4C0 21 C8 CA             ld hl,extractName
+ 719  C4C3 AF                   xor a
+ 720  C4C4 32 DE CA             ld (extractNameUsed),a
+ 721  C4C7 32 DF CA             ld (extractNameHasDot),a
+ 722  C4CA 1E 0A                ld e,10
+ 723  C4CC              .name_loop
+ 724  C4CC 22 E8 CA             ld (extractNamePtr),hl
+ 725  C4CF CD EA C9             call read_next_byte
+ 726  C4D2 2A E8 CA             ld hl,(extractNamePtr)
+ 727  C4D5 FE 20                cp ' '
+ 728  C4D7 28 17                jr z,.skip_char
+ 729  C4D9 CD 31 C5             call sanitize_filename_char
+ 730  C4DC FE 2E                cp '.'
+ 731  C4DE 20 07                jr nz,.store_char
+ 732  C4E0 3E 01                ld a,1
+ 733  C4E2 32 DF CA             ld (extractNameHasDot),a
+ 734  C4E5 3E 2E                ld a,'.'
+ 735  C4E7              .store_char
+ 736  C4E7 77                   ld (hl),a
+ 737  C4E8 23                   inc hl
+ 738  C4E9 3E 01                ld a,1
+ 739  C4EB 32 DE CA             ld (extractNameUsed),a
+ 740  C4EE 18 00                jr .skip_char
+ 741  C4F0              .skip_char
+ 742  C4F0 1D                   dec e
+ 743  C4F1 20 D9                jr nz,.name_loop
+ 744  C4F3 3A DE CA             ld a,(extractNameUsed)
+ 745  C4F6 B7                   or a
+ 746  C4F7 20 04                jr nz,.has_name
+ 747  C4F9 CD 6A C4             call build_blk_name
+ 748  C4FC C9                   ret
+ 749  C4FD              .has_name
+ 750  C4FD 3A DF CA             ld a,(extractNameHasDot)
+ 751  C500 B7                   or a
+ 752  C501 28 03                jr z,.add_extension
+ 753  C503 36 00                ld (hl),0
+ 754  C505 C9                   ret
+ 755  C506              .add_extension
+ 756  C506 3A E5 CA             ld a,(extractHeaderType)
+ 757  C509 B7                   or a
+ 758  C50A 20 12                jr nz,.ext_bin
+ 759  C50C 3E 2E                ld a,'.'
+ 759  C50E 77             ld (hl),a
+ 759  C50F 23             inc hl
+ 760  C510 3E 42                ld a,'B'
+ 760  C512 77             ld (hl),a
+ 760  C513 23             inc hl
+ 761  C514 3E 41                ld a,'A'
+ 761  C516 77             ld (hl),a
+ 761  C517 23             inc hl
+ 762  C518 3E 53                ld a,'S'
+ 762  C51A 77             ld (hl),a
+ 762  C51B 23             inc hl
+ 763  C51C 18 10                jr .done
+ 764  C51E              .ext_bin
+ 765  C51E 3E 2E                ld a,'.'
+ 765  C520 77             ld (hl),a
+ 765  C521 23             inc hl
+ 766  C522 3E 42                ld a,'B'
+ 766  C524 77             ld (hl),a
+ 766  C525 23             inc hl
+ 767  C526 3E 49                ld a,'I'
+ 767  C528 77             ld (hl),a
+ 767  C529 23             inc hl
+ 768  C52A 3E 4E                ld a,'N'
+ 768  C52C 77             ld (hl),a
+ 768  C52D 23             inc hl
+ 769  C52E              .done
+ 770  C52E 36 00                ld (hl),0
+ 771  C530 C9                   ret
+ 772  C531
+ 773  C531
+ 774  C531              sanitize_filename_char
+ 775  C531 FE 41                cp 'A'
+ 776  C533 38 03                jr c,.maybe_digit
+ 777  C535 FE 5B                cp 'Z'+1
+ 778  C537 D8                   ret c
+ 779  C538              .maybe_digit
+ 780  C538 FE 30                cp '0'
+ 781  C53A 38 03                jr c,.maybe_dot
+ 782  C53C FE 3A                cp '9'+1
+ 783  C53E D8                   ret c
+ 784  C53F              .maybe_dot
+ 785  C53F FE 61                cp 'a'
+ 786  C541 38 03                jr c,.dot_test
+ 787  C543 FE 7B                cp 'z'+1
+ 788  C545 D8                   ret c
+ 789  C546              .dot_test
+ 790  C546 FE 2E                cp '.'
+ 791  C548 C8                   ret z
+ 792  C549 FE 5F                cp '_'
+ 793  C54B C8                   ret z
+ 794  C54C FE 2D                cp '-'
+ 795  C54E C8                   ret z
+ 796  C54F 3E 5F                ld a,'_'
+ 797  C551 C9                   ret
+ 798  C552
+ 799  C552
+ 800  C552              ; ================================================================
+ 801  C552              ; read_full_tap_header: A = header entry index.
+ 802  C552              ; Reads type, param1, param2 from the TAP header block.
+ 803  C552              ; Sets extractHeaderType, tapParam1, tapParam2.
+ 804  C552              ; ================================================================
+ 805  C552              read_full_tap_header
+ 806  C552 CD 00 C1             call get_entry_offset
+ 807  C555 22 A3 CA             ld (readPtr),hl
+ 808  C558 CD EA C9             call read_next_byte         ; len_lo  (skip)
+ 809  C55B CD EA C9             call read_next_byte         ; len_hi  (skip)
+ 810  C55E CD EA C9             call read_next_byte         ; flag    (skip)
+ 811  C561 CD EA C9             call read_next_byte         ; type
+ 812  C564 32 E5 CA             ld (extractHeaderType),a
+ 813  C567 06 0A                ld b,10
+ 814  C569              .skip_name
+ 815  C569 CD EA C9             call read_next_byte         ; name chars (skip)
+ 816  C56C 10 FB                djnz .skip_name
+ 817  C56E CD EA C9             call read_next_byte         ; data_len lo (skip – viewer uses extractCnt)
+ 818  C571 CD EA C9             call read_next_byte         ; data_len hi (skip)
+ 819  C574 CD EA C9             call read_next_byte         ; param1 lo
+ 820  C577 32 B1 CA             ld (tapParam1),a
+ 821  C57A CD EA C9             call read_next_byte         ; param1 hi
+ 822  C57D 32 B2 CA             ld (tapParam1+1),a
+ 823  C580 CD EA C9             call read_next_byte         ; param2 lo
+ 824  C583 32 E6 CA             ld (tapParam2),a
+ 825  C586 CD EA C9             call read_next_byte         ; param2 hi
+ 826  C589 32 E7 CA             ld (tapParam2+1),a
+ 827  C58C C9                   ret
+ 828  C58D
+ 829  C58D
+ 830  C58D              ; ================================================================
+ 831  C58D              ; setup_p3dos_context: set VIEWCTX_P3DOS_* fields before extraction.
+ 832  C58D              ; Uses extractEntry to locate the TAP header block.
+ 833  C58D              ; Sets type/param1/param2 in context, or $FF if no header applies.
+ 834  C58D              ; ================================================================
+ 835  C58D              setup_p3dos_context
+ 836  C58D 3A DC CA             ld a,(extractEntry)
+ 837  C590 CD 21 C4             call is_standard_header
+ 838  C593 28 0C                jr z,.from_this_header
+ 839  C595                      ; not a header: check if the previous entry is a paired header
+ 840  C595 3A DC CA             ld a,(extractEntry)
+ 841  C598 CD FD C3             call get_immediate_parent
+ 842  C59B FE FF                cp 255
+ 843  C59D 28 2B                jr z,.no_p3dos
+ 844  C59F                      ; A = parent header entry index
+ 845  C59F 18 03                jr .read_header
+ 846  C5A1              .from_this_header
+ 847  C5A1 3A DC CA             ld a,(extractEntry)
+ 848  C5A4              .read_header
+ 849  C5A4 CD 52 C5             call read_full_tap_header
+ 850  C5A7 DD 2A 9A CA          ld ix,(ctxPtr)
+ 851  C5AB 3A E5 CA             ld a,(extractHeaderType)
+ 852  C5AE DD 77 29             ld (ix+VIEWCTX_P3DOS_TYPE),a
+ 853  C5B1 3A B1 CA             ld a,(tapParam1)
+ 854  C5B4 DD 77 2A             ld (ix+VIEWCTX_P3DOS_P1),a
+ 855  C5B7 3A B2 CA             ld a,(tapParam1+1)
+ 856  C5BA DD 77 2B             ld (ix+VIEWCTX_P3DOS_P1+1),a
+ 857  C5BD 3A E6 CA             ld a,(tapParam2)
+ 858  C5C0 DD 77 2C             ld (ix+VIEWCTX_P3DOS_P2),a
+ 859  C5C3 3A E7 CA             ld a,(tapParam2+1)
+ 860  C5C6 DD 77 2D             ld (ix+VIEWCTX_P3DOS_P2+1),a
+ 861  C5C9 C9                   ret
+ 862  C5CA              .no_p3dos
+ 863  C5CA DD 2A 9A CA          ld ix,(ctxPtr)
+ 864  C5CE 3E FF                ld a,$FF
+ 865  C5D0 DD 77 29             ld (ix+VIEWCTX_P3DOS_TYPE),a
+ 866  C5D3 C9                   ret
+ 867  C5D4
+ 868  C5D4
+ 869  C5D4              clear_debug_area
+ 870  C5D4 06 06                ld b,CONTENT_ROW
+ 871  C5D6              .row
+ 872  C5D6 11 D7 CB             ld de,strDebugBlank
+ 873  C5D9 26 2A                ld h,42
+ 874  C5DB 68                   ld l,b
+ 875  C5DC 3E 10                ld a,ATTR_NORMAL
+ 876  C5DE C5                   push bc
+ 877  C5DF CD 8A CA             call call_print
+ 878  C5E2 C1                   pop bc
+ 879  C5E3 04                   inc b
+ 880  C5E4 78                   ld a,b
+ 881  C5E5 FE 0B                cp CONTENT_ROW+5
+ 882  C5E7 38 ED                jr c,.row
+ 883  C5E9 C9                   ret
+ 884  C5EA
+ 885  C5EA
+ 886  C5EA              ; ================================================================
+ 887  C5EA              ; init_context: read plugin context into local variables
+ 888  C5EA              ; ================================================================
+ 889  C5EA              init_context
+ 890  C5EA DD 2A 9A CA          ld ix,(ctxPtr)
+ 891  C5EE DD 6E 0E             ld l,(ix+VIEWCTX_DATA_PAGES)
+ 892  C5F1 DD 66 0F             ld h,(ix+VIEWCTX_DATA_PAGES+1)
+ 893  C5F4 22 9E CA             ld (dataPagesPtr),hl
+ 894  C5F7 DD 7E 0D             ld a,(ix+VIEWCTX_PAGE_COUNT)
+ 895  C5FA 32 A2 CA             ld (pageCount),a
+ 896  C5FD DD 6E 04             ld l,(ix+VIEWCTX_SIZE_LO)
+ 897  C600 DD 66 05             ld h,(ix+VIEWCTX_SIZE_LO+1) ; HL = lower 16 bits of file size
+ 898  C603 DD 7E 06             ld a,(ix+VIEWCTX_SIZE_HI)
+ 899  C606 DD B6 07             or (ix+VIEWCTX_SIZE_HI+1)   ; nonzero → file > 64KB → cap
+ 900  C609 28 03                jr z,.store
+ 901  C60B 21 FF FF     .cap    ld hl,$ffff
+ 902  C60E 22 A0 CA     .store  ld (loadedSize),hl
+ 903  C611 AF                   xor a
+ 904  C612 32 A9 CA             ld (curEntry),a
+ 905  C615 32 A8 CA             ld (topEntry),a
+ 906  C618 CD 0D C1             call set_selected_entry
+ 907  C61B C9                   ret
+ 908  C61C
+ 909  C61C
+ 910  C61C              ; ================================================================
+ 911  C61C              ; scan_tap_blocks
+ 912  C61C              ; Walk through file data, collect start offset of each block.
+ 913  C61C              ; TAP block: [len_lo][len_hi][...len bytes of data...]
+ 914  C61C              ; Stores up to MAX_ENTRIES start offsets in entryOffsets[].
+ 915  C61C              ; ================================================================
+ 916  C61C              scan_tap_blocks
+ 917  C61C AF                   xor a
+ 918  C61D 32 A7 CA             ld (totalBlocks),a
+ 919  C620 3D                   dec a
+ 920  C621 32 F1 CA             ld (lastHeader),a
+ 921  C624 21 00 00             ld hl,0
+ 922  C627 22 A3 CA             ld (readPtr),hl     ; readPtr = current file offset
+ 923  C62A
+ 924  C62A              .loop
+ 925  C62A                      ; bounds check: readPtr >= loadedSize?
+ 926  C62A 2A A3 CA             ld hl,(readPtr)
+ 927  C62D ED 5B A0 CA          ld de,(loadedSize)
+ 928  C631 B7                   or a
+ 929  C632 ED 52                sbc hl,de
+ 930  C634 30 73                jr nc,.done
+ 931  C636
+ 932  C636                      ; table full?
+ 933  C636 3A A7 CA             ld a,(totalBlocks)
+ 934  C639 FE 40                cp MAX_ENTRIES
+ 935  C63B 30 6C                jr nc,.done
+ 936  C63D 32 F0 CA             ld (scanIndex),a
+ 937  C640
+ 938  C640                      ; store current readPtr in entryOffsets[totalBlocks]
+ 939  C640 87                   add a,a             ; index * 2
+ 940  C641 4F                   ld c,a
+ 941  C642 06 00                ld b,0
+ 942  C644 21 F8 CB             ld hl,entryOffsets
+ 943  C647 09                   add hl,bc
+ 944  C648 ED 5B A3 CA          ld de,(readPtr)
+ 945  C64C 73                   ld (hl),e
+ 946  C64D 23                   inc hl
+ 947  C64E 72                   ld (hl),d
+ 948  C64F
+ 949  C64F                      ; totalBlocks++
+ 950  C64F 21 A7 CA             ld hl,totalBlocks
+ 951  C652 34                   inc (hl)
+ 952  C653
+ 953  C653                      ; read 2-byte block length (LE), advances readPtr by 2
+ 954  C653 CD EA C9             call read_next_byte
+ 955  C656 5F                   ld e,a
+ 956  C657 CD EA C9             call read_next_byte
+ 957  C65A 57                   ld d,a              ; DE = block length
+ 958  C65B ED 53 E0 CA          ld (tmpBlockLen),de
+ 959  C65F
+ 960  C65F                      ; zero-length block = malformed, stop
+ 961  C65F 7A                   ld a,d
+ 962  C660 B3                   or e
+ 963  C661 28 46                jr z,.done
+ 964  C663
+ 965  C663                      ; read flag byte and store parent relationship for this entry
+ 966  C663 CD EA C9             call read_next_byte
+ 967  C666 32 E2 CA             ld (tmpBlockFlag),a
+ 968  C669 3A F0 CA             ld a,(scanIndex)
+ 969  C66C 4F                   ld c,a
+ 970  C66D 06 00                ld b,0
+ 971  C66F 21 78 CC             ld hl,entryParents
+ 972  C672 09                   add hl,bc
+ 973  C673 3A E2 CA             ld a,(tmpBlockFlag)
+ 974  C676 B7                   or a
+ 975  C677 20 17                jr nz,.not_header
+ 976  C679 3A E1 CA             ld a,(tmpBlockLen+1)
+ 977  C67C B7                   or a
+ 978  C67D 20 11                jr nz,.not_header
+ 979  C67F 3A E0 CA             ld a,(tmpBlockLen)
+ 980  C682 FE 13                cp 19
+ 981  C684 20 0A                jr nz,.not_header
+ 982  C686 36 FF                ld (hl),255
+ 983  C688 3A F0 CA             ld a,(scanIndex)
+ 984  C68B 32 F1 CA             ld (lastHeader),a
+ 985  C68E 18 09                jr .advance
+ 986  C690              .not_header
+ 987  C690 3A F1 CA             ld a,(lastHeader)
+ 988  C693 77                   ld (hl),a
+ 989  C694 3E FF                ld a,255
+ 990  C696 32 F1 CA             ld (lastHeader),a
+ 991  C699
+ 992  C699              .advance
+ 993  C699                      ; advance readPtr past remaining block data after the flag byte
+ 994  C699                      ; if addition overflows 16 bits the next block is past the 64KB
+ 995  C699                      ; address window, so its start address is unknowable — stop here.
+ 996  C699 ED 5B E0 CA          ld de,(tmpBlockLen)
+ 997  C69D 1B                   dec de
+ 998  C69E 2A A3 CA             ld hl,(readPtr)
+ 999  C6A1 19                   add hl,de
+1000  C6A2 38 05                jr c,.done          ; overflow: stop scanning
+1001  C6A4 22 A3 CA             ld (readPtr),hl
+1002  C6A7 18 81                jr .loop
+1003  C6A9              .done
+1004  C6A9 C9                   ret
+1005  C6AA
+1006  C6AA
+1007  C6AA              ; ================================================================
+1008  C6AA              ; render_page: clear content area, render visible entries
+1009  C6AA              ; ================================================================
+1010  C6AA              render_page
+1011  C6AA CD B5 C8             call clear_content_area
+1012  C6AD
+1013  C6AD 3A A8 CA             ld a,(topEntry)     ; A = entry index to render
+1014  C6B0 16 06                ld d,CONTENT_ROW    ; D = screen row
+1015  C6B2
+1016  C6B2              .loop
+1017  C6B2                      ; stop when entry >= totalBlocks
+1018  C6B2 47                   ld b,a
+1019  C6B3 3A A7 CA             ld a,(totalBlocks)
+1020  C6B6 B8                   cp b                ; sets flags: Z if equal, C if totalBlocks < entry
+1021  C6B7 78                   ld a,b              ; restore entry (flags preserved from cp)
+1022  C6B8 28 14                jr z,.done
+1023  C6BA 38 12                jr c,.done
+1024  C6BC
+1025  C6BC                      ; stop when row >= CONTENT_ROW + CONTENT_ROWS
+1026  C6BC                      ; use B to preserve entry so flags from cp survive
+1027  C6BC 47                   ld b,a
+1028  C6BD 7A                   ld a,d
+1029  C6BE FE 18                cp CONTENT_ROW+CONTENT_ROWS
+1030  C6C0 78                   ld a,b              ; restore entry (flags preserved from cp)
+1031  C6C1 30 0B                jr nc,.done
+1032  C6C3
+1033  C6C3 F5                   push af             ; save entry index (A) across render_entry call
+1034  C6C4 D5                   push de             ; save D (row) — render_entry clobbers D via mul
+1035  C6C5 CD CF C6             call render_entry   ; A = entry index, D = screen row
+1036  C6C8 D1                   pop de              ; restore D
+1037  C6C9 F1                   pop af              ; restore entry index into A
+1038  C6CA 3C                   inc a               ; next entry
+1039  C6CB 14                   inc d               ; next row
+1040  C6CC 18 E4                jr .loop
+1041  C6CE              .done
+1042  C6CE C9                   ret
+1043  C6CF
+1044  C6CF
+1045  C6CF              ; ================================================================
+1046  C6CF              ; render_entry: draw one entry row
+1047  C6CF              ; A = entry index (0-based), D = screen row
+1048  C6CF              ; ================================================================
+1049  C6CF              render_entry
+1050  C6CF 32 B3 CA             ld (renderIdx),a
+1051  C6D2
+1052  C6D2                      ; screen address = $4000 + D*160 + 2  (col 1 inside border)
+1053  C6D2 5A                   ld e,d
+1054  C6D3 16 A0                ld d,160
+1055  C6D5 ED 30                mul d,e
+1056  C6D7 21 02 40             ld hl,$4002
+1057  C6DA 19                   add hl,de
+1058  C6DB 22 B4 CA             ld (screenPos),hl
+1059  C6DE
+1060  C6DE                      ; set readPtr to block start offset
+1061  C6DE 3A B3 CA             ld a,(renderIdx)
+1062  C6E1 87                   add a,a
+1063  C6E2 4F                   ld c,a
+1064  C6E3 06 00                ld b,0
+1065  C6E5 21 F8 CB             ld hl,entryOffsets
+1066  C6E8 09                   add hl,bc
+1067  C6E9 5E                   ld e,(hl)
+1068  C6EA 23                   inc hl
+1069  C6EB 56                   ld d,(hl)
+1070  C6EC ED 53 A3 CA          ld (readPtr),de
+1071  C6F0
+1072  C6F0                      ; read block length (2 bytes LE)
+1073  C6F0 CD EA C9             call read_next_byte
+1074  C6F3 5F                   ld e,a
+1075  C6F4 CD EA C9             call read_next_byte
+1076  C6F7 57                   ld d,a
+1077  C6F8 ED 53 AB CA          ld (blockLen),de
+1078  C6FC
+1079  C6FC                      ; read flag byte
+1080  C6FC CD EA C9             call read_next_byte
+1081  C6FF 32 AD CA             ld (tapFlag),a
+1082  C702
+1083  C702                      ; standard header: flag==0 AND blockLen==19
+1084  C702 B7                   or a
+1085  C703 20 0F                jr nz,.raw
+1086  C705 2A AB CA             ld hl,(blockLen)
+1087  C708 11 13 00             ld de,19
+1088  C70B B7                   or a
+1089  C70C ED 52                sbc hl,de
+1090  C70E 20 04                jr nz,.raw
+1091  C710 CD 18 C7             call render_std_header
+1092  C713 C9                   ret
+1093  C714              .raw
+1094  C714 CD F4 C7             call render_raw_block
+1095  C717 C9                   ret
+1096  C718
+1097  C718
+1098  C718              ; ================================================================
+1099  C718              ; render_std_header: flag==0, len==19
+1100  C718              ; readPtr now points to type byte
+1101  C718              ; ================================================================
+1102  C718              render_std_header
+1103  C718                      ; read type (1 byte)
+1104  C718 CD EA C9             call read_next_byte
+1105  C71B 32 AE CA             ld (tapType),a
+1106  C71E
+1107  C71E                      ; read name (10 bytes) into nameBuf
+1108  C71E 11 BD CA             ld de,nameBuf
+1109  C721 06 0A                ld b,10
+1110  C723 CD EA C9     .rn     call read_next_byte
+1111  C726 FE 20                cp ' '
+1112  C728 38 04                jr c,.bad
+1113  C72A FE 7F                cp $7F
+1114  C72C 38 02                jr c,.ok
+1115  C72E 3E 3F        .bad    ld a,'?'
+1116  C730 12           .ok     ld (de),a
+1117  C731 13                   inc de
+1118  C732 10 EF                djnz .rn
+1119  C734 AF                   xor a
+1120  C735 12                   ld (de),a           ; null terminate
+1121  C736
+1122  C736                      ; read data_length (2 bytes LE)
+1123  C736 CD EA C9             call read_next_byte
+1124  C739 5F                   ld e,a
+1125  C73A CD EA C9             call read_next_byte
+1126  C73D 57                   ld d,a
+1127  C73E ED 53 AF CA          ld (tapDataLen),de
+1128  C742
+1129  C742                      ; read param1 (2 bytes LE): LINE for BASIC, start addr for CODE
+1130  C742 CD EA C9             call read_next_byte
+1131  C745 5F                   ld e,a
+1132  C746 CD EA C9             call read_next_byte
+1133  C749 57                   ld d,a
+1134  C74A ED 53 B1 CA          ld (tapParam1),de
+1135  C74E
+1136  C74E                      ; choose attribute: SELECTED if curEntry matches, else type-based
+1137  C74E 3A B3 CA             ld a,(renderIdx)
+1138  C751 47                   ld b,a
+1139  C752 3A A9 CA             ld a,(curEntry)
+1140  C755 B8                   cp b
+1141  C756 28 0F                jr z,.sel
+1142  C758 3A AE CA             ld a,(tapType)
+1143  C75B FE 00                cp TYPE_BASIC
+1144  C75D 28 12                jr z,.abasic
+1145  C75F FE 03                cp TYPE_CODE
+1146  C761 28 12                jr z,.acode
+1147  C763 3E 10                ld a,ATTR_NORMAL
+1148  C765 18 10                jr .aset
+1149  C767 3A B3 CA     .sel    ld a,(renderIdx)
+1150  C76A CD 0D C1             call set_selected_entry
+1151  C76D 3E 70                ld a,ATTR_SELECTED
+1152  C76F 18 06                jr .aset
+1153  C771 3E A0        .abasic ld a,ATTR_BASIC
+1154  C773 18 02                jr .aset
+1155  C775 3E C0        .acode  ld a,ATTR_CODE
+1156  C777 32 A6 CA     .aset   ld (curAttr),a
+1157  C77A
+1158  C77A ED 5B B4 CA          ld de,(screenPos)
+1159  C77E
+1160  C77E                      ; ## (entry number, 2 chars right-justified, 1-based)
+1161  C77E 3A B3 CA             ld a,(renderIdx)
+1162  C781 3C                   inc a
+1163  C782 6F                   ld l,a
+1164  C783 26 00                ld h,0
+1165  C785 CD 1F C9             call write_num2
+1166  C788
+1167  C788 3E 20                ld a,' '
+1168  C78A CD EF C8             call put_char
+1169  C78D
+1170  C78D                      ; type (7 chars padded)
+1171  C78D 3A AE CA             ld a,(tapType)
+1172  C790 CD 47 C9             call write_type7
+1173  C793
+1174  C793 3E 20                ld a,' '
+1175  C795 CD EF C8             call put_char
+1176  C798
+1177  C798                      ; name (10 chars padded)
+1178  C798 21 BD CA             ld hl,nameBuf
+1179  C79B 06 0A                ld b,10
+1180  C79D CD 04 C9             call write_padded
+1181  C7A0
+1182  C7A0 3E 20                ld a,' '
+1183  C7A2 CD EF C8             call put_char
+1184  C7A5
+1185  C7A5                      ; data length (5 decimal chars + 'b')
+1186  C7A5 2A AF CA             ld hl,(tapDataLen)
+1187  C7A8 CD 6B C9             call write_dec5
+1188  C7AB 3E 62                ld a,'b'
+1189  C7AD CD EF C8             call put_char
+1190  C7B0 3E 20                ld a,' '
+1191  C7B2 CD EF C8             call put_char
+1192  C7B5
+1193  C7B5                      ; param info
+1194  C7B5 3A AE CA             ld a,(tapType)
+1195  C7B8 FE 00                cp TYPE_BASIC
+1196  C7BA 28 0D                jr z,.pi_basic
+1197  C7BC FE 03                cp TYPE_CODE
+1198  C7BE 28 1C                jr z,.pi_code
+1199  C7C0 FE 01                cp TYPE_NUMARRAY
+1200  C7C2 28 1F                jr z,.pi_arr
+1201  C7C4 FE 02                cp TYPE_STRARRAY
+1202  C7C6 28 1B                jr z,.pi_arr
+1203  C7C8 C9                   ret
+1204  C7C9
+1205  C7C9              .pi_basic
+1206  C7C9 2A B1 CA             ld hl,(tapParam1)
+1207  C7CC CB 7C                bit 7,h
+1208  C7CE C0                   ret nz              ; >= $8000: no autostart line
+1209  C7CF 21 5F CB             ld hl,strLine
+1210  C7D2 CD F7 C8             call write_str
+1211  C7D5 2A B1 CA             ld hl,(tapParam1)
+1212  C7D8 CD 6B C9             call write_dec5
+1213  C7DB C9                   ret
+1214  C7DC
+1215  C7DC              .pi_code
+1216  C7DC 2A B1 CA             ld hl,(tapParam1)
+1217  C7DF CD 78 C9             call write_hex_word
+1218  C7E2 C9                   ret
+1219  C7E3
+1220  C7E3              .pi_arr
+1221  C7E3 2A B1 CA             ld hl,(tapParam1)
+1222  C7E6 7D                   ld a,l
+1223  C7E7 E6 3F                and $3F
+1224  C7E9 B7                   or a
+1225  C7EA C8                   ret z
+1226  C7EB FE 1B                cp 27
+1227  C7ED D0                   ret nc
+1228  C7EE C6 40                add a,'A'-1
+1229  C7F0 CD EF C8             call put_char
+1230  C7F3 C9                   ret
+1231  C7F4
+1232  C7F4
+1233  C7F4              ; ================================================================
+1234  C7F4              ; render_raw_block: non-standard block
+1235  C7F4              ; ================================================================
+1236  C7F4              render_raw_block
+1237  C7F4 3A B3 CA             ld a,(renderIdx)
+1238  C7F7 47                   ld b,a
+1239  C7F8 3A A9 CA             ld a,(curEntry)
+1240  C7FB B8                   cp b
+1241  C7FC 28 04                jr z,.sel
+1242  C7FE 3E 10                ld a,ATTR_DATA
+1243  C800 18 08                jr .aset
+1244  C802 3A B3 CA     .sel    ld a,(renderIdx)
+1245  C805 CD 0D C1             call set_selected_entry
+1246  C808 3E 70                ld a,ATTR_SELECTED
+1247  C80A 32 A6 CA     .aset   ld (curAttr),a
+1248  C80D
+1249  C80D ED 5B B4 CA          ld de,(screenPos)
+1250  C811
+1251  C811                      ; entry number
+1252  C811 3A B3 CA             ld a,(renderIdx)
+1253  C814 3C                   inc a
+1254  C815 6F                   ld l,a
+1255  C816 26 00                ld h,0
+1256  C818 CD 1F C9             call write_num2
+1257  C81B
+1258  C81B 3E 20                ld a,' '
+1259  C81D CD EF C8             call put_char
+1260  C820
+1261  C820                      ; type label
+1262  C820 3A AD CA             ld a,(tapFlag)
+1263  C823 B7                   or a
+1264  C824 20 05                jr nz,.is_data
+1265  C826 21 8D CB             ld hl,strUnknown
+1266  C829 18 03                jr .wtype
+1267  C82B              .is_data
+1268  C82B 21 85 CB             ld hl,strData
+1269  C82E 06 07        .wtype  ld b,7
+1270  C830 CD 04 C9             call write_padded
+1271  C833
+1272  C833 3E 20                ld a,' '
+1273  C835 CD EF C8             call put_char
+1274  C838
+1275  C838                      ; no name for raw blocks
+1276  C838 21 95 CB             ld hl,strDashes
+1277  C83B 06 0A                ld b,10
+1278  C83D CD 04 C9             call write_padded
+1279  C840
+1280  C840 3E 20                ld a,' '
+1281  C842 CD EF C8             call put_char
+1282  C845
+1283  C845                      ; block length
+1284  C845 2A AB CA             ld hl,(blockLen)
+1285  C848 CD 6B C9             call write_dec5
+1286  C84B 3E 62                ld a,'b'
+1287  C84D CD EF C8             call put_char
+1288  C850 C9                   ret
+1289  C851
+1290  C851
+1291  C851              ; ================================================================
+1292  C851              ; render_title
+1293  C851              ; ================================================================
+1294  C851              render_title
+1295  C851 06 04                ld b,TITLE_ROW
+1296  C853 3E D0                ld a,ATTR_TITLE
+1297  C855 CD D9 C8             call clear_row
+1298  C858
+1299  C858                      ; "TAP: " label
+1300  C858 11 F4 CA             ld de,strTap
+1301  C85B 21 04 01             ld hl,1*256+TITLE_ROW
+1302  C85E 3E D0                ld a,ATTR_TITLE
+1303  C860 CD 8A CA             call call_print
+1304  C863
+1305  C863                      ; filename from context
+1306  C863 DD 2A 9A CA          ld ix,(ctxPtr)
+1307  C867 DD 6E 02             ld l,(ix+VIEWCTX_FILENAME)
+1308  C86A DD 66 03             ld h,(ix+VIEWCTX_FILENAME+1)
+1309  C86D EB                   ex de,hl
+1310  C86E 21 04 06             ld hl,6*256+TITLE_ROW
+1311  C871 3E D0                ld a,ATTR_TITLE
+1312  C873 CD 8A CA             call call_print
+1313  C876
+1314  C876                      ; block count at right: "NN blk" at col 68
+1315  C876 3A A7 CA             ld a,(totalBlocks)
+1316  C879 26 00                ld h,0
+1317  C87B 6F                   ld l,a
+1318  C87C CD 9D C9             call make_decimal   ; fills numBuf
+1319  C87F 11 B9 CA             ld de,numBuf+3      ; last 2 digits (covers 1-64)
+1320  C882 21 04 44             ld hl,68*256+TITLE_ROW
+1321  C885 3E D0                ld a,ATTR_TITLE
+1322  C887 CD 8A CA             call call_print
+1323  C88A 11 FA CA             ld de,strBlk
+1324  C88D 21 04 47             ld hl,71*256+TITLE_ROW
+1325  C890 3E D0                ld a,ATTR_TITLE
+1326  C892 CD 8A CA             call call_print
+1327  C895 C9                   ret
+1328  C896
+1329  C896
+1330  C896              ; ================================================================
+1331  C896              ; render_col_header
+1332  C896              ; ================================================================
+1333  C896              render_col_header
+1334  C896 06 05                ld b,HEADER_ROW
+1335  C898 3E B0                ld a,ATTR_HEADER
+1336  C89A CD D9 C8             call clear_row
+1337  C89D
+1338  C89D 11 FE CA             ld de,strColHdr
+1339  C8A0 21 05 01             ld hl,1*256+HEADER_ROW
+1340  C8A3 3E B0                ld a,ATTR_HEADER
+1341  C8A5 CD 8A CA             call call_print
+1342  C8A8 C9                   ret
+1343  C8A9
+1344  C8A9
+1345  C8A9              ; ================================================================
+1346  C8A9              ; render_help
+1347  C8A9              ; ================================================================
+1348  C8A9              render_help
+1349  C8A9 11 21 CB             ld de,strHelp
+1350  C8AC 21 19 02             ld hl,2*256+HELP_ROW
+1351  C8AF 3E 10                ld a,ATTR_NORMAL
+1352  C8B1 CD 8A CA             call call_print
+1353  C8B4 C9                   ret
+1354  C8B5
+1355  C8B5
+1356  C8B5              ; ================================================================
+1357  C8B5              ; clear_content_area: fill CONTENT_ROWS rows with spaces
+1358  C8B5              ; ================================================================
+1359  C8B5              clear_content_area
+1360  C8B5 3E 06                ld a,CONTENT_ROW
+1361  C8B7 5F                   ld e,a
+1362  C8B8 16 A0                ld d,160
+1363  C8BA ED 30                mul d,e
+1364  C8BC 21 02 40             ld hl,$4002
+1365  C8BF 19                   add hl,de           ; HL = start of first content row, col 1
+1366  C8C0
+1367  C8C0 06 12                ld b,CONTENT_ROWS
+1368  C8C2 C5           .row    push bc
+1369  C8C3 E5                   push hl
+1370  C8C4 06 4C                ld b,76
+1371  C8C6 3E 20        .col    ld a,' '
+1372  C8C8 77                   ld (hl),a
+1373  C8C9 23                   inc hl
+1374  C8CA 3E 10                ld a,ATTR_NORMAL
+1375  C8CC 77                   ld (hl),a
+1376  C8CD 23                   inc hl
+1377  C8CE 10 F6                djnz .col
+1378  C8D0 E1                   pop hl
+1379  C8D1 11 A0 00             ld de,160
+1380  C8D4 19                   add hl,de
+1381  C8D5 C1                   pop bc
+1382  C8D6 10 EA                djnz .row
+1383  C8D8 C9                   ret
+1384  C8D9
+1385  C8D9
+1386  C8D9              ; ================================================================
+1387  C8D9              ; clear_row: fill one screen row with spaces
+1388  C8D9              ; B = row number, A = attribute
+1389  C8D9              ; ================================================================
+1390  C8D9              clear_row
+1391  C8D9 4F                   ld c,a              ; save attribute
+1392  C8DA 58                   ld e,b
+1393  C8DB 16 A0                ld d,160
+1394  C8DD ED 30                mul d,e             ; DE = row*160
+1395  C8DF 21 02 40             ld hl,$4002
+1396  C8E2 19                   add hl,de
+1397  C8E3 06 4C                ld b,76
+1398  C8E5 3E 20        .l      ld a,' '
+1399  C8E7 77                   ld (hl),a
+1400  C8E8 23                   inc hl
+1401  C8E9 79                   ld a,c
+1402  C8EA 77                   ld (hl),a
+1403  C8EB 23                   inc hl
+1404  C8EC 10 F7                djnz .l
+1405  C8EE C9                   ret
+1406  C8EF
+1407  C8EF
+1408  C8EF              ; ================================================================
+1409  C8EF              ; Character output helpers (write to DE = screen pointer)
+1410  C8EF              ; ================================================================
+1411  C8EF
+1412  C8EF              ; put one character (A) to (DE), advance DE by 2
+1413  C8EF              put_char
+1414  C8EF 12                   ld (de),a
+1415  C8F0 13                   inc de
+1416  C8F1 3A A6 CA             ld a,(curAttr)
+1417  C8F4 12                   ld (de),a
+1418  C8F5 13                   inc de
+1419  C8F6 C9                   ret
+1420  C8F7
+1421  C8F7              ; write null-terminated string HL to screen DE
+1422  C8F7              write_str
+1423  C8F7 7E                   ld a,(hl)
+1424  C8F8 B7                   or a
+1425  C8F9 C8                   ret z
+1426  C8FA 12                   ld (de),a
+1427  C8FB 13                   inc de
+1428  C8FC 3A A6 CA             ld a,(curAttr)
+1429  C8FF 12                   ld (de),a
+1430  C900 13                   inc de
+1431  C901 23                   inc hl
+1432  C902 18 F3                jr write_str
+1433  C904
+1434  C904              ; write B chars from HL to screen DE, space-pad if string ends early
+1435  C904              write_padded
+1436  C904 7E                   ld a,(hl)
+1437  C905 B7                   or a
+1438  C906 28 0B                jr z,.pad
+1439  C908 12                   ld (de),a
+1440  C909 13                   inc de
+1441  C90A 3A A6 CA             ld a,(curAttr)
+1442  C90D 12                   ld (de),a
+1443  C90E 13                   inc de
+1444  C90F 23                   inc hl
+1445  C910 10 F2                djnz write_padded
+1446  C912 C9                   ret
+1447  C913 3E 20        .pad    ld a,' '
+1448  C915 12                   ld (de),a
+1449  C916 13                   inc de
+1450  C917 3A A6 CA             ld a,(curAttr)
+1451  C91A 12                   ld (de),a
+1452  C91B 13                   inc de
+1453  C91C 10 F5                djnz .pad
+1454  C91E C9                   ret
+1455  C91F
+1456  C91F              ; write entry number HL as 2-char right-justified decimal (1-99)
+1457  C91F              write_num2
+1458  C91F 7D                   ld a,l
+1459  C920 FE 0A                cp 10
+1460  C922 30 0B                jr nc,.two
+1461  C924 3E 20                ld a,' '
+1462  C926 CD EF C8             call put_char
+1463  C929 7D                   ld a,l
+1464  C92A C6 30                add a,'0'
+1465  C92C C3 EF C8             jp put_char
+1466  C92F 06 00        .two    ld b,0
+1467  C931 FE 0A        .div    cp 10
+1468  C933 38 05                jr c,.dd
+1469  C935 D6 0A                sub 10
+1470  C937 04                   inc b
+1471  C938 18 F7                jr .div
+1472  C93A F5           .dd     push af
+1473  C93B 78                   ld a,b
+1474  C93C C6 30                add a,'0'
+1475  C93E CD EF C8             call put_char
+1476  C941 F1                   pop af
+1477  C942 C6 30                add a,'0'
+1478  C944 C3 EF C8             jp put_char
+1479  C947
+1480  C947              ; write type string for type A (7 chars padded)
+1481  C947              write_type7
+1482  C947 FE 00                cp TYPE_BASIC
+1483  C949 21 65 CB             ld hl,strBasic
+1484  C94C 28 18                jr z,.p
+1485  C94E FE 03                cp TYPE_CODE
+1486  C950 21 6D CB             ld hl,strCode
+1487  C953 28 11                jr z,.p
+1488  C955 FE 01                cp TYPE_NUMARRAY
+1489  C957 21 75 CB             ld hl,strNArray
+1490  C95A 28 0A                jr z,.p
+1491  C95C FE 02                cp TYPE_STRARRAY
+1492  C95E 21 7D CB             ld hl,strSArray
+1493  C961 28 03                jr z,.p
+1494  C963 21 8D CB             ld hl,strUnknown
+1495  C966 06 07        .p      ld b,7
+1496  C968 C3 04 C9             jp write_padded
+1497  C96B
+1498  C96B              ; write HL as 5-digit right-justified decimal into screen DE
+1499  C96B              write_dec5
+1500  C96B D5                   push de
+1501  C96C CD 9D C9             call make_decimal
+1502  C96F D1                   pop de
+1503  C970 21 B6 CA             ld hl,numBuf
+1504  C973 06 05                ld b,5
+1505  C975 C3 04 C9             jp write_padded
+1506  C978
+1507  C978              ; write "$XXXX" hex word for HL
+1508  C978              write_hex_word
+1509  C978 3E 24                ld a,'$'
+1510  C97A CD EF C8             call put_char
+1511  C97D 7C                   ld a,h
+1512  C97E CD 82 C9             call write_hex_byte
+1513  C981 7D                   ld a,l
+1514  C982                      ; fall through to write_hex_byte
+1515  C982
+1516  C982              write_hex_byte
+1517  C982 F5                   push af
+1518  C983 0F                   rrca
+1518  C984 0F             rrca
+1518  C985 0F             rrca
+1518  C986 0F             rrca
+1519  C987 E6 0F                and $0F
+1520  C989 CD 8F C9             call write_hex_nib
+1521  C98C F1                   pop af
+1522  C98D E6 0F                and $0F
+1523  C98F                      ; fall through
+1524  C98F
+1525  C98F              write_hex_nib
+1526  C98F FE 0A                cp 10
+1527  C991 38 05                jr c,.d
+1528  C993 C6 37                add a,'A'-10
+1529  C995 C3 EF C8             jp put_char
+1530  C998 C6 30        .d      add a,'0'
+1531  C99A C3 EF C8             jp put_char
+1532  C99D
+1533  C99D
+1534  C99D              ; ================================================================
+1535  C99D              ; make_decimal: HL → numBuf (5 chars right-justified, space-padded)
+1536  C99D              ; Preserves DE.
+1537  C99D              ; ================================================================
+1538  C99D              make_decimal
+1539  C99D D5                   push de
+1540  C99E 11 B6 CA             ld de,numBuf
+1541  C9A1 06 05                ld b,5
+1542  C9A3 3E 20        .cl     ld a,' '
+1543  C9A5 12                   ld (de),a
+1544  C9A6 13                   inc de
+1545  C9A7 10 FA                djnz .cl
+1546  C9A9 AF                   xor a
+1547  C9AA 12                   ld (de),a           ; null terminate at numBuf+5
+1548  C9AB 11 B6 CA             ld de,numBuf
+1549  C9AE 01 10 27             ld bc,10000
+1550  C9B1 CD DB C9             call .dig
+1551  C9B4 01 E8 03             ld bc,1000
+1552  C9B7 CD DB C9             call .dig
+1553  C9BA 01 64 00             ld bc,100
+1554  C9BD CD DB C9             call .dig
+1555  C9C0 01 0A 00             ld bc,10
+1556  C9C3 CD DB C9             call .dig
+1557  C9C6 7D                   ld a,l
+1558  C9C7 C6 30                add a,'0'
+1559  C9C9 12                   ld (de),a
+1560  C9CA                      ; trim leading zeros to spaces
+1561  C9CA 21 B6 CA             ld hl,numBuf
+1562  C9CD 06 04                ld b,4
+1563  C9CF 7E           .tr     ld a,(hl)
+1564  C9D0 FE 30                cp '0'
+1565  C9D2 20 05                jr nz,.trd
+1566  C9D4 36 20                ld (hl),' '
+1567  C9D6 23                   inc hl
+1568  C9D7 10 F6                djnz .tr
+1569  C9D9 D1           .trd    pop de
+1570  C9DA C9                   ret
+1571  C9DB AF           .dig    xor a
+1572  C9DC B7           .dl     or a
+1573  C9DD ED 42                sbc hl,bc
+1574  C9DF 38 03                jr c,.dd
+1575  C9E1 3C                   inc a
+1576  C9E2 18 F8                jr .dl
+1577  C9E4 09           .dd     add hl,bc
+1578  C9E5 C6 30                add a,'0'
+1579  C9E7 12                   ld (de),a
+1580  C9E8 13                   inc de
+1581  C9E9 C9                   ret
+1582  C9EA
+1583  C9EA
+1584  C9EA              ; ================================================================
+1585  C9EA              ; read_next_byte: read byte at readPtr, increment readPtr
+1586  C9EA              ; Returns A = byte read. Preserves DE.
+1587  C9EA              ; ================================================================
+1588  C9EA              read_next_byte
+1589  C9EA 2A A3 CA             ld hl,(readPtr)
+1590  C9ED CD F8 C9             call read_byte_at_offset
+1591  C9F0 2A A3 CA             ld hl,(readPtr)
+1592  C9F3 23                   inc hl
+1593  C9F4 22 A3 CA             ld (readPtr),hl
+1594  C9F7 C9                   ret
+1595  C9F8
+1596  C9F8
+1597  C9F8              ; ================================================================
+1598  C9F8              ; read_byte_at_offset: read one byte from paged data
+1599  C9F8              ; HL = file offset (0x0000..0xFFFF maps to data pages 0..7)
+1600  C9F8              ; Returns A = byte. Clobbers HL (to physical address). Preserves DE.
+1601  C9F8              ; ================================================================
+1602  C9F8              read_byte_at_offset
+1603  C9F8 D5                   push de
+1604  C9F9 E5                   push hl
+1605  C9FA 7C                   ld a,h
+1606  C9FB E6 E0                and $E0
+1607  C9FD 1E 00                ld e,0
+1608  C9FF FE 20                cp $20
+1609  CA01 38 44                jr c,.got_page
+1610  CA03 1C                   inc e
+1611  CA04 FE 40                cp $40
+1612  CA06 38 1C                jr c,.sub20
+1613  CA08 1C                   inc e
+1614  CA09 FE 60                cp $60
+1615  CA0B 38 1C                jr c,.sub40
+1616  CA0D 1C                   inc e
+1617  CA0E FE 80                cp $80
+1618  CA10 38 1C                jr c,.sub60
+1619  CA12 1C                   inc e
+1620  CA13 FE A0                cp $A0
+1621  CA15 38 1C                jr c,.sub80
+1622  CA17 1C                   inc e
+1623  CA18 FE C0                cp $C0
+1624  CA1A 38 1C                jr c,.suba0
+1625  CA1C 1C                   inc e
+1626  CA1D FE E0                cp $E0
+1627  CA1F 38 1C                jr c,.subc0
+1628  CA21 1C                   inc e
+1629  CA22 18 1E                jr .sube0
+1630  CA24 7C           .sub20  ld a,h
+1630  CA25 D6 20          sub $20
+1630  CA27 18 1F          jr .set_h
+1631  CA29 7C           .sub40  ld a,h
+1631  CA2A D6 40          sub $40
+1631  CA2C 18 1A          jr .set_h
+1632  CA2E 7C           .sub60  ld a,h
+1632  CA2F D6 60          sub $60
+1632  CA31 18 15          jr .set_h
+1633  CA33 7C           .sub80  ld a,h
+1633  CA34 D6 80          sub $80
+1633  CA36 18 10          jr .set_h
+1634  CA38 7C           .suba0  ld a,h
+1634  CA39 D6 A0          sub $A0
+1634  CA3B 18 0B          jr .set_h
+1635  CA3D 7C           .subc0  ld a,h
+1635  CA3E D6 C0          sub $C0
+1635  CA40 18 06          jr .set_h
+1636  CA42 7C           .sube0  ld a,h
+1636  CA43 D6 E0          sub $E0
+1636  CA45 18 01          jr .set_h
+1637  CA47              .got_page
+1638  CA47 7C                   ld a,h
+1639  CA48              .set_h
+1640  CA48 32 A5 CA             ld (tmpMappedH),a
+1641  CA4B 7B                   ld a,e
+1642  CA4C 5F                   ld e,a
+1643  CA4D 16 00                ld d,0
+1644  CA4F 2A 9E CA             ld hl,(dataPagesPtr)
+1645  CA52 19                   add hl,de
+1646  CA53 7E                   ld a,(hl)
+1647  CA54 ED 92 57             nextreg $57,a
+1648  CA57 E1                   pop hl
+1649  CA58 3A A5 CA             ld a,(tmpMappedH)
+1650  CA5B F6 E0                or $E0
+1651  CA5D 67                   ld h,a
+1652  CA5E 7E                   ld a,(hl)
+1653  CA5F D1                   pop de
+1654  CA60 C9                   ret
+1655  CA61
+1656  CA61
+1657  CA61              ; ================================================================
+1658  CA61              ; Service call infrastructure (self-patched by patch_services)
+1659  CA61              ; ================================================================
+1660  CA61              patch_services
+1661  CA61 DD 2A 9C CA          ld ix,(svcPtr)
+1662  CA65 DD 6E 00             ld l,(ix+SERVICE_PRINT)
+1663  CA68 DD 66 01             ld h,(ix+SERVICE_PRINT+1)
+1664  CA6B 22 8B CA             ld (call_print+1),hl
+1665  CA6E DD 6E 08             ld l,(ix+SERVICE_INPUT_NOWAIT)
+1666  CA71 DD 66 09             ld h,(ix+SERVICE_INPUT_NOWAIT+1)
+1667  CA74 22 8F CA             ld (call_input+1),hl
+1668  CA77 DD 6E 04             ld l,(ix+SERVICE_WINDOW)
+1669  CA7A DD 66 05             ld h,(ix+SERVICE_WINDOW+1)
+1670  CA7D 22 93 CA             ld (call_window+1),hl
+1671  CA80 DD 6E 0A             ld l,(ix+SERVICE_EXTRACT)
+1672  CA83 DD 66 0B             ld h,(ix+SERVICE_EXTRACT+1)
+1673  CA86 22 97 CA             ld (call_extract+1),hl
+1674  CA89 C9                   ret
+1675  CA8A
+1676  CA8A              ; call_print: DE=string, HL=col*256+row, A=attr
+1677  CA8A              call_print
+1678  CA8A CD 00 00             call 0
+1679  CA8D C9                   ret
+1680  CA8E
+1681  CA8E              call_input
+1682  CA8E CD 00 00             call 0
+1683  CA91 C9                   ret
+1684  CA92
+1685  CA92              call_window
+1686  CA92 CD 00 00             call 0
+1687  CA95 C9                   ret
+1688  CA96
+1689  CA96              call_extract
+1690  CA96 CD 00 00             call 0
+1691  CA99 C9                   ret
+1692  CA9A
+1693  CA9A
+1694  CA9A              ; ================================================================
+1695  CA9A              ; Variables
+1696  CA9A              ; ================================================================
+1697  CA9A 00 00        ctxPtr          defw 0
+1698  CA9C 00 00        svcPtr          defw 0
+1699  CA9E 00 00        dataPagesPtr    defw 0
+1700  CAA0 00 00        loadedSize      defw 0
+1701  CAA2 00           pageCount       defb 0
+1702  CAA3 00 00        readPtr         defw 0
+1703  CAA5 00           tmpMappedH      defb 0
+1704  CAA6 10           curAttr         defb ATTR_NORMAL
+1705  CAA7 00           totalBlocks     defb 0
+1706  CAA8 00           topEntry        defb 0
+1707  CAA9 00           curEntry        defb 0
+1708  CAAA 00           selectedEntry   defb 0
+1709  CAAB 00 00        blockLen        defw 0
+1710  CAAD 00           tapFlag         defb 0
+1711  CAAE 00           tapType         defb 0
+1712  CAAF 00 00        tapDataLen      defw 0
+1713  CAB1 00 00        tapParam1       defw 0
+1714  CAB3 00           renderIdx       defb 0
+1715  CAB4 00 00        screenPos       defw 0
+1716  CAB6
+1717  CAB6 00 00 00...  numBuf          defs 7      ; 5 digits + null + 1 spare
+1718  CABD 00 00 00...  nameBuf         defs 11     ; 10 chars + null
+1719  CAC8 00 00 00...  extractName     defs 16     ; output filename for 'e' extraction (255-terminated)
+1720  CAD8 00 00        extractOff      defw 0      ; current write offset into loaded data
+1721  CADA 00 00        extractCnt      defw 0      ; remaining bytes to write
+1722  CADC 00           extractEntry    defb 0
+1723  CADD 00           payloadEntry    defb 0
+1724  CADE 00           extractNameUsed defb 0
+1725  CADF 00           extractNameHasDot defb 0
+1726  CAE0 00 00        tmpBlockLen     defw 0
+1727  CAE2 00           tmpBlockFlag    defb 0
+1728  CAE3 00 00        tmpRangeStart   defw 0
+1729  CAE5 00           extractHeaderType defb 0
+1730  CAE6 00 00        tapParam2       defw 0
+1731  CAE8 00 00        extractNamePtr  defw 0
+1732  CAEA 00           extractStatus   defb 0
+1733  CAEB 00           bulkIdx         defb 0
+1734  CAEC 00 00        bulkPtr         defw 0
+1735  CAEE 00 00        bulkNextPtr     defw 0
+1736  CAF0 00           scanIndex       defb 0
+1737  CAF1 00           lastHeader      defb 0
+1738  CAF2 00           parentCandidate defb 0
+1739  CAF3 00           nameSourceEntry defb 0
+1740  CAF4
+1741  CAF4              ; ================================================================
+1742  CAF4              ; Strings
+1743  CAF4              ; ================================================================
+1744  CAF4 54 41 50 3A  strTap          defb "TAP: ",0
+1744  CAF8 20 00
+1745  CAFA 62 6C 6B 00  strBlk          defb "blk",0
+1746  CAFE              ; Column header aligned with data rows:
+1747  CAFE              ;  col: 1-2=## 3=sp 4-10=Type 11=sp 12-21=Name 22=sp 23-27=Size 28=b 29=sp 30+=Info
+1748  CAFE 23 23 20 54  strColHdr       defb "## Type    Name        Size   Info",0
+1748  CB02 79 70 65 20
+1748  CB06 20 20 20 4E
+1748  CB0A 61 6D 65 20
+1748  CB0E 20 20 20 20
+1748  CB12 20 20 20 53
+1748  CB16 69 7A 65 20
+1748  CB1A 20 20 49 6E
+1748  CB1E 66 6F 00
+1749  CB21 42 52 45 41  strHelp         defb "BREAK=exit   Up/Dn   PgUp/PgDn   e:export   CAPS+e:export all",0
+1749  CB25 4B 3D 65 78
+1749  CB29 69 74 20 20
+1749  CB2D 20 55 70 2F
+1749  CB31 44 6E 20 20
+1749  CB35 20 50 67 55
+1749  CB39 70 2F 50 67
+1749  CB3D 44 6E 20 20
+1749  CB41 20 65 3A 65
+1749  CB45 78 70 6F 72
+1749  CB49 74 20 20 20
+1749  CB4D 43 41 50 53
+1749  CB51 2B 65 3A 65
+1749  CB55 78 70 6F 72
+1749  CB59 74 20 61 6C
+1749  CB5D 6C 00
+1750  CB5F 4C 49 4E 45  strLine         defb "LINE:",0
+1750  CB63 3A 00
+1751  CB65 42 41 53 49  strBasic        defb "BASIC  ",0
+1751  CB69 43 20 20 00
+1752  CB6D 43 4F 44 45  strCode         defb "CODE   ",0
+1752  CB71 20 20 20 00
+1753  CB75 4E 41 52 52  strNArray       defb "NARRAY ",0
+1753  CB79 41 59 20 00
+1754  CB7D 53 41 52 52  strSArray       defb "SARRAY ",0
+1754  CB81 41 59 20 00
+1755  CB85 44 41 54 41  strData         defb "DATA   ",0
+1755  CB89 20 20 20 00
+1756  CB8D 3F 3F 3F 20  strUnknown      defb "???    ",0
+1756  CB91 20 20 20 00
+1757  CB95 2D 2D 2D 2D  strDashes       defb "----------",0
+1757  CB99 2D 2D 2D 2D
+1757  CB9D 2D 2D 00
+1758  CBA0 42 4C 43 4B  strBlkNameTemplate defb "BLCK00.BIN",0
+1758  CBA4 30 30 2E 42
+1758  CBA8 49 4E 00
+1759  CBAB 4F 4B 00     strExportOK     defb "OK",0
+1760  CBAE 46 41 49 4C  strExportFail   defb "FAIL "
+1760  CBB2 20
+1761  CBB3 3F 00        strExportFailCode defb "?",0
+1762  CBB5 4E 41 4D 45  strExportName   defb "NAME:",0
+1762  CBB9 3A 00
+1763  CBBB 4C 45 4E 3A  strExportLen    defb "LEN:",0
+1763  CBBF 00
+1764  CBC0 49 44 58 3A  strExportIdx    defb "IDX:",0
+1764  CBC4 00
+1765  CBC5 41 4C 4C 20  strExportAllOK  defb "ALL OK",0
+1765  CBC9 4F 4B 00
+1766  CBCC 41 4C 4C 20  strExportAllFail defb "ALL FAIL "
+1766  CBD0 46 41 49 4C
+1766  CBD4 20
+1767  CBD5 3F 00        strExportAllFailCode defb "?",0
+1768  CBD7 20 20 20 20  strDebugBlank   defb "                                ",0
+1768  CBDB 20 20 20 20
+1768  CBDF 20 20 20 20
+1768  CBE3 20 20 20 20
+1768  CBE7 20 20 20 20
+1768  CBEB 20 20 20 20
+1768  CBEF 20 20 20 20
+1768  CBF3 20 20 20 20
+1768  CBF7 00
+1769  CBF8
+1770  CBF8              ; ================================================================
+1771  CBF8              ; Entry offset table (2 bytes per entry, up to MAX_ENTRIES)
+1772  CBF8              ; ================================================================
+1773  CBF8 00 00 00...  entryOffsets    defs MAX_ENTRIES*2
+1774  CC78 00 00 00...  entryParents    defs MAX_ENTRIES
+1775  CCB8
+1776  CCB8              plugin_end
+1777  CCB8                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
+1778  CCB8                      SAVEBIN "plugin/tap.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+1779  CCB8
+# file closed: tap.asm

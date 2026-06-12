@@ -4104,6 +4104,27 @@ FILEBUFF
 ; *****************************************************************************************
 ; *****************************************************************************************
 
+; ================================================================
+; svc_fill_p3dos_header: fill 8-byte +3DOS header data via DOS_REF_HEAD.
+; Called from svc_extract_to_file while in dospage, before switching back.
+; B = file number (must equal 1). Uses viewExtractCnt and viewPluginContext.
+; ================================================================
+svc_fill_p3dos_header
+        call $010F              ; DOS_REF_HEAD: IX = pointer to 8-byte header
+        ret nc                  ; propagate failure (should never occur)
+        ld a,(viewPluginContext+VIEWCTX_P3DOS_TYPE)
+        ld (ix+0),a             ; type (0=BASIC, 3=CODE, etc.)
+        ld hl,(viewExtractCnt)
+        ld (ix+1),l
+        ld (ix+2),h             ; data length (LE)
+        ld hl,(viewPluginContext+VIEWCTX_P3DOS_P1)
+        ld (ix+3),l
+        ld (ix+4),h             ; param1: LINE for BASIC, load address for CODE
+        ld hl,(viewPluginContext+VIEWCTX_P3DOS_P2)
+        ld (ix+5),l
+        ld (ix+6),h             ; param2
+        ret
+
 E1
 
         org $a000
