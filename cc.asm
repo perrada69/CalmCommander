@@ -4073,6 +4073,7 @@ dirNum   defw 0
         include "functions/delete.asm"
         include "functions/file.asm"
         include "functions/compare.asm"
+        include "functions/system_copy.asm"
 LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
 LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 FILEBUFF

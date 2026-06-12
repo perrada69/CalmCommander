@@ -241,7 +241,13 @@ copycont
         add hl,de
         bit 7,(hl)
         pop hl
-        jp nz,nekopiruj_adresar                       ; pokud je to adresář → nelze kopírovat tímto způsobem
+        jr z,copycont_not_dir
+        ld a,(ismove)
+        or a
+        jp z,system_copy_single_dir_from_entry        ; copy adresáře → rekurzivní system copy plugin
+        jp nekopiruj_adresar                          ; move adresáře zatím nepodporujeme
+
+copycont_not_dir
 
         push hl
         ; otestuj, jestli cílový soubor už existuje (isfile může vyvolat overwrite dialog)
@@ -647,7 +653,12 @@ moredalsi
         ld de,7
         add hl,de
         bit 7,(hl)
-        jr nz,NODIR                                  ; pokud adresář → přeskoč
+        jr z,COPY_MULTI_NOT_DIR
+        ld a,(ismove)
+        or a
+        jr z,COPYDIR_MULTI                            ; copy adresáře → rekurzivní system copy plugin
+        jr NODIR                                      ; move adresáře zatím přeskočí stejně jako dřív
+COPY_MULTI_NOT_DIR
         pop hl
 
         ; připrav HL tak, aby ukazoval na entry (často -1 kvůli formátu tabulky)
@@ -701,8 +712,15 @@ CCCAC21
         call basicpage
 
 nenimove11
+        jr NODIR
 
 ; ---- progress bar update (PROGPROM vs CPPX1/CPPX3)
+COPYDIR_MULTI
+        call system_copy_dir_from_index
+        jr nc,NODIR
+        pop hl
+        jp syscopy_error
+
 NODIR   ld   hl,(PROGPROM)
         inc  hl
         ld   (PROGPROM),hl
