@@ -44,7 +44,7 @@ DST_STACK        equ SYSCOPY_WORK_ADDRESS + $0C00  ; 12 * 256 bytes
 DIR_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1800  ; 512 bytes
 LFN_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1A00  ; 512 bytes
 COPY_BUFFER      equ SYSCOPY_WORK_ADDRESS + $1C00
-COPY_BUFFER_LEN  equ 512
+COPY_BUFFER_LEN  equ 1024
 
 plugin_start
         ld (ctxPtr),hl
