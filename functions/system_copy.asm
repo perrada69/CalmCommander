@@ -112,17 +112,17 @@ syscopy_prepare_context
         call syscopy_get_other_path
         ld (sysCopyContext+SYSCOPYCTX_DST_PATH),hl
 
-        ld hl,LFNNAME
-        ld de,sysCopyName
-        ld bc,260
-        ldir
-        call syscopy_terminate_name
+        call syscopy_make_83_name
         ld hl,sysCopyName
         ld (sysCopyContext+SYSCOPYCTX_NAME),hl
+        call syscopy_make_lfn_name
+        ld hl,LFNNAME
+        ld (sysCopyContext+SYSCOPYCTX_LFN_NAME),hl
 
         xor a
         ld (sysCopyContext+SYSCOPYCTX_RESULT),a
         ld (sysCopyContext+SYSCOPYCTX_ERROR),a
+        ld (sysCopyContext+SYSCOPYCTX_STAGE),a
         ld hl,0
         ld (sysCopyContext+SYSCOPYCTX_FILES_LO),hl
         ld (sysCopyContext+SYSCOPYCTX_FILES_HI),hl
@@ -133,18 +133,71 @@ syscopy_prepare_context
         ret
 
 
-syscopy_terminate_name
-        ld hl,sysCopyName+259
+syscopy_make_lfn_name
+        ld hl,LFNNAME+259
 .scan
         ld a,(hl)
         cp 32
-        jr nz,.found
-        dec hl
-        jr .scan
-.found
+        jr z,.trim
+        cp 255
+        jr z,.trim
+        or a
+        jr z,.trim
         inc hl
         xor a
         ld (hl),a
+        ret
+.trim
+        dec hl
+        jr .scan
+
+
+syscopy_make_83_name
+        ld hl,TMP83
+        ld de,sysCopyName
+        ld b,8
+.name
+        ld a,(hl)
+        res 7,a
+        cp 32
+        jr z,.ext_test
+        ld (de),a
+        inc de
+        inc hl
+        djnz .name
+        jr .ext_test_ready
+.ext_test
+        inc hl
+        djnz .ext_test
+.ext_test_ready
+        ld hl,TMP83+8
+        ld b,3
+.ext_probe
+        ld a,(hl)
+        res 7,a
+        cp 32
+        jr nz,.has_ext
+        inc hl
+        djnz .ext_probe
+        jr .done
+.has_ext
+        ld a,"."
+        ld (de),a
+        inc de
+        ld hl,TMP83+8
+        ld b,3
+.ext
+        ld a,(hl)
+        res 7,a
+        cp 32
+        jr z,.done
+        ld (de),a
+        inc de
+        inc hl
+        djnz .ext
+.done
+        xor a
+        ld (de),a
         ret
 
 
@@ -291,6 +344,12 @@ syscopy_show_error
         ld de,sysCopyErrorHintTxt
         call print
 
+        call syscopy_prepare_error_diag
+        ld hl,11*256+14
+        ld a,16
+        ld de,sysCopyErrorDiagTxt
+        call print
+
         ld hl,11*256+15
         ld a,48
         ld de,pressanykeytxt
@@ -302,11 +361,45 @@ syscopy_show_error
         ret
 
 
+syscopy_prepare_error_diag
+        ld a,(sysCopyContext+SYSCOPYCTX_STAGE)
+        ld de,sysCopyErrorDiagTxt+7
+        call syscopy_write_hex_byte
+        ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
+        ld de,sysCopyErrorDiagTxt+18
+        call syscopy_write_hex_byte
+        ret
+
+
+syscopy_write_hex_byte
+        push af
+        rrca
+        rrca
+        rrca
+        rrca
+        call syscopy_write_hex_nibble
+        pop af
+        inc de
+        call syscopy_write_hex_nibble
+        ret
+
+
+syscopy_write_hex_nibble
+        and $0f
+        add a,"0"
+        cp "9"+1
+        jr c,.store
+        add a,"A"-"9"-1
+.store
+        ld (de),a
+        ret
+
+
 sysCopyServices
         defw print
 
 sysCopyContext  defs SYSCOPYCTX_SIZE
-sysCopyName     defs 261
+sysCopyName     defs 13
 sysCopySavedMmu6 defb 0
 sysCopySavedMmu7 defb 0
 
@@ -314,3 +407,4 @@ sysCopyPluginDir  defb "c:/CalmCommander/plugin",255
 sysCopyPluginName defb "syscopy.ccp",255
 sysCopyErrorTxt   defb "Directory copy failed.",0
 sysCopyErrorHintTxt defb "Check syscopy.ccp and free space.",0
+sysCopyErrorDiagTxt defb "Stage $00  Error $00",0

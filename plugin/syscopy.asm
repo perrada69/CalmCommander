@@ -9,6 +9,8 @@ F_READ      equ $9D
 F_WRITE     equ $9E
 F_OPENDIR   equ $A3
 F_READDIR   equ $A4
+F_TELLDIR   equ $A5
+F_SEEKDIR   equ $A6
 F_MKDIR     equ $AA
 F_RMDIR     equ $AB
 F_UNLINK    equ $AD
@@ -21,11 +23,28 @@ ATTR_DIR         equ $10
 MAX_DEPTH        equ 11
 PLUGIN_STACK     equ $DFFE
 
+STAGE_ROOT_PATH  equ $11
+STAGE_NESTED_DST equ $12
+STAGE_COPY_MKDIR equ $20
+STAGE_COPY_DIR   equ $21
+STAGE_COPY_LFN   equ $22
+STAGE_READ_DIR   equ $23
+STAGE_READ_LFN   equ $24
+STAGE_CHILD_PATH equ $25
+STAGE_SAVE_POS   equ $26
+STAGE_REOPEN_DIR equ $27
+STAGE_REOPEN_LFN equ $28
+STAGE_SRC_OPEN   equ $30
+STAGE_DST_OPEN   equ $31
+STAGE_FILE_READ  equ $32
+STAGE_FILE_WRITE equ $33
+
 SRC_STACK        equ SYSCOPY_WORK_ADDRESS          ; 12 * 256 bytes
 DST_STACK        equ SYSCOPY_WORK_ADDRESS + $0C00  ; 12 * 256 bytes
 DIR_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1800  ; 512 bytes
-COPY_BUFFER      equ SYSCOPY_WORK_ADDRESS + $1A00
-COPY_BUFFER_LEN  equ 1024
+LFN_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1A00  ; 512 bytes
+COPY_BUFFER      equ SYSCOPY_WORK_ADDRESS + $1C00
+COPY_BUFFER_LEN  equ 512
 
 plugin_start
         ld (ctxPtr),hl
@@ -33,8 +52,11 @@ plugin_start
         ld (savedSp),sp
         ld sp,PLUGIN_STACK
         call patch_services
+        xor a
+        ld (failStage),a
 
         call copy_root_paths
+        jr c,.failed
         ld ix,(ctxPtr)
         ld a,(ix+SYSCOPYCTX_MODE)
         cp 2
@@ -79,6 +101,8 @@ plugin_start
 .failed
         ld ix,(ctxPtr)
         ld (ix+SYSCOPYCTX_ERROR),a
+        ld a,(failStage)
+        ld (ix+SYSCOPYCTX_STAGE),a
         ld a,1
         ld (ix+SYSCOPYCTX_RESULT),a
         ld sp,(savedSp)
@@ -86,6 +110,8 @@ plugin_start
 
 
 copy_root_paths
+        ld a,STAGE_ROOT_PATH
+        ld (failStage),a
         ld ix,(ctxPtr)
         ld l,(ix+SYSCOPYCTX_SRC_PATH)
         ld h,(ix+SYSCOPYCTX_SRC_PATH+1)
@@ -93,13 +119,14 @@ copy_root_paths
         ld c,(ix+SYSCOPYCTX_NAME)
         ld b,(ix+SYSCOPYCTX_NAME+1)
         call build_path
+        ret c
 
         ld ix,(ctxPtr)
         ld l,(ix+SYSCOPYCTX_DST_PATH)
         ld h,(ix+SYSCOPYCTX_DST_PATH+1)
         ld de,DST_STACK
-        ld c,(ix+SYSCOPYCTX_NAME)
-        ld b,(ix+SYSCOPYCTX_NAME+1)
+        ld c,(ix+SYSCOPYCTX_LFN_NAME)
+        ld b,(ix+SYSCOPYCTX_LFN_NAME+1)
         call build_path
         ret
 
@@ -130,6 +157,8 @@ reject_nested_destination
         xor a
         ret
 .bad
+        ld a,STAGE_NESTED_DST
+        ld (failStage),a
         ld a,$7e
         scf
         ret
@@ -142,6 +171,8 @@ copy_dir
         ld (curDepth),a
 
         call get_dst_path
+        ld a,STAGE_COPY_MKDIR
+        ld (failStage),a
         call esx_mkdir_ignore
         call inc_dir_count
         call inc_file_count
@@ -153,15 +184,46 @@ copy_dir
         push hl
         pop ix
         xor a
-        ld b,MODE_LFN_DIR
+        ld b,a
+        ld a,STAGE_COPY_DIR
+        ld (failStage),a
+        xor a
         rst $08
         db F_OPENDIR
         ret c
         ld (dirHandle),a
 
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_LFN_DIR
+        ld a,STAGE_COPY_LFN
+        ld (failStage),a
+        xor a
+        rst $08
+        db F_OPENDIR
+        jp c,.lfn_open_fail
+        ld (lfnHandle),a
+
 .next
         ld a,(dirHandle)
         ld ix,DIR_ENTRY
+        ld a,STAGE_READ_DIR
+        ld (failStage),a
+        ld a,(dirHandle)
+        rst $08
+        db F_READDIR
+        jp c,.read_fail
+        or a
+        jr z,.done
+
+        ld a,(lfnHandle)
+        ld ix,LFN_ENTRY
+        ld a,STAGE_READ_LFN
+        ld (failStage),a
+        ld a,(lfnHandle)
         rst $08
         db F_READDIR
         jr c,.read_fail
@@ -174,34 +236,36 @@ copy_dir
         ld a,(curDepth)
         cp MAX_DEPTH
         jr nc,.next
+        ld a,STAGE_CHILD_PATH
+        ld (failStage),a
         call build_child_paths
+        jp c,.read_fail
 
         ld a,(DIR_ENTRY)
         and ATTR_DIR
         jr z,.file
 
+        call save_copy_positions
+        jp c,.read_fail
+        call close_copy_handles
         ld a,(curDepth)
-        push af
-        ld a,(dirHandle)
-        push af
-        ld a,(curDepth)
+        ld c,a
+        push bc
         inc a
         call copy_dir
-        jr c,.dir_fail
-        pop af
-        ld (dirHandle),a
-        pop af
+        ld e,a
+        pop bc
+        ld a,c
         ld (curDepth),a
+        ld a,e
+        jr c,.dir_fail
+        call reopen_copy_handles
+        ret c
         jr .next
 
 .dir_fail
-        ld e,a
-        pop af
-        ld (dirHandle),a
-        pop af
-        ld (curDepth),a
-        ld a,e
-        jr .read_fail
+        scf
+        ret
 
 .file
         call inc_file_count
@@ -209,9 +273,12 @@ copy_dir
         call print_counter_status
         call copy_child_file
         jr c,.read_fail
-        jr .next
+        jp .next
 
 .done
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
         ld a,(dirHandle)
         rst $08
         db F_CLOSE
@@ -219,6 +286,20 @@ copy_dir
         ret
 
 .read_fail
+        push af
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        push af
+        ld a,(dirHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        scf
+        ret
+
+.lfn_open_fail
         push af
         ld a,(dirHandle)
         rst $08
@@ -229,7 +310,177 @@ copy_dir
 
 .depth_fail
         ld a,$7f
+        ld (failStage),a
+        ld a,$7f
         scf
+        ret
+
+
+save_copy_positions
+        ld a,STAGE_SAVE_POS
+        ld (failStage),a
+        ld a,(dirHandle)
+        rst $08
+        db F_TELLDIR
+        ret c
+        push de
+        push bc
+        ld a,(curDepth)
+        call get_dir_pos_slot
+        pop bc
+        call store_bcde_at_hl
+        pop de
+        call store_de_at_hl
+
+        ld a,STAGE_SAVE_POS
+        ld (failStage),a
+        ld a,(lfnHandle)
+        rst $08
+        db F_TELLDIR
+        ret c
+        push de
+        push bc
+        ld a,(curDepth)
+        call get_lfn_pos_slot
+        pop bc
+        call store_bcde_at_hl
+        pop de
+        call store_de_at_hl
+        xor a
+        ret
+
+
+reopen_copy_handles
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,a
+        ld a,STAGE_REOPEN_DIR
+        ld (failStage),a
+        xor a
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (dirHandle),a
+
+        ld a,(curDepth)
+        call get_dir_pos_slot
+        call load_bcde_from_hl
+        ld a,(dirHandle)
+        rst $08
+        db F_SEEKDIR
+        jr c,.dir_seek_fail
+
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_LFN_DIR
+        ld a,STAGE_REOPEN_LFN
+        ld (failStage),a
+        xor a
+        rst $08
+        db F_OPENDIR
+        jr c,.lfn_open_fail
+        ld (lfnHandle),a
+
+        ld a,(curDepth)
+        call get_lfn_pos_slot
+        call load_bcde_from_hl
+        ld a,(lfnHandle)
+        rst $08
+        db F_SEEKDIR
+        jr c,.lfn_seek_fail
+        xor a
+        ret
+
+.lfn_seek_fail
+        push af
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+.lfn_open_fail
+        push af
+        ld a,(dirHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        scf
+        ret
+
+.dir_seek_fail
+        push af
+        ld a,(dirHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        scf
+        ret
+
+
+close_copy_handles
+        push af
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
+        ld a,(dirHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        ret
+
+
+store_bcde_at_hl
+        ld (hl),c
+        inc hl
+        ld (hl),b
+        inc hl
+        ret
+
+
+store_de_at_hl
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        ret
+
+
+load_bcde_from_hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        inc hl
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ret
+
+
+get_dir_pos_slot
+        call depth_to_offset4
+        ld hl,dirPosStack
+        add hl,de
+        ret
+
+
+get_lfn_pos_slot
+        call depth_to_offset4
+        ld hl,lfnPosStack
+        add hl,de
+        ret
+
+
+depth_to_offset4
+        ld e,a
+        ld d,0
+        sla e
+        rl d
+        sla e
+        rl d
         ret
 
 
@@ -244,6 +495,7 @@ build_child_paths
         pop hl
         ld bc,DIR_ENTRY+1
         call build_path
+        ret c
 
         ld a,(curDepth)
         call get_dst_path
@@ -253,7 +505,7 @@ build_child_paths
         call get_dst_path
         ex de,hl
         pop hl
-        ld bc,DIR_ENTRY+1
+        ld bc,LFN_ENTRY+1
         call build_path
         ret
 
@@ -280,6 +532,9 @@ copy_child_file
         pop ix
         xor a
         ld b,MODE_READ_EXIST
+        ld a,STAGE_SRC_OPEN
+        ld (failStage),a
+        xor a
         rst $08
         db F_OPEN
         ret c
@@ -292,6 +547,9 @@ copy_child_file
         pop ix
         xor a
         ld b,MODE_WRITE_TRUNC
+        ld a,STAGE_DST_OPEN
+        ld (failStage),a
+        xor a
         rst $08
         db F_OPEN
         jr c,.dst_fail
@@ -301,6 +559,9 @@ copy_child_file
         ld a,(srcHandle)
         ld ix,COPY_BUFFER
         ld bc,COPY_BUFFER_LEN
+        ld a,STAGE_FILE_READ
+        ld (failStage),a
+        ld a,(srcHandle)
         rst $08
         db F_READ
         jr c,.copy_fail
@@ -310,6 +571,9 @@ copy_child_file
 
         ld a,(dstHandle)
         ld ix,COPY_BUFFER
+        ld a,STAGE_FILE_WRITE
+        ld (failStage),a
+        ld a,(dstHandle)
         rst $08
         db F_WRITE
         jr c,.copy_fail
@@ -351,7 +615,7 @@ delete_dir
         push hl
         pop ix
         xor a
-        ld b,MODE_LFN_DIR
+        ld b,a
         rst $08
         db F_OPENDIR
         ret c
@@ -459,6 +723,9 @@ delete_dir
 
 ; HL = parent path, DE = output path, BC = child name.
 build_path
+        ld (pathChildPtr),bc
+        ld a,255
+        ld (pathLeft),a
         xor a
         ld (lastChar),a
 .copy_parent
@@ -467,10 +734,9 @@ build_path
         jr z,.parent_done
         cp 255
         jr z,.parent_done
-        ld (de),a
-        ld (lastChar),a
+        call put_path_char
+        ret c
         inc hl
-        inc de
         jr .copy_parent
 
 .parent_done
@@ -482,25 +748,48 @@ build_path
         cp ":"
         jr z,.copy_name
         ld a,"/"
-        ld (de),a
-        inc de
+        call put_path_char
+        ret c
 
 .copy_name
-        ld h,b
-        ld l,c
+        ld hl,(pathChildPtr)
 .name_loop
         ld a,(hl)
+        or a
+        jr z,.name_zero
         cp 255
         jr z,.name_end
-        ld (de),a
+        call put_path_char
+        ret c
         inc hl
-        inc de
-        or a
-        ret z
         jr .name_loop
+.name_zero
+        ld (de),a
+        or a
+        ret
 .name_end
         xor a
         ld (de),a
+        or a
+        ret
+
+
+put_path_char
+        ld c,a
+        ld a,(pathLeft)
+        or a
+        jr z,.overflow
+        dec a
+        ld (pathLeft),a
+        ld a,c
+        ld (de),a
+        ld (lastChar),a
+        inc de
+        or a
+        ret
+.overflow
+        ld a,$7d
+        scf
         ret
 
 
@@ -599,7 +888,7 @@ count_dir
         push hl
         pop ix
         xor a
-        ld b,MODE_LFN_DIR
+        ld b,a
         rst $08
         db F_OPENDIR
         ret c
@@ -776,8 +1065,8 @@ print_counter_status
 append_short_root_name
         push ix
         ld ix,(ctxPtr)
-        ld e,(ix+SYSCOPYCTX_NAME)
-        ld d,(ix+SYSCOPYCTX_NAME+1)
+        ld e,(ix+SYSCOPYCTX_LFN_NAME)
+        ld d,(ix+SYSCOPYCTX_LFN_NAME+1)
         ex de,hl
         ld b,10
 .copy
@@ -877,12 +1166,18 @@ svcPtr      defw 0
 savedSp     defw 0
 curDepth    defb 0
 dirHandle   defb 0
+lfnHandle   defb 0
 delHandle   defb 0
 srcHandle   defb 0
 dstHandle   defb 0
 lastChar    defb 0
 countHandle defb 0
 totalFiles  defw 0
+pathChildPtr defw 0
+pathLeft    defb 0
+failStage   defb 0
+dirPosStack defs (MAX_DEPTH+1)*4
+lfnPosStack defs (MAX_DEPTH+1)*4
 
 copyPhaseTxt   defb "Copying: ",0
 deletePhaseTxt defb "Deleting: ",0
