@@ -83,11 +83,6 @@ RENAME
 RIN1 	ld (hl),32          ;a nyní celou editační
 		inc hl              ;zónu vyplníme mezerami
 		djnz RIN1            ;na konec editační zóny
-        push bc
-        ld hl,LFNNAME
-        ld de,23296
-        ld bc,58
-        ldir
         ld hl,LFNNAME+59
 
 RIN2    ld a,(hl)
@@ -101,8 +96,11 @@ RIN2    ld a,(hl)
         ld a,l
         inc a
         ld (CURSOR+1),a
-
-        pop bc
+        ld c,a
+        ld hl,LFNNAME
+        ld de,23296
+        ldir
+        ld hl,23296 + 59
 		ld (hl),b           ;přijde 0
 		res 5,(iy+1)        ;signál není stisknuta klávesa
 		xor a
