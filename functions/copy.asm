@@ -92,21 +92,6 @@ COPY    call specific_search
         ; ----------------------------------------------------
         ; Jediný soubor: potvrzovací dialog "Copy/Move file?"
         ; ----------------------------------------------------
-        call savescr
-        ld hl,10 * 256 + 10
-        ld bc,60 * 256 + 5
-        ld a,16
-        call window
-
-        ld hl,11*256+11                              ; řádek titulku
-        ld de,onecopytxt
-        ld a,(ismove)
-        or a
-        jr z,$+4
-        ld de,onemovetxt                              ; pokud ismove=1 → text pro přesun
-        ld a,16
-        call print
-
         ; získej index kurzoru v levém okně (POSKURZL)
         ld hl,POSKURZL
         call ROZHOD
@@ -130,6 +115,23 @@ COPY    call specific_search
         call find83                                   ; načti 8.3 záznam do TMP83 / apod.
         pop hl
         call FINDLFN                                  ; načti LFN do LFNNAME
+        call syscopy_is_dot_lfn
+        jp z,loop0
+
+        call savescr
+        ld hl,10 * 256 + 10
+        ld bc,60 * 256 + 5
+        ld a,16
+        call window
+
+        ld hl,11*256+11                              ; řádek titulku
+        ld de,onecopytxt
+        ld a,(ismove)
+        or a
+        jr z,$+4
+        ld de,onemovetxt                              ; pokud ismove=1 → text pro přesun
+        ld a,16
+        call print
 
         ; zkopíruj jméno do bfname pro zobrazení v dialogu
         ld hl,LFNNAME

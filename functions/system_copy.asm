@@ -46,6 +46,8 @@ system_copy_dir_from_index
         ld hl,(cislo_souboru+1)
         dec hl
         call FINDLFN
+        call syscopy_is_dot_lfn
+        jr z,.skip_dot
         call syscopy_prepare_context
 
         call syscopy_load_plugin
@@ -61,6 +63,10 @@ system_copy_dir_from_index
         ret
 .fail
         scf
+        ret
+
+.skip_dot
+        xor a
         ret
 
 
@@ -139,6 +145,27 @@ syscopy_terminate_name
         inc hl
         xor a
         ld (hl),a
+        ret
+
+
+syscopy_is_dot_lfn
+        ld a,(LFNNAME)
+        cp "."
+        jr nz,.no
+        ld a,(LFNNAME+1)
+        cp 32
+        jr z,.yes
+        cp "."
+        jr nz,.no
+        ld a,(LFNNAME+2)
+        cp 32
+        jr z,.yes
+.no
+        ld a,1
+        or a
+        ret
+.yes
+        xor a
         ret
 
 
