@@ -884,8 +884,8 @@ lastChar    defb 0
 countHandle defb 0
 totalFiles  defw 0
 
-copyPhaseTxt   defb "Copying directory: ",0
-deletePhaseTxt defb "Deleting source: ",0
+copyPhaseTxt   defb "Copying: ",0
+deletePhaseTxt defb "Deleting: ",0
 statusLine     defs 56
 blankNameTxt   defb "                                             ",0
 
