@@ -1115,14 +1115,31 @@ rtcpresent      defb 0
 gettime
             call dospage
             call $01cc                            ; externí: načti čas+datum, DE=time, BC=date
-            ld (dostime),de
-            ld (dosdate),bc
 
+            push de
+            push bc
             push af
             call basicpage
             pop af
+            pop bc
+            pop de
 
             jp nc,notimeend                       ; pokud “NC” => bez času (dle autora)
+
+            ld hl,(dostime)
+            ld a,e
+            xor l
+            and $e0
+            jr nz,.time_changed
+            ld a,d
+            cp h
+            jr nz,.time_changed
+            ld a,($4000+66*2)
+            cp ":"
+            ret z
+.time_changed
+            ld (dostime),de
+            push bc
 
             ld a,1
             ld (rtcpresent),a
@@ -1145,13 +1162,13 @@ gettime
             ld l,a
             ld h,0
             call NUM
-            ld hl,63*256+0
+            ld hl,64*256+0
             ld a,16
             ld de,NUMBUF+3
             call print
 
             ; tisk ":" mezi hodinami a minutami
-            ld hl,65*256+0
+            ld hl,66*256+0
             ld a,16
             ld de,dvojt
             call print
@@ -1163,14 +1180,13 @@ gettime
             call NUM
             xor a
             ld (NUMBUF+3+2),a                     ; ukončení/format
-            ld hl,66*256+0
+            ld hl,67*256+0
             ld a,16
             ld de,NUMBUF+3
             call print
 
-
             ; Dekódování data z dosdate (DE) – den/měsíc/rok
-            ld de,(dosdate)
+            pop de
             ld a,e
             and 31                                ; den v měsíci (mask 5 bitů)
             push de
@@ -1179,15 +1195,15 @@ gettime
             ld l,a
             ld h,0
             call NUM
-            ld hl,69*256+0
+            ld hl,70*256+0
             ld a,16
             ld de,NUMBUF+3
             call print
 
-            ; tisk "."
-            ld hl,71*256+0
+            ; tisk "/"
+            ld hl,72*256+0
             ld a,16
-            ld de,tecka
+            ld de,slash
             call print
 
             pop de
@@ -1208,32 +1224,32 @@ gettime
             ld l,a
             ld h,0
             call NUM
-            ld hl,72*256+0
+            ld hl,73*256+0
             ld a,16
             ld de,NUMBUF+3
             call print
 
-            ; tisk "."
-            ld hl,74*256+0
+            ; tisk "/"
+            ld hl,75*256+0
             ld a,16
-            ld de,tecka
+            ld de,slash
             call print
 
             pop af
 
-            ; výpočet roku: (A + 1980) – odpovídá DOS/FAT datumu (rok od 1980)
+            ; výpočet roku: tiskne se jen poslední dvojčíslí
+            add a,80
+            cp 100
+            jr c,.year_ok
+            sub 100
+.year_ok
             ld l,a
             ld h,0
-            ld de,1980
-            add hl,de
             call NUM
-            call smaznuly                         ; externí: odstranění nul? (neodhadovat detail)
-
-                                                  ; tisk roku (NUMBUF+1, ořez délky)
-            ld hl,75*256+0
-            ld de,NUMBUF+1
             xor a
-            ld (NUMBUF+1+4),a
+            ld (NUMBUF+3+2),a
+            ld hl,76*256+0
+            ld de,NUMBUF+3
             ld a,16
             call print
 
@@ -1245,25 +1261,13 @@ timeend
 notimeend
             xor a
             ld (rtcpresent),a
-            ld hl,63*256+0
-            ld a,16
-            ld de,notimetxt
-            call print
             ret
 
-notimetxt   defb "                ",0
-
 ; proměnné pro čas/datum
-istime      defb 0
-den         defb 0
-mesic       defb 0
-rok         defb 0
 dvojt       defb ":",0
+slash       defb "/",0
 
-hodiny      defb 0
-minuty      defb 0
 dostime     defw 0
-dosdate     defw 0
 
 ; ------------------------------------------------------------
 ; unsup
