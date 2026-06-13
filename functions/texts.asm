@@ -88,6 +88,9 @@ renametxt	defb "ENTER = rename",0
 searchtxt	defb "ENTER = search",0
 savetxt		defb "ENTER = save ",0
 notxt 		defb "BREAK = no",0
+cancel_txt  defb "BREAK = cancel",0
+no_txt      defb "N = no",0
+all_txt     defb "CAPS+ENTER = all",0
 
 
 spaces 		defb "           ",0

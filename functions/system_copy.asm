@@ -12,7 +12,7 @@ SYS_COPY_WORK_PAGE      equ 99
 
 system_copy_single_dir_from_entry
         call system_copy_dir_from_entry
-        jr c,syscopy_error
+        jp c,syscopy_error
 
         call obnov_okna
         call syscopy_restore_current_path
@@ -38,8 +38,15 @@ system_copy_dir_from_entry
         ret
 
 .fail
+        ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
+        cp $7c
+        jr z,.cancel
         scf
         ret
+
+.cancel
+        call syscopy_restore_current_path
+        jp copyend
 
 
 system_copy_dir_from_index
@@ -62,8 +69,15 @@ system_copy_dir_from_index
         or a
         ret
 .fail
+        ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
+        cp $7c
+        jr z,.cancel
         scf
         ret
+
+.cancel
+        call syscopy_restore_current_path
+        jp copyend
 
 .skip_dot
         xor a
@@ -344,6 +358,7 @@ syscopy_show_error
 
 sysCopyServices
         defw print
+        defw syscopy_check_cancel
 
 sysCopyContext  defs SYSCOPYCTX_SIZE
 sysCopyName     defs 13

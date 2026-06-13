@@ -4134,6 +4134,38 @@ svc_fill_p3dos_header
         ld (ix+6),h             ; param2
         ret
 
+
+syscopy_check_cancel
+        call KEYSCAN
+        ld a,d
+        cp $27
+        jr nz,.no
+        ld a,e
+        cp 32
+        jr nz,.no
+        ld a,1
+        ret
+.no
+        xor a
+        ret
+
+
+reload_panels_after_cancel
+        call obnov_okna
+        call dospage
+        ld hl,pathl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        xor a
+        call $01b1
+        call basicpage
+        call freespace
+        ret
+
+
 E1
 
         org $a000
@@ -7426,6 +7458,66 @@ aKEY_NEW_NOWAIT
 
 
         include "functions/dir_info_late.asm"
+
+overwrite_draw_options
+        ld hl,46*256+20
+        ld a,16
+        ld de,cancel_txt
+        call print
+        ld hl,11*256+20
+        ld a,16
+        ld de,no_txt
+        call print
+        ld hl,11*256+21
+        ld a,16
+        ld de,all_txt
+        jp print
+
+
+overwrite_choice
+.wait
+        xor a
+        ld (TLACITKO),a
+        ei
+        ld b,2
+.delay
+        halt
+        djnz .delay
+        call KEYSCAN
+        ld a,e
+        inc a
+        jr z,.wait
+        ld a,d
+        cp $27
+        jr nz,.plain
+        ld a,e
+        cp 32
+        jr z,.cancel
+        cp 33
+        jr z,.all
+.plain
+        ld a,e
+        cp 33
+        jr z,.enter
+        cp 8
+        jr nz,.wait
+        ld a,"n"
+        ret
+.cancel
+        ld a,1
+        ret
+.all
+        ld a,2
+        ret
+.enter
+        ld a,13
+        ret
+
+overwriteAll defb 0
+
+morecopytxt      defb "Copy     files?",0
+moremovetxt      defb "Move     files?",0
+moredeletetxt    defb "Delete     files?",0
 
 sysvars 	defs 500
 

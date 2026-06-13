@@ -58,6 +58,8 @@ copy
 ; a rozhodne, zda se kopíruje 1 soubor nebo více vybraných.
 ; ------------------------------------------------------------
 contmov
+        xor a
+        ld (overwriteAll),a
         ; PATHLEFT: najdi 255 terminátor a přepiš na 0 (nulový string)
         ld hl,PATHLEFT
         ld a,255
@@ -205,9 +207,9 @@ copycont
         ld (hl),"|"
 
         ; přepiš NO na "please wait" a vymaž YES řádek
-        ld hl,60*256+14
+        ld hl,56*256+14
         ld a,16
-        ld de,pleasewait
+        ld de,cancel_txt
         call print
 
         ld hl,60*256+15
@@ -417,6 +419,7 @@ copyend
         ld (hl),a
 
         call loadscr
+        call reload_panels_after_cancel
         jp loop0
 
 
@@ -457,10 +460,6 @@ nekopiruj_adresar
 ; - poté iteruje přes položky v ALLFILES, které mají nastavený příznak "selected"
 ; - kopíruje je a zobrazuje progress
 ; ============================================================
-morecopytxt      defb "Copy     files?",0
-moremovetxt      defb "Move     files?",0
-
-moredeletetxt    defb "Delete     files?",0
 runtxt           defb "Can you run this file?",0
 unsuptxt         defb "Unsuported file!",0
 
@@ -558,9 +557,9 @@ acopywait
 ;     * aktualizuje progress (PROGRES)
 ; ------------------------------------------------------------
 acopycont
-        ld hl,60*256+14
+        ld hl,56*256+14
         ld a,16
-        ld de,pleasewait
+        ld de,cancel_txt
         call print
 
         ld hl,60*256+15
@@ -877,9 +876,12 @@ iskam   jp z,nalezeno_isfile                           ; shoda → overwrite dia
 ;   - NO/ESC    → norewrite (skoč přes isfilee na návrat)
 ; ============================================================
 nalezeno_isfile
+        ld a,(overwriteAll)
+        or a
+        jp nz,cont_isfile0
         call savescr
         ld hl,10 * 256 + 10
-        ld bc,60 * 256 + 11
+        ld bc,60 * 256 + 12
         ld a,16
         call window
 
@@ -994,26 +996,30 @@ TTT
         call print
 
         ; YES/NO
-        ld hl,60*256+21
+        ld hl,46*256+21
         ld a,48
         ld de,yestxt
         call print
 
-        ld hl,60*256+20
-        ld a,16
-        ld de,notxt
-        call print
+        call overwrite_draw_options
 
 .wait
-        xor a
-        ld (TLACITKO),a
-        call INKEY
+        call overwrite_choice
         cp 1
-        jp z,norewrite                                ; ESC → odmítnout overwrite
+        jp z,cancel_overwrite
+        cp "n"
+        jp z,norewrite
+        cp "N"
+        jp z,norewrite
+        cp 2
+        jr z,cont_isfile_all
         cp 13
         jr z,cont_isfile                               ; Enter → souhlas overwrite
         jr .wait
 
+cont_isfile_all
+        ld a,1
+        ld (overwriteAll),a
 cont_isfile
         call loadscr
 cont_isfile0
@@ -1037,3 +1043,11 @@ norewrite
 
         call loadscr
 isfilee  jp 0                                          ; self-mod: skok na adresu z DE (norr/norr2 apod.)
+
+cancel_overwrite
+        pop af
+        ld a,(OKNO)
+        xor 16
+        ld (OKNO),a
+        call loadscr
+        jp copyend

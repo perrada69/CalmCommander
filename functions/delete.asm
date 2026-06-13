@@ -626,9 +626,9 @@ toall	ld a,1
 
 smaz
 		call basicpage
-		ld hl,60*256+14
+		ld hl,46*256+14
 		ld a,16
-		ld de,pleasewait
+		ld de,cancel_txt
 		call print		
 		
 

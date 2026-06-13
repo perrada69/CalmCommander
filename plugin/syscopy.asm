@@ -365,6 +365,7 @@ build_child_src_path
 
 
 copy_child_file
+        call init_file_progress
         ld a,(curDepth)
         inc a
         call get_src_path
@@ -408,6 +409,7 @@ copy_child_file
         ld a,b
         or c
         jr z,.done
+        ld (lastReadLen),bc
 
         ld a,(dstHandle)
         ld ix,COPY_BUFFER
@@ -417,6 +419,11 @@ copy_child_file
         rst $08
         db F_WRITE
         jr c,.copy_fail
+        call add_copied_bytes
+        call print_file_progress
+        call call_cancel
+        cp 1
+        jr z,.cancel
         jr .loop
 
 .done
@@ -441,6 +448,24 @@ copy_child_file
         rst $08
         db F_CLOSE
         pop af
+        scf
+        ret
+
+.cancel
+        ld a,(dstHandle)
+        rst $08
+        db F_CLOSE
+        ld a,(srcHandle)
+        rst $08
+        db F_CLOSE
+        ld a,(curDepth)
+        inc a
+        call get_dst_path
+        push hl
+        pop ix
+        rst $08
+        db F_UNLINK
+        ld a,$7c
         scf
         ret
 
@@ -835,6 +860,9 @@ patch_services
         ld l,(ix+SYSCOPY_SERVICE_PRINT)
         ld h,(ix+SYSCOPY_SERVICE_PRINT+1)
         ld (call_print+1),hl
+        ld l,(ix+SYSCOPY_SERVICE_CANCEL)
+        ld h,(ix+SYSCOPY_SERVICE_CANCEL+1)
+        ld (call_cancel+1),hl
         ret
 
 
@@ -900,7 +928,7 @@ print_counter_status
         ld (de),a
         inc de
 
-        ld hl,11*256+14
+        ld hl,56*256+14
         ld a,16
         ld de,blankNameTxt
         call call_print
@@ -913,6 +941,173 @@ print_counter_status
         pop de
         pop bc
         pop af
+        ret
+
+
+init_file_progress
+        ld hl,0
+        ld (fileCopiedBytes),hl
+        ld (fileCopiedBytes+2),hl
+        call find_lfn_entry_size_ptr
+        ld de,fileTotalBytes
+        ld bc,4
+        ldir
+        ld hl,LFN_ENTRY+1
+        ld de,fileNameText
+        ld b,20
+.name
+        ld a,(hl)
+        or a
+        jr z,.name_done
+        cp 255
+        jr z,.name_done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .name
+.name_done
+        xor a
+        ld (de),a
+        jp print_file_progress
+
+
+add_copied_bytes
+        ld bc,(lastReadLen)
+        ld hl,(fileCopiedBytes)
+        add hl,bc
+        ld (fileCopiedBytes),hl
+        ret nc
+        ld hl,(fileCopiedBytes+2)
+        inc hl
+        ld (fileCopiedBytes+2),hl
+        ret
+
+
+print_file_progress
+        push af
+        push bc
+        push de
+        push hl
+        push ix
+
+        ld hl,fileStatusLine
+        ld b,STATUS_LINE_LEN
+.clear
+        ld (hl),32
+        inc hl
+        djnz .clear
+        xor a
+        ld (hl),a
+
+        ld hl,fileNameText
+        ld de,fileStatusLine
+        ld b,20
+.name
+        ld a,(hl)
+        or a
+        jr z,.name_done
+        cp 255
+        jr z,.name_done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .name
+.name_done
+        ld a,32
+        ld (de),a
+        inc de
+        ld a,"["
+        ld (de),a
+        inc de
+
+        push de
+        ld hl,fileCopiedBytes
+        call bytes_to_kb_capped
+        pop de
+        call write_dec3
+        ld a,"k"
+        ld (de),a
+        inc de
+        ld a,"B"
+        ld (de),a
+        inc de
+        ld a,"/"
+        ld (de),a
+        inc de
+
+        push de
+        ld hl,fileTotalBytes
+        call bytes_to_kb_capped
+        pop de
+        call write_dec3
+        ld a,"k"
+        ld (de),a
+        inc de
+        ld a,"B"
+        ld (de),a
+        inc de
+        ld a,"]"
+        ld (de),a
+
+        ld hl,11*256+14
+        ld a,16
+        ld de,fileStatusLine
+        call call_print
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+
+find_lfn_entry_size_ptr
+        ld hl,LFN_ENTRY+1
+.scan
+        ld a,(hl)
+        inc hl
+        or a
+        jr nz,.scan
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+        ret
+
+
+; HL points to 32-bit byte count. Returns HL = kB capped to 999.
+bytes_to_kb_capped
+        push ix
+        push hl
+        pop ix
+        ld a,(ix+1)
+        srl a
+        srl a
+        ld l,a
+        ld b,(ix+2)
+        ld a,b
+        and 3
+        rrca
+        rrca
+        or l
+        ld l,a
+        ld a,b
+        srl a
+        srl a
+        ld h,a
+        ld a,(ix+3)
+        or a
+        jr nz,.cap
+        ld de,1000
+        or a
+        sbc hl,de
+        jr nc,.cap
+        add hl,de
+        pop ix
+        ret
+.cap
+        ld hl,999
+        pop ix
         ret
 
 
@@ -1017,6 +1212,10 @@ call_print
         jp 0
 
 
+call_cancel
+        jp 0
+
+
 ctxPtr      defw 0
 svcPtr      defw 0
 savedSp     defw 0
@@ -1032,13 +1231,18 @@ totalFiles  defw 0
 pathChildPtr defw 0
 pathLeft    defb 0
 failStage   defb 0
+lastReadLen defw 0
+fileCopiedBytes defd 0
+fileTotalBytes defd 0
+fileNameText defs 21
 dirPosStack defs (MAX_DEPTH+1)*4
 lfnPosStack defs (MAX_DEPTH+1)*4
 
 copyPhaseTxt   defb "Copying: ",0
 deletePhaseTxt defb "Deleting: ",0
 statusLine     defs 56
-blankNameTxt   defb "                                             ",0
+fileStatusLine defs 56
+blankNameTxt   defb "BREAK cancel   ",0
 
 plugin_end
         assert plugin_end - plugin_start <= SYSCOPY_PLUGIN_SIZE
