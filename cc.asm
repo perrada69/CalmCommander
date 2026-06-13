@@ -4139,7 +4139,6 @@ E1
         org $a000
 S3
         include "functions/copy.asm"
-        include "functions/createdir.asm"
         include "kmouse/driver.a80"
         include "kmouse/akce.a80"
         include "functions/menu.asm"
@@ -7564,6 +7563,78 @@ help15      defb    "            close this window...)",0
 help16      defb    "CAPS+1      Change drive in left window",0
 help17      defb    "CAPS+2      Change drive in right window",0
 help18      defb    "SS+I:       Info about Calm Commander ",0
+
+; --- Rare command handlers moved out of the tight $A000 block ---
+            include "functions/createdir.asm"
+
+EXTRA_SYSCOPY_SHOW_ERROR:
+        call savescr
+        ld hl,10 * 256 + 10
+        ld bc,60 * 256 + 5
+        ld a,16
+        call window
+
+        ld hl,11*256+11
+        ld a,16
+        ld de,sysCopyErrorTxt
+        call print
+        ld hl,11*256+13
+        ld a,16
+        ld de,sysCopyErrorHintTxt
+        call print
+
+        call extra_syscopy_prepare_error_diag
+        ld hl,11*256+14
+        ld a,16
+        ld de,sysCopyErrorDiagTxt
+        call print
+        ld hl,11*256+15
+        ld a,48
+        ld de,pressanykeytxt
+        call print
+
+        xor a
+        ld (TLACITKO),a
+        call INKEY
+        ret
+
+
+extra_syscopy_prepare_error_diag
+        ld a,(sysCopyContext+SYSCOPYCTX_STAGE)
+        ld de,sysCopyErrorDiagTxt+7
+        call extra_write_hex_byte
+        ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
+        ld de,sysCopyErrorDiagTxt+18
+        call extra_write_hex_byte
+        ret
+
+
+extra_write_hex_byte
+        push af
+        rrca
+        rrca
+        rrca
+        rrca
+        call extra_write_hex_nibble
+        pop af
+        inc de
+        call extra_write_hex_nibble
+        ret
+
+
+extra_write_hex_nibble
+        and $0f
+        add a,"0"
+        cp "9"+1
+        jr c,.store
+        add a,"A"-"9"-1
+.store
+        ld (de),a
+        ret
+
+sysCopyErrorTxt     defb "Directory copy failed.",0
+sysCopyErrorHintTxt defb "Check syscopy.ccp and free space.",0
+sysCopyErrorDiagTxt defb "Stage $00  Error $00",0
 
 EXTRA_BANK_END:
             SAVEBIN "cc_xb.bin", $E000, EXTRA_BANK_END - $E000

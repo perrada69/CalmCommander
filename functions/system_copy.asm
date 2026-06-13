@@ -333,70 +333,12 @@ syscopy_call_plugin
 
 
 syscopy_show_error
-        call savescr
-        ld hl,10 * 256 + 10
-        ld bc,60 * 256 + 5
-        ld a,16
-        call window
-
-        ld hl,11*256+11
-        ld a,16
-        ld de,sysCopyErrorTxt
-        call print
-
-        ld hl,11*256+13
-        ld a,16
-        ld de,sysCopyErrorHintTxt
-        call print
-
-        call syscopy_prepare_error_diag
-        ld hl,11*256+14
-        ld a,16
-        ld de,sysCopyErrorDiagTxt
-        call print
-
-        ld hl,11*256+15
-        ld a,48
-        ld de,pressanykeytxt
-        call print
-
-        xor a
-        ld (TLACITKO),a
-        call INKEY
-        ret
-
-
-syscopy_prepare_error_diag
-        ld a,(sysCopyContext+SYSCOPYCTX_STAGE)
-        ld de,sysCopyErrorDiagTxt+7
-        call syscopy_write_hex_byte
-        ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
-        ld de,sysCopyErrorDiagTxt+18
-        call syscopy_write_hex_byte
-        ret
-
-
-syscopy_write_hex_byte
+        NEXTREG2A MMU7_E000_NR_57
         push af
-        rrca
-        rrca
-        rrca
-        rrca
-        call syscopy_write_hex_nibble
+        nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
+        call EXTRA_SYSCOPY_SHOW_ERROR
         pop af
-        inc de
-        call syscopy_write_hex_nibble
-        ret
-
-
-syscopy_write_hex_nibble
-        and $0f
-        add a,"0"
-        cp "9"+1
-        jr c,.store
-        add a,"A"-"9"-1
-.store
-        ld (de),a
+        nextreg MMU7_E000_NR_57, a
         ret
 
 
@@ -410,6 +352,3 @@ sysCopySavedMmu7 defb 0
 
 sysCopyPluginDir  defb "c:/CalmCommander/plugin",255
 sysCopyPluginName defb "syscopy.ccp",255
-sysCopyErrorTxt   defb "Directory copy failed.",0
-sysCopyErrorHintTxt defb "Check syscopy.ccp and free space.",0
-sysCopyErrorDiagTxt defb "Stage $00  Error $00",0
