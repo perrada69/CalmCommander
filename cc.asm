@@ -4144,6 +4144,7 @@ S3
         include "functions/menu.asm"
         include "functions/input.asm"
         include "functions/viewer.asm"
+        include "functions/createdir.asm"
 E3
         org 49152
 S2
@@ -7563,9 +7564,6 @@ help15      defb    "            close this window...)",0
 help16      defb    "CAPS+1      Change drive in left window",0
 help17      defb    "CAPS+2      Change drive in right window",0
 help18      defb    "SS+I:       Info about Calm Commander ",0
-
-; --- Rare command handlers moved out of the tight $A000 block ---
-            include "functions/createdir.asm"
 
 EXTRA_SYSCOPY_SHOW_ERROR:
         call savescr

@@ -1,0 +1,1089 @@
+# file opened: plugin\syscopy.asm
+   1  0000                      DEVICE ZXSPECTRUMNEXT
+   2  0000                      org SYSCOPY_PLUGIN_ADDRESS
+   3  C000
+   4  C000                      include "syscopy_api.i.asm"
+# file opened: plugin\syscopy_api.i.asm
+   1+ C000              SYSCOPY_PLUGIN_ADDRESS equ 49152
+   2+ C000              SYSCOPY_WORK_ADDRESS   equ 57344
+   3+ C000              SYSCOPY_PLUGIN_SIZE    equ 8192
+   4+ C000
+   5+ C000              SYSCOPY_ABI            equ 1
+   6+ C000
+   7+ C000              SYSCOPYCTX_ABI         equ 0
+   8+ C000              SYSCOPYCTX_MODE        equ 1
+   9+ C000              SYSCOPYCTX_SRC_PATH    equ 2
+  10+ C000              SYSCOPYCTX_DST_PATH    equ 4
+  11+ C000              SYSCOPYCTX_NAME        equ 6
+  12+ C000              SYSCOPYCTX_RESULT      equ 8
+  13+ C000              SYSCOPYCTX_ERROR       equ 9
+  14+ C000              SYSCOPYCTX_FILES_LO    equ 10
+  15+ C000              SYSCOPYCTX_FILES_HI    equ 12
+  16+ C000              SYSCOPYCTX_DIRS_LO     equ 14
+  17+ C000              SYSCOPYCTX_DIRS_HI     equ 16
+  18+ C000              SYSCOPYCTX_SERVICES    equ 18
+  19+ C000              SYSCOPYCTX_LFN_NAME    equ 20
+  20+ C000              SYSCOPYCTX_STAGE       equ 22
+  21+ C000              SYSCOPYCTX_SIZE        equ 23
+  22+ C000
+  23+ C000              SYSCOPY_SERVICE_PRINT  equ 0
+  24+ C000
+# file closed: plugin\syscopy_api.i.asm
+   5  C000
+   6  C000              F_OPEN      equ $9A
+   7  C000              F_CLOSE     equ $9B
+   8  C000              F_READ      equ $9D
+   9  C000              F_WRITE     equ $9E
+  10  C000              F_OPENDIR   equ $A3
+  11  C000              F_READDIR   equ $A4
+  12  C000              F_TELLDIR   equ $A5
+  13  C000              F_SEEKDIR   equ $A6
+  14  C000              F_MKDIR     equ $AA
+  15  C000              F_RMDIR     equ $AB
+  16  C000              F_UNLINK    equ $AD
+  17  C000
+  18  C000              MODE_READ_EXIST  equ $01
+  19  C000              MODE_WRITE_TRUNC equ $0E
+  20  C000              MODE_LFN_DIR     equ $10
+  21  C000              ATTR_DIR         equ $10
+  22  C000
+  23  C000              MAX_DEPTH        equ 11
+  24  C000              PLUGIN_STACK     equ $DFFE
+  25  C000
+  26  C000              STAGE_ROOT_PATH  equ $11
+  27  C000              STAGE_NESTED_DST equ $12
+  28  C000              STAGE_COPY_MKDIR equ $20
+  29  C000              STAGE_COPY_DIR   equ $21
+  30  C000              STAGE_COPY_LFN   equ $22
+  31  C000              STAGE_READ_DIR   equ $23
+  32  C000              STAGE_READ_LFN   equ $24
+  33  C000              STAGE_CHILD_PATH equ $25
+  34  C000              STAGE_SAVE_POS   equ $26
+  35  C000              STAGE_REOPEN_DIR equ $27
+  36  C000              STAGE_REOPEN_LFN equ $28
+  37  C000              STAGE_SRC_OPEN   equ $30
+  38  C000              STAGE_DST_OPEN   equ $31
+  39  C000              STAGE_FILE_READ  equ $32
+  40  C000              STAGE_FILE_WRITE equ $33
+  41  C000
+  42  C000              SRC_STACK        equ SYSCOPY_WORK_ADDRESS          ; 12 * 256 bytes
+  43  C000              DST_STACK        equ SYSCOPY_WORK_ADDRESS + $0C00  ; 12 * 256 bytes
+  44  C000              DIR_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1800  ; 512 bytes
+  45  C000              LFN_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1A00  ; 512 bytes
+  46  C000              COPY_BUFFER      equ DIR_ENTRY                     ; file copy can reuse dir-entry space
+  47  C000              COPY_BUFFER_LEN  equ 2048
+  48  C000              STATUS_LINE_LEN  equ 45
+  49  C000
+  50  C000              plugin_start
+  51  C000 22 B2 C5             ld (ctxPtr),hl
+  52  C003 ED 53 B4 C5          ld (svcPtr),de
+  53  C007 ED 73 B6 C5          ld (savedSp),sp
+  54  C00B 31 FE DF             ld sp,PLUGIN_STACK
+  55  C00E CD B9 C4             call patch_services
+  56  C011 AF                   xor a
+  57  C012 32 C5 C5             ld (failStage),a
+  58  C015
+  59  C015 CD 8B C0             call copy_root_paths
+  60  C018 38 5A                jr c,.failed
+  61  C01A DD 2A B2 C5          ld ix,(ctxPtr)
+  62  C01E DD 7E 01             ld a,(ix+SYSCOPYCTX_MODE)
+  63  C021 FE 02                cp 2
+  64  C023 20 12                jr nz,.copy_or_move
+  65  C025 CD 05 C4             call prepare_total_count
+  66  C028 11 30 C6             ld de,deletePhaseTxt
+  67  C02B CD D8 C4             call print_counter_status
+  68  C02E 3E 00                ld a,0
+  69  C030 CD 8B C2             call delete_dir
+  70  C033 38 3F                jr c,.failed
+  71  C035 18 2F                jr .success
+  72  C037
+  73  C037              .copy_or_move
+  74  C037 CD BE C0             call reject_nested_destination
+  75  C03A 38 38                jr c,.failed
+  76  C03C CD 05 C4             call prepare_total_count
+  77  C03F 11 26 C6             ld de,copyPhaseTxt
+  78  C042 CD D8 C4             call print_counter_status
+  79  C045 3E 00                ld a,0
+  80  C047 CD E8 C0             call copy_dir
+  81  C04A 38 28                jr c,.failed
+  82  C04C
+  83  C04C DD 2A B2 C5          ld ix,(ctxPtr)
+  84  C050 DD 7E 01             ld a,(ix+SYSCOPYCTX_MODE)
+  85  C053 B7                   or a
+  86  C054 28 10                jr z,.success
+  87  C056 CD 05 C4             call prepare_total_count
+  88  C059 11 30 C6             ld de,deletePhaseTxt
+  89  C05C CD D8 C4             call print_counter_status
+  90  C05F 3E 00                ld a,0
+  91  C061 CD 8B C2             call delete_dir
+  92  C064 38 0E                jr c,.failed
+  93  C066
+  94  C066              .success
+  95  C066 DD 2A B2 C5          ld ix,(ctxPtr)
+  96  C06A AF                   xor a
+  97  C06B DD 77 08             ld (ix+SYSCOPYCTX_RESULT),a
+  98  C06E ED 7B B6 C5          ld sp,(savedSp)
+  99  C072 AF                   xor a
+ 100  C073 C9                   ret
+ 101  C074
+ 102  C074              .failed
+ 103  C074 DD 2A B2 C5          ld ix,(ctxPtr)
+ 104  C078 DD 77 09             ld (ix+SYSCOPYCTX_ERROR),a
+ 105  C07B 3A C5 C5             ld a,(failStage)
+ 106  C07E DD 77 16             ld (ix+SYSCOPYCTX_STAGE),a
+ 107  C081 3E 01                ld a,1
+ 108  C083 DD 77 08             ld (ix+SYSCOPYCTX_RESULT),a
+ 109  C086 ED 7B B6 C5          ld sp,(savedSp)
+ 110  C08A C9                   ret
+ 111  C08B
+ 112  C08B
+ 113  C08B              copy_root_paths
+ 114  C08B 3E 11                ld a,STAGE_ROOT_PATH
+ 115  C08D 32 C5 C5             ld (failStage),a
+ 116  C090 DD 2A B2 C5          ld ix,(ctxPtr)
+ 117  C094 DD 6E 02             ld l,(ix+SYSCOPYCTX_SRC_PATH)
+ 118  C097 DD 66 03             ld h,(ix+SYSCOPYCTX_SRC_PATH+1)
+ 119  C09A 11 00 E0             ld de,SRC_STACK
+ 120  C09D DD 4E 06             ld c,(ix+SYSCOPYCTX_NAME)
+ 121  C0A0 DD 46 07             ld b,(ix+SYSCOPYCTX_NAME+1)
+ 122  C0A3 CD 36 C3             call build_path
+ 123  C0A6 D8                   ret c
+ 124  C0A7
+ 125  C0A7 DD 2A B2 C5          ld ix,(ctxPtr)
+ 126  C0AB DD 6E 04             ld l,(ix+SYSCOPYCTX_DST_PATH)
+ 127  C0AE DD 66 05             ld h,(ix+SYSCOPYCTX_DST_PATH+1)
+ 128  C0B1 11 00 EC             ld de,DST_STACK
+ 129  C0B4 DD 4E 14             ld c,(ix+SYSCOPYCTX_LFN_NAME)
+ 130  C0B7 DD 46 15             ld b,(ix+SYSCOPYCTX_LFN_NAME+1)
+ 131  C0BA CD 36 C3             call build_path
+ 132  C0BD C9                   ret
+ 133  C0BE
+ 134  C0BE
+ 135  C0BE              reject_nested_destination
+ 136  C0BE 21 00 E0             ld hl,SRC_STACK
+ 137  C0C1 11 00 EC             ld de,DST_STACK
+ 138  C0C4              .compare
+ 139  C0C4 7E                   ld a,(hl)
+ 140  C0C5 B7                   or a
+ 141  C0C6 28 09                jr z,.src_done
+ 142  C0C8 47                   ld b,a
+ 143  C0C9 1A                   ld a,(de)
+ 144  C0CA B8                   cp b
+ 145  C0CB 20 10                jr nz,.ok
+ 146  C0CD 23                   inc hl
+ 147  C0CE 13                   inc de
+ 148  C0CF 18 F3                jr .compare
+ 149  C0D1              .src_done
+ 150  C0D1 1A                   ld a,(de)
+ 151  C0D2 B7                   or a
+ 152  C0D3 28 0A                jr z,.bad
+ 153  C0D5 FE 2F                cp "/"
+ 154  C0D7 28 06                jr z,.bad
+ 155  C0D9 FE 5C                cp 92
+ 156  C0DB 28 02                jr z,.bad
+ 157  C0DD              .ok
+ 158  C0DD AF                   xor a
+ 159  C0DE C9                   ret
+ 160  C0DF              .bad
+ 161  C0DF 3E 12                ld a,STAGE_NESTED_DST
+ 162  C0E1 32 C5 C5             ld (failStage),a
+ 163  C0E4 3E 7E                ld a,$7e
+ 164  C0E6 37                   scf
+ 165  C0E7 C9                   ret
+ 166  C0E8
+ 167  C0E8
+ 168  C0E8              ; A = depth. Uses SRC_STACK/DST_STACK path buffers for this depth.
+ 169  C0E8              copy_dir
+ 170  C0E8 FE 0C                cp MAX_DEPTH+1
+ 171  C0EA D2 92 C1             jp nc,.depth_fail
+ 172  C0ED 32 B8 C5             ld (curDepth),a
+ 173  C0F0
+ 174  C0F0 CD CF C3             call get_dst_path
+ 175  C0F3 3E 20                ld a,STAGE_COPY_MKDIR
+ 176  C0F5 32 C5 C5             ld (failStage),a
+ 177  C0F8 CD D5 C3             call esx_mkdir_ignore
+ 178  C0FB CD F1 C3             call inc_dir_count
+ 179  C0FE CD DD C3             call inc_file_count
+ 180  C101 11 26 C6             ld de,copyPhaseTxt
+ 181  C104 CD D8 C4             call print_counter_status
+ 182  C107
+ 183  C107 3A B8 C5             ld a,(curDepth)
+ 184  C10A CD C9 C3             call get_src_path
+ 185  C10D E5                   push hl
+ 186  C10E DD E1                pop ix
+ 187  C110 AF                   xor a
+ 188  C111 06 10                ld b,MODE_LFN_DIR
+ 189  C113 3E 22                ld a,STAGE_COPY_LFN
+ 190  C115 32 C5 C5             ld (failStage),a
+ 191  C118 AF                   xor a
+ 192  C119 CF                   rst $08
+ 193  C11A A3                   db F_OPENDIR
+ 194  C11B D8                   ret c
+ 195  C11C 32 BA C5             ld (lfnHandle),a
+ 196  C11F
+ 197  C11F              .next
+ 198  C11F 3A BA C5             ld a,(lfnHandle)
+ 199  C122 DD 21 00 FA          ld ix,LFN_ENTRY
+ 200  C126 3E 24                ld a,STAGE_READ_LFN
+ 201  C128 32 C5 C5             ld (failStage),a
+ 202  C12B 3A BA C5             ld a,(lfnHandle)
+ 203  C12E CF                   rst $08
+ 204  C12F A4                   db F_READDIR
+ 205  C130 38 57                jr c,.read_fail
+ 206  C132 B7                   or a
+ 207  C133 28 4D                jr z,.done
+ 208  C135
+ 209  C135 CD B0 C3             call skip_dot_lfn_entry
+ 210  C138 28 E5                jr z,.next
+ 211  C13A
+ 212  C13A 3A B8 C5             ld a,(curDepth)
+ 213  C13D FE 0B                cp MAX_DEPTH
+ 214  C13F 30 DE                jr nc,.next
+ 215  C141 3E 25                ld a,STAGE_CHILD_PATH
+ 216  C143 32 C5 C5             ld (failStage),a
+ 217  C146 CD C8 C1             call build_child_paths
+ 218  C149 DA 89 C1             jp c,.read_fail
+ 219  C14C
+ 220  C14C 3A 00 FA             ld a,(LFN_ENTRY)
+ 221  C14F E6 10                and ATTR_DIR
+ 222  C151 28 1E                jr z,.file
+ 223  C153
+ 224  C153 3A BA C5             ld a,(lfnHandle)
+ 225  C156 F5                   push af
+ 226  C157 3A B8 C5             ld a,(curDepth)
+ 227  C15A 4F                   ld c,a
+ 228  C15B C5                   push bc
+ 229  C15C 3C                   inc a
+ 230  C15D CD E8 C0             call copy_dir
+ 231  C160 5F                   ld e,a
+ 232  C161 C1                   pop bc
+ 233  C162 79                   ld a,c
+ 234  C163 32 B8 C5             ld (curDepth),a
+ 235  C166 F1                   pop af
+ 236  C167 32 BA C5             ld (lfnHandle),a
+ 237  C16A 7B                   ld a,e
+ 238  C16B 38 02                jr c,.dir_fail
+ 239  C16D 18 B0                jr .next
+ 240  C16F
+ 241  C16F              .dir_fail
+ 242  C16F 37                   scf
+ 243  C170 C9                   ret
+ 244  C171
+ 245  C171              .file
+ 246  C171 CD DD C3             call inc_file_count
+ 247  C174 11 26 C6             ld de,copyPhaseTxt
+ 248  C177 CD D8 C4             call print_counter_status
+ 249  C17A CD 0D C2             call copy_child_file
+ 250  C17D 38 0A                jr c,.read_fail
+ 251  C17F C3 1F C1             jp .next
+ 252  C182
+ 253  C182              .done
+ 254  C182 3A BA C5             ld a,(lfnHandle)
+ 255  C185 CF                   rst $08
+ 256  C186 9B                   db F_CLOSE
+ 257  C187 AF                   xor a
+ 258  C188 C9                   ret
+ 259  C189
+ 260  C189              .read_fail
+ 261  C189 F5                   push af
+ 262  C18A 3A BA C5             ld a,(lfnHandle)
+ 263  C18D CF                   rst $08
+ 264  C18E 9B                   db F_CLOSE
+ 265  C18F F1                   pop af
+ 266  C190 37                   scf
+ 267  C191 C9                   ret
+ 268  C192
+ 269  C192              .depth_fail
+ 270  C192 3E 7F                ld a,$7f
+ 271  C194 32 C5 C5             ld (failStage),a
+ 272  C197 3E 7F                ld a,$7f
+ 273  C199 37                   scf
+ 274  C19A C9                   ret
+ 275  C19B
+ 276  C19B
+ 277  C19B              store_bcde_at_hl
+ 278  C19B 71                   ld (hl),c
+ 279  C19C 23                   inc hl
+ 280  C19D 70                   ld (hl),b
+ 281  C19E 23                   inc hl
+ 282  C19F C9                   ret
+ 283  C1A0
+ 284  C1A0
+ 285  C1A0              store_de_at_hl
+ 286  C1A0 73                   ld (hl),e
+ 287  C1A1 23                   inc hl
+ 288  C1A2 72                   ld (hl),d
+ 289  C1A3 C9                   ret
+ 290  C1A4
+ 291  C1A4
+ 292  C1A4              load_bcde_from_hl
+ 293  C1A4 4E                   ld c,(hl)
+ 294  C1A5 23                   inc hl
+ 295  C1A6 46                   ld b,(hl)
+ 296  C1A7 23                   inc hl
+ 297  C1A8 5E                   ld e,(hl)
+ 298  C1A9 23                   inc hl
+ 299  C1AA 56                   ld d,(hl)
+ 300  C1AB C9                   ret
+ 301  C1AC
+ 302  C1AC
+ 303  C1AC              get_dir_pos_slot
+ 304  C1AC CD BC C1             call depth_to_offset4
+ 305  C1AF 21 C6 C5             ld hl,dirPosStack
+ 306  C1B2 19                   add hl,de
+ 307  C1B3 C9                   ret
+ 308  C1B4
+ 309  C1B4
+ 310  C1B4              get_lfn_pos_slot
+ 311  C1B4 CD BC C1             call depth_to_offset4
+ 312  C1B7 21 F6 C5             ld hl,lfnPosStack
+ 313  C1BA 19                   add hl,de
+ 314  C1BB C9                   ret
+ 315  C1BC
+ 316  C1BC
+ 317  C1BC              depth_to_offset4
+ 318  C1BC 5F                   ld e,a
+ 319  C1BD 16 00                ld d,0
+ 320  C1BF CB 23                sla e
+ 321  C1C1 CB 12                rl d
+ 322  C1C3 CB 23                sla e
+ 323  C1C5 CB 12                rl d
+ 324  C1C7 C9                   ret
+ 325  C1C8
+ 326  C1C8
+ 327  C1C8              build_child_paths
+ 328  C1C8 3A B8 C5             ld a,(curDepth)
+ 329  C1CB CD C9 C3             call get_src_path
+ 330  C1CE E5                   push hl
+ 331  C1CF 3A B8 C5             ld a,(curDepth)
+ 332  C1D2 3C                   inc a
+ 333  C1D3 CD C9 C3             call get_src_path
+ 334  C1D6 EB                   ex de,hl
+ 335  C1D7 E1                   pop hl
+ 336  C1D8 01 01 FA             ld bc,LFN_ENTRY+1
+ 337  C1DB CD 36 C3             call build_path
+ 338  C1DE D8                   ret c
+ 339  C1DF
+ 340  C1DF 3A B8 C5             ld a,(curDepth)
+ 341  C1E2 CD CF C3             call get_dst_path
+ 342  C1E5 E5                   push hl
+ 343  C1E6 3A B8 C5             ld a,(curDepth)
+ 344  C1E9 3C                   inc a
+ 345  C1EA CD CF C3             call get_dst_path
+ 346  C1ED EB                   ex de,hl
+ 347  C1EE E1                   pop hl
+ 348  C1EF 01 01 FA             ld bc,LFN_ENTRY+1
+ 349  C1F2 CD 36 C3             call build_path
+ 350  C1F5 C9                   ret
+ 351  C1F6
+ 352  C1F6
+ 353  C1F6              build_child_src_path
+ 354  C1F6 3A B8 C5             ld a,(curDepth)
+ 355  C1F9 CD C9 C3             call get_src_path
+ 356  C1FC E5                   push hl
+ 357  C1FD 3A B8 C5             ld a,(curDepth)
+ 358  C200 3C                   inc a
+ 359  C201 CD C9 C3             call get_src_path
+ 360  C204 EB                   ex de,hl
+ 361  C205 E1                   pop hl
+ 362  C206 01 01 F8             ld bc,DIR_ENTRY+1
+ 363  C209 CD 36 C3             call build_path
+ 364  C20C C9                   ret
+ 365  C20D
+ 366  C20D
+ 367  C20D              copy_child_file
+ 368  C20D 3A B8 C5             ld a,(curDepth)
+ 369  C210 3C                   inc a
+ 370  C211 CD C9 C3             call get_src_path
+ 371  C214 E5                   push hl
+ 372  C215 DD E1                pop ix
+ 373  C217 AF                   xor a
+ 374  C218 06 01                ld b,MODE_READ_EXIST
+ 375  C21A 3E 30                ld a,STAGE_SRC_OPEN
+ 376  C21C 32 C5 C5             ld (failStage),a
+ 377  C21F AF                   xor a
+ 378  C220 CF                   rst $08
+ 379  C221 9A                   db F_OPEN
+ 380  C222 D8                   ret c
+ 381  C223 32 BC C5             ld (srcHandle),a
+ 382  C226
+ 383  C226 3A B8 C5             ld a,(curDepth)
+ 384  C229 3C                   inc a
+ 385  C22A CD CF C3             call get_dst_path
+ 386  C22D E5                   push hl
+ 387  C22E DD E1                pop ix
+ 388  C230 AF                   xor a
+ 389  C231 06 0E                ld b,MODE_WRITE_TRUNC
+ 390  C233 3E 31                ld a,STAGE_DST_OPEN
+ 391  C235 32 C5 C5             ld (failStage),a
+ 392  C238 AF                   xor a
+ 393  C239 CF                   rst $08
+ 394  C23A 9A                   db F_OPEN
+ 395  C23B 38 45                jr c,.dst_fail
+ 396  C23D 32 BD C5             ld (dstHandle),a
+ 397  C240
+ 398  C240              .loop
+ 399  C240 3A BC C5             ld a,(srcHandle)
+ 400  C243 DD 21 00 F8          ld ix,COPY_BUFFER
+ 401  C247 01 00 08             ld bc,COPY_BUFFER_LEN
+ 402  C24A 3E 32                ld a,STAGE_FILE_READ
+ 403  C24C 32 C5 C5             ld (failStage),a
+ 404  C24F 3A BC C5             ld a,(srcHandle)
+ 405  C252 CF                   rst $08
+ 406  C253 9D                   db F_READ
+ 407  C254 38 25                jr c,.copy_fail
+ 408  C256 78                   ld a,b
+ 409  C257 B1                   or c
+ 410  C258 28 15                jr z,.done
+ 411  C25A
+ 412  C25A 3A BD C5             ld a,(dstHandle)
+ 413  C25D DD 21 00 F8          ld ix,COPY_BUFFER
+ 414  C261 3E 33                ld a,STAGE_FILE_WRITE
+ 415  C263 32 C5 C5             ld (failStage),a
+ 416  C266 3A BD C5             ld a,(dstHandle)
+ 417  C269 CF                   rst $08
+ 418  C26A 9E                   db F_WRITE
+ 419  C26B 38 0E                jr c,.copy_fail
+ 420  C26D 18 D1                jr .loop
+ 421  C26F
+ 422  C26F              .done
+ 423  C26F 3A BD C5             ld a,(dstHandle)
+ 424  C272 CF                   rst $08
+ 425  C273 9B                   db F_CLOSE
+ 426  C274 3A BC C5             ld a,(srcHandle)
+ 427  C277 CF                   rst $08
+ 428  C278 9B                   db F_CLOSE
+ 429  C279 AF                   xor a
+ 430  C27A C9                   ret
+ 431  C27B
+ 432  C27B              .copy_fail
+ 433  C27B F5                   push af
+ 434  C27C 3A BD C5             ld a,(dstHandle)
+ 435  C27F CF                   rst $08
+ 436  C280 9B                   db F_CLOSE
+ 437  C281 F1                   pop af
+ 438  C282              .dst_fail
+ 439  C282 F5                   push af
+ 440  C283 3A BC C5             ld a,(srcHandle)
+ 441  C286 CF                   rst $08
+ 442  C287 9B                   db F_CLOSE
+ 443  C288 F1                   pop af
+ 444  C289 37                   scf
+ 445  C28A C9                   ret
+ 446  C28B
+ 447  C28B
+ 448  C28B              ; A = depth. Deletes files first, then directories bottom-up.
+ 449  C28B              delete_dir
+ 450  C28B FE 0C                cp MAX_DEPTH+1
+ 451  C28D D2 32 C3             jp nc,.depth_fail
+ 452  C290 32 B8 C5             ld (curDepth),a
+ 453  C293
+ 454  C293 CD C9 C3             call get_src_path
+ 455  C296 E5                   push hl
+ 456  C297 DD E1                pop ix
+ 457  C299 AF                   xor a
+ 458  C29A 47                   ld b,a
+ 459  C29B CF                   rst $08
+ 460  C29C A3                   db F_OPENDIR
+ 461  C29D D8                   ret c
+ 462  C29E 32 BB C5             ld (delHandle),a
+ 463  C2A1
+ 464  C2A1              .next
+ 465  C2A1 3A BB C5             ld a,(delHandle)
+ 466  C2A4 DD 21 00 F8          ld ix,DIR_ENTRY
+ 467  C2A8 CF                   rst $08
+ 468  C2A9 A4                   db F_READDIR
+ 469  C2AA 38 7B                jr c,.read_fail
+ 470  C2AC B7                   or a
+ 471  C2AD 28 57                jr z,.done
+ 472  C2AF
+ 473  C2AF CD 97 C3             call skip_dot_entry
+ 474  C2B2 28 ED                jr z,.next
+ 475  C2B4
+ 476  C2B4 3A B8 C5             ld a,(curDepth)
+ 477  C2B7 FE 0B                cp MAX_DEPTH
+ 478  C2B9 30 6A                jr nc,.depth_fail_open
+ 479  C2BB CD F6 C1             call build_child_src_path
+ 480  C2BE
+ 481  C2BE 3A 00 F8             ld a,(DIR_ENTRY)
+ 482  C2C1 E6 10                and ATTR_DIR
+ 483  C2C3 28 27                jr z,.file
+ 484  C2C5
+ 485  C2C5 3A B8 C5             ld a,(curDepth)
+ 486  C2C8 F5                   push af
+ 487  C2C9 3A BB C5             ld a,(delHandle)
+ 488  C2CC F5                   push af
+ 489  C2CD 3A B8 C5             ld a,(curDepth)
+ 490  C2D0 3C                   inc a
+ 491  C2D1 CD 8B C2             call delete_dir
+ 492  C2D4 38 0A                jr c,.dir_fail
+ 493  C2D6 F1                   pop af
+ 494  C2D7 32 BB C5             ld (delHandle),a
+ 495  C2DA F1                   pop af
+ 496  C2DB 32 B8 C5             ld (curDepth),a
+ 497  C2DE 18 C1                jr .next
+ 498  C2E0
+ 499  C2E0              .dir_fail
+ 500  C2E0 5F                   ld e,a
+ 501  C2E1 F1                   pop af
+ 502  C2E2 32 BB C5             ld (delHandle),a
+ 503  C2E5 F1                   pop af
+ 504  C2E6 32 B8 C5             ld (curDepth),a
+ 505  C2E9 7B                   ld a,e
+ 506  C2EA 18 3B                jr .read_fail
+ 507  C2EC
+ 508  C2EC              .file
+ 509  C2EC CD DD C3             call inc_file_count
+ 510  C2EF 11 30 C6             ld de,deletePhaseTxt
+ 511  C2F2 CD D8 C4             call print_counter_status
+ 512  C2F5 3A B8 C5             ld a,(curDepth)
+ 513  C2F8 3C                   inc a
+ 514  C2F9 CD C9 C3             call get_src_path
+ 515  C2FC E5                   push hl
+ 516  C2FD DD E1                pop ix
+ 517  C2FF AF                   xor a
+ 518  C300 CF                   rst $08
+ 519  C301 AD                   db F_UNLINK
+ 520  C302 38 23                jr c,.read_fail
+ 521  C304 18 9B                jr .next
+ 522  C306
+ 523  C306              .done
+ 524  C306 3A BB C5             ld a,(delHandle)
+ 525  C309 CF                   rst $08
+ 526  C30A 9B                   db F_CLOSE
+ 527  C30B 38 23                jr c,.close_fail
+ 528  C30D
+ 529  C30D 3A B8 C5             ld a,(curDepth)
+ 530  C310 CD C9 C3             call get_src_path
+ 531  C313 E5                   push hl
+ 532  C314 DD E1                pop ix
+ 533  C316 AF                   xor a
+ 534  C317 CF                   rst $08
+ 535  C318 AB                   db F_RMDIR
+ 536  C319 D8                   ret c
+ 537  C31A CD DD C3             call inc_file_count
+ 538  C31D 11 30 C6             ld de,deletePhaseTxt
+ 539  C320 CD D8 C4             call print_counter_status
+ 540  C323 AF                   xor a
+ 541  C324 C9                   ret
+ 542  C325
+ 543  C325              .depth_fail_open
+ 544  C325 3E 7F                ld a,$7f
+ 545  C327              .read_fail
+ 546  C327 F5                   push af
+ 547  C328 3A BB C5             ld a,(delHandle)
+ 548  C32B CF                   rst $08
+ 549  C32C 9B                   db F_CLOSE
+ 550  C32D F1                   pop af
+ 551  C32E 37                   scf
+ 552  C32F C9                   ret
+ 553  C330
+ 554  C330              .close_fail
+ 555  C330 37                   scf
+ 556  C331 C9                   ret
+ 557  C332
+ 558  C332              .depth_fail
+ 559  C332 3E 7F                ld a,$7f
+ 560  C334 37                   scf
+ 561  C335 C9                   ret
+ 562  C336
+ 563  C336
+ 564  C336              ; HL = parent path, DE = output path, BC = child name.
+ 565  C336              build_path
+ 566  C336 ED 43 C2 C5          ld (pathChildPtr),bc
+ 567  C33A 3E FF                ld a,255
+ 568  C33C 32 C4 C5             ld (pathLeft),a
+ 569  C33F AF                   xor a
+ 570  C340 32 BE C5             ld (lastChar),a
+ 571  C343              .copy_parent
+ 572  C343 7E                   ld a,(hl)
+ 573  C344 B7                   or a
+ 574  C345 28 0B                jr z,.parent_done
+ 575  C347 FE FF                cp 255
+ 576  C349 28 07                jr z,.parent_done
+ 577  C34B CD 80 C3             call put_path_char
+ 578  C34E D8                   ret c
+ 579  C34F 23                   inc hl
+ 580  C350 18 F1                jr .copy_parent
+ 581  C352
+ 582  C352              .parent_done
+ 583  C352 3A BE C5             ld a,(lastChar)
+ 584  C355 FE 2F                cp "/"
+ 585  C357 28 0E                jr z,.copy_name
+ 586  C359 FE 5C                cp 92
+ 587  C35B 28 0A                jr z,.copy_name
+ 588  C35D FE 3A                cp ":"
+ 589  C35F 28 06                jr z,.copy_name
+ 590  C361 3E 2F                ld a,"/"
+ 591  C363 CD 80 C3             call put_path_char
+ 592  C366 D8                   ret c
+ 593  C367
+ 594  C367              .copy_name
+ 595  C367 2A C2 C5             ld hl,(pathChildPtr)
+ 596  C36A              .name_loop
+ 597  C36A 7E                   ld a,(hl)
+ 598  C36B B7                   or a
+ 599  C36C 28 0B                jr z,.name_zero
+ 600  C36E FE FF                cp 255
+ 601  C370 28 0A                jr z,.name_end
+ 602  C372 CD 80 C3             call put_path_char
+ 603  C375 D8                   ret c
+ 604  C376 23                   inc hl
+ 605  C377 18 F1                jr .name_loop
+ 606  C379              .name_zero
+ 607  C379 12                   ld (de),a
+ 608  C37A B7                   or a
+ 609  C37B C9                   ret
+ 610  C37C              .name_end
+ 611  C37C AF                   xor a
+ 612  C37D 12                   ld (de),a
+ 613  C37E B7                   or a
+ 614  C37F C9                   ret
+ 615  C380
+ 616  C380
+ 617  C380              put_path_char
+ 618  C380 4F                   ld c,a
+ 619  C381 3A C4 C5             ld a,(pathLeft)
+ 620  C384 B7                   or a
+ 621  C385 28 0C                jr z,.overflow
+ 622  C387 3D                   dec a
+ 623  C388 32 C4 C5             ld (pathLeft),a
+ 624  C38B 79                   ld a,c
+ 625  C38C 12                   ld (de),a
+ 626  C38D 32 BE C5             ld (lastChar),a
+ 627  C390 13                   inc de
+ 628  C391 B7                   or a
+ 629  C392 C9                   ret
+ 630  C393              .overflow
+ 631  C393 3E 7D                ld a,$7d
+ 632  C395 37                   scf
+ 633  C396 C9                   ret
+ 634  C397
+ 635  C397
+ 636  C397              skip_dot_entry
+ 637  C397 3A 01 F8             ld a,(DIR_ENTRY+1)
+ 638  C39A FE 2E                cp "."
+ 639  C39C 20 0E                jr nz,.not_dot
+ 640  C39E 3A 02 F8             ld a,(DIR_ENTRY+2)
+ 641  C3A1 B7                   or a
+ 642  C3A2 C8                   ret z
+ 643  C3A3 FE 2E                cp "."
+ 644  C3A5 20 05                jr nz,.not_dot
+ 645  C3A7 3A 03 F8             ld a,(DIR_ENTRY+3)
+ 646  C3AA B7                   or a
+ 647  C3AB C9                   ret
+ 648  C3AC              .not_dot
+ 649  C3AC 3E 01                ld a,1
+ 650  C3AE B7                   or a
+ 651  C3AF C9                   ret
+ 652  C3B0
+ 653  C3B0
+ 654  C3B0              skip_dot_lfn_entry
+ 655  C3B0 3A 01 FA             ld a,(LFN_ENTRY+1)
+ 656  C3B3 FE 2E                cp "."
+ 657  C3B5 20 0E                jr nz,.not_dot
+ 658  C3B7 3A 02 FA             ld a,(LFN_ENTRY+2)
+ 659  C3BA B7                   or a
+ 660  C3BB C8                   ret z
+ 661  C3BC FE 2E                cp "."
+ 662  C3BE 20 05                jr nz,.not_dot
+ 663  C3C0 3A 03 FA             ld a,(LFN_ENTRY+3)
+ 664  C3C3 B7                   or a
+ 665  C3C4 C9                   ret
+ 666  C3C5              .not_dot
+ 667  C3C5 3E 01                ld a,1
+ 668  C3C7 B7                   or a
+ 669  C3C8 C9                   ret
+ 670  C3C9
+ 671  C3C9
+ 672  C3C9              get_src_path
+ 673  C3C9 C6 E0                add a,$E0
+ 674  C3CB 67                   ld h,a
+ 675  C3CC 2E 00                ld l,0
+ 676  C3CE C9                   ret
+ 677  C3CF
+ 678  C3CF
+ 679  C3CF              get_dst_path
+ 680  C3CF C6 EC                add a,$EC
+ 681  C3D1 67                   ld h,a
+ 682  C3D2 2E 00                ld l,0
+ 683  C3D4 C9                   ret
+ 684  C3D5
+ 685  C3D5
+ 686  C3D5              esx_mkdir_ignore
+ 687  C3D5 E5                   push hl
+ 688  C3D6 DD E1                pop ix
+ 689  C3D8 AF                   xor a
+ 690  C3D9 CF                   rst $08
+ 691  C3DA AA                   db F_MKDIR
+ 692  C3DB AF                   xor a
+ 693  C3DC C9                   ret
+ 694  C3DD
+ 695  C3DD
+ 696  C3DD              inc_file_count
+ 697  C3DD DD 2A B2 C5          ld ix,(ctxPtr)
+ 698  C3E1 DD 34 0A             inc (ix+SYSCOPYCTX_FILES_LO)
+ 699  C3E4 C0                   ret nz
+ 700  C3E5 DD 34 0B             inc (ix+SYSCOPYCTX_FILES_LO+1)
+ 701  C3E8 C0                   ret nz
+ 702  C3E9 DD 34 0C             inc (ix+SYSCOPYCTX_FILES_HI)
+ 703  C3EC C0                   ret nz
+ 704  C3ED DD 34 0D             inc (ix+SYSCOPYCTX_FILES_HI+1)
+ 705  C3F0 C9                   ret
+ 706  C3F1
+ 707  C3F1
+ 708  C3F1              inc_dir_count
+ 709  C3F1 DD 2A B2 C5          ld ix,(ctxPtr)
+ 710  C3F5 DD 34 0E             inc (ix+SYSCOPYCTX_DIRS_LO)
+ 711  C3F8 C0                   ret nz
+ 712  C3F9 DD 34 0F             inc (ix+SYSCOPYCTX_DIRS_LO+1)
+ 713  C3FC C0                   ret nz
+ 714  C3FD DD 34 10             inc (ix+SYSCOPYCTX_DIRS_HI)
+ 715  C400 C0                   ret nz
+ 716  C401 DD 34 11             inc (ix+SYSCOPYCTX_DIRS_HI+1)
+ 717  C404 C9                   ret
+ 718  C405
+ 719  C405
+ 720  C405              prepare_total_count
+ 721  C405 21 00 00             ld hl,0
+ 722  C408 22 C0 C5             ld (totalFiles),hl
+ 723  C40B DD 2A B2 C5          ld ix,(ctxPtr)
+ 724  C40F DD 75 0A             ld (ix+SYSCOPYCTX_FILES_LO),l
+ 725  C412 DD 74 0B             ld (ix+SYSCOPYCTX_FILES_LO+1),h
+ 726  C415 DD 75 0C             ld (ix+SYSCOPYCTX_FILES_HI),l
+ 727  C418 DD 74 0D             ld (ix+SYSCOPYCTX_FILES_HI+1),h
+ 728  C41B 3E 00                ld a,0
+ 729  C41D CD 34 C4             call count_dir
+ 730  C420 DD 2A B2 C5          ld ix,(ctxPtr)
+ 731  C424 21 00 00             ld hl,0
+ 732  C427 DD 75 0A             ld (ix+SYSCOPYCTX_FILES_LO),l
+ 733  C42A DD 74 0B             ld (ix+SYSCOPYCTX_FILES_LO+1),h
+ 734  C42D DD 75 0C             ld (ix+SYSCOPYCTX_FILES_HI),l
+ 735  C430 DD 74 0D             ld (ix+SYSCOPYCTX_FILES_HI+1),h
+ 736  C433 C9                   ret
+ 737  C434
+ 738  C434
+ 739  C434              ; A = depth. Counts files in SRC_STACK paths.
+ 740  C434              count_dir
+ 741  C434 FE 0C                cp MAX_DEPTH+1
+ 742  C436 D2 AD C4             jp nc,.depth_fail
+ 743  C439 32 B8 C5             ld (curDepth),a
+ 744  C43C
+ 745  C43C CD C9 C3             call get_src_path
+ 746  C43F E5                   push hl
+ 747  C440 DD E1                pop ix
+ 748  C442 AF                   xor a
+ 749  C443 47                   ld b,a
+ 750  C444 CF                   rst $08
+ 751  C445 A3                   db F_OPENDIR
+ 752  C446 D8                   ret c
+ 753  C447 32 BF C5             ld (countHandle),a
+ 754  C44A CD B1 C4             call inc_total_count
+ 755  C44D
+ 756  C44D              .next
+ 757  C44D 3A BF C5             ld a,(countHandle)
+ 758  C450 DD 21 00 F8          ld ix,DIR_ENTRY
+ 759  C454 CF                   rst $08
+ 760  C455 A4                   db F_READDIR
+ 761  C456 38 4C                jr c,.read_fail
+ 762  C458 B7                   or a
+ 763  C459 28 42                jr z,.done
+ 764  C45B
+ 765  C45B CD 97 C3             call skip_dot_entry
+ 766  C45E 28 ED                jr z,.next
+ 767  C460
+ 768  C460 3A B8 C5             ld a,(curDepth)
+ 769  C463 FE 0B                cp MAX_DEPTH
+ 770  C465 30 E6                jr nc,.next
+ 771  C467 CD F6 C1             call build_child_src_path
+ 772  C46A
+ 773  C46A 3A 00 F8             ld a,(DIR_ENTRY)
+ 774  C46D E6 10                and ATTR_DIR
+ 775  C46F 28 27                jr z,.file
+ 776  C471
+ 777  C471 3A B8 C5             ld a,(curDepth)
+ 778  C474 F5                   push af
+ 779  C475 3A BF C5             ld a,(countHandle)
+ 780  C478 F5                   push af
+ 781  C479 3A B8 C5             ld a,(curDepth)
+ 782  C47C 3C                   inc a
+ 783  C47D CD 34 C4             call count_dir
+ 784  C480 38 0A                jr c,.dir_fail
+ 785  C482 F1                   pop af
+ 786  C483 32 BF C5             ld (countHandle),a
+ 787  C486 F1                   pop af
+ 788  C487 32 B8 C5             ld (curDepth),a
+ 789  C48A 18 C1                jr .next
+ 790  C48C
+ 791  C48C              .dir_fail
+ 792  C48C 5F                   ld e,a
+ 793  C48D F1                   pop af
+ 794  C48E 32 BF C5             ld (countHandle),a
+ 795  C491 F1                   pop af
+ 796  C492 32 B8 C5             ld (curDepth),a
+ 797  C495 7B                   ld a,e
+ 798  C496 18 0C                jr .read_fail
+ 799  C498
+ 800  C498              .file
+ 801  C498 CD B1 C4             call inc_total_count
+ 802  C49B 18 B0                jr .next
+ 803  C49D
+ 804  C49D              .done
+ 805  C49D 3A BF C5             ld a,(countHandle)
+ 806  C4A0 CF                   rst $08
+ 807  C4A1 9B                   db F_CLOSE
+ 808  C4A2 AF                   xor a
+ 809  C4A3 C9                   ret
+ 810  C4A4
+ 811  C4A4              .read_fail
+ 812  C4A4 F5                   push af
+ 813  C4A5 3A BF C5             ld a,(countHandle)
+ 814  C4A8 CF                   rst $08
+ 815  C4A9 9B                   db F_CLOSE
+ 816  C4AA F1                   pop af
+ 817  C4AB 37                   scf
+ 818  C4AC C9                   ret
+ 819  C4AD
+ 820  C4AD              .depth_fail
+ 821  C4AD 3E 7F                ld a,$7f
+ 822  C4AF 37                   scf
+ 823  C4B0 C9                   ret
+ 824  C4B1
+ 825  C4B1
+ 826  C4B1              inc_total_count
+ 827  C4B1 2A C0 C5             ld hl,(totalFiles)
+ 828  C4B4 23                   inc hl
+ 829  C4B5 22 C0 C5             ld (totalFiles),hl
+ 830  C4B8 C9                   ret
+ 831  C4B9
+ 832  C4B9
+ 833  C4B9              patch_services
+ 834  C4B9 DD 2A B4 C5          ld ix,(svcPtr)
+ 835  C4BD DD 6E 00             ld l,(ix+SYSCOPY_SERVICE_PRINT)
+ 836  C4C0 DD 66 01             ld h,(ix+SYSCOPY_SERVICE_PRINT+1)
+ 837  C4C3 22 B0 C5             ld (call_print+1),hl
+ 838  C4C6 C9                   ret
+ 839  C4C7
+ 840  C4C7
+ 841  C4C7              print_status
+ 842  C4C7 F5                   push af
+ 843  C4C8 C5                   push bc
+ 844  C4C9 D5                   push de
+ 845  C4CA E5                   push hl
+ 846  C4CB 21 0D 0B             ld hl,11*256+13
+ 847  C4CE 3E 10                ld a,16
+ 848  C4D0 CD AF C5             call call_print
+ 849  C4D3 E1                   pop hl
+ 850  C4D4 D1                   pop de
+ 851  C4D5 C1                   pop bc
+ 852  C4D6 F1                   pop af
+ 853  C4D7 C9                   ret
+ 854  C4D8
+ 855  C4D8
+ 856  C4D8              print_counter_status
+ 857  C4D8 F5                   push af
+ 858  C4D9 C5                   push bc
+ 859  C4DA D5                   push de
+ 860  C4DB E5                   push hl
+ 861  C4DC DD E5                push ix
+ 862  C4DE
+ 863  C4DE 21 3B C6             ld hl,statusLine
+ 864  C4E1 06 2D                ld b,STATUS_LINE_LEN
+ 865  C4E3              .clear
+ 866  C4E3 36 20                ld (hl),32
+ 867  C4E5 23                   inc hl
+ 868  C4E6 10 FB                djnz .clear
+ 869  C4E8 AF                   xor a
+ 870  C4E9 77                   ld (hl),a
+ 871  C4EA
+ 872  C4EA 21 3B C6             ld hl,statusLine
+ 873  C4ED              .copy_text
+ 874  C4ED 1A                   ld a,(de)
+ 875  C4EE B7                   or a
+ 876  C4EF 28 05                jr z,.text_done
+ 877  C4F1 77                   ld (hl),a
+ 878  C4F2 23                   inc hl
+ 879  C4F3 13                   inc de
+ 880  C4F4 18 F7                jr .copy_text
+ 881  C4F6              .text_done
+ 882  C4F6 CD 39 C5             call append_short_root_name
+ 883  C4F9 36 20                ld (hl),32
+ 884  C4FB 23                   inc hl
+ 885  C4FC 36 28                ld (hl),"("
+ 886  C4FE 23                   inc hl
+ 887  C4FF E5                   push hl
+ 888  C500
+ 889  C500 DD 2A B2 C5          ld ix,(ctxPtr)
+ 890  C504 DD 6E 0A             ld l,(ix+SYSCOPYCTX_FILES_LO)
+ 891  C507 DD 66 0B             ld h,(ix+SYSCOPYCTX_FILES_LO+1)
+ 892  C50A D1                   pop de
+ 893  C50B CD 69 C5             call write_dec3
+ 894  C50E 3E 2F                ld a,"/"
+ 895  C510 12                   ld (de),a
+ 896  C511 13                   inc de
+ 897  C512 2A C0 C5             ld hl,(totalFiles)
+ 898  C515 CD 69 C5             call write_dec3
+ 899  C518 3E 29                ld a,")"
+ 900  C51A 12                   ld (de),a
+ 901  C51B 13                   inc de
+ 902  C51C
+ 903  C51C 21 0E 0B             ld hl,11*256+14
+ 904  C51F 3E 10                ld a,16
+ 905  C521 11 73 C6             ld de,blankNameTxt
+ 906  C524 CD AF C5             call call_print
+ 907  C527 21 0D 0B             ld hl,11*256+13
+ 908  C52A 3E 10                ld a,16
+ 909  C52C 11 3B C6             ld de,statusLine
+ 910  C52F CD AF C5             call call_print
+ 911  C532 DD E1                pop ix
+ 912  C534 E1                   pop hl
+ 913  C535 D1                   pop de
+ 914  C536 C1                   pop bc
+ 915  C537 F1                   pop af
+ 916  C538 C9                   ret
+ 917  C539
+ 918  C539
+ 919  C539              ; HL=destination. Appends root directory name, max 10 chars + "...".
+ 920  C539              ; Returns HL advanced to the new destination.
+ 921  C539              append_short_root_name
+ 922  C539 DD E5                push ix
+ 923  C53B DD 2A B2 C5          ld ix,(ctxPtr)
+ 924  C53F DD 5E 14             ld e,(ix+SYSCOPYCTX_LFN_NAME)
+ 925  C542 DD 56 15             ld d,(ix+SYSCOPYCTX_LFN_NAME+1)
+ 926  C545 EB                   ex de,hl
+ 927  C546 06 0A                ld b,10
+ 928  C548              .copy
+ 929  C548 7E                   ld a,(hl)
+ 930  C549 B7                   or a
+ 931  C54A 28 19                jr z,.done
+ 932  C54C FE FF                cp 255
+ 933  C54E 28 15                jr z,.done
+ 934  C550 12                   ld (de),a
+ 935  C551 23                   inc hl
+ 936  C552 13                   inc de
+ 937  C553 10 F3                djnz .copy
+ 938  C555 7E                   ld a,(hl)
+ 939  C556 B7                   or a
+ 940  C557 28 0C                jr z,.done
+ 941  C559 FE FF                cp 255
+ 942  C55B 28 08                jr z,.done
+ 943  C55D 3E 2E                ld a,"."
+ 944  C55F 12                   ld (de),a
+ 945  C560 13                   inc de
+ 946  C561 12                   ld (de),a
+ 947  C562 13                   inc de
+ 948  C563 12                   ld (de),a
+ 949  C564 13                   inc de
+ 950  C565              .done
+ 951  C565 EB                   ex de,hl
+ 952  C566 DD E1                pop ix
+ 953  C568 C9                   ret
+ 954  C569
+ 955  C569
+ 956  C569              ; HL=value, DE=destination. Writes 3 decimal digits, advances DE.
+ 957  C569              write_dec3
+ 958  C569 D5                   push de
+ 959  C56A 11 E8 03             ld de,1000
+ 960  C56D B7                   or a
+ 961  C56E ED 52                sbc hl,de
+ 962  C570 38 05                jr c,.under_1000
+ 963  C572 21 E7 03             ld hl,999
+ 964  C575 18 01                jr .capped
+ 965  C577              .under_1000
+ 966  C577 19                   add hl,de
+ 967  C578              .capped
+ 968  C578 D1                   pop de
+ 969  C579 06 2F                ld b,"0"-1
+ 970  C57B              .hundreds
+ 971  C57B 04                   inc b
+ 972  C57C 7D                   ld a,l
+ 973  C57D D6 64                sub 100
+ 974  C57F 6F                   ld l,a
+ 975  C580 7C                   ld a,h
+ 976  C581 DE 00                sbc a,0
+ 977  C583 67                   ld h,a
+ 978  C584 30 F5                jr nc,.hundreds
+ 979  C586 7D                   ld a,l
+ 980  C587 C6 64                add a,100
+ 981  C589 6F                   ld l,a
+ 982  C58A 7C                   ld a,h
+ 983  C58B CE 00                adc a,0
+ 984  C58D 67                   ld h,a
+ 985  C58E 78                   ld a,b
+ 986  C58F 12                   ld (de),a
+ 987  C590 13                   inc de
+ 988  C591
+ 989  C591 06 2F                ld b,"0"-1
+ 990  C593              .tens
+ 991  C593 04                   inc b
+ 992  C594 7D                   ld a,l
+ 993  C595 D6 0A                sub 10
+ 994  C597 6F                   ld l,a
+ 995  C598 7C                   ld a,h
+ 996  C599 DE 00                sbc a,0
+ 997  C59B 67                   ld h,a
+ 998  C59C 30 F5                jr nc,.tens
+ 999  C59E 7D                   ld a,l
+1000  C59F C6 0A                add a,10
+1001  C5A1 6F                   ld l,a
+1002  C5A2 7C                   ld a,h
+1003  C5A3 CE 00                adc a,0
+1004  C5A5 67                   ld h,a
+1005  C5A6 78                   ld a,b
+1006  C5A7 12                   ld (de),a
+1007  C5A8 13                   inc de
+1008  C5A9
+1009  C5A9 7D                   ld a,l
+1010  C5AA C6 30                add a,"0"
+1011  C5AC 12                   ld (de),a
+1012  C5AD 13                   inc de
+1013  C5AE C9                   ret
+1014  C5AF
+1015  C5AF
+1016  C5AF              call_print
+1017  C5AF C3 00 00             jp 0
+1018  C5B2
+1019  C5B2
+1020  C5B2 00 00        ctxPtr      defw 0
+1021  C5B4 00 00        svcPtr      defw 0
+1022  C5B6 00 00        savedSp     defw 0
+1023  C5B8 00           curDepth    defb 0
+1024  C5B9 00           dirHandle   defb 0
+1025  C5BA 00           lfnHandle   defb 0
+1026  C5BB 00           delHandle   defb 0
+1027  C5BC 00           srcHandle   defb 0
+1028  C5BD 00           dstHandle   defb 0
+1029  C5BE 00           lastChar    defb 0
+1030  C5BF 00           countHandle defb 0
+1031  C5C0 00 00        totalFiles  defw 0
+1032  C5C2 00 00        pathChildPtr defw 0
+1033  C5C4 00           pathLeft    defb 0
+1034  C5C5 00           failStage   defb 0
+1035  C5C6 00 00 00...  dirPosStack defs (MAX_DEPTH+1)*4
+1036  C5F6 00 00 00...  lfnPosStack defs (MAX_DEPTH+1)*4
+1037  C626
+1038  C626 43 6F 70 79  copyPhaseTxt   defb "Copying: ",0
+1038  C62A 69 6E 67 3A
+1038  C62E 20 00
+1039  C630 44 65 6C 65  deletePhaseTxt defb "Deleting: ",0
+1039  C634 74 69 6E 67
+1039  C638 3A 20 00
+1040  C63B 00 00 00...  statusLine     defs 56
+1041  C673 20 20 20 20  blankNameTxt   defb "                                             ",0
+1041  C677 20 20 20 20
+1041  C67B 20 20 20 20
+1041  C67F 20 20 20 20
+1041  C683 20 20 20 20
+1041  C687 20 20 20 20
+1041  C68B 20 20 20 20
+1041  C68F 20 20 20 20
+1041  C693 20 20 20 20
+1041  C697 20 20 20 20
+1041  C69B 20 20 20 20
+1041  C69F 20 00
+1042  C6A1
+1043  C6A1              plugin_end
+1044  C6A1                      assert plugin_end - plugin_start <= SYSCOPY_PLUGIN_SIZE
+1045  C6A1                      SAVEBIN "plugin/syscopy.ccp", SYSCOPY_PLUGIN_ADDRESS, SYSCOPY_PLUGIN_SIZE
+1046  C6A1
+# file closed: plugin\syscopy.asm

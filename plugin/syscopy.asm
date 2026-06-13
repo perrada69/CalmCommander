@@ -43,8 +43,9 @@ SRC_STACK        equ SYSCOPY_WORK_ADDRESS          ; 12 * 256 bytes
 DST_STACK        equ SYSCOPY_WORK_ADDRESS + $0C00  ; 12 * 256 bytes
 DIR_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1800  ; 512 bytes
 LFN_ENTRY        equ SYSCOPY_WORK_ADDRESS + $1A00  ; 512 bytes
-COPY_BUFFER      equ SYSCOPY_WORK_ADDRESS + $1C00
-COPY_BUFFER_LEN  equ 1024
+COPY_BUFFER      equ DIR_ENTRY                     ; file copy can reuse dir-entry space
+COPY_BUFFER_LEN  equ 2048
+STATUS_LINE_LEN  equ 45
 
 plugin_start
         ld (ctxPtr),hl
@@ -860,7 +861,7 @@ print_counter_status
         push ix
 
         ld hl,statusLine
-        ld b,31
+        ld b,STATUS_LINE_LEN
 .clear
         ld (hl),32
         inc hl
@@ -898,8 +899,6 @@ print_counter_status
         ld a,")"
         ld (de),a
         inc de
-        xor a
-        ld (de),a
 
         ld hl,11*256+14
         ld a,16
