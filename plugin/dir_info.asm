@@ -12,8 +12,8 @@ ATTR_DIR     equ $10
 MAX_DEPTH    equ 11
 PLUGIN_STACK equ $DFFE
 
-ROOT_PATH    equ DIRINFO_WORK_ADDRESS
-DIR_ENTRY    equ DIRINFO_WORK_ADDRESS + $0100
+ROOT_PATH    equ DIRINFO_WORK_ADDRESS              ; 12 * 256-byte path slots
+DIR_ENTRY    equ DIRINFO_WORK_ADDRESS + $0C00      ; keep clear of depth path slots
 
 STAGE_ROOT   equ $10
 STAGE_OPEN   equ $20

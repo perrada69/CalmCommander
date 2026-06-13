@@ -184,41 +184,16 @@ copy_dir
         push hl
         pop ix
         xor a
-        ld b,a
-        ld a,STAGE_COPY_DIR
-        ld (failStage),a
-        xor a
-        rst $08
-        db F_OPENDIR
-        ret c
-        ld (dirHandle),a
-
-        ld a,(curDepth)
-        call get_src_path
-        push hl
-        pop ix
-        xor a
         ld b,MODE_LFN_DIR
         ld a,STAGE_COPY_LFN
         ld (failStage),a
         xor a
         rst $08
         db F_OPENDIR
-        jp c,.lfn_open_fail
+        ret c
         ld (lfnHandle),a
 
 .next
-        ld a,(dirHandle)
-        ld ix,DIR_ENTRY
-        ld a,STAGE_READ_DIR
-        ld (failStage),a
-        ld a,(dirHandle)
-        rst $08
-        db F_READDIR
-        jp c,.read_fail
-        or a
-        jr z,.done
-
         ld a,(lfnHandle)
         ld ix,LFN_ENTRY
         ld a,STAGE_READ_LFN
@@ -230,7 +205,7 @@ copy_dir
         or a
         jr z,.done
 
-        call skip_dot_entry
+        call skip_dot_lfn_entry
         jr z,.next
 
         ld a,(curDepth)
@@ -241,13 +216,12 @@ copy_dir
         call build_child_paths
         jp c,.read_fail
 
-        ld a,(DIR_ENTRY)
+        ld a,(LFN_ENTRY)
         and ATTR_DIR
         jr z,.file
 
-        call save_copy_positions
-        jp c,.read_fail
-        call close_copy_handles
+        ld a,(lfnHandle)
+        push af
         ld a,(curDepth)
         ld c,a
         push bc
@@ -257,10 +231,10 @@ copy_dir
         pop bc
         ld a,c
         ld (curDepth),a
+        pop af
+        ld (lfnHandle),a
         ld a,e
         jr c,.dir_fail
-        call reopen_copy_handles
-        ret c
         jr .next
 
 .dir_fail
@@ -279,29 +253,12 @@ copy_dir
         ld a,(lfnHandle)
         rst $08
         db F_CLOSE
-        ld a,(dirHandle)
-        rst $08
-        db F_CLOSE
         xor a
         ret
 
 .read_fail
         push af
         ld a,(lfnHandle)
-        rst $08
-        db F_CLOSE
-        pop af
-        push af
-        ld a,(dirHandle)
-        rst $08
-        db F_CLOSE
-        pop af
-        scf
-        ret
-
-.lfn_open_fail
-        push af
-        ld a,(dirHandle)
         rst $08
         db F_CLOSE
         pop af
@@ -313,124 +270,6 @@ copy_dir
         ld (failStage),a
         ld a,$7f
         scf
-        ret
-
-
-save_copy_positions
-        ld a,STAGE_SAVE_POS
-        ld (failStage),a
-        ld a,(dirHandle)
-        rst $08
-        db F_TELLDIR
-        ret c
-        push de
-        push bc
-        ld a,(curDepth)
-        call get_dir_pos_slot
-        pop bc
-        call store_bcde_at_hl
-        pop de
-        call store_de_at_hl
-
-        ld a,STAGE_SAVE_POS
-        ld (failStage),a
-        ld a,(lfnHandle)
-        rst $08
-        db F_TELLDIR
-        ret c
-        push de
-        push bc
-        ld a,(curDepth)
-        call get_lfn_pos_slot
-        pop bc
-        call store_bcde_at_hl
-        pop de
-        call store_de_at_hl
-        xor a
-        ret
-
-
-reopen_copy_handles
-        ld a,(curDepth)
-        call get_src_path
-        push hl
-        pop ix
-        xor a
-        ld b,a
-        ld a,STAGE_REOPEN_DIR
-        ld (failStage),a
-        xor a
-        rst $08
-        db F_OPENDIR
-        ret c
-        ld (dirHandle),a
-
-        ld a,(curDepth)
-        call get_dir_pos_slot
-        call load_bcde_from_hl
-        ld a,(dirHandle)
-        rst $08
-        db F_SEEKDIR
-        jr c,.dir_seek_fail
-
-        ld a,(curDepth)
-        call get_src_path
-        push hl
-        pop ix
-        xor a
-        ld b,MODE_LFN_DIR
-        ld a,STAGE_REOPEN_LFN
-        ld (failStage),a
-        xor a
-        rst $08
-        db F_OPENDIR
-        jr c,.lfn_open_fail
-        ld (lfnHandle),a
-
-        ld a,(curDepth)
-        call get_lfn_pos_slot
-        call load_bcde_from_hl
-        ld a,(lfnHandle)
-        rst $08
-        db F_SEEKDIR
-        jr c,.lfn_seek_fail
-        xor a
-        ret
-
-.lfn_seek_fail
-        push af
-        ld a,(lfnHandle)
-        rst $08
-        db F_CLOSE
-        pop af
-.lfn_open_fail
-        push af
-        ld a,(dirHandle)
-        rst $08
-        db F_CLOSE
-        pop af
-        scf
-        ret
-
-.dir_seek_fail
-        push af
-        ld a,(dirHandle)
-        rst $08
-        db F_CLOSE
-        pop af
-        scf
-        ret
-
-
-close_copy_handles
-        push af
-        ld a,(lfnHandle)
-        rst $08
-        db F_CLOSE
-        ld a,(dirHandle)
-        rst $08
-        db F_CLOSE
-        pop af
         ret
 
 
@@ -493,7 +332,7 @@ build_child_paths
         call get_src_path
         ex de,hl
         pop hl
-        ld bc,DIR_ENTRY+1
+        ld bc,LFN_ENTRY+1
         call build_path
         ret c
 
@@ -803,6 +642,24 @@ skip_dot_entry
         cp "."
         jr nz,.not_dot
         ld a,(DIR_ENTRY+3)
+        or a
+        ret
+.not_dot
+        ld a,1
+        or a
+        ret
+
+
+skip_dot_lfn_entry
+        ld a,(LFN_ENTRY+1)
+        cp "."
+        jr nz,.not_dot
+        ld a,(LFN_ENTRY+2)
+        or a
+        ret z
+        cp "."
+        jr nz,.not_dot
+        ld a,(LFN_ENTRY+3)
         or a
         ret
 .not_dot
