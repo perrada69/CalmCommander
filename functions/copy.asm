@@ -262,6 +262,9 @@ copycont_not_dir
         call closefile                                 ; zavři zdroj?
         ld b,2
         call closefile                                 ; zavři cíl?
+        ld a,(konecread)
+        cp 2
+        jp z,cancel_after_file_copy
 norr    pop hl
 
         ; pokud MOVE, po kopii smaž zdroj (DOS unlink/delete)
@@ -664,6 +667,9 @@ cislo_souboru
         call closefile
         ld b,2
         call closefile
+        ld a,(konecread)
+        cp 2
+        jp z,cancel_after_file_copy
 
 norr2
         pop hl
@@ -1020,6 +1026,11 @@ cancel_overwrite
         xor 16
         ld (OKNO),a
         call loadscr
+        jp copyend
+
+
+cancel_after_file_copy
+        pop hl
         jp copyend
 
 

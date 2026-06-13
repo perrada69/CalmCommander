@@ -168,6 +168,9 @@ pocetbytu ld de,0                                  ; (self-mod) DE = počet bajt
 
         call basicpage
         call copy_progress_print
+        call syscopy_check_cancel
+        cp 1
+        jr z,cancel_readfile
         call dospage
 
         ; další iterace, pokud nebyl konec
@@ -178,6 +181,11 @@ pocetbytu ld de,0                                  ; (self-mod) DE = počet bajt
 konec
         call basicpage
         ret
+
+cancel_readfile
+        ld a,2
+        ld (konecread),a
+        jp konec
 
 
 ; ============================================================
