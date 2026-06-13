@@ -257,6 +257,8 @@ syscopy_get_other_path
 syscopy_load_plugin
         call dospage
 
+        ld a,"C"
+        call $012d
         ld hl,sysCopyPluginDir
         xor a
         call $01b1
@@ -297,6 +299,7 @@ syscopy_restore_current_path
 
 
 syscopy_restore_current_path_dos
+        call set_active_panel_drive
         call syscopy_get_active_path
         xor a
         call $01b1

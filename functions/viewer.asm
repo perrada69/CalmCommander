@@ -841,6 +841,8 @@ view_load_plugin
 
         ld a,4
         ld (viewErrorStage),a
+        ld a,"C"
+        call $012d
         ld hl,viewPluginDir
         xor a
         call $01b1
@@ -884,6 +886,7 @@ view_restore_current_path
 
 
 view_set_current_path
+        call set_active_panel_drive
         ld hl,pathl
         call ROZHOD2
         ld a,(hl)

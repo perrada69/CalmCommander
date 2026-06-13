@@ -67,8 +67,6 @@ menu01
 
 
 menu_wait_mouse_release
-        xor a
-        ld (TLACITKO),a
 .wait
         call MOUSE
         and 7

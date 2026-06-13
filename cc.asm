@@ -354,10 +354,7 @@ menu0
             call basicpage
             call dospage
 
-            ld hl,actdisc
-            call ROZHOD
-            ld a,(hl)
-            call $012d
+            call set_active_panel_drive
 
             ; získání pointeru na pathl přes ROZHOD2 (externí)
             ld hl,pathl
@@ -2513,12 +2510,15 @@ PROHOD
         ld (OKNO),a
 
         call dospage
+        call set_active_panel_drive
+        call basicpage                            ; změn aktualni disk
+        ret
+
+set_active_panel_drive
         ld hl,actdisc
         call ROZHOD
         ld a,(hl)
-        call $012d
-        call basicpage                            ; změn aktualni disk
-        ret
+        jp $012d
 
 
 changewin
