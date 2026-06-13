@@ -3943,9 +3943,9 @@ clr_arch
         ; ------------------------------------------------------------
         ; zapisCfg
         ; ------------------------------------------------------------
-        ; Zapíše konfigurační soubor cc.cfg do c:/sys
+        ; Zapíše konfigurační soubor cc.cfg vždy do c:/sys
         ; - přepne cestu na pathCfg
-        ; - create file (0106h)
+        ; - create file (0106h) přes absolutní filespec
         ; - write blok Cfg o délce DelkaCfg (115h)
         ; - close (0109h)
         ; - vrátí cestu zpět dle pathl aktivního okna
@@ -3988,8 +3988,8 @@ zapisCfg
         ; ------------------------------------------------------------
         ; createCfg
         ; ------------------------------------------------------------
-        ; Zajistí existenci cc.cfg v c:/sys:
-        ; - vytvoří soubor (0106h)
+        ; Zajistí existenci cc.cfg vždy v c:/sys:
+        ; - vytvoří soubor (0106h) přes absolutní filespec
         ; - pokud vytvoření uspěje -> zapíše default Cfg
         ; - pokud soubor už existuje -> načte ho do Cfg (0112h)
         ; - zavře soubor a končí
@@ -4036,7 +4036,7 @@ NactiKonfiguraci
         ; Data / proměnné používané výše
         ; ------------------------------------------------------------
 pathCfg  defb "c:/sys",255
-nameCfg  defb "cc.cfg",255
+nameCfg  defb "c:/sys/cc.cfg",255
 posdrv   defb 0
 
 ALLFILESL defw ALLFILES, ALLFILES2                ; tabulka pointerů na “ALLFILES word” pro levý/pravý panel
