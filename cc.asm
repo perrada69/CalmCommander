@@ -4081,6 +4081,7 @@ dirNum   defw 0
         include "functions/file.asm"
         include "functions/compare.asm"
         include "functions/system_copy.asm"
+        include "functions/dir_info.asm"
 LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
 LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 FILEBUFF
@@ -6078,6 +6079,8 @@ archivedtxt2 defb "Archived",0
 ; Pozn.: V kódu je hodně opakování “získej aktuální záznam → BUFF83/find83 → FINDLFN”.
 ; ============================================================
 info_file
+        xor a
+        ld (dirInfoActive),a
         ; ---- HL = index aktuální položky (kurzor v levém panelu)
         ld hl,POSKURZL
         call ROZHOD
@@ -6105,6 +6108,12 @@ info_file
         pop hl
         call FINDLFN                               ; načte dlouhé jméno do LFNNAME (+ metadata)
 
+        ld ix,TMP83
+        bit 7,(ix+7)
+        jr z,info_file_not_dir
+        jp dir_info_run_from_info
+
+info_file_not_dir
         ; ---- ochrana: některé soubory se nesmí “info” zobrazit (ban list)
         call BUFF83                                ; zřejmě nastaví (foundfile) na aktuální jméno
         ld hl,(foundfile)
@@ -6119,6 +6128,7 @@ info_file
         call specific_search
         jp z,loop0                                 ; pokud shoda s ban2 → nic nezobrazuj
 
+info_file_show_ready
         ; ----------------------------------------------------
         ; Uložit obrazovku, protože budeme kreslit dialog
         ; ----------------------------------------------------
@@ -6247,6 +6257,8 @@ info_file
         ld de,archivedtxt2
         call print
 
+        call dir_info_print_items_if_active
+
         ; ---- Velikost
         ld hl,11*256+18
         ld a,16
@@ -6256,8 +6268,7 @@ info_file
         ; DEC32: vytiskne 32-bit číslo (velikost) na pozici HL (přes self-mod dec32pos)
         ld hl,16*256+18
         ld (dec32pos+1),hl                          ; kam DEC32 vypíše
-        ld hl,(LFNNAME+261)                          ; low word size
-        ld de,(LFNNAME+261+2)                        ; high word size
+        call dir_info_get_size_value
         ld b,10                                     ; počet číslic (nebo šířka pole)
         ld a,16                                     ; ink/atribut pro výpis
         ld (decink+1),a
@@ -7413,6 +7424,8 @@ aKEY_NEW_NOWAIT
         ld   a,b
         jp aNEW_KEY                               ; nová klávesa pokračuje do běžného zpracování
 
+
+        include "functions/dir_info_late.asm"
 
 sysvars 	defs 500
 

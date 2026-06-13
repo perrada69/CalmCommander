@@ -266,12 +266,14 @@ syscopy_load_plugin
         ld b,0
         ld c,1
         ld e,2
+syscopyLoadName
         ld hl,sysCopyPluginName
         call 0106h
-        jr nc,.openerr
+        jr nc,syscopy_load_openerr
 
         ld b,0
         ld c,SYS_COPY_PLUGIN_BANK
+syscopyLoadSize
         ld de,SYSCOPY_PLUGIN_SIZE
         ld hl,SYSCOPY_PLUGIN_ADDRESS
         call 0112h
@@ -284,7 +286,7 @@ syscopy_load_plugin
         xor a
         ret
 
-.openerr
+syscopy_load_openerr
         call syscopy_restore_current_path_dos
         call basicpage
         scf
