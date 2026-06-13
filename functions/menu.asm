@@ -30,6 +30,7 @@ menu
         call savescr            
 
         call show_menu          ; vykresli menu (položky, rámeček, kurzor)
+        call menu_wait_mouse_release
 
 ; -----------------------------------------------------------------------------
 ; menu01
@@ -63,6 +64,16 @@ menu01
         bit 1,a                 ; test na levé tlačítko (bit0=pravé)
         jp nz,tlacitko_menu      ; pokud levé zmáčknuto, řeš klik v menu
         jr menu01                ; jinak čekej dál
+
+
+menu_wait_mouse_release
+        xor a
+        ld (TLACITKO),a
+.wait
+        call MOUSE
+        and 7
+        jr nz,.wait
+        ret
 
 
 zjistiJestliMyskaNeniVHorniCastiMenu

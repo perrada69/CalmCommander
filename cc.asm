@@ -354,6 +354,11 @@ menu0
             call basicpage
             call dospage
 
+            ld hl,actdisc
+            call ROZHOD
+            ld a,(hl)
+            call $012d
+
             ; získání pointeru na pathl přes ROZHOD2 (externí)
             ld hl,pathl
             call ROZHOD2                          ; externí: zřejmě vrací HL=ukazatel (u tebe přes mezikrok)
@@ -3414,6 +3419,8 @@ nenitoroot
         ld hl,STARTWINL
         call ROZHOD2
 pocatek ld (hl),0                                 ; self-modify: nastav STARTWIN low byte
+        inc hl
+        ld (hl),0                                 ; high byte musí být po načtení cfg nulový
         call NOBUFF83                             ; vrátí stránkování NextReg $55 do defaultu
 
         ret

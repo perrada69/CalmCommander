@@ -1,9 +1,16 @@
 
 GETDIR  
-		ld hl,DIRTMP
+		ld hl,pathl
+		call ROZHOD2
+		ld a,(hl)
+		inc hl
+		ld h,(hl)
+		ld l,a
 		ld de,modstart
-		ld bc,4
-		ldir
+		ldi
+		ldi
+		ld a,255
+		ld (de),a
 
         call dospage
               
@@ -162,6 +169,7 @@ PRK5
         xor a
 		ld (hl),a
         ld (LFNNAME+19),a
+		call addDriveToPanelTitle
 
 
 		ld hl,dirpos
@@ -179,10 +187,14 @@ PRK5
 directoryHandle defw 0
 ;pks 	defs 100
 getdirroot	
-    	ld a,"/"
+    	ld a,(modstart)
 		ld (LFNNAME),a
-		xor a
+		ld a,":"
 		ld (LFNNAME+1),a
+		ld a,"/"
+		ld (LFNNAME+2),a
+		xor a
+		ld (LFNNAME+3),a
 		
 
 
@@ -198,6 +210,24 @@ getdirroot
 
 		call NOBUFF83
 
+		ret
+
+addDriveToPanelTitle
+		ld hl,LFNNAME+16
+		ld de,LFNNAME+18
+		ld b,17
+.shiftTitle
+		ld a,(hl)
+		ld (de),a
+		dec hl
+		dec de
+		djnz .shiftTitle
+		ld a,(modstart)
+		ld (LFNNAME),a
+		ld a,":"
+		ld (LFNNAME+1),a
+		xor a
+		ld (LFNNAME+19),a
 		ret
 
 dirpos      defw 10*256+1
