@@ -189,12 +189,16 @@ directoryHandle defw 0
 getdirroot	
     	ld a,(modstart)
 		ld (LFNNAME),a
-		ld a,":"
+		ld a,"]"
 		ld (LFNNAME+1),a
-		ld a,"/"
+		ld a," "
 		ld (LFNNAME+2),a
-		xor a
+		ld a,"["
 		ld (LFNNAME+3),a
+		ld a,"/"
+		ld (LFNNAME+4),a
+		xor a
+		ld (LFNNAME+5),a
 		
 
 
@@ -213,9 +217,9 @@ getdirroot
 		ret
 
 addDriveToPanelTitle
-		ld hl,LFNNAME+16
-		ld de,LFNNAME+18
-		ld b,17
+		ld hl,LFNNAME+15
+		ld de,LFNNAME+19
+		ld b,16
 .shiftTitle
 		ld a,(hl)
 		ld (de),a
@@ -224,14 +228,18 @@ addDriveToPanelTitle
 		djnz .shiftTitle
 		ld a,(modstart)
 		ld (LFNNAME),a
-		ld a,":"
+		ld a,"]"
 		ld (LFNNAME+1),a
-		xor a
-		ld (LFNNAME+19),a
+		ld a," "
+		ld (LFNNAME+2),a
+		ld a,"["
+		ld (LFNNAME+3),a
+	xor a
+		ld (LFNNAME+20),a
 		ret
 
-dirpos      defw 10*256+1
-            defw 50*256+1
+dirpos      defw 9*256+1
+            defw 49*256+1
 emptypos    defw 8*256+1
             defw 48*256+1
 

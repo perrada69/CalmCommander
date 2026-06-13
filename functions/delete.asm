@@ -228,6 +228,7 @@ mmorekonec
 		call showwin
 		ld a,32
 		call writecur
+		call GETDIR
 
 
 ;---------------------------	
@@ -281,6 +282,7 @@ mmorekonec
 		ld (adrs+1),hl
 		call getroot_reload
 		call showwin
+		call GETDIR
 		call PROHOD
 
 		call dospage
@@ -485,6 +487,7 @@ KON
 		call showwin
 		ld a,32
 		call writecur
+		call GETDIR
 ;---------------------------		
 		call PROHOD
 
@@ -536,6 +539,7 @@ KON
 		ld (adrs+1),hl
 		call getroot_reload
 		call showwin
+		call GETDIR
 		call PROHOD
 
 		call dospage
