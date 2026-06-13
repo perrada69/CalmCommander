@@ -83,7 +83,7 @@ konecread defb 0                                    ; flag: 1 = poslední blok b
 ;  - rutina si průběžně ZMENŠUJE tento 32-bit “remaining size” o LENGHT_BUFFER
 ;  - pocetbytu (self-mod) drží délku aktuálního bloku pro READ/WRITE
 ;  - konecread = 1 označí poslední iteraci
-;  - souběžně aktualizuje progress (PROGPROM2 + PROGRES2) přes CPPX2/CPPX4
+;  - souběžně aktualizuje textový stav "soubor [xkB/ykB]"
 ; ============================================================
 readfile
 READ
@@ -94,19 +94,6 @@ READ
         call NOBUFF83                              ; zřejmě vypne/odpojí 8.3 bufferování (aby nekolidovalo s I/O)
 
 read0
-        ; ---- progress tick (PROGPROM2++)
-        ld   hl,(PROGPROM2)
-        inc  hl
-        ld   (PROGPROM2),hl
-CPPX2   ld   de,0                                  ; (self-mod) prah pro progress
-        or   a
-        sbc  hl,de
-        jr   c,CPPNE2
-CPPX4   ld   b,1                                  ; (self-mod) krok / šířka
-        ld   (PROGPROM2),hl
-        call PROGRES2
-CPPNE2
-
         ; ====================================================
         ; DELKA: rozhodni kolik bajtů teď číst/zapsat
         ; ====================================================
@@ -179,6 +166,10 @@ pocetbytu ld de,0                                  ; (self-mod) DE = počet bajt
         ld hl,49152
         call 0115h                                 ; DOS: WRITE
 
+        call basicpage
+        call copy_progress_print
+        call dospage
+
         ; další iterace, pokud nebyl konec
         ld a,(konecread)
         or a
@@ -194,7 +185,7 @@ konec
 ; Otevře zdrojový soubor (handle B=0) pro čtení:
 ;  - vstupně HL ukazuje na položku v seznamu (záznam okna); používá find83/FINDLFN
 ;  - vykopíruje LFNNAME do bfname a vypíše název v UI
-;  - spočítá něco z TMP83+11 (velikost?) a nastaví progress PROGRES2
+;  - připraví a průběžně tiskne textový stav kopírování
 ;  - připraví TMP83: odstraní stavové bity (bit7 v každém znaku jména),
 ;    nastaví 255 terminátory na koncích 8.3 i LFN jména
 ;  - DOS open: 0106h s C=1 (exclusive READ), HL=TMP83 (8.3 entry)
@@ -209,39 +200,20 @@ openfile
         push hl
         call FINDLFN                                ; načti dlouhé jméno do LFNNAME (+ metadata)
 
+        ld hl,LFNNAME+261
+        call copy_bytes_to_kb
+        ld (copyProgressTotalKb),hl
+
         ; zkopíruj jméno do bfname a ukaž v dialogu
         ld hl,LFNNAME
         ld de,bfname
         ld bc,45
         ldir
 
-        ld hl,11*256+13
+        ld hl,11*256+14
         ld a,16
         ld de,bfname
         call print
-
-        ; ----------------------------------------------------
-        ; Příprava progressu: bere hodnotu z TMP83+11
-        ; (pravděpodobně velikost souboru / počet sektorů / počet bloků)
-        ; ----------------------------------------------------
-;       call BUFF83
-        ld hl,(TMP83+11)                           ; tady TMP83+11..12 jako 16-bit číslo
-ZDE
-        ld c,6
-        call deleno                                ; dělení HL / 6? (výsledek dle tvé deleno rutiny)
-        inc hl                                     ; +1, aby progress nebyl nulový
-
-of0
-        ex de,hl
-        call PROVYP                                 ; nastav parametry progressu podle DE
-        add a,a
-        ld   (CPPX2+1),hl
-        ld   (CPPX4+1),a
-        ld   hl,0
-        ld   (PROGPROM2),hl
-        ld   hl,$4000+160*14+23
-        ld (PROGS2+1),hl
-        call clearpr                                ; vymaž progress grafiku
 
         pop hl                                      ; obnov pointer na položku
 LF
@@ -314,4 +286,62 @@ sub32
         ret
 
 
-size    defs 4                                     ; rezervace 4 bajtů (pravděpodobně pro 32-bit size jinde)
+copy_progress_print
+        ld de,copyProgressFrame
+        ld a,"["
+        ld (de),a
+        inc de
+
+        ld hl,LFNNAME+261
+        call copy_bytes_to_kb
+        ex de,hl
+        ld hl,(copyProgressTotalKb)
+        or a
+        sbc hl,de
+        ld de,copyProgressFrame+1
+        call copy_print_kb_value
+
+        ld a,"/"
+        ld (de),a
+        inc de
+        ld hl,(copyProgressTotalKb)
+        call copy_print_kb_value
+
+        ld a,"]"
+        ld (de),a
+        inc de
+        xor a
+        ld (de),a
+
+        ld hl,32*256+14
+        ld a,16
+        ld de,copyProgressFrame
+        call print
+        ret
+
+
+; HL points to 32-bit byte count. Returns HL = count / 1024 in kB.
+copy_bytes_to_kb
+        ex de,hl
+        inc de
+        ld a,(de)
+        srl a
+        srl a
+        ld l,a
+        inc de
+        ld a,(de)
+        ld b,a
+        and 3
+        rrca
+        rrca
+        or l
+        ld l,a
+        ld a,b
+        srl a
+        srl a
+        ld h,a
+        ret
+
+
+copyProgressTotalKb  defw 0
+copyProgressFrame defs 18

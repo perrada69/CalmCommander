@@ -202,10 +202,6 @@ copywait
 ;  - po COPY obnoví okna a refresh dir listing
 ; ------------------------------------------------------------
 copycont
-        ; malý UI symbol do atributové obrazovky (pravděpodobně "progress")
-        ld   hl,$4000+160*14+23 + 1 + 62
-        ld (hl),"|"
-
         ; přepiš NO na "please wait" a vymaž YES řádek
         ld hl,56*256+14
         ld a,16
@@ -495,14 +491,6 @@ morecopy
         ld l,a
         push hl
 
-        ex de,hl                                     ; DE = numsel (16bit)
-        call PROVYP                                  ; nastav parametry progressu podle počtu
-        add a,a
-        ld   (CPPX1+1),hl
-        ld   (CPPX3+1),a
-        ld   hl,0
-        ld   (PROGPROM),hl
-
         ; vypiš numsel (DECIMAL3) do dialogu
         ld hl,NUMBUF
         ld de,NUMBUF+1
@@ -566,12 +554,6 @@ acopycont
         ld a,16
         ld de,spaces
         call print
-
-        ; progress znaky do atributové oblasti
-        ld   hl,$4000+160*15+23 + 1 + 62
-        ld (hl),"|"
-        ld   hl,$4000+160*14+23 + 1 + 62
-        ld (hl),"|"
 
         ld hl,0
 MMM
@@ -709,26 +691,14 @@ CCCAC21
 nenimove11
         jr NODIR
 
-; ---- progress bar update (PROGPROM vs CPPX1/CPPX3)
 COPYDIR_MULTI
         call system_copy_dir_from_index
         jr nc,NODIR
         pop hl
         jp syscopy_error
 
-NODIR   ld   hl,(PROGPROM)
-        inc  hl
-        ld   (PROGPROM),hl
-CPPX1    ld   de,0
-        or   a
-        sbc  hl,de
-        jr   c,CPPNE1
-CPPX3    ld   b,1
-        ld   (PROGPROM),hl
-        call PROGRES
-CPPNE1
-
 ; ---- pokračuj na další položku
+NODIR
 nekopirovat
         ld hl,ALLFILES
         call ROZHOD2
@@ -1051,3 +1021,38 @@ cancel_overwrite
         ld (OKNO),a
         call loadscr
         jp copyend
+
+
+copy_print_kb_value
+        push de
+        ld de,0
+        ld b,5
+        ld c,32
+        call D32B
+        pop de
+        ld hl,NUMB
+        ld b,5
+.skip
+        ld a,(hl)
+        cp 32
+        jr nz,.copy
+        inc hl
+        djnz .skip
+        ld a,"0"
+        ld (de),a
+        inc de
+        jr .kb
+.copy
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy
+.kb
+        ld a,"k"
+        ld (de),a
+        inc de
+        ld a,"B"
+        ld (de),a
+        inc de
+        ret

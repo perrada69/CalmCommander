@@ -1014,7 +1014,6 @@ newdisc_right
 souboru_na_radek    equ 26
 
 PROGPROM    defw 0
-PROGPROM2   defw 0
 
 
 ; ------------------------------------------------------------
@@ -1094,40 +1093,6 @@ PROGRSM1
             ld   (PROGS+1),hl                     ; posuň výchozí pozici pro další volání
             pop  hl
             ret
-
-
-            ; Druhý progress bar (jiný řádek)
-PROGRES2
-            push hl
-
-PROGS2       ld   hl,$4000+160*14+25
-            ld   a,36
-
-PROGRSM12
-            ld   (hl),a
-            inc  hl
-            inc  hl
-            djnz PROGRSM12
-
-            ld   (PROGS2+1),hl
-            pop  hl
-            ret
-
-
-            ; ------------------------------------------------------------
-            ; clearpr – vymazání progress baru (vypíše hodnotu 16 do 40 segmentů)
-            ; ------------------------------------------------------------
-clearpr
-            ld   hl,$4000+160*14+25
-            ld   a,16
-            ld   b,40
-clearpr2
-            ld (hl),a
-            inc hl
-            inc hl
-            djnz clearpr2
-            ret
-
 
             ; ------------------------------------------------------------
             ; Buffery pro seznam disků

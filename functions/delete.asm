@@ -22,15 +22,6 @@ moredelete
 		ld l,a
 		push hl			;uloz pocet označených souborů
 		
-		ex de,hl
-
-		call PROVYP		;vypočet pro progress bar
-		add a,a			;zapsani hodnot pro progres bar
-		ld   (CPPX1+1),hl
-        ld   (CPPX3+1),a
-        ld   hl,0
-        ld   (PROGPROM),hl
-		
 		ld hl,NUMBUF	;smazání buferu pro INPUT
 		ld de,NUMBUF+1
 		ld bc,5
@@ -39,10 +30,10 @@ moredelete
 		ldir
 		ld hl,NUMBUF
 		xor a
-		ld (NUMBUF+3),a
+		ld (NUMBUF+5),a
 		ld (numadr+1),hl
 		pop hl
-		call DECIMAL3
+		call DECIMAL5
 		ld hl,18*256+11
 		ld a,16
 		ld de,NUMBUF

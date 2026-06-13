@@ -195,6 +195,9 @@ copy_dir
         ld (lfnHandle),a
 
 .next
+        call call_cancel
+        cp 1
+        jp z,.cancel
         ld a,(lfnHandle)
         ld ix,LFN_ENTRY
         ld a,STAGE_READ_LFN
@@ -263,6 +266,14 @@ copy_dir
         rst $08
         db F_CLOSE
         pop af
+        scf
+        ret
+
+.cancel
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
+        ld a,$7c
         scf
         ret
 
@@ -423,7 +434,7 @@ copy_child_file
         call print_file_progress
         call call_cancel
         cp 1
-        jr z,.cancel
+        jp z,.cancel
         jr .loop
 
 .done
@@ -487,6 +498,9 @@ delete_dir
         ld (delHandle),a
 
 .next
+        call call_cancel
+        cp 1
+        jp z,.cancel
         ld a,(delHandle)
         ld ix,DIR_ENTRY
         rst $08
@@ -577,6 +591,14 @@ delete_dir
         ret
 
 .close_fail
+        scf
+        ret
+
+.cancel
+        ld a,(delHandle)
+        rst $08
+        db F_CLOSE
+        ld a,$7c
         scf
         ret
 
@@ -779,6 +801,9 @@ count_dir
         call inc_total_count
 
 .next
+        call call_cancel
+        cp 1
+        jr z,.cancel
         ld a,(countHandle)
         ld ix,DIR_ENTRY
         rst $08
@@ -839,6 +864,14 @@ count_dir
         rst $08
         db F_CLOSE
         pop af
+        scf
+        ret
+
+.cancel
+        ld a,(countHandle)
+        rst $08
+        db F_CLOSE
+        ld a,$7c
         scf
         ret
 
@@ -918,12 +951,12 @@ print_counter_status
         ld l,(ix+SYSCOPYCTX_FILES_LO)
         ld h,(ix+SYSCOPYCTX_FILES_LO+1)
         pop de
-        call write_dec3
+        call write_dec16
         ld a,"/"
         ld (de),a
         inc de
         ld hl,(totalFiles)
-        call write_dec3
+        call write_dec16
         ld a,")"
         ld (de),a
         inc de
@@ -1022,9 +1055,9 @@ print_file_progress
 
         push de
         ld hl,fileCopiedBytes
-        call bytes_to_kb_capped
+        call bytes_to_kb
         pop de
-        call write_dec3
+        call write_dec16
         ld a,"k"
         ld (de),a
         inc de
@@ -1037,9 +1070,9 @@ print_file_progress
 
         push de
         ld hl,fileTotalBytes
-        call bytes_to_kb_capped
+        call bytes_to_kb
         pop de
-        call write_dec3
+        call write_dec16
         ld a,"k"
         ld (de),a
         inc de
@@ -1075,8 +1108,8 @@ find_lfn_entry_size_ptr
         ret
 
 
-; HL points to 32-bit byte count. Returns HL = kB capped to 999.
-bytes_to_kb_capped
+; HL points to 32-bit byte count. Returns HL = count / 1024 in kB.
+bytes_to_kb
         push ix
         push hl
         pop ix
@@ -1097,16 +1130,9 @@ bytes_to_kb_capped
         ld h,a
         ld a,(ix+3)
         or a
-        jr nz,.cap
-        ld de,1000
-        or a
-        sbc hl,de
-        jr nc,.cap
-        add hl,de
-        pop ix
-        ret
-.cap
-        ld hl,999
+        jr z,.done
+        ld hl,65535
+.done
         pop ix
         ret
 
@@ -1148,63 +1174,48 @@ append_short_root_name
         ret
 
 
-; HL=value, DE=destination. Writes 3 decimal digits, advances DE.
-write_dec3
-        push de
-        ld de,1000
-        or a
-        sbc hl,de
-        jr c,.under_1000
-        ld hl,999
-        jr .capped
-.under_1000
-        add hl,de
-.capped
-        pop de
-        ld b,"0"-1
-.hundreds
-        inc b
-        ld a,l
-        sub 100
-        ld l,a
-        ld a,h
-        sbc a,0
-        ld h,a
-        jr nc,.hundreds
-        ld a,l
-        add a,100
-        ld l,a
-        ld a,h
-        adc a,0
-        ld h,a
-        ld a,b
-        ld (de),a
-        inc de
-
-        ld b,"0"-1
-.tens
-        inc b
-        ld a,l
-        sub 10
-        ld l,a
-        ld a,h
-        sbc a,0
-        ld h,a
-        jr nc,.tens
-        ld a,l
-        add a,10
-        ld l,a
-        ld a,h
-        adc a,0
-        ld h,a
-        ld a,b
-        ld (de),a
-        inc de
-
+; HL=value, DE=destination. Writes unsigned decimal without leading spaces.
+write_dec16
+        xor a
+        ld (decStarted),a
+        ld bc,10000
+        call write_dec_digit
+        ld bc,1000
+        call write_dec_digit
+        ld bc,100
+        call write_dec_digit
+        ld bc,10
+        call write_dec_digit
         ld a,l
         add a,"0"
         ld (de),a
         inc de
+        ret
+
+
+write_dec_digit
+        ld a,"0"-1
+.count
+        inc a
+        or a
+        sbc hl,bc
+        jr nc,.count
+        add hl,bc
+        cp "0"
+        jr nz,.emit
+        push af
+        ld a,(decStarted)
+        or a
+        jr nz,.emit_popped
+        pop af
+        ret
+.emit_popped
+        pop af
+.emit
+        ld (de),a
+        inc de
+        ld a,1
+        ld (decStarted),a
         ret
 
 
@@ -1235,6 +1246,7 @@ lastReadLen defw 0
 fileCopiedBytes defd 0
 fileTotalBytes defd 0
 fileNameText defs 21
+decStarted defb 0
 dirPosStack defs (MAX_DEPTH+1)*4
 lfnPosStack defs (MAX_DEPTH+1)*4
 
