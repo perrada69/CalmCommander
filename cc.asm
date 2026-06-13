@@ -1196,13 +1196,13 @@ gettime
             ld h,0
             call NUM
             ld hl,70*256+0
-            ld a,16
+            ld a,192
             ld de,NUMBUF+3
             call print
 
             ; tisk "/"
             ld hl,72*256+0
-            ld a,16
+            ld a,192
             ld de,slash
             call print
 
@@ -1225,13 +1225,13 @@ gettime
             ld h,0
             call NUM
             ld hl,73*256+0
-            ld a,16
+            ld a,192
             ld de,NUMBUF+3
             call print
 
             ; tisk "/"
             ld hl,75*256+0
-            ld a,16
+            ld a,192
             ld de,slash
             call print
 
@@ -1250,7 +1250,7 @@ gettime
             ld (NUMBUF+3+2),a
             ld hl,76*256+0
             ld de,NUMBUF+3
-            ld a,16
+            ld a,192
             call print
 
 timeend
@@ -4373,7 +4373,7 @@ VSE_NASTAV
         ld bc,32*16
         ld (hl),l
         ldir
-        ld		de,$6000 + 32*32
+        ld de,$6000 + 32*32
 
         ; convert ROM font to 4bpp tiles by code
         ld      hl,MEM_ROM_CHARS_3C00 + 32*8
@@ -4547,6 +4547,7 @@ tilemapPalette:
                 ds 4
                 db  %111'000'00,0                 ; 3 red ink (R=7,G=0,B=0)
                 ds 24
+
 
 
 tilemapPalette_SZ:  EQU $ - tilemapPalette
