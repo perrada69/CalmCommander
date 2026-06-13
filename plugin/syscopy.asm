@@ -9,8 +9,6 @@ F_READ      equ $9D
 F_WRITE     equ $9E
 F_OPENDIR   equ $A3
 F_READDIR   equ $A4
-F_TELLDIR   equ $A5
-F_SEEKDIR   equ $A6
 F_MKDIR     equ $AA
 F_RMDIR     equ $AB
 F_UNLINK    equ $AD
@@ -193,6 +191,8 @@ copy_dir
         db F_OPENDIR
         ret c
         ld (lfnHandle),a
+        ld a,(curDepth)
+        call clear_lfn_index
 
 .next
         call call_cancel
@@ -207,7 +207,9 @@ copy_dir
         db F_READDIR
         jr c,.read_fail
         or a
-        jr z,.done
+        jp z,.done
+        ld a,(curDepth)
+        call inc_lfn_index
 
         call skip_dot_lfn_entry
         jr z,.next
@@ -224,22 +226,33 @@ copy_dir
         and ATTR_DIR
         jr z,.file
 
-        ld a,(lfnHandle)
-        push af
         ld a,(curDepth)
-        ld c,a
-        push bc
+        push af
+        call save_close_lfn_pos
+        jr c,.restore_fail_lfn
+        ld a,(curDepth)
         inc a
         call copy_dir
-        ld e,a
-        pop bc
-        ld a,c
-        ld (curDepth),a
+        ld (childResult),a
+        ld a,0
+        jr nc,.copy_child_ok
+        inc a
+.copy_child_ok
+        ld (childCarry),a
         pop af
-        ld (lfnHandle),a
-        ld a,e
+        ld (curDepth),a
+        ld a,(childCarry)
+        or a
+        ld a,(childResult)
+        jr nz,.dir_fail
+        call reopen_lfn_pos
         jr c,.dir_fail
         jr .next
+
+.restore_fail_lfn
+        pop af
+        ld (curDepth),a
+        jr .read_fail
 
 .dir_fail
         scf
@@ -285,29 +298,50 @@ copy_dir
         ret
 
 
-store_bcde_at_hl
-        ld (hl),c
+clear_dir_index
+        call get_dir_pos_slot
+        ld (hl),0
         inc hl
-        ld (hl),b
-        inc hl
+        ld (hl),0
         ret
 
 
-store_de_at_hl
-        ld (hl),e
+clear_lfn_index
+        call get_lfn_pos_slot
+        ld (hl),0
         inc hl
-        ld (hl),d
+        ld (hl),0
         ret
 
 
-load_bcde_from_hl
-        ld c,(hl)
+inc_dir_index
+        call get_dir_pos_slot
+        inc (hl)
+        ret nz
         inc hl
-        ld b,(hl)
+        inc (hl)
+        ret
+
+
+dec_dir_index
+        call get_dir_pos_slot
+        ld a,(hl)
+        or a
+        jr nz,.dec_low
         inc hl
-        ld e,(hl)
+        dec (hl)
+        dec hl
+.dec_low
+        dec (hl)
+        ret
+
+
+inc_lfn_index
+        call get_lfn_pos_slot
+        inc (hl)
+        ret nz
         inc hl
-        ld d,(hl)
+        inc (hl)
         ret
 
 
@@ -333,6 +367,136 @@ depth_to_offset4
         sla e
         rl d
         ret
+
+
+save_close_lfn_pos
+        ld a,STAGE_SAVE_POS
+        ld (failStage),a
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
+        ret
+
+
+reopen_lfn_pos
+        ld a,STAGE_REOPEN_LFN
+        ld (failStage),a
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_LFN_DIR
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (lfnHandle),a
+        ld a,(curDepth)
+        call get_lfn_pos_slot
+        ld a,(lfnHandle)
+        ld de,LFN_ENTRY
+        call skip_saved_entries
+        ret nc
+        push af
+        ld a,(lfnHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        ret
+
+
+save_close_del_pos
+        ld a,(delHandle)
+        rst $08
+        db F_CLOSE
+        ret
+
+
+reopen_del_pos
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,a
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (delHandle),a
+        ld a,(curDepth)
+        call get_dir_pos_slot
+        ld a,(delHandle)
+        ld de,DIR_ENTRY
+        call skip_saved_entries
+        ret nc
+        push af
+        ld a,(delHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        ret
+
+
+save_close_count_pos
+        ld a,(countHandle)
+        rst $08
+        db F_CLOSE
+        ret
+
+
+reopen_count_pos
+        ld a,(curDepth)
+        call get_src_path
+        push hl
+        pop ix
+        xor a
+        ld b,a
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (countHandle),a
+        ld a,(curDepth)
+        call get_dir_pos_slot
+        ld a,(countHandle)
+        ld de,DIR_ENTRY
+        call skip_saved_entries
+        ret nc
+        push af
+        ld a,(countHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        ret
+
+
+; A=handle, DE=entry buffer, HL=stored 16-bit entry count.
+skip_saved_entries
+        ld (skipHandle),a
+        ld (skipBuffer),de
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (skipCount),bc
+.loop
+        ld bc,(skipCount)
+        ld a,b
+        or c
+        ret z
+        ld ix,(skipBuffer)
+        ld a,(skipHandle)
+        rst $08
+        db F_READDIR
+        ret c
+        or a
+        jr nz,.read_one
+        ld a,$7e
+        scf
+        ret
+.read_one
+        ld bc,(skipCount)
+        dec bc
+        ld (skipCount),bc
+        jr .loop
 
 
 build_child_paths
@@ -496,6 +660,8 @@ delete_dir
         db F_OPENDIR
         ret c
         ld (delHandle),a
+        ld a,(curDepth)
+        call clear_dir_index
 
 .next
         call call_cancel
@@ -505,9 +671,11 @@ delete_dir
         ld ix,DIR_ENTRY
         rst $08
         db F_READDIR
-        jr c,.read_fail
+        jp c,.read_fail
         or a
-        jr z,.done
+        jp z,.done
+        ld a,(curDepth)
+        call inc_dir_index
 
         call skip_dot_entry
         jr z,.next
@@ -523,25 +691,27 @@ delete_dir
 
         ld a,(curDepth)
         push af
-        ld a,(delHandle)
-        push af
+        call save_close_del_pos
+        jr c,.restore_fail_del
         ld a,(curDepth)
         inc a
         call delete_dir
-        jr c,.dir_fail
-        pop af
-        ld (delHandle),a
         pop af
         ld (curDepth),a
+        jr c,.dir_fail
+        ld a,(curDepth)
+        call dec_dir_index
+        call reopen_del_pos
+        jr c,.dir_fail
         jr .next
 
 .dir_fail
-        ld e,a
-        pop af
-        ld (delHandle),a
+        scf
+        ret
+
+.restore_fail_del
         pop af
         ld (curDepth),a
-        ld a,e
         jr .read_fail
 
 .file
@@ -557,6 +727,8 @@ delete_dir
         rst $08
         db F_UNLINK
         jr c,.read_fail
+        ld a,(curDepth)
+        call dec_dir_index
         jr .next
 
 .done
@@ -798,6 +970,8 @@ count_dir
         db F_OPENDIR
         ret c
         ld (countHandle),a
+        ld a,(curDepth)
+        call clear_dir_index
         call inc_total_count
 
 .next
@@ -811,6 +985,8 @@ count_dir
         jr c,.read_fail
         or a
         jr z,.done
+        ld a,(curDepth)
+        call inc_dir_index
 
         call skip_dot_entry
         jr z,.next
@@ -826,25 +1002,25 @@ count_dir
 
         ld a,(curDepth)
         push af
-        ld a,(countHandle)
-        push af
+        call save_close_count_pos
+        jr c,.restore_fail_count
         ld a,(curDepth)
         inc a
         call count_dir
-        jr c,.dir_fail
-        pop af
-        ld (countHandle),a
         pop af
         ld (curDepth),a
+        jr c,.dir_fail
+        call reopen_count_pos
+        jr c,.dir_fail
         jr .next
 
 .dir_fail
-        ld e,a
-        pop af
-        ld (countHandle),a
+        scf
+        ret
+
+.restore_fail_count
         pop af
         ld (curDepth),a
-        ld a,e
         jr .read_fail
 
 .file
@@ -1243,6 +1419,11 @@ pathChildPtr defw 0
 pathLeft    defb 0
 failStage   defb 0
 lastReadLen defw 0
+childResult defb 0
+childCarry  defb 0
+skipHandle  defb 0
+skipBuffer  defw 0
+skipCount   defw 0
 fileCopiedBytes defd 0
 fileTotalBytes defd 0
 fileNameText defs 21

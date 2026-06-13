@@ -82,6 +82,8 @@ count_dir
         db F_OPENDIR
         ret c
         ld (dirHandle),a
+        ld a,(curDepth)
+        call clear_dir_index
 
 .next
         ld ix,DIR_ENTRY
@@ -93,6 +95,8 @@ count_dir
         jr c,.read_fail
         or a
         jr z,.done
+        ld a,(curDepth)
+        call inc_dir_index
 
         call skip_dot_entry
         jr z,.next
@@ -117,19 +121,26 @@ count_dir
 
         ld a,(curDepth)
         push af
-        ld a,(dirHandle)
-        push af
+        call save_close_dir_pos
+        jr c,.restore_fail
         ld a,(curDepth)
         inc a
         call count_dir
-        ld e,a
-        pop af
-        ld (dirHandle),a
         pop af
         ld (curDepth),a
-        ld a,e
-        jr c,.read_fail
+        jr c,.child_fail
+        call reopen_dir_pos
+        jr c,.child_fail
         jr .next
+
+.child_fail
+        scf
+        ret
+
+.restore_fail
+        pop af
+        ld (curDepth),a
+        jr .read_fail
 
 .done
         ld a,(dirHandle)
@@ -263,6 +274,100 @@ get_path_for_depth
         ret
 
 
+depth_to_offset4
+        ld e,a
+        ld d,0
+        sla e
+        rl d
+        sla e
+        rl d
+        ret
+
+
+get_dir_pos_slot
+        call depth_to_offset4
+        ld hl,dirPosStack
+        add hl,de
+        ret
+
+
+save_close_dir_pos
+        ld a,(dirHandle)
+        rst $08
+        db F_CLOSE
+        ret
+
+
+reopen_dir_pos
+        ld a,(curDepth)
+        call get_path_for_depth
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_LFN_DIR
+        rst $08
+        db F_OPENDIR
+        ret c
+        ld (dirHandle),a
+        ld a,(curDepth)
+        call get_dir_pos_slot
+        ld a,(dirHandle)
+        call skip_saved_entries
+        ret nc
+        push af
+        ld a,(dirHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        ret
+
+
+clear_dir_index
+        call get_dir_pos_slot
+        ld (hl),0
+        inc hl
+        ld (hl),0
+        ret
+
+
+inc_dir_index
+        call get_dir_pos_slot
+        inc (hl)
+        ret nz
+        inc hl
+        inc (hl)
+        ret
+
+
+; A=handle, HL=stored 16-bit entry count. Uses DIR_ENTRY as scratch buffer.
+skip_saved_entries
+        ld (skipHandle),a
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        ld (skipCount),bc
+.loop
+        ld bc,(skipCount)
+        ld a,b
+        or c
+        ret z
+        ld ix,DIR_ENTRY
+        ld a,(skipHandle)
+        rst $08
+        db F_READDIR
+        ret c
+        or a
+        jr nz,.read_one
+        ld a,$7e
+        scf
+        ret
+.read_one
+        ld bc,(skipCount)
+        dec bc
+        ld (skipCount),bc
+        jr .loop
+
+
 inc_item_count
         ld ix,(ctxPtr)
         inc (ix+DIRINFOCTX_ITEMS_LO)
@@ -329,6 +434,9 @@ lastChar     defb 0
 pathChildPtr defw 0
 pathLeft     defb 0
 failStage    defb 0
+skipHandle   defb 0
+skipCount    defw 0
+dirPosStack  defs (MAX_DEPTH+1)*4
 
 plugin_end
         assert plugin_end - plugin_start <= DIRINFO_PLUGIN_SIZE
