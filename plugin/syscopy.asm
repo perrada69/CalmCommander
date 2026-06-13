@@ -1242,7 +1242,7 @@ copyPhaseTxt   defb "Copying: ",0
 deletePhaseTxt defb "Deleting: ",0
 statusLine     defs 56
 fileStatusLine defs 56
-blankNameTxt   defb "BREAK cancel   ",0
+blankNameTxt   defb "BREAK = cancel ",0
 
 plugin_end
         assert plugin_end - plugin_start <= SYSCOPY_PLUGIN_SIZE
