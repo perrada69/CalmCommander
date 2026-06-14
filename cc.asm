@@ -586,9 +586,6 @@ loop0
             cp "8"
             jp z,delete
 
-            cp 199                                ; Delete -> skok do nadrazeneho adresare
-            jp z,delete_key_parent
-
             cp 12                                 ; Spectrum Delete (Caps Shift + 0)
             jp z,delete_key_parent
 
@@ -2165,6 +2162,13 @@ CCC                                               ; vynuluj všechny stavové bi
         res 7,(hl)
         inc hl
         djnz CCC
+        ld a,(TMP83)
+        cp "."
+        jr nz,not_parent_dir
+        ld a,(TMP83+1)
+        cp "."
+        call z,parent_prepare_name
+not_parent_dir
         ld hl,TMP83+10                            ; najdi poslední znak názvu souboru/adresare
 chng2	ld a,(hl)
         cp 32
@@ -2273,6 +2277,7 @@ scont
         ld (hl),e
         inc hl
         ld (hl),d
+        call parent_jump_select
         call showwin
         ld a,32
         call writecur
@@ -4140,7 +4145,6 @@ reload_panels_after_cancel
         call freespace
         ret
 
-
 E1
 
         org $a000
@@ -4161,32 +4165,118 @@ delete_key_parent
         ld l,a
         inc hl
         inc hl
-        ld a,(hl)
-        cp 255
-        jp z,loop0                                ; root "X:" ignoruj
         inc hl
         ld a,(hl)
-        cp 255
-        jp z,loop0                                ; root "X:/" ignoruj
+        inc a
+        jr z,.root
+        call parent_prepare_name
+        jp delete_key_enter_directory
+.root
+        jp loop0
 
-        ld hl,TMP83
-        ld (hl),"."
-        inc hl
-        ld (hl),"."
-        inc hl
-        ld b,9
-        ld a,32
-.pad_parent_name
-        ld (hl),a
-        inc hl
-        djnz .pad_parent_name
+parent_prepare_name
+        ld a,1
+        ld (parent_jump_flag+1),a
+        ld hl,DIRBUFF
+        ld de,cmd3
+        ld bc,11
+        ldir
+        ld a,"*"
+        ld (de),a
+        inc de
+        xor a
+        ld (de),a
+        ret
+
+delete_key_enter_directory
+        ld hl,ban2
+        ld de,TMP83
+        ld bc,11
+        ldir
         jp enter_directory
+
+parent_jump_select
+parent_jump_flag
+        ld a,0
+        or a
+        ret z
+        xor a
+        ld (parent_jump_flag+1),a
+        call getroot_reload
+        ld (parent_base+1),hl
+        ld (parent_scan+1),hl
+        ld hl,ALLFILES
+        call ROZHOD2
+        ld a,(hl)
+        ld (parent_count+1),a
+pjs_loop
+parent_count
+        ld a,0
+        or a
+        ret z
+        dec a
+        ld (parent_count+1),a
+parent_scan
+        ld hl,0
+        push hl
+        inc hl
+        call find83
+        ld hl,TMP83+7
+        res 7,(hl)
+        xor a
+        ld (TMP83+11),a
+        ld de,cmd3
+        ld hl,TMP83
+        call specific_search
+        pop hl
+        jr z,pjs_found
+        inc hl
+        ld (parent_scan+1),hl
+        jr pjs_loop
+pjs_found
+parent_base
+        ld de,0
+        ld a,l
+        ld b,a
+        sub e
+        ld c,a
+        cp 13
+        jr c,pjs_store
+        ld a,b
+        sub 13
+        ld e,a
+        ld c,13
+        call pjs_cap_end
+pjs_store
+        ld hl,STARTWINL
+        call ROZHOD2
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        ld hl,POSKURZL
+        call ROZHOD
+        ld (hl),c
+        ret
+
+oknoVyber	defb	64,32
+            defb	100,96
 
 E3
         org 49152
 S2
-oknoVyber	defb	64,32
-            defb	100,96
+pjs_cap_end
+        ld hl,ALLFILES
+        call ROZHOD2
+        ld a,(hl)
+        sub 27
+        ret c
+        cp e
+        ret nc
+        ld e,a
+        ld a,b
+        sub e
+        ld c,a
+        ret
 vyberPocitace
         ld hl,30 * 256 + 5
         ld bc,20 * 256 + 15
