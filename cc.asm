@@ -4925,23 +4925,7 @@ down0
         inc hl
         ld h,(hl)
         ld l,a
-
-        push hl
-        ld hl,downall
-        call ROZHOD2
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
         pop de
-        ex de,hl
-
-        or a
-        sbc hl,de
-        add hl,de
-        pop de
-        jp z,down_cancel
-
         ex de,hl
         inc de
         ld (hl),e
