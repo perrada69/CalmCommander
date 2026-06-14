@@ -586,6 +586,12 @@ loop0
             cp "8"
             jp z,delete
 
+            cp 199                                ; Delete -> skok do nadrazeneho adresare
+            jp z,delete_key_parent
+
+            cp 12                                 ; Spectrum Delete (Caps Shift + 0)
+            jp z,delete_key_parent
+
             cp "9"
             jp z,RENAME
 
@@ -4146,6 +4152,36 @@ S3
         include "functions/input.asm"
         include "functions/viewer.asm"
         include "functions/createdir.asm"
+delete_key_parent
+        ld hl,pathl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        inc hl
+        inc hl
+        ld a,(hl)
+        cp 255
+        jp z,loop0                                ; root "X:" ignoruj
+        inc hl
+        ld a,(hl)
+        cp 255
+        jp z,loop0                                ; root "X:/" ignoruj
+
+        ld hl,TMP83
+        ld (hl),"."
+        inc hl
+        ld (hl),"."
+        inc hl
+        ld b,9
+        ld a,32
+.pad_parent_name
+        ld (hl),a
+        inc hl
+        djnz .pad_parent_name
+        jp enter_directory
+
 E3
         org 49152
 S2
