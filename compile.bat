@@ -21,6 +21,7 @@ set "IMG=%CSPECT_DIR%\cspect-next-2gb.img"
 set "HDF=%CSPECT_DIR%\hdfmonkey.exe"
 set "CSPECT=%CSPECT_DIR%\CSpect.exe"
 set "PLUG=CalmCommander/plugin"
+set "DOT=dot"
 
 if /I "%1"=="clean" goto :do_clean
 if /I "%1"=="build" goto :do_build_only
@@ -38,6 +39,7 @@ if exist build\*.bas del /Q build\*.bas
 if exist build\*.lst del /Q build\*.lst
 if exist build\*.sym del /Q build\*.sym
 if exist build\plugin\*.ccp del /Q build\plugin\*.ccp
+if exist build\plugin\copy del /Q build\plugin\copy
 if exist "%CSPECT_LOG%" del /Q "%CSPECT_LOG%"
 echo [OK]
 goto :end
@@ -65,6 +67,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/tap.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/syscopy.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/dir_info.ccp 2>nul
+"%HDF%" rm "%IMG%" %DOT%/copy 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/asctest.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/TXT,ASM,BAS,CFG,INI_Text-Viewer.CCP 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/SCR_ZX-Screen.CCP 2>nul
@@ -110,6 +113,12 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\tap.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\syscopy.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\dir_info.ccp %PLUG%/
+echo   [PUT] dot commands -^> %DOT%/
+"%HDF%" put "%IMG%" build\plugin\copy %DOT%/
+if errorlevel 1 (
+    echo *** KOPIROVANI DOT COMMANDU COPY SELHALO ***
+    exit /b 1
+)
 
 echo.
 echo [OK] Soubory zkopirovany na SD kartu.
@@ -198,6 +207,10 @@ if exist plugin\tap.ccp ( copy /Y plugin\tap.ccp build\plugin\tap.ccp >nul )
 "%SJASMPLUS%" plugin\syscopy.asm
 if errorlevel 1 ( echo *** BUILD FAILED: syscopy.asm *** & exit /b 1 )
 if exist plugin\syscopy.ccp ( copy /Y plugin\syscopy.ccp build\plugin\syscopy.ccp >nul )
+
+"%SJASMPLUS%" plugin\copy.asm
+if errorlevel 1 ( echo *** BUILD FAILED: copy.asm *** & exit /b 1 )
+if exist plugin\copy ( copy /Y plugin\copy build\plugin\copy >nul )
 
 "%SJASMPLUS%" plugin\dir_info.asm
 if errorlevel 1 ( echo *** BUILD FAILED: dir_info.asm *** & exit /b 1 )
