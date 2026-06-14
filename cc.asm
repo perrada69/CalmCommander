@@ -2495,7 +2495,6 @@ loadscr
         ret
 
 
-downall	defw 0, 0
 KL
 klavesa	defb 0
 
@@ -3149,7 +3148,6 @@ atr9	ld (hl),0
         ; * uloží návratovou hodnotu do dosret
         ; * nastaví STARTWIN dle root/non-root (path +3 == 255)
         ; * zavolá getAllLFN (naplnění LFN bufferů) a getdir (aktualizace cesty)
-        ; * uloží downall (nějaký “all/scroll” údaj pro aktivní okno)
         ; ------------------------------------------------------------
 reload_dir
 
@@ -3304,23 +3302,6 @@ acont
 askon
         call getAllLFN                            ; interní: prochází catbuff a pro každou položku ukládá LFN do “paged bufferu”
         call getdir                               ; interní/external mix: aktualizace cesty (nemám celý include, neodhaduju)
-
-                                                  ; downall = ALLFILES-1 (pro aktivní okno)
-        ld hl,(ALLFILES)
-        dec hl
-
-        push hl
-        ld hl,downall
-        call ROZHOD2
-        ld a,(hl)
-        inc hl
-        ld h,(hl)
-        ld l,a
-        pop de
-        ex de,hl
-        ld (hl),e
-        inc hl
-        ld (hl),d
 
         ; root detekce: path + 3 == 255
         ld hl,pathl
@@ -4076,6 +4057,126 @@ syscopy_check_cancel
         ret
 
 
+; HL = zero/255 terminated filename from syscopy plugin.
+; Returns the same action codes as overwrite_choice:
+;   1 = cancel, "n" = skip/no, 2 = all, 13 = overwrite
+syscopy_overwrite_prompt
+        ld a,(overwriteAll)
+        or a
+        jr z,.ask
+        ld a,2
+        ret
+.ask
+        ld de,bfname
+        ld b,35
+.copy_name
+        ld a,(hl)
+        or a
+        jr z,.name_done
+        cp 255
+        jr z,.name_done
+        ld (de),a
+        inc hl
+        inc de
+        djnz .copy_name
+.name_done
+        xor a
+        ld (de),a
+
+        call savescr
+        ld hl,10 * 256 + 10
+        ld bc,60 * 256 + 12
+        ld a,16
+        call window
+
+        ld hl,11*256+11
+        ld a,16
+        ld de,file_exists_txt
+        call print
+
+        ld hl,11*256+13
+        ld a,16
+        ld de,overwrite_txt
+        call print
+
+        ld hl,11*256+15
+        ld a,16
+        ld de,namefile
+        call print
+
+        ld hl,25*256+15
+        ld a,16
+        ld de,bfname
+        call print
+
+        ld hl,46*256+21
+        ld a,48
+        ld de,yestxt
+        call print
+
+        ld hl,46*256+20
+        ld a,16
+        ld de,cancel_txt
+        call print
+        ld hl,11*256+20
+        ld a,16
+        ld de,no_txt
+        call print
+        ld hl,11*256+21
+        ld a,16
+        ld de,all_txt
+        call print
+.wait
+        xor a
+        ld (TLACITKO),a
+        ei
+        ld b,2
+.delay
+        halt
+        djnz .delay
+        call KEYSCAN
+        ld a,e
+        inc a
+        jr z,.wait
+        ld a,d
+        cp $27
+        jr nz,.plain
+        ld a,e
+        cp 32
+        jr z,.cancel
+        cp 33
+        jr z,.all
+.plain
+        ld a,e
+        cp 33
+        jr z,.enter
+        cp 8
+        jr z,.no
+        jr .wait
+.no
+        ld a,"n"
+        jr .done
+.cancel
+        ld a,1
+        jr .done
+.all
+        ld a,2
+        ld (overwriteAll),a
+        jr .done
+.enter
+        ld a,13
+.done
+        push af
+        call loadscr
+        pop af
+        ret
+
+
+E1
+
+        org $a000
+S3
+        include "functions/copy.asm"
 reload_panels_after_cancel
         call obnov_okna
         call dospage
@@ -4091,11 +4192,6 @@ reload_panels_after_cancel
         call freespace
         ret
 
-E1
-
-        org $a000
-S3
-        include "functions/copy.asm"
         include "kmouse/driver.a80"
         include "kmouse/akce.a80"
         include "functions/menu.asm"

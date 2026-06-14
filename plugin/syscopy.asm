@@ -20,6 +20,7 @@ ATTR_DIR         equ $10
 
 MAX_DEPTH        equ 11
 PLUGIN_STACK     equ $DFFE
+SYS_COPY_WORK_PAGE equ 99
 
 STAGE_ROOT_PATH  equ $11
 STAGE_NESTED_DST equ $12
@@ -541,6 +542,10 @@ build_child_src_path
 
 copy_child_file
         call init_file_progress
+        call confirm_child_overwrite
+        ret c
+        or a
+        ret z
         ld a,(curDepth)
         inc a
         call get_src_path
@@ -640,6 +645,44 @@ copy_child_file
         pop ix
         rst $08
         db F_UNLINK
+        ld a,$7c
+        scf
+        ret
+
+
+; Returns NC,A=1 to copy, NC,A=0 to skip, C,A=$7c to cancel.
+confirm_child_overwrite
+        ld a,(curDepth)
+        inc a
+        call get_dst_path
+        push hl
+        pop ix
+        xor a
+        ld b,MODE_READ_EXIST
+        rst $08
+        db F_OPEN
+        jr c,.copy
+        rst $08
+        db F_CLOSE
+        ld hl,LFN_ENTRY+1
+        call call_overwrite
+        nextreg $57,SYS_COPY_WORK_PAGE
+        cp 1
+        jr z,.cancel
+        cp "n"
+        jr z,.skip
+        cp 2
+        jr z,.copy
+        cp 13
+        jr z,.copy
+.skip
+        xor a
+        ret
+.copy
+        ld a,1
+        or a
+        ret
+.cancel
         ld a,$7c
         scf
         ret
@@ -1072,6 +1115,9 @@ patch_services
         ld l,(ix+SYSCOPY_SERVICE_CANCEL)
         ld h,(ix+SYSCOPY_SERVICE_CANCEL+1)
         ld (call_cancel+1),hl
+        ld l,(ix+SYSCOPY_SERVICE_OVERWRITE)
+        ld h,(ix+SYSCOPY_SERVICE_OVERWRITE+1)
+        ld (call_overwrite+1),hl
         ret
 
 
@@ -1400,6 +1446,10 @@ call_print
 
 
 call_cancel
+        jp 0
+
+
+call_overwrite
         jp 0
 
 
