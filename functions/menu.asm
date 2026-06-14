@@ -780,7 +780,7 @@ menu001b
 ; Data: titulky, tabulky a definice menu
 ; =============================================================================
 text        defb " LEFT  | FILE  | UTILS | RIGHT | QUIT                ",0
-nadpis      defb " Calm Commander " : VERSION : defb " (Development version)                                                   ",0
+nadpis      defb " Calm Commander " : VERSION : defb "                                                                 ",0
 
 menupos     defb 0, 18, 34, 50, 66
 

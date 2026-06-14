@@ -47,7 +47,7 @@ newfile		defb "New file:",0
 xb_fname        defb    "cc_xb.bin",255
 xb_dir          defb    "c:/CalmCommander",255
 
-calmcommander	defb    "CALM COMMANDER " : VERSION : defb " (Development version 2026)",0		
+calmcommander	defb    "CALM COMMANDER " : VERSION : defb " ",0		
 breaktxt 		defb    "BREAK: close this window",0		
 info1txt 		defb    "File manager for ZX Spectrum Next. ",0
 info2txt 		defb    "Main program: Shrek/MB Maniax",0

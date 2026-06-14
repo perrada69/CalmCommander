@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "0.99" : ENDM
+            MACRO VERSION : defb "1.0" : ENDM
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
@@ -4240,7 +4240,7 @@ parent_base
         ld b,a
         sub e
         ld c,a
-        cp 13
+        cp 27
         jr c,pjs_store
         ld a,b
         sub 13
