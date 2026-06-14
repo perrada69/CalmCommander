@@ -2358,7 +2358,7 @@ dot_overwrite
         call call_print
         pop hl
         ld de,hl
-        ld hl,10*256+10
+        ld hl,0*256+11
         ld a,16
         call call_print
         xor a
@@ -2668,7 +2668,7 @@ msgError    defb "copy: esxDOS error $",0
 msgStage    defb " stg $",0
 msgDestMissing defb "copy: destiny path not found",0
 msgCancelled defb "Cancelled.",0
-msgSkip     defb "Skipping existing: ",0
+msgSkip     defb "Skipping existing:   ",0
 msgUsageError defb "copy: missing or bad arguments",13,0
 msgTitle    defb ".copy - by Shrek/MB Maniax 2026",0
 msgSource   defb "Source:",0
@@ -2690,26 +2690,21 @@ msgDbgRootOk defb "DBG root ok",13,0
 msgHelp
         defb ".copy - by Shrek/MB Maniax 2026",13
         defb 13
-        defb "COPY 0.1 - file/directory copy",13
         defb "Usage:",13
         defb "  .copy -s source -d destiny",13
         defb "  .copy source destiny",13
         defb "Options:",13
         defb "  -m  move after successful copy",13
         defb "  -y  overwrite existing files",13
-        defb "  -h  show this help",13
         defb 13
-        defb "If destiny ends with / or is an existing",13
+        defb "If destiny ends with / or is an existing"
         defb "directory, source name is appended.",13
         defb 13
         defb "Examples:",13
-        defb "  .copy CalmCommander d:/zaloha",13
-        defb "  .copy zaloha c:/backup",13
-        defb "  .copy ",34,"Calm Commander",34," c:/backup/",13
+        defb "  .copy zaloha backup",13
         defb "  .copy -s ",34,"my dir",34," -d ",34,"d:/my backup",34,13
         defb 13
-        defb "Work buffer: $DC00/56320, 8192 bytes",13
-        defb "Range: $DC00-$FBFF",13,0
+        defb "Work buffer: $DC00/56320, 8192b",13
 
 copyPhaseTxt   defb "Copying: ",0
 deletePhaseTxt defb "Deleting: ",0

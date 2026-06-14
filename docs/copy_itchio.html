@@ -1,0 +1,138 @@
+<h2>.copy &mdash; NextZXOS dot command for ZX Spectrum Next</h2>
+
+<p>
+A standalone dot command for <strong>NextZXOS / esxDOS</strong> that copies or moves files and entire directory trees.
+Run from the command line or from BASIC as <code>.copy source dest</code>.
+</p>
+
+<h3>Installation</h3>
+
+<p>
+Copy the file <code>copy</code> (no extension) into the <code>/dot</code> directory on your SD card.<br>
+Run it directly from the NextZXOS command line or from BASIC with the <code>.copy</code> command.
+</p>
+
+<h3>Syntax</h3>
+
+<pre>
+.copy source dest
+.copy -s source -d dest
+</pre>
+
+<p>Both forms are equivalent. Enclose paths that contain spaces in double quotes.</p>
+
+<h3>Options</h3>
+
+<ul>
+  <li><code>-m</code> &mdash; <strong>move</strong>: deletes the source file or directory after a successful copy</li>
+  <li><code>-y</code> &mdash; <strong>yes</strong>: overwrites existing destination files; without this flag existing files are skipped</li>
+  <li><code>-h</code> &mdash; show help</li>
+</ul>
+
+<h3>How it works</h3>
+
+<p>
+On startup the command automatically detects whether the source is a <strong>file or a directory</strong> by attempting to open it as an LFN directory.
+</p>
+
+<p><strong>Single file copy:</strong><br>
+The file is read into an 8&nbsp;kB work buffer at <code>$DC00</code> and written to the destination in chunks.
+If the destination ends with a slash or is an existing directory, the source filename is appended automatically.
+Otherwise the destination path is used as the final filename.
+</p>
+
+<p><strong>Directory copy (recursive):</strong></p>
+<ol>
+  <li>The command traverses the directory tree up to <strong>11 levels deep</strong> (MAX_DEPTH&nbsp;=&nbsp;11).</li>
+  <li>Each subdirectory is created at the destination (F_MKDIR &mdash; &ldquo;already exists&rdquo; errors are ignored).</li>
+  <li>Files in each subdirectory are copied with <strong>long filenames (LFN) preserved</strong>.</li>
+  <li>Before the actual copy a quick pre-scan counts all items to enable progress display.</li>
+  <li>Progress is shown as <code>Copying: dirname (X/total)</code> and per-file as <code>filename [XkB/TotalkB]</code>.</li>
+  <li>Directory handles are closed before recursing and reopened afterwards &mdash; this works around the NextZXOS limit on simultaneously open handles.</li>
+</ol>
+
+<p><strong>Moving a directory (<code>-m</code>):</strong><br>
+A full recursive copy is performed first, then the entire source tree is deleted (files via F_UNLINK, directories via F_RMDIR bottom-up).
+For a single file, the command tries F_RENAME first (fast same-drive rename); only if that fails does it fall back to copy&nbsp;+&nbsp;delete.
+</p>
+
+<h3>Overwrite behaviour</h3>
+
+<ul>
+  <li>Without <code>-y</code>: an existing destination file is <strong>skipped</strong> and <code>Skipping existing: name</code> is shown.</li>
+  <li>With <code>-y</code>: the destination file is overwritten.</li>
+</ul>
+
+<h3>Destination path rules</h3>
+
+<ul>
+  <li>Destination ends with <code>/</code> or <code>\</code> &rarr; source name is appended after the slash.</li>
+  <li>Destination is an existing directory &rarr; source name is copied into that directory.</li>
+  <li>Otherwise &rarr; destination is used as the final file/directory name.</li>
+  <li>A trailing slash on the source path (<code>dir/</code>) is stripped so it is treated the same as <code>dir</code>.</li>
+</ul>
+
+<h3>Safety features</h3>
+
+<ul>
+  <li><strong>Nested-destination guard</strong>: the command checks whether the destination path is a subdirectory of the source and refuses to copy in that case.</li>
+  <li><strong>Destination parent check</strong>: before starting, the command verifies that the parent directory of the destination exists. If not, it exits with <code>copy: destiny path not found</code>.</li>
+  <li><strong>BREAK to cancel</strong> (CAPS SHIFT + SPACE): stops the operation at any time, deletes the partially written destination file, and prints <code>Cancelled.</code></li>
+  <li>A ROM error handler is installed so that drive errors do not fall through to BASIC (common on some emulators with missing drives).</li>
+</ul>
+
+<h3>Performance</h3>
+
+<p>
+During copy and delete operations the CPU is temporarily switched to <strong>28&nbsp;MHz</strong> (NextReg&nbsp;$07&nbsp;=&nbsp;3).
+The original turbo setting is restored on exit, whether the command succeeds, fails, or is cancelled.
+</p>
+
+<h3>Technical details</h3>
+
+<ul>
+  <li>Work buffer: 8192 bytes at <code>$DC00&ndash;$FBFF</code></li>
+  <li>Source path stack: <code>$C000</code> (12 &times; 256 bytes)</li>
+  <li>Destination path stack: <code>$CC00</code> (12 &times; 256 bytes)</li>
+  <li>Maximum path length: 255 characters</li>
+  <li>Maximum subdirectory depth: <strong>11 levels</strong></li>
+  <li>Directories are read in LFN mode &rarr; long filenames are preserved</li>
+  <li>Loaded at address <code>$2000</code> (standard dot command)</li>
+</ul>
+
+<h3>Examples</h3>
+
+<pre>
+.copy backup backup2
+</pre>
+<p>Copies the file or directory <code>backup</code> to <code>backup2</code>.</p>
+
+<pre>
+.copy "Calm Commander" "c:/backup/"
+</pre>
+<p>Copies the directory <code>Calm Commander</code> (name contains a space) to <code>c:/backup/Calm Commander</code>.</p>
+
+<pre>
+.copy -s "my dir" -d "d:/my backup"
+</pre>
+<p>Copy using named flags &mdash; useful when paths contain spaces.</p>
+<pre>
+.copy -m olddir newdir
+</pre>
+<p>Moves the directory <code>olddir</code> to <code>newdir</code> (copy then delete source).</p>
+
+<h3>Messages</h3>
+
+<ul>
+  <li><code>copy: missing or bad arguments</code> &mdash; source or destination missing, or unknown flag</li>
+  <li><code>copy: destiny path not found</code> &mdash; the parent directory of the destination does not exist</li>
+  <li><code>copy: esxDOS error $XX stg $YY</code> &mdash; internal error; XX is the esxDOS error code, YY is the stage (for debugging)</li>
+  <li><code>Skipping existing: name</code> &mdash; file exists at destination and <code>-y</code> was not given</li>
+  <li><code>Cancelled.</code> &mdash; user pressed BREAK</li>
+  <li><code>Done.</code> &mdash; copy or move completed successfully</li>
+</ul>
+
+<hr>
+
+<p><em>.copy is part of the Calm Commander project for ZX Spectrum Next. By Shrek / MB Maniax 2026.</em></p>
+
