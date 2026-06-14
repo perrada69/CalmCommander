@@ -14,6 +14,10 @@ F_RMDIR     equ $AB
 F_UNLINK    equ $AD
 F_RENAME    equ $B0
 
+TBBLUE_REGISTER_SELECT_P_243B equ $243B
+TBBLUE_REGISTER_ACCESS_P_253B equ $253B
+TURBO_CONTROL_NR_07 equ $07
+
 MODE_READ_EXIST  equ $01
 MODE_WRITE_TRUNC equ $0E
 MODE_LFN_DIR     equ $10
@@ -43,14 +47,17 @@ SRC_STACK        equ $C000                         ; 12 * 256 bytes
 DST_STACK        equ $CC00                         ; 12 * 256 bytes
 DIR_ENTRY        equ $D800                         ; 512 bytes
 LFN_ENTRY        equ $DA00                         ; 512 bytes
-COPY_BUFFER      equ DIR_ENTRY                     ; file copy can reuse dir-entry space
-COPY_BUFFER_LEN  equ 2048
+COPY_BUFFER      equ $DC00                         ; 8 KiB copy buffer above DIR/LFN entries
+COPY_BUFFER_LEN  equ 8192
 STATUS_LINE_LEN  equ 45
+SCREEN_LINE_LEN  equ 32
+DEBUG_OUTPUT     equ 0
 
 MAIN
         ld (argPtr),hl
         ld (savedSp),sp
         ld sp,PLUGIN_STACK
+        call clear_screen
         call clear_options
         ld hl,(argPtr)
         call debug_print_args
@@ -73,35 +80,40 @@ MAIN
         call trim_trailing_slash
         call setup_context
         ld hl,msgDbgSetup
-        call print_msg
+        call debug_print_msg
         ld hl,dotCtx
         ld (ctxPtr),hl
         xor a
         ld (failStage),a
+        call print_header
 
         ld hl,msgDbgBeforeSource
-        call print_msg
+        call debug_print_msg
+        ld a,STAGE_COPY_LFN
+        ld (failStage),a
         call is_source_directory
         jr nc,.source_is_dir
         push af
         ld hl,msgDbgSourceFile
-        call print_msg
+        call debug_print_msg
         ld hl,msgDbgOpenErr
-        call print_msg
+        call debug_print_msg
         pop af
-        call print_hex8
-        call print_nl
+        call debug_print_hex8
+        call debug_print_nl
+        call set_turbo_28
         jp copy_one_file
 .source_is_dir
         ld hl,msgDbgSourceDir
-        call print_msg
+        call debug_print_msg
 
         ld hl,msgDbgRoot
-        call print_msg
+        call debug_print_msg
         call copy_root_paths
         jp c,failed
         ld hl,msgDbgRootOk
-        call print_msg
+        call debug_print_msg
+        call set_turbo_28
         ld ix,(ctxPtr)
         ld a,(ix+SYSCOPYCTX_MODE)
         cp 2
@@ -140,8 +152,11 @@ success
         xor a
         ld (ix+SYSCOPYCTX_RESULT),a
         ld sp,(savedSp)
-        ld hl,msgDone
-        call print_msg
+        ld hl,0*256+20
+        ld a,16
+        ld de,msgDone
+        call call_print
+        call restore_turbo
         ld bc,0
         xor a
         ret
@@ -154,11 +169,30 @@ failed
         ld a,1
         ld (ix+SYSCOPYCTX_RESULT),a
         ld sp,(savedSp)
-        ld hl,msgError
-        call print_msg
+        ld a,(dotCtx+SYSCOPYCTX_ERROR)
+        cp $7c
+        jp z,cancelled
+        ld hl,0*256+20
+        ld a,16
+        ld de,msgError
+        call call_print
         ld a,(dotCtx+SYSCOPYCTX_ERROR)
         call print_hex8
-        call print_nl
+        ld hl,msgStage
+        call print_msg
+        ld a,(dotCtx+SYSCOPYCTX_STAGE)
+        call print_hex8
+        call restore_turbo
+        ld bc,0
+        xor a
+        ret
+
+cancelled
+        ld hl,0*256+20
+        ld a,16
+        ld de,msgCancelled
+        call call_print
+        call restore_turbo
         ld bc,0
         xor a
         ret
@@ -171,6 +205,7 @@ show_usage_error
 show_help_ok
         ld hl,msgHelp
         call print_msg
+        call restore_turbo
         ld bc,0
         xor a
         ret
@@ -187,7 +222,7 @@ copy_one_file
         ld a,"*"
         rst $08
         db F_RENAME
-        jr nc,success
+        jp nc,success
 
 .copy
         call confirm_file_overwrite
@@ -212,6 +247,9 @@ copy_one_file
         ld (dstHandle),a
 
 .loop
+        call call_cancel
+        cp 1
+        jp z,.cancel
         ld a,(srcHandle)
         ld hl,COPY_BUFFER
         ld bc,COPY_BUFFER_LEN
@@ -223,8 +261,12 @@ copy_one_file
         jr z,.done
         ld (lastReadLen),bc
 
+        call call_cancel
+        cp 1
+        jp z,.cancel
         ld a,(dstHandle)
         ld hl,COPY_BUFFER
+        ld bc,(lastReadLen)
         rst $08
         db F_WRITE
         jr c,.copy_fail
@@ -259,6 +301,20 @@ copy_one_file
         rst $08
         db F_CLOSE
         pop af
+        jp failed
+
+.cancel
+        ld a,(dstHandle)
+        rst $08
+        db F_CLOSE
+        ld a,(srcHandle)
+        rst $08
+        db F_CLOSE
+        ld hl,dstFullPath
+        ld a,"*"
+        rst $08
+        db F_UNLINK
+        ld a,$7c
         jp failed
 
 
@@ -494,7 +550,7 @@ extract_token
 
 setup_context
         ld hl,msgDbgSetupStart
-        call print_msg
+        call debug_print_msg
         ld a,SYSCOPY_ABI
         ld (dotCtx+SYSCOPYCTX_ABI),a
         ld a,(moveFlag)
@@ -512,10 +568,10 @@ setup_context
         ld (dotCtx+SYSCOPYCTX_ERROR),a
         ld (dotCtx+SYSCOPYCTX_STAGE),a
         ld hl,msgDbgSplitSrc
-        call print_msg
+        call debug_print_msg
         call split_source_path
         ld hl,msgDbgSplitDst
-        call print_msg
+        call debug_print_msg
         call split_dest_path
         ret
 
@@ -600,8 +656,10 @@ confirm_file_overwrite
         ld a,(yesFlag)
         or a
         jr nz,.copy
-        ld hl,msgSkip
-        call print_msg
+        ld hl,0*256+9
+        ld a,16
+        ld de,msgSkip
+        call call_print
         xor a
         ret
 .copy
@@ -1171,6 +1229,9 @@ copy_child_file
         ld (dstHandle),a
 
 .loop
+        call call_cancel
+        cp 1
+        jp z,.cancel
         ld a,(srcHandle)
         ld hl,COPY_BUFFER
         ld bc,COPY_BUFFER_LEN
@@ -1185,10 +1246,14 @@ copy_child_file
         jr z,.done
         ld (lastReadLen),bc
 
+        call call_cancel
+        cp 1
+        jp z,.cancel
         ld a,(dstHandle)
         ld hl,COPY_BUFFER
         ld a,STAGE_FILE_WRITE
         ld (failStage),a
+        ld bc,(lastReadLen)
         ld a,(dstHandle)
         rst $08
         db F_WRITE
@@ -1701,6 +1766,34 @@ patch_services
         ret
 
 
+print_header
+        ld hl,0*256+0
+        ld a,16
+        ld de,msgTitle
+        call call_print
+        ld hl,0*256+1
+        ld a,16
+        ld de,msgSource
+        call call_print
+        ld hl,8*256+1
+        ld a,16
+        ld de,srcPath
+        call call_print
+        ld hl,0*256+2
+        ld a,16
+        ld de,msgDestiny
+        call call_print
+        ld hl,9*256+2
+        ld a,16
+        ld de,dstPath
+        call call_print
+        ld hl,0*256+4
+        ld a,16
+        ld de,blankNameTxt
+        call call_print
+        ret
+
+
 print_status
         push af
         push bc
@@ -1722,7 +1815,33 @@ print_counter_status
         push de
         push hl
         push ix
+        jr .print
 
+        ld ix,(ctxPtr)
+        ld l,(ix+SYSCOPYCTX_FILES_LO)
+        ld h,(ix+SYSCOPYCTX_FILES_LO+1)
+        ld a,h
+        or l
+        jr z,.print
+        ld a,h
+        or a
+        jr nz,.check_total
+        ld a,l
+        cp 1
+        jr z,.print
+.check_total
+        ld de,(totalFiles)
+        or a
+        sbc hl,de
+        jr z,.print
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+.print
         ld hl,statusLine
         ld b,STATUS_LINE_LEN
 .clear
@@ -1763,11 +1882,7 @@ print_counter_status
         ld (de),a
         inc de
 
-        ld hl,56*256+14
-        ld a,16
-        ld de,blankNameTxt
-        call call_print
-        ld hl,11*256+13
+        ld hl,0*256+6
         ld a,16
         ld de,statusLine
         call call_print
@@ -1783,6 +1898,8 @@ init_file_progress
         ld hl,0
         ld (fileCopiedBytes),hl
         ld (fileCopiedBytes+2),hl
+        ld hl,$FFFF
+        ld (lastPrintedKb),hl
         call find_lfn_entry_size_ptr
         ld de,fileTotalBytes
         ld bc,4
@@ -1824,6 +1941,15 @@ print_file_progress
         push de
         push hl
         push ix
+
+        ld hl,fileCopiedBytes
+        call bytes_to_kb
+        ld de,(lastPrintedKb)
+        or a
+        sbc hl,de
+        jr z,.skip_print
+        add hl,de
+        ld (lastPrintedKb),hl
 
         ld hl,fileStatusLine
         ld b,STATUS_LINE_LEN
@@ -1884,10 +2010,13 @@ print_file_progress
         ld a,"]"
         ld (de),a
 
-        ld hl,11*256+14
+        ld hl,0*256+7
         ld a,16
         ld de,fileStatusLine
         call call_print
+        jr .done
+.skip_print
+.done
         pop ix
         pop hl
         pop de
@@ -2035,17 +2164,45 @@ call_overwrite
 
 dot_print
         push af
+        push bc
+        push de
         push hl
-        ld a,13
-        rst $10
+        call set_cursor
         ex de,hl
-        call print_msg
+        call print_msg_count
+        ld a,b
+        cp SCREEN_LINE_LEN
+        jr nc,.done
+        ld a,SCREEN_LINE_LEN
+        sub b
+        ld b,a
+.pad
+        ld a,b
+        or a
+        jr z,.done
+        ld a,32
+        rst 16
+        djnz .pad
+.done
         pop hl
+        pop de
+        pop bc
         pop af
         ret
 
 
 dot_cancel
+        ld bc,$FEFE
+        in a,(c)
+        bit 0,a
+        jr nz,.no
+        ld bc,$7FFE
+        in a,(c)
+        bit 0,a
+        jr nz,.no
+        ld a,1
+        ret
+.no
         xor a
         ret
 
@@ -2055,11 +2212,15 @@ dot_overwrite
         or a
         jr nz,.copy
         push hl
-        ld hl,msgSkip
-        call print_msg
+        ld de,msgSkip
+        ld hl,0*256+9
+        ld a,16
+        call call_print
         pop hl
-        call print_msg
-        call print_nl
+        ld de,hl
+        ld hl,10*256+9
+        ld a,16
+        call call_print
         xor a
         ret
 .copy
@@ -2073,14 +2234,32 @@ print_msg
         ret z
         cp 255
         ret z
-        rst $10
+        rst 16
         inc hl
         jr print_msg
 
 
+; Prints zero/255 terminated text and returns B=printed character count.
+print_msg_count
+        ld b,0
+.loop
+        ld a,b
+        cp SCREEN_LINE_LEN
+        ret nc
+        ld a,(hl)
+        or a
+        ret z
+        cp 255
+        ret z
+        rst 16
+        inc b
+        inc hl
+        jr .loop
+
+
 print_nl
         ld a,13
-        rst $10
+        rst 16
         ret
 
 
@@ -2099,11 +2278,116 @@ print_hex_nibble
         jr c,.ok
         add a,7
 .ok
-        rst $10
+        rst 16
         ret
 
 
+clear_screen
+        ld hl,16384
+        ld de,16385
+        ld bc,6143
+        ld (hl),l
+        ldir
+        ld hl,22528
+        ld de,22529
+        ld bc,767
+        ld (hl),56
+        ldir
+        ret
+
+
+set_turbo_28
+        push af
+        push bc
+        ld a,TURBO_CONTROL_NR_07
+        call read_nextreg
+        ld (savedTurbo),a
+        ld a,1
+        ld (turboEnabled),a
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        ld a,TURBO_CONTROL_NR_07
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        ld a,3
+        out (c),a
+        pop bc
+        pop af
+        ret
+
+
+restore_turbo
+        push af
+        push bc
+        ld a,(turboEnabled)
+        or a
+        jr z,.done
+        xor a
+        ld (turboEnabled),a
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        ld a,TURBO_CONTROL_NR_07
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        ld a,(savedTurbo)
+        out (c),a
+.done
+        pop bc
+        pop af
+        ret
+
+
+read_nextreg
+        push bc
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        in a,(c)
+        pop bc
+        ret
+
+
+; HL uses the Calm Commander convention: H=X, L=Y.
+set_cursor
+        push af
+        ld a,22
+        rst 16
+        ld a,l
+        rst 16
+        ld a,h
+        rst 16
+        pop af
+        ret
+
+
+debug_print_msg
+        ld a,DEBUG_OUTPUT
+        or a
+        ret z
+        jp print_msg
+
+
+debug_print_nl
+        ld a,DEBUG_OUTPUT
+        or a
+        ret z
+        jp print_nl
+
+
+debug_print_hex8
+        push af
+        ld a,DEBUG_OUTPUT
+        or a
+        jr nz,.enabled
+        pop af
+        ret
+.enabled
+        pop af
+        jp print_hex8
+
+
 debug_print_args
+        ld a,DEBUG_OUTPUT
+        or a
+        ret z
         push hl
         ld hl,msgDbgArgs
         call print_msg
@@ -2114,6 +2398,9 @@ debug_print_args
 
 
 debug_print_parsed
+        ld a,DEBUG_OUTPUT
+        or a
+        ret z
         push af
         push hl
         ld hl,msgDbgSrc
@@ -2179,6 +2466,9 @@ skipBuffer  defw 0
 skipCount   defw 0
 fileCopiedBytes defd 0
 fileTotalBytes defd 0
+lastPrintedKb defw 0
+savedTurbo  defb 0
+turboEnabled defb 0
 fileNameText defs 21
 decStarted defb 0
 dirPosStack defs (MAX_DEPTH+1)*4
@@ -2202,10 +2492,15 @@ dotServices
 dotCtx      defs SYSCOPYCTX_SIZE
 
 dotTxt      defb ".",0
-msgDone     defb 13,"Done.",13,0
-msgError    defb 13,"copy: esxDOS error $",0
-msgSkip     defb 13,"Skipping existing: ",0
+msgDone     defb "Done.",0
+msgError    defb "copy: esxDOS error $",0
+msgStage    defb " stg $",0
+msgCancelled defb "Cancelled.",0
+msgSkip     defb "Skipping existing: ",0
 msgUsageError defb "copy: missing or bad arguments",13,0
+msgTitle    defb ".copy - by Shrek/MB Maniax 2026",0
+msgSource   defb "Source:",0
+msgDestiny  defb "Destiny:",0
 msgDbgArgs  defb 13,"DBG args: ",0
 msgDbgSrc   defb "DBG src : ",0
 msgDbgDst   defb "DBG dst : ",0
@@ -2221,6 +2516,7 @@ msgDbgBeforeSource defb "DBG before source",13,0
 msgDbgRoot  defb "DBG root paths",13,0
 msgDbgRootOk defb "DBG root ok",13,0
 msgHelp
+        defb ".copy - by Shrek/MB Maniax 2026",13
         defb "COPY 0.1 - file/directory copy",13
         defb "Usage:",13
         defb "  .copy -s source -d destiny",13
