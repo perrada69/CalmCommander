@@ -1450,146 +1450,92 @@ xxx
 
 
         ; ------------------------------------------------------------
-        ; 1) whitelist podporovaných přípon – pokud žádná nesedí => unsup
-        ; pripony: porovnává poslední 3 znaky před koncem řetězce
-        ; ------------------------------------------------------------
-        ld hl,cmd2
-        ld de,ext_nex
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_NEX
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_tap
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_TAP
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_z80
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_Z80
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_snx
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_sna
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_SNX
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_SNA
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_bas
-        call pripony
-        jp z,rrrun
-
-        ld hl,cmd2
-        ld de,ext_BAS
-        call pripony
-        jp z,rrrun
-
-        ; pokud soubor nejde spustit, zkus ho otevrit pres viewer plugin
-        jp view_file
-
-
-        ; ------------------------------------------------------------
-        ; rrrun – druhá fáze: dle přípony zvol konkrétní RUN_* rutinu
+        ; rrrun – dle přípony zvol konkrétní RUN_* rutinu
+        ; Neznámý typ se předá viewer pluginům.
         ; ------------------------------------------------------------
 rrrun
-        ; přepnutí prostředí (externí)
-        call basicpage
-
         ; NEX
         ld hl,cmd2
         ld de,ext_nex
         call pripony
-        jp z,RUN_NEX_FILE
+        jp z,rrrun_nex
 
         ld hl,cmd2
         ld de,ext_NEX
         call pripony
-        jp z,RUN_NEX_FILE
+        jp z,rrrun_nex
 
         ; TAP
         ld hl,cmd2
         ld de,ext_tap
         call pripony
-        jp z,RUN_TAP
+        jp z,rrrun_tap
 
         ld hl,cmd2
         ld de,ext_TAP
         call pripony
-        jp z,RUN_TAP
+        jp z,rrrun_tap
 
         ; snapshoty
         ld hl,cmd2
         ld de,ext_z80
         call pripony
-        jp z,RUN_SNAP
+        jp z,rrrun_snap
 
         ld hl,cmd2
         ld de,ext_Z80
         call pripony
-        jp z,RUN_SNAP
+        jp z,rrrun_snap
 
         ld hl,cmd2
         ld de,ext_snx
         call pripony
-        jp z,RUN_SNAP
+        jp z,rrrun_snap
 
         ld hl,cmd2
         ld de,ext_sna
         call pripony
-        jp z,RUN_SNAP
+        jp z,rrrun_snap
 
         ld hl,cmd2
         ld de,ext_SNX
         call pripony
-        jp z,RUN_SNAP
+        jp z,rrrun_snap
 
         ld hl,cmd2
         ld de,ext_SNA
         call pripony
-        jp z,RUN_SNAP
+        jp z,rrrun_snap
 
         ; BASIC
         ld hl,cmd2
         ld de,ext_BAS
         call pripony
-        jp z,RUN_BAS
+        jp z,rrrun_bas
 
         ld hl,cmd2
         ld de,ext_bas
         call pripony
-        jp z,RUN_BAS
+        jp z,rrrun_bas
 
-        ; fallback -> nic nespouštěj
-        jp loop0
+        ; pokud soubor nejde spustit, zkus ho otevrit pres viewer plugin
+        jp view_file
+
+rrrun_nex
+        call basicpage
+        jp RUN_NEX_FILE
+
+rrrun_tap
+        call basicpage
+        jp RUN_TAP
+
+rrrun_snap
+        call basicpage
+        jp RUN_SNAP
+
+rrrun_bas
+        call basicpage
+        jp RUN_BAS
 
 
         ; ------------------------------------------------------------
@@ -6988,7 +6934,6 @@ LoadSprites
 ; showSprite
 ; ------------------------------------------------------------
 ; Rutina:
-; - vypíše aktuální souřadnice myši (debug)
 ; - zavolá driver myši (MOUSE)
 ; - aktualizuje stav tlačítek
 ; - nastaví sprite kurzoru na nové souřadnice
@@ -7008,36 +6953,6 @@ showSprite
             push bc
             push hl
             push de
-
-
-            ; ------------------------------------------------------------
-            ; DEBUG: výpis X souřadnice
-            ; ------------------------------------------------------------
-
-        ld a,(CONTRB)                              ; načti aktuální X myši
-        ld l,a
-        ld h,0                                    ; HL = číslo pro převod na text
-        call NUM                                  ; převeď číslo do NUMBUF
-
-        ld hl,41*256+31                           ; pozice na obrazovce (y,x)
-        ld a,16                                   ; šířka pole pro tisk
-        ld de,NUMBUF                              ; buffer s číslem
-        ;call print                                ; tisk čísla
-
-
-                                                  ; ------------------------------------------------------------
-                                                  ; DEBUG: výpis Y souřadnice
-                                                  ; ------------------------------------------------------------
-
-        ld a,(COORD+1)                            ; načti aktuální Y
-        ld l,a
-        ld h,0
-        call NUM
-
-        ld hl,50*256+31                           ; jiný řádek na obrazovce
-        ld a,16
-        ld de,NUMBUF
-        ;call print
 
 
         ; ------------------------------------------------------------

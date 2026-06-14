@@ -757,7 +757,6 @@ view_load_data_blocks
 
         ld a,2
         ld (viewErrorStage),a
-        call view_copy_tmp83_for_debug
         ld b,0
         ld c,1
         ld e,2
@@ -893,59 +892,8 @@ view_set_current_path
         inc hl
         ld h,(hl)
         ld l,a
-        push hl
-        call view_copy_path_for_debug
-        pop hl
         xor a
         call $01b1
-        ret
-
-
-view_copy_path_for_debug
-        push de
-        push bc
-        ld de,viewDebugPath
-        ld bc,59
-.copy
-        ld a,(hl)
-        cp 255
-        jr z,.done
-        ld (de),a
-        inc hl
-        inc de
-        dec bc
-        ld a,b
-        or c
-        jr nz,.copy
-.done
-        xor a
-        ld (de),a
-        pop bc
-        pop de
-        ret
-
-
-view_copy_tmp83_for_debug
-        push hl
-        push de
-        push bc
-        ld hl,TMP83
-        ld de,viewDebug83
-        ld b,11
-.copy
-        ld a,(hl)
-        cp 255
-        jr z,.done
-        ld (de),a
-        inc hl
-        inc de
-        djnz .copy
-.done
-        xor a
-        ld (de),a
-        pop bc
-        pop de
-        pop hl
         ret
 
 
@@ -1876,57 +1824,6 @@ view_error_dialog
         jp loop0
 
 
-view_stage_to_text
-        ld a,(viewErrorStage)
-        cp 1
-        jr z,.set_file_path
-        cp 2
-        jr z,.open_file
-        cp 3
-        jr z,.read_file
-        cp 4
-        jr z,.set_plugin_path
-        cp 5
-        jr z,.open_plugin
-        cp 6
-        jr z,.read_plugin
-        ld hl,viewStageUnknownTxt
-        jr .copy
-.set_file_path
-        ld hl,viewStageSetFilePathTxt
-        jr .copy
-.open_file
-        ld hl,viewStageOpenFileTxt
-        jr .copy
-.read_file
-        ld hl,viewStageReadFileTxt
-        jr .copy
-.set_plugin_path
-        ld hl,viewStageSetPluginPathTxt
-        jr .copy
-.open_plugin
-        ld hl,viewStageOpenPluginTxt
-        jr .copy
-.read_plugin
-        ld hl,viewStageReadPluginTxt
-.copy
-        ld de,viewDebugStage
-        ld bc,23
-.copy_loop
-        ld a,(hl)
-        ld (de),a
-        or a
-        ret z
-        inc hl
-        inc de
-        dec bc
-        ld a,b
-        or c
-        jr nz,.copy_loop
-        xor a
-        ld (de),a
-        ret
-
 viewPluginContext    defs VIEWCTX_SIZE
 viewPluginName       defw 0
 viewPluginType       defb 0
@@ -2014,20 +1911,6 @@ viewNoViewerTxt         defb "No viewer is available for this file.",0
 viewFileErrorTxt        defb "Cannot open selected file.",0
 viewPluginErrorTxt      defb "Cannot load viewer plugin.",0
 viewTryOtherTxt         defb "Install a matching plugin or use another file.",0
-viewStageLabelTxt       defb "Stage:",0
-viewPathLabelTxt        defb "Path:",0
-viewNameLabelTxt        defb "Name:",0
-view83LabelTxt          defb "83:",0
-viewStageUnknownTxt     defb "unknown",0
-viewStageSetFilePathTxt defb "set file path",0
-viewStageOpenFileTxt    defb "open file",0
-viewStageReadFileTxt    defb "read file",0
-viewStageSetPluginPathTxt defb "set plugin path",0
-viewStageOpenPluginTxt  defb "open plugin",0
-viewStageReadPluginTxt  defb "read plugin",0
-viewDebugStage          defs 24
-viewDebugPath           defs 60
-viewDebug83             defs 12
 viewPluginDosName       defs 64
 viewExtractOff          defw 0
 viewExtractCnt          defw 0
