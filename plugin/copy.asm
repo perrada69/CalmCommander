@@ -1,8 +1,18 @@
+; -----------------------------------------------------------------------------
+; .copy - standalone NextZXOS dot command
+; -----------------------------------------------------------------------------
+; Copies or moves files/directories using the esxDOS-compatible API.
+; This file was split from the Calm Commander syscopy plugin, but runs as a
+; normal dot command at $2000. Because dot commands execute in a special DOS
+; environment, pointers passed to RST $08 use HL, not IX.
+; -----------------------------------------------------------------------------
+
         DEVICE ZXSPECTRUMNEXT
         org $2000
 
         include "syscopy_api.i.asm"
 
+; esxDOS / NextZXOS hooks used by this command.
 F_OPEN      equ $9A
 F_CLOSE     equ $9B
 F_READ      equ $9D
@@ -13,11 +23,14 @@ F_MKDIR     equ $AA
 F_RMDIR     equ $AB
 F_UNLINK    equ $AD
 F_RENAME    equ $B0
+M_ERRH      equ $95
 
+; NextReg access for temporary 28 MHz turbo during actual copy/delete work.
 TBBLUE_REGISTER_SELECT_P_243B equ $243B
 TBBLUE_REGISTER_ACCESS_P_253B equ $253B
 TURBO_CONTROL_NR_07 equ $07
 
+; File modes and FAT attributes.
 MODE_READ_EXIST  equ $01
 MODE_WRITE_TRUNC equ $0E
 MODE_LFN_DIR     equ $10
@@ -27,8 +40,11 @@ MAX_DEPTH        equ 11
 PLUGIN_STACK     equ $BFFE
 SYS_COPY_WORK_PAGE equ 99
 
+; Stage values are printed with raw esxDOS errors. They are intentionally coarse:
+; they make field debugging possible without keeping verbose debug output on.
 STAGE_ROOT_PATH  equ $11
 STAGE_NESTED_DST equ $12
+STAGE_DST_PARENT equ $13
 STAGE_COPY_MKDIR equ $20
 STAGE_COPY_DIR   equ $21
 STAGE_COPY_LFN   equ $22
@@ -43,6 +59,9 @@ STAGE_DST_OPEN   equ $31
 STAGE_FILE_READ  equ $32
 STAGE_FILE_WRITE equ $33
 
+; Runtime work area. Path stacks hold one 256-byte path per recursion level.
+; The copy buffer is deliberately above DIR_ENTRY/LFN_ENTRY so file I/O cannot
+; overwrite the directory entry currently being processed.
 SRC_STACK        equ $C000                         ; 12 * 256 bytes
 DST_STACK        equ $CC00                         ; 12 * 256 bytes
 DIR_ENTRY        equ $D800                         ; 512 bytes
@@ -54,9 +73,12 @@ SCREEN_LINE_LEN  equ 32
 DEBUG_OUTPUT     equ 0
 
 MAIN
+        ; Entry: HL points to the dot-command argument line. Preserve the caller
+        ; stack and switch to our private stack before doing ROM/DOS calls.
         ld (argPtr),hl
         ld (savedSp),sp
         ld sp,PLUGIN_STACK
+        call install_error_handler
         call clear_screen
         call clear_options
         ld hl,(argPtr)
@@ -69,6 +91,8 @@ MAIN
         or a
         jp nz,show_help_ok
 
+        ; Both source and destination are mandatory. The parser accepts either
+        ; `.copy source destiny` or `.copy -s source -d destiny`.
         ld a,(srcPath)
         or a
         jp z,show_usage_error
@@ -85,8 +109,15 @@ MAIN
         ld (ctxPtr),hl
         xor a
         ld (failStage),a
+        ; Print the screen before probing destination paths. Some missing-drive
+        ; failures in emulators may enter ROM error handling; at least the user
+        ; sees the command context if that happens.
         call print_header
+        call validate_dest_parent
+        jp c,failed
 
+        ; Directory detection is done by attempting to open the source as a
+        ; directory with LFN mode. Failure means "treat it as a single file".
         ld hl,msgDbgBeforeSource
         call debug_print_msg
         ld a,STAGE_COPY_LFN
@@ -107,6 +138,9 @@ MAIN
         ld hl,msgDbgSourceDir
         call debug_print_msg
 
+        ; For directory copies both root paths are prebuilt into the depth-0
+        ; path stack. Children are then assembled from the current directory
+        ; entry names while recursing.
         ld hl,msgDbgRoot
         call debug_print_msg
         call copy_root_paths
@@ -127,6 +161,7 @@ MAIN
         jp success
 
 .copy_or_move
+        ; Avoid copying a directory into itself or into one of its descendants.
         call reject_nested_destination
         jp c,failed
         call prepare_total_count
@@ -156,6 +191,7 @@ success
         ld a,16
         ld de,msgDone
         call call_print
+        call clear_error_handler
         call restore_turbo
         ld bc,0
         xor a
@@ -172,6 +208,9 @@ failed
         ld a,(dotCtx+SYSCOPYCTX_ERROR)
         cp $7c
         jp z,cancelled
+        ld a,(dotCtx+SYSCOPYCTX_STAGE)
+        cp STAGE_DST_PARENT
+        jp z,dest_parent_missing
         ld hl,0*256+20
         ld a,16
         ld de,msgError
@@ -182,6 +221,18 @@ failed
         call print_msg
         ld a,(dotCtx+SYSCOPYCTX_STAGE)
         call print_hex8
+        call clear_error_handler
+        call restore_turbo
+        ld bc,0
+        xor a
+        ret
+
+dest_parent_missing
+        ld hl,0*256+20
+        ld a,16
+        ld de,msgDestMissing
+        call call_print
+        call clear_error_handler
         call restore_turbo
         ld bc,0
         xor a
@@ -192,19 +243,22 @@ cancelled
         ld a,16
         ld de,msgCancelled
         call call_print
+        call clear_error_handler
         call restore_turbo
         ld bc,0
         xor a
         ret
 
 show_help_or_error
-        ld sp,(savedSp)
 show_usage_error
+        ld sp,(savedSp)
         ld hl,msgUsageError
         call print_msg
 show_help_ok
+        ld sp,(savedSp)
         ld hl,msgHelp
         call print_msg
+        call clear_error_handler
         call restore_turbo
         ld bc,0
         xor a
@@ -549,6 +603,9 @@ extract_token
 
 
 setup_context
+        ; Fill the small syscopy-compatible context block. The rest of this file
+        ; still uses that structure because most code was shared with the
+        ; Calm Commander system-copy plugin.
         ld hl,msgDbgSetupStart
         call debug_print_msg
         ld a,SYSCOPY_ABI
@@ -577,6 +634,8 @@ setup_context
 
 
 split_source_path
+        ; Split `srcPath` into parent directory and leaf name. If there is no
+        ; slash/drive separator, parent becomes ".".
         ld hl,srcPath
         ld de,srcParent
         ld bc,srcName
@@ -584,6 +643,9 @@ split_source_path
 
 
 split_dest_path
+        ; Destination semantics:
+        ; - existing directory, or path ending in slash: append source name
+        ; - otherwise: treat destination as the final file/directory name
         ld hl,dstPath
         call path_ends_with_slash
         jr z,.directory_target
@@ -603,6 +665,8 @@ split_dest_path
 
 
 is_source_directory
+        ; NC means source can be opened as a directory. C means it is a file or
+        ; does not exist; the caller then tries the file-copy path.
         ld hl,srcPath
         ld a,"*"
         ld b,MODE_LFN_DIR
@@ -616,6 +680,8 @@ is_source_directory
 
 
 is_dst_directory
+        ; Used only to decide how to interpret the destination argument.
+        ; Non-existing paths are not errors here.
         ld hl,dstPath
         ld a,"*"
         ld b,MODE_LFN_DIR
@@ -628,7 +694,29 @@ is_dst_directory
         ret
 
 
+validate_dest_parent
+        ; Validate only the parent part of the destination. Example:
+        ;   d:/backup/foo -> checks d:/backup
+        ; This catches missing paths before the command starts creating files.
+        ; A dot-command ROM error handler is installed because some systems report
+        ; missing drives as BASIC errors instead of ordinary esxDOS carry errors.
+        ld a,STAGE_DST_PARENT
+        ld (failStage),a
+        ld hl,dstParent
+        ld a,"*"
+        ld b,MODE_LFN_DIR
+        rst $08
+        db F_OPENDIR
+        ret c
+        rst $08
+        db F_CLOSE
+        xor a
+        ret
+
+
 make_file_destination
+        ; Single-file copy builds the final destination filename here. Directory
+        ; copy uses copy_root_paths/build_child_paths instead.
         ld hl,dstPath
         call path_ends_with_slash
         jr z,.append_name
@@ -645,6 +733,8 @@ make_file_destination
 
 
 confirm_file_overwrite
+        ; Standalone dot command policy: without -y, existing files are skipped.
+        ; We do not ask interactively, because there is no Calm Commander UI here.
         ld hl,dstFullPath
         ld a,"*"
         ld b,MODE_READ_EXIST
@@ -656,7 +746,7 @@ confirm_file_overwrite
         ld a,(yesFlag)
         or a
         jr nz,.copy
-        ld hl,0*256+9
+        ld hl,0*256+10
         ld a,16
         ld de,msgSkip
         call call_print
@@ -669,6 +759,8 @@ confirm_file_overwrite
 
 
 path_ends_with_slash
+        ; Returns Z if the last character is '/' or '\'. Empty strings also
+        ; return Z, but callers never pass empty destination paths.
         ld a,(hl)
         or a
         ret z
@@ -686,6 +778,7 @@ path_ends_with_slash
 
 
 trim_trailing_slash
+        ; Normalize source paths so `dot/` and `dot` are treated the same.
         ld de,0
 .scan
         ld a,(hl)
@@ -711,6 +804,8 @@ trim_trailing_slash
 
 
 split_path
+        ; Generic splitter. The last slash, backslash, or drive colon separates
+        ; parent from leaf. For `d:/foo`, parent is `d:/` and name is `foo`.
         ld (splitSrc),hl
         ld (splitParent),de
         ld (splitName),bc
@@ -774,6 +869,10 @@ copy_string
 
 
 copy_root_paths
+        ; Build depth-0 absolute/relative working paths:
+        ;   SRC_STACK[0] = srcParent/srcName
+        ;   DST_STACK[0] = dstParent/dstName
+        ; Further recursion writes paths into the next 256-byte slots.
         ld a,STAGE_ROOT_PATH
         ld (failStage),a
         ld ix,(ctxPtr)
@@ -796,6 +895,8 @@ copy_root_paths
 
 
 reject_nested_destination
+        ; Reject copying a directory into itself or below itself. This is a
+        ; simple prefix check on normalized root paths.
         ld hl,SRC_STACK
         ld de,DST_STACK
 .compare
@@ -830,6 +931,10 @@ reject_nested_destination
 
 ; A = depth. Uses SRC_STACK/DST_STACK path buffers for this depth.
 copy_dir
+        ; Directory copy is depth-first. Each level opens the source directory in
+        ; LFN mode, creates the matching destination directory, then processes
+        ; entries one by one. LFN entry format:
+        ;   byte 0 = MSDOS attributes, byte 1.. = zero-terminated long name.
         cp MAX_DEPTH+1
         jp nc,.depth_fail
         ld (curDepth),a
@@ -889,6 +994,9 @@ copy_dir
         and ATTR_DIR
         jr z,.file
 
+        ; NextZXOS directory handles cannot safely stay open across recursion on
+        ; all setups. Store our current entry index, close the handle, recurse,
+        ; then reopen and skip back to the saved position.
         ld a,(curDepth)
         push af
         call save_close_lfn_pos
@@ -922,6 +1030,8 @@ copy_dir
         ret
 
 .file
+        ; For files, child source/destination paths were already built from the
+        ; current LFN entry. Existing destination files may be skipped unless -y.
         call inc_file_count
         ld de,copyPhaseTxt
         call print_counter_status
@@ -1033,6 +1143,7 @@ depth_to_offset4
 
 
 save_close_lfn_pos
+        ; Save/close the current LFN directory handle before recursing.
         ld a,STAGE_SAVE_POS
         ld (failStage),a
         ld a,(lfnHandle)
@@ -1042,6 +1153,8 @@ save_close_lfn_pos
 
 
 reopen_lfn_pos
+        ; Reopen current directory and skip entries until we reach the saved
+        ; position. This avoids keeping nested directory handles alive.
         ld a,STAGE_REOPEN_LFN
         ld (failStage),a
         ld a,(curDepth)
@@ -1128,6 +1241,8 @@ reopen_count_pos
 
 ; A=handle, DE=entry buffer, HL=stored 16-bit entry count.
 skip_saved_entries
+        ; Used by directory delete/count/copy after reopening a directory.
+        ; Reads and discards exactly the saved number of entries.
         ld (skipHandle),a
         ld (skipBuffer),de
         ld c,(hl)
@@ -1157,6 +1272,8 @@ skip_saved_entries
 
 
 build_child_paths
+        ; Build next-depth source and destination paths from the current LFN name.
+        ; The child name begins at LFN_ENTRY+1.
         ld a,(curDepth)
         call get_src_path
         push hl
@@ -1197,6 +1314,10 @@ build_child_src_path
 
 
 copy_child_file
+        ; Copy a single file while inside a directory traversal. Reads into the
+        ; 8 KiB buffer at COPY_BUFFER, then writes exactly `lastReadLen` bytes.
+        ; BREAK is checked between read/write operations, never in the middle of
+        ; a DOS call.
         call init_file_progress
         call confirm_child_overwrite
         ret c
@@ -1474,6 +1595,9 @@ delete_dir
 
 ; HL = parent path, DE = output path, BC = child name.
 build_path
+        ; HL=parent, DE=destination buffer, BC=child name.
+        ; Inserts one slash between parent and child unless parent already ends
+        ; in '/', '\' or ':' (drive root such as "d:").
         ld (pathChildPtr),bc
         ld a,255
         ld (pathLeft),a
@@ -1526,6 +1650,8 @@ build_path
 
 
 put_path_char
+        ; Shared bounds-checked writer for build_path. Leaves carry set on
+        ; overflow; callers convert that to a normal command failure.
         ld c,a
         ld a,(pathLeft)
         or a
@@ -1545,6 +1671,7 @@ put_path_char
 
 
 skip_dot_entry
+        ; Skip "." and ".." in short-name directory entries.
         ld a,(DIR_ENTRY+1)
         cp "."
         jr nz,.not_dot
@@ -1563,6 +1690,7 @@ skip_dot_entry
 
 
 skip_dot_lfn_entry
+        ; Skip "." and ".." in LFN directory entries.
         ld a,(LFN_ENTRY+1)
         cp "."
         jr nz,.not_dot
@@ -1581,6 +1709,7 @@ skip_dot_lfn_entry
 
 
 get_src_path
+        ; A=depth -> HL points to SRC_STACK + depth*256.
         add a,$C0
         ld h,a
         ld l,0
@@ -1588,6 +1717,7 @@ get_src_path
 
 
 get_dst_path
+        ; A=depth -> HL points to DST_STACK + depth*256.
         add a,$CC
         ld h,a
         ld l,0
@@ -1595,6 +1725,8 @@ get_dst_path
 
 
 esx_mkdir_ignore
+        ; Create the destination directory for the current depth. Failure is
+        ; ignored here because "already exists" is expected during copies.
         ld a,"*"
         rst $08
         db F_MKDIR
@@ -1627,6 +1759,8 @@ inc_dir_count
 
 
 prepare_total_count
+        ; Pre-count entries for progress display. This is a second directory
+        ; traversal before the real copy/delete work.
         ld hl,0
         ld (totalFiles),hl
         ld ix,(ctxPtr)
@@ -1647,6 +1781,8 @@ prepare_total_count
 
 ; A = depth. Counts files in SRC_STACK paths.
 count_dir
+        ; Short-name traversal is enough for counting. Actual copy uses LFN mode
+        ; so long child names are preserved.
         cp MAX_DEPTH+1
         jp nc,.depth_fail
         ld (curDepth),a
@@ -1771,23 +1907,23 @@ print_header
         ld a,16
         ld de,msgTitle
         call call_print
-        ld hl,0*256+1
+        ld hl,0*256+2
         ld a,16
         ld de,msgSource
         call call_print
-        ld hl,8*256+1
+        ld hl,8*256+2
         ld a,16
         ld de,srcPath
         call call_print
-        ld hl,0*256+2
+        ld hl,0*256+3
         ld a,16
         ld de,msgDestiny
         call call_print
-        ld hl,9*256+2
+        ld hl,9*256+3
         ld a,16
         ld de,dstPath
         call call_print
-        ld hl,0*256+4
+        ld hl,0*256+5
         ld a,16
         ld de,blankNameTxt
         call call_print
@@ -1882,7 +2018,7 @@ print_counter_status
         ld (de),a
         inc de
 
-        ld hl,0*256+6
+        ld hl,0*256+7
         ld a,16
         ld de,statusLine
         call call_print
@@ -2010,7 +2146,7 @@ print_file_progress
         ld a,"]"
         ld (de),a
 
-        ld hl,0*256+7
+        ld hl,0*256+8
         ld a,16
         ld de,fileStatusLine
         call call_print
@@ -2192,6 +2328,7 @@ dot_print
 
 
 dot_cancel
+        ; BREAK = CAPS SHIFT + SPACE on the Spectrum keyboard matrix.
         ld bc,$FEFE
         in a,(c)
         bit 0,a
@@ -2208,17 +2345,20 @@ dot_cancel
 
 
 dot_overwrite
+        ; Standalone command overwrite policy:
+        ;   -y -> copy/overwrite
+        ;   otherwise -> skip and show the skipped filename
         ld a,(yesFlag)
         or a
         jr nz,.copy
         push hl
         ld de,msgSkip
-        ld hl,0*256+9
+        ld hl,0*256+10
         ld a,16
         call call_print
         pop hl
         ld de,hl
-        ld hl,10*256+9
+        ld hl,10*256+10
         ld a,16
         call call_print
         xor a
@@ -2283,6 +2423,8 @@ print_hex_nibble
 
 
 clear_screen
+        ; Clear bitmap and attributes directly with LDIR. This avoids ROM CLS
+        ; side effects and scroll prompts.
         ld hl,16384
         ld de,16385
         ld bc,6143
@@ -2296,7 +2438,36 @@ clear_screen
         ret
 
 
+install_error_handler
+        ; Some ROM3 errors (for example invalid/missing drive on certain
+        ; emulators) do not return through carry. M_ERRH lets us route those
+        ; back through the normal failure path instead of dropping to BASIC.
+        ld hl,rom_error_handler
+        rst $08
+        db M_ERRH
+        ret
+
+
+clear_error_handler
+        ld hl,0
+        rst $08
+        db M_ERRH
+        ret
+
+
+rom_error_handler
+        ; Entered by NextZXOS after a ROM/BASIC error. A contains BASIC error-1,
+        ; but for this command any such error during path probing is presented
+        ; as a missing destination path.
+        ld a,STAGE_DST_PARENT
+        ld (failStage),a
+        ld a,$7d
+        jp failed
+
+
 set_turbo_28
+        ; Copy/delete runs at 28 MHz. The previous turbo setting is restored
+        ; before returning to NextZXOS/BASIC.
         push af
         push bc
         ld a,TURBO_CONTROL_NR_07
@@ -2495,6 +2666,7 @@ dotTxt      defb ".",0
 msgDone     defb "Done.",0
 msgError    defb "copy: esxDOS error $",0
 msgStage    defb " stg $",0
+msgDestMissing defb "copy: destiny path not found",0
 msgCancelled defb "Cancelled.",0
 msgSkip     defb "Skipping existing: ",0
 msgUsageError defb "copy: missing or bad arguments",13,0
@@ -2517,6 +2689,7 @@ msgDbgRoot  defb "DBG root paths",13,0
 msgDbgRootOk defb "DBG root ok",13,0
 msgHelp
         defb ".copy - by Shrek/MB Maniax 2026",13
+        defb 13
         defb "COPY 0.1 - file/directory copy",13
         defb "Usage:",13
         defb "  .copy -s source -d destiny",13
@@ -2527,7 +2700,16 @@ msgHelp
         defb "  -h  show this help",13
         defb 13
         defb "If destiny ends with / or is an existing",13
-        defb "directory, source name is appended.",13,0
+        defb "directory, source name is appended.",13
+        defb 13
+        defb "Examples:",13
+        defb "  .copy CalmCommander d:/zaloha",13
+        defb "  .copy zaloha c:/backup",13
+        defb "  .copy ",34,"Calm Commander",34," c:/backup/",13
+        defb "  .copy -s ",34,"my dir",34," -d ",34,"d:/my backup",34,13
+        defb 13
+        defb "Work buffer: $DC00/56320, 8192 bytes",13
+        defb "Range: $DC00-$FBFF",13,0
 
 copyPhaseTxt   defb "Copying: ",0
 deletePhaseTxt defb "Deleting: ",0
