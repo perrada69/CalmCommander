@@ -83,9 +83,15 @@ MAIN
         call print_msg
         call is_source_directory
         jr nc,.source_is_dir
+        push af
         ld hl,msgDbgSourceFile
         call print_msg
-        jp c,copy_one_file
+        ld hl,msgDbgOpenErr
+        call print_msg
+        pop af
+        call print_hex8
+        call print_nl
+        jp copy_one_file
 .source_is_dir
         ld hl,msgDbgSourceDir
         call print_msg
@@ -525,6 +531,8 @@ split_dest_path
         ld hl,dstPath
         call path_ends_with_slash
         jr z,.directory_target
+        call is_dst_directory
+        jr nc,.directory_target
         ld hl,dstPath
         ld de,dstParent
         ld bc,dstName
@@ -2207,6 +2215,7 @@ msgDbgSetupStart defb "DBG setup start",13,0
 msgDbgSplitSrc defb "DBG split src",13,0
 msgDbgSplitDst defb "DBG split dst",13,0
 msgDbgSourceFile defb "DBG source=file",13,0
+msgDbgOpenErr defb "DBG opendir err $",0
 msgDbgSourceDir defb "DBG source=dir",13,0
 msgDbgBeforeSource defb "DBG before source",13,0
 msgDbgRoot  defb "DBG root paths",13,0
