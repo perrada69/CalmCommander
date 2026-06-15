@@ -154,6 +154,11 @@ MAIN
         ld hl,msgDbgRootOk
         call debug_print_msg
         call set_turbo_28
+        xor a
+        ld (delFiles),a
+        ld (delFiles+1),a
+        ld (delDirs),a
+        ld (delDirs+1),a
         call prepare_total_count
         ld de,deletePhaseTxt
         call print_counter_status
@@ -168,10 +173,8 @@ success
         ld (ix+SYSCOPYCTX_RESULT),a
         call restore_mmu
         ld sp,(savedSp)
-        ld hl,0*256+20
-        ld a,16
-        ld de,msgDone
-        call call_print
+        call clear_del_display
+        call print_del_result
         call clear_error_handler
         call restore_turbo
         ld bc,0
@@ -221,10 +224,12 @@ dest_parent_missing
         ret
 
 cancelled
+        call clear_del_display
         ld hl,0*256+20
         ld a,16
         ld de,msgCancelled
         call call_print
+        call print_del_result_r21
         call clear_error_handler
         call restore_turbo
         ld bc,0
@@ -375,6 +380,9 @@ delete_one_file
         rst $08
         db F_UNLINK
         jp c,failed
+        ld hl,(delFiles)
+        inc hl
+        ld (delFiles),hl
         jp success
 
 
@@ -1571,7 +1579,7 @@ delete_dir
 
         ld a,(curDepth)
         cp MAX_DEPTH
-        jr nc,.depth_fail_open
+        jp nc,.depth_fail_open
         ld a,STAGE_CHILD_PATH
         ld (failStage),a
         call build_child_lfn_src_path
@@ -1617,6 +1625,9 @@ delete_dir
         rst $08
         db F_UNLINK
         jr c,.read_fail
+        ld hl,(delFiles)
+        inc hl
+        ld (delFiles),hl
         ld a,(curDepth)
         call dec_lfn_index
         jp .next
@@ -1634,6 +1645,9 @@ delete_dir
         rst $08
         db F_RMDIR
         ret c
+        ld hl,(delDirs)
+        inc hl
+        ld (delDirs),hl
         call inc_file_count
         ld de,deletePhaseTxt
         call print_counter_status
@@ -2007,6 +2021,80 @@ print_status
         ld a,16
         call call_print
         pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+
+clear_del_display
+        push af
+        push de
+        push hl
+        ld hl,0*256+7
+        ld a,16
+        ld de,msgBlank
+        call call_print
+        ld hl,0*256+8
+        ld a,16
+        ld de,msgBlank
+        call call_print
+        pop hl
+        pop de
+        pop af
+        ret
+
+
+print_del_result
+        ld hl,0*256+20
+        jr print_del_result_core
+
+print_del_result_r21
+        ld hl,0*256+21
+
+print_del_result_core
+        push af
+        push bc
+        push de
+        push hl
+        ld de,statusLine
+        ld hl,msgDeleted
+.cp1    ld a,(hl)
+        or a
+        jr z,.cp1done
+        ld (de),a
+        inc hl
+        inc de
+        jr .cp1
+.cp1done
+        ld hl,(delFiles)
+        call write_dec16
+        ld hl,msgFiles
+.cp2    ld a,(hl)
+        or a
+        jr z,.cp2done
+        ld (de),a
+        inc hl
+        inc de
+        jr .cp2
+.cp2done
+        ld hl,(delDirs)
+        call write_dec16
+        ld hl,msgDirs
+.cp3    ld a,(hl)
+        or a
+        jr z,.cp3done
+        ld (de),a
+        inc hl
+        inc de
+        jr .cp3
+.cp3done
+        xor a
+        ld (de),a
+        pop hl
+        ld a,16
+        ld de,statusLine
+        call call_print
         pop de
         pop bc
         pop af
@@ -2753,6 +2841,8 @@ savedTurbo  defb 0
 turboEnabled defb 0
 savedMmu6   defb 0
 savedMmu7   defb 0
+delFiles    defw 0
+delDirs     defw 0
 fileNameText defs 21
 decStarted defb 0
 dirPosStack defs (MAX_DEPTH+1)*4
@@ -2777,6 +2867,10 @@ dotCtx      defs SYSCOPYCTX_SIZE
 
 dotTxt      defb ".",0
 msgDone     defb "Done.",0
+msgBlank    defb "                                ",0
+msgDeleted  defb "Deleted: ",0
+msgFiles    defb " files, ",0
+msgDirs     defb " dirs",0
 msgError    defb "del: esxDOS error $",0
 msgStage    defb " stg $",0
 msgDestMissing defb "del: path not found",0
