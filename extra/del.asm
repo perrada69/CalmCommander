@@ -77,6 +77,15 @@ MAIN
         ld (argPtr),hl
         ld (savedSp),sp
         ld sp,PLUGIN_STACK
+        ; Save MMU slots 6+7 and map dedicated work pages so we never touch BASIC RAM.
+        ld a,$56
+        call read_nextreg
+        ld (savedMmu6),a
+        ld a,$57
+        call read_nextreg
+        ld (savedMmu7),a
+        nextreg $56,SYS_COPY_WORK_PAGE
+        nextreg $57,SYS_COPY_WORK_PAGE+1
         call install_error_handler
         call clear_screen
         call clear_options
@@ -157,6 +166,7 @@ success
         ld ix,(ctxPtr)
         xor a
         ld (ix+SYSCOPYCTX_RESULT),a
+        call restore_mmu
         ld sp,(savedSp)
         ld hl,0*256+20
         ld a,16
@@ -175,6 +185,7 @@ failed
         ld (ix+SYSCOPYCTX_STAGE),a
         ld a,1
         ld (ix+SYSCOPYCTX_RESULT),a
+        call restore_mmu
         ld sp,(savedSp)
         ld a,(dotCtx+SYSCOPYCTX_ERROR)
         cp $7c
@@ -222,10 +233,12 @@ cancelled
 
 show_help_or_error
 show_usage_error
+        call restore_mmu
         ld sp,(savedSp)
         ld hl,msgUsageError
         call print_msg
 show_help_ok
+        call restore_mmu
         ld sp,(savedSp)
         ld hl,msgHelp
         call print_msg
@@ -2564,6 +2577,26 @@ set_turbo_28
         ret
 
 
+restore_mmu
+        push af
+        push bc
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        ld a,$56
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        ld a,(savedMmu6)
+        out (c),a
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        ld a,$57
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        ld a,(savedMmu7)
+        out (c),a
+        pop bc
+        pop af
+        ret
+
+
 restore_turbo
         push af
         push bc
@@ -2718,6 +2751,8 @@ fileTotalBytes defd 0
 lastPrintedKb defw 0
 savedTurbo  defb 0
 turboEnabled defb 0
+savedMmu6   defb 0
+savedMmu7   defb 0
 fileNameText defs 21
 decStarted defb 0
 dirPosStack defs (MAX_DEPTH+1)*4

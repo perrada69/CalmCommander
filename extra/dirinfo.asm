@@ -19,6 +19,7 @@ MODE_LFN_DIR equ $10
 ATTR_DIR     equ $10
 MAX_DEPTH    equ 11
 PLUGIN_STACK equ $BFFE
+SYS_COPY_WORK_PAGE equ 99
 
 TBBLUE_REGISTER_SELECT_P_243B equ $243B
 TBBLUE_REGISTER_ACCESS_P_253B equ $253B
@@ -39,6 +40,15 @@ MAIN
         ld (argPtr),hl
         ld (savedSp),sp
         ld sp,PLUGIN_STACK
+        ; Save MMU slots 6+7 and map dedicated work pages so we never touch BASIC RAM.
+        ld a,$56
+        call read_nextreg
+        ld (savedMmu6),a
+        ld a,$57
+        call read_nextreg
+        ld (savedMmu7),a
+        nextreg $56,SYS_COPY_WORK_PAGE
+        nextreg $57,SYS_COPY_WORK_PAGE+1
         call install_error_handler
         call clear_screen
         call clear_state
@@ -80,6 +90,7 @@ MAIN
 
 
 success
+        call restore_mmu
         ld sp,(savedSp)
         call clear_error_handler
         call restore_turbo
@@ -90,6 +101,7 @@ success
 
 failed
         ld (lastError),a
+        call restore_mmu
         ld sp,(savedSp)
         call clear_error_handler
         call restore_turbo
@@ -108,6 +120,7 @@ failed
 
 
 cancelled
+        call restore_mmu
         ld sp,(savedSp)
         call clear_error_handler
         call restore_turbo
@@ -125,6 +138,7 @@ show_usage_error
         call print_msg
         call print_nl
         call show_help_body
+        call restore_mmu
         call clear_error_handler
         ld sp,(savedSp)
         ld bc,0
@@ -135,6 +149,7 @@ show_usage_error
 show_help_ok
         call print_header_title
         call show_help_body
+        call restore_mmu
         call clear_error_handler
         ld sp,(savedSp)
         ld bc,0
@@ -1228,6 +1243,26 @@ set_turbo_28
         ret
 
 
+restore_mmu
+        push af
+        push bc
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        ld a,$56
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        ld a,(savedMmu6)
+        out (c),a
+        ld bc,TBBLUE_REGISTER_SELECT_P_243B
+        ld a,$57
+        out (c),a
+        ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+        ld a,(savedMmu7)
+        out (c),a
+        pop bc
+        pop af
+        ret
+
+
 restore_turbo
         push af
         push bc
@@ -1274,6 +1309,8 @@ childResult  defb 0
 childCarry   defb 0
 savedTurbo   defb 0
 turboEnabled defb 0
+savedMmu6    defb 0
+savedMmu7    defb 0
 remByte      defb 0
 decPtr       defw 0
 namePtr      defw 0
