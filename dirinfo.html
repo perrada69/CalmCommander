@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>.dirinfo — NextZXOS dot command</title>
+</head>
+<body>
+
+<h1>.dirinfo</h1>
+<p>Recursively counts files, subdirectories and total size of any directory on your ZX Spectrum Next.</p>
+
+<h2>Description</h2>
+<p>
+  <strong>.dirinfo</strong> is a standalone NextZXOS dot command that recursively scans a directory and reports:
+</p>
+<ul>
+  <li>Total number of files</li>
+  <li>Total number of subdirectories</li>
+  <li>Total size in bytes (read directly from FAT directory entries — no extra API calls)</li>
+</ul>
+<p>
+  Supports Long File Names (LFN), quoted paths with spaces, and up to 12 levels of directory nesting.
+  Press <strong>BREAK</strong> to cancel a long scan at any time.
+</p>
+
+<h2>Usage</h2>
+<pre>
+.dirinfo [path]
+.dirinfo -s path
+.dirinfo -h
+</pre>
+<p>If no path is given, the current directory (<code>.</code>) is scanned.</p>
+
+<h2>Options</h2>
+<pre>
+-s path    explicitly set the target path
+-h         show help
+</pre>
+
+<h2>Examples</h2>
+<pre>
+.dirinfo
+.dirinfo games
+.dirinfo -s "my games"
+.dirinfo /nextzxos
+</pre>
+
+<h2>Notes</h2>
+<p>
+  Size shown is the sum of raw file sizes in bytes.
+  Actual disk usage is higher — files are rounded up to cluster boundaries on FAT.
+</p>
+<p>Part of the <strong>Calm Commander</strong> project.</p>
+
+</body>
+</html>

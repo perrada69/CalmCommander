@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>.del — NextZXOS dot command</title>
+</head>
+<body>
+
+<h1>.del</h1>
+<p>Recursively deletes files and entire directory trees on your ZX Spectrum Next, with full LFN support.</p>
+
+<h2>Description</h2>
+<p>
+  <strong>.del</strong> is a standalone NextZXOS dot command that deletes files and entire directory trees,
+  including all subdirectories at any depth.
+  Built on the same engine as the Calm Commander internal delete function.
+</p>
+<ul>
+  <li>Recursive deletion of entire directory trees</li>
+  <li>Full Long File Name (LFN) support — handles filenames with spaces and special characters</li>
+  <li>Quoted paths for names containing spaces</li>
+  <li>Runs at 28 MHz turbo for maximum speed</li>
+  <li>Press <strong>BREAK</strong> to cancel between files at any time</li>
+</ul>
+
+<h2>Usage</h2>
+<pre>
+.del target
+.del -s target
+</pre>
+
+<h2>Options</h2>
+<pre>
+-s path    explicitly set the target path
+-h         show help
+</pre>
+
+<h2>Examples</h2>
+<pre>
+.del tmp
+.del d:/backup
+.del "old folder"
+.del -s "d:/old backup"
+</pre>
+
+<h2>Warning</h2>
+<p>
+  Deletion is permanent. There is no recycle bin or undo on NextZXOS FAT filesystems.
+</p>
+<p>Part of the <strong>Calm Commander</strong> project.</p>
+
+</body>
+</html>

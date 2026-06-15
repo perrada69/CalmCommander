@@ -762,8 +762,42 @@ inc_u32_at_hl
 
 
 add_entry_size
-        ; Size field offset in LFN-mode READDIR buffer is TBD.
-        ; F_STAT corrupts the open dir handle position, so skip for now.
+        call find_entry_size_ptr     ; HL = ptr to 4-byte size in DIR_ENTRY
+        ld de,totalBytes
+        ld a,(de)
+        add a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        ld a,(de)
+        adc a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        ld a,(de)
+        adc a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        ld a,(de)
+        adc a,(hl)
+        ld (de),a
+        ret
+
+
+; After F_READDIR (LFN mode): DIR_ENTRY+1 = null-terminated LFN,
+; then 4 bytes time+date, then 4 bytes file size.
+find_entry_size_ptr
+        ld hl,DIR_ENTRY+1
+.scan
+        ld a,(hl)
+        inc hl
+        or a
+        jr nz,.scan
+        inc hl          ; skip time lo
+        inc hl          ; skip time hi
+        inc hl          ; skip date lo
+        inc hl          ; skip date hi
         ret
 
 
