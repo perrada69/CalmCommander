@@ -60,11 +60,11 @@ MAIN
         call print_header
         call set_turbo_28
 
-        ld hl,targetPath
-        call try_open_target_dir
+        call is_target_directory
         jr nc,.is_dir
-        call stat_file
+        call stat_target
         jp c,failed
+        call prepare_file_result
         call print_file_result
         jp success
 
@@ -74,6 +74,7 @@ MAIN
         ld a,0
         call count_dir
         jp c,failed
+        call clear_scan_display
         call print_dir_result
         jp success
 
@@ -381,24 +382,7 @@ copy_string
 ; File/directory scanning
 ; -----------------------------------------------------------------------------
 
-try_open_target_dir
-        ld a,STAGE_OPEN
-        ld (failStage),a
-        ld hl,targetPath
-        ld b,0
-        ld a,"*"
-        rst $08
-        db F_OPENDIR
-        ret c
-        ld (dirHandle),a
-        ld a,(dirHandle)
-        rst $08
-        db F_CLOSE
-        xor a
-        ret
-
-
-stat_file
+stat_target
         ld a,STAGE_STAT
         ld (failStage),a
         ld hl,targetPath
@@ -406,7 +390,25 @@ stat_file
         ld a,"*"
         rst $08
         db F_STAT
+        ret
+
+
+is_target_directory
+        ld a,STAGE_OPEN
+        ld (failStage),a
+        ld hl,targetPath
+        ld a,"*"
+        ld b,MODE_LFN_DIR
+        rst $08
+        db F_OPENDIR
         ret c
+        rst $08
+        db F_CLOSE
+        xor a
+        ret
+
+
+prepare_file_result
         ld hl,STAT_BUFFER+7
         ld de,totalBytes
         ld bc,4
@@ -432,7 +434,7 @@ count_dir
 
         call print_current_dir
         call get_path_for_depth
-        ld b,0
+        ld b,MODE_LFN_DIR
         ld a,STAGE_OPEN
         ld (failStage),a
         ld a,"*"
@@ -447,6 +449,7 @@ count_dir
         call check_cancel
         cp 1
         jp z,.cancel
+        call print_read_marker
         ld hl,DIR_ENTRY
         ld a,STAGE_READ
         ld (failStage),a
@@ -460,6 +463,7 @@ count_dir
         call inc_dir_index
         call skip_dot_lfn_entry
         jr z,.next
+        call print_current_item
 
         ld a,(curDepth)
         cp MAX_DEPTH
@@ -502,7 +506,7 @@ count_dir
         ld a,(curDepth)
         call reopen_dir_pos
         jr c,.dir_fail
-        jr .next
+        jp .next
 
 .done
         ld a,(dirHandle)
@@ -555,6 +559,7 @@ build_child_path
 
 ; HL = parent, DE = output, BC = child name.
 build_path
+        ld (namePtr),bc          ; save name pointer before put_path_char corrupts C
         ld a,255
         ld (pathLeft),a
         xor a
@@ -581,8 +586,7 @@ build_path
         call put_path_char
         ret c
 .copy_name
-        ld h,b
-        ld l,c
+        ld hl,(namePtr)          ; restore name pointer (C was corrupted by put_path_char)
 .name_loop
         ld a,(hl)
         or a
@@ -685,7 +689,7 @@ save_close_dir_pos
 
 reopen_dir_pos
         call get_path_for_depth
-        ld b,0
+        ld b,MODE_LFN_DIR
         ld a,"*"
         rst $08
         db F_OPENDIR
@@ -758,31 +762,8 @@ inc_u32_at_hl
 
 
 add_entry_size
-        call find_lfn_entry_size_ptr
-        ld de,totalBytes
-        ld b,4
-        xor a
-.loop
-        ld a,(de)
-        adc a,(hl)
-        ld (de),a
-        inc de
-        inc hl
-        djnz .loop
-        ret
-
-
-find_lfn_entry_size_ptr
-        ld hl,DIR_ENTRY+1
-.scan
-        ld a,(hl)
-        inc hl
-        or a
-        jr nz,.scan
-        inc hl
-        inc hl
-        inc hl
-        inc hl
+        ; Size field offset in LFN-mode READDIR buffer is TBD.
+        ; F_STAT corrupts the open dir handle position, so skip for now.
         ret
 
 
@@ -863,23 +844,94 @@ print_current_dir
         ret
 
 
+print_read_marker
+        push af
+        push bc
+        push de
+        push hl
+        ld hl,0*256+7
+        ld de,msgReading
+        call print_at
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+
+print_current_item
+        push af
+        push bc
+        push de
+        push hl
+        ld hl,statusLine
+        ld b,STATUS_LINE_LEN
+.clear
+        ld (hl),32
+        inc hl
+        djnz .clear
+        xor a
+        ld (hl),a
+        ld hl,statusLine
+        ld de,msgItem
+.copy_text
+        ld a,(de)
+        or a
+        jr z,.name
+        ld (hl),a
+        inc hl
+        inc de
+        jr .copy_text
+.name
+        ld de,DIR_ENTRY+1
+        ld b,24
+.name_loop
+        ld a,(de)
+        or a
+        jr z,.done
+        ld (hl),a
+        inc de
+        inc hl
+        djnz .name_loop
+.done
+        ld hl,0*256+8
+        ld de,statusLine
+        call print_at
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+
 print_file_result
         ld hl,0*256+7
         ld de,msgTypeFile
         call print_at
         ld hl,0*256+9
-        ld de,msgSize
-        call print_at
+        call set_cursor
+        ld hl,msgSize
+        call print_msg
         ld hl,totalBytes
         call print_u32
         ld hl,msgBytes
         call print_msg
         ld hl,0*256+10
-        ld de,msgAttr
-        call print_at
+        call set_cursor
+        ld hl,msgAttr
+        call print_msg
         ld a,(STAT_BUFFER+2)
         call print_hex8
         ret
+
+
+clear_scan_display
+        ld hl,0*256+6
+        ld de,msgEmpty
+        call print_at
+        ld hl,0*256+8
+        ld de,msgEmpty
+        jp print_at
 
 
 print_dir_result
@@ -887,18 +939,21 @@ print_dir_result
         ld de,msgTypeDir
         call print_at
         ld hl,0*256+9
-        ld de,msgFiles
-        call print_at
+        call set_cursor
+        ld hl,msgFiles
+        call print_msg
         ld hl,fileCount
         call print_u32
         ld hl,0*256+10
-        ld de,msgDirs
-        call print_at
+        call set_cursor
+        ld hl,msgDirs
+        call print_msg
         ld hl,dirCount
         call print_u32
         ld hl,0*256+11
-        ld de,msgSize
-        call print_at
+        call set_cursor
+        ld hl,msgSize
+        call print_msg
         ld hl,totalBytes
         call print_u32
         ld hl,msgBytes
@@ -1187,6 +1242,7 @@ savedTurbo   defb 0
 turboEnabled defb 0
 remByte      defb 0
 decPtr       defw 0
+namePtr      defw 0
 
 fileCount    defs 4
 dirCount     defs 4
@@ -1200,10 +1256,13 @@ decBufEnd    defb 0
 
 cmdName      defb "DIRINFO",0
 dotPath      defb ".",0
+msgEmpty     defb 0
 msgTitle     defb ".dirinfo - by Shrek/MB Maniax",0
 msgTarget    defb "Target: ",0
 msgBreak     defb "BREAK = cancel",0
 msgScanning  defb "Scanning: ",0
+msgReading   defb "Reading directory...",0
+msgItem      defb "Item: ",0
 msgTypeFile  defb "Type: file",0
 msgTypeDir   defb "Type: directory",0
 msgFiles     defb "Files: ",0

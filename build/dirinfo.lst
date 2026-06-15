@@ -1,0 +1,1374 @@
+# file opened: dirinfo.asm
+   1  0000              ; -----------------------------------------------------------------------------
+   2  0000              ; .dirinfo - standalone NextZXOS dot command
+   3  0000              ; -----------------------------------------------------------------------------
+   4  0000              ; Shows recursive information about a file or directory. The command is intended
+   5  0000              ; as a small companion to Calm Commander: it accepts quoted paths, uses LFN
+   6  0000              ; directory reads, can be cancelled with BREAK, and avoids ROM CLS/scroll prompts.
+   7  0000              ; -----------------------------------------------------------------------------
+   8  0000
+   9  0000                      DEVICE ZXSPECTRUMNEXT
+  10  0000                      org $2000
+  11  2000
+  12  2000              F_CLOSE     equ $9B
+  13  2000              F_OPENDIR   equ $A3
+  14  2000              F_READDIR   equ $A4
+  15  2000              F_STAT      equ $AC
+  16  2000              M_ERRH      equ $95
+  17  2000
+  18  2000              MODE_LFN_DIR equ $10
+  19  2000              ATTR_DIR     equ $10
+  20  2000              MAX_DEPTH    equ 11
+  21  2000              PLUGIN_STACK equ $BFFE
+  22  2000
+  23  2000              TBBLUE_REGISTER_SELECT_P_243B equ $243B
+  24  2000              TBBLUE_REGISTER_ACCESS_P_253B equ $253B
+  25  2000              TURBO_CONTROL_NR_07 equ $07
+  26  2000
+  27  2000              PATH_STACK   equ $C000                 ; 12 * 256 byte path slots
+  28  2000              DIR_ENTRY    equ $D000                 ; 512 byte F_READDIR buffer
+  29  2000              STAT_BUFFER  equ $D300                 ; 16 byte F_STAT buffer
+  30  2000              STATUS_LINE_LEN equ 45
+  31  2000              SCREEN_LINE_LEN equ 32
+  32  2000
+  33  2000              STAGE_OPEN   equ $20
+  34  2000              STAGE_READ   equ $21
+  35  2000              STAGE_CHILD  equ $22
+  36  2000              STAGE_STAT   equ $30
+  37  2000
+  38  2000              MAIN
+  39  2000 22 D8 26             ld (argPtr),hl
+  40  2003 ED 73 DA 26          ld (savedSp),sp
+  41  2007 31 FE BF             ld sp,PLUGIN_STACK
+  42  200A CD 7C 26             call install_error_handler
+  43  200D CD 62 26             call clear_screen
+  44  2010 CD E3 20             call clear_state
+  45  2013 2A D8 26             ld hl,(argPtr)
+  46  2016 CD 06 21             call parse_args
+  47  2019 DA B6 20             jp c,show_usage_error
+  48  201C 3A DC 26             ld a,(helpFlag)
+  49  201F B7                   or a
+  50  2020 C2 D1 20             jp nz,show_help_ok
+  51  2023
+  52  2023 3A 18 27             ld a,(targetPath)
+  53  2026 B7                   or a
+  54  2027 20 09                jr nz,.have_target
+  55  2029 21 5A 28             ld hl,dotPath
+  56  202C 11 18 27             ld de,targetPath
+  57  202F CD 0A 22             call copy_string
+  58  2032              .have_target
+  59  2032 CD E6 21             call trim_trailing_slash
+  60  2035 CD 4F 24             call print_header
+  61  2038 CD 8D 26             call set_turbo_28
+  62  203B
+  63  203B CD 22 22             call is_target_directory
+  64  203E 30 0F                jr nc,.is_dir
+  65  2040 CD 12 22             call stat_target
+  66  2043 DA 71 20             jp c,failed
+  67  2046 CD 35 22             call prepare_file_result
+  68  2049 CD 04 25             call print_file_result
+  69  204C C3 62 20             jp success
+  70  204F
+  71  204F              .is_dir
+  72  204F 3E 00                ld a,0
+  73  2051 CD 48 22             call copy_root_path
+  74  2054 3E 00                ld a,0
+  75  2056 CD 52 22             call count_dir
+  76  2059 DA 71 20             jp c,failed
+  77  205C CD 38 25             call print_dir_result
+  78  205F C3 62 20             jp success
+  79  2062
+  80  2062
+  81  2062              success
+  82  2062 ED 7B DA 26          ld sp,(savedSp)
+  83  2066 CD 82 26             call clear_error_handler
+  84  2069 CD AD 26             call restore_turbo
+  85  206C 01 00 00             ld bc,0
+  86  206F AF                   xor a
+  87  2070 C9                   ret
+  88  2071
+  89  2071
+  90  2071              failed
+  91  2071 32 E6 26             ld (lastError),a
+  92  2074 ED 7B DA 26          ld sp,(savedSp)
+  93  2078 CD 82 26             call clear_error_handler
+  94  207B CD AD 26             call restore_turbo
+  95  207E 21 14 00             ld hl,0*256+20
+  96  2081 11 FF 28             ld de,msgError
+  97  2084 CD 84 25             call print_at
+  98  2087 3A E6 26             ld a,(lastError)
+  99  208A CD CA 25             call print_hex8
+ 100  208D 21 17 29             ld hl,msgStage
+ 101  2090 CD AB 25             call print_msg
+ 102  2093 3A E5 26             ld a,(failStage)
+ 103  2096 CD CA 25             call print_hex8
+ 104  2099 01 00 00             ld bc,0
+ 105  209C AF                   xor a
+ 106  209D C9                   ret
+ 107  209E
+ 108  209E
+ 109  209E              cancelled
+ 110  209E ED 7B DA 26          ld sp,(savedSp)
+ 111  20A2 CD 82 26             call clear_error_handler
+ 112  20A5 CD AD 26             call restore_turbo
+ 113  20A8 21 14 00             ld hl,0*256+20
+ 114  20AB 11 1E 29             ld de,msgCancelled
+ 115  20AE CD 84 25             call print_at
+ 116  20B1 01 00 00             ld bc,0
+ 117  20B4 AF                   xor a
+ 118  20B5 C9                   ret
+ 119  20B6
+ 120  20B6
+ 121  20B6              show_usage_error
+ 122  20B6 CD 3F 24             call print_header_title
+ 123  20B9 21 29 29             ld hl,msgBadArgs
+ 124  20BC CD AB 25             call print_msg
+ 125  20BF CD C6 25             call print_nl
+ 126  20C2 CD 7E 25             call show_help_body
+ 127  20C5 CD 82 26             call clear_error_handler
+ 128  20C8 ED 7B DA 26          ld sp,(savedSp)
+ 129  20CC 01 00 00             ld bc,0
+ 130  20CF AF                   xor a
+ 131  20D0 C9                   ret
+ 132  20D1
+ 133  20D1
+ 134  20D1              show_help_ok
+ 135  20D1 CD 3F 24             call print_header_title
+ 136  20D4 CD 7E 25             call show_help_body
+ 137  20D7 CD 82 26             call clear_error_handler
+ 138  20DA ED 7B DA 26          ld sp,(savedSp)
+ 139  20DE 01 00 00             ld bc,0
+ 140  20E1 AF                   xor a
+ 141  20E2 C9                   ret
+ 142  20E3
+ 143  20E3
+ 144  20E3              ; -----------------------------------------------------------------------------
+ 145  20E3              ; Argument parser
+ 146  20E3              ; -----------------------------------------------------------------------------
+ 147  20E3
+ 148  20E3              clear_state
+ 149  20E3 AF                   xor a
+ 150  20E4 32 DC 26             ld (helpFlag),a
+ 151  20E7 32 DD 26             ld (posIndex),a
+ 152  20EA 32 E5 26             ld (failStage),a
+ 153  20ED 32 18 27             ld (targetPath),a
+ 154  20F0 21 00 00             ld hl,0
+ 155  20F3 22 F0 26             ld (fileCount),hl
+ 156  20F6 22 F2 26             ld (fileCount+2),hl
+ 157  20F9 22 F4 26             ld (dirCount),hl
+ 158  20FC 22 F6 26             ld (dirCount+2),hl
+ 159  20FF 22 F8 26             ld (totalBytes),hl
+ 160  2102 22 FA 26             ld (totalBytes+2),hl
+ 161  2105 C9                   ret
+ 162  2106
+ 163  2106
+ 164  2106              parse_args
+ 165  2106              .next
+ 166  2106 CD 97 21             call skip_spaces
+ 167  2109 7E                   ld a,(hl)
+ 168  210A B7                   or a
+ 169  210B C8                   ret z
+ 170  210C FE 0D                cp 13
+ 171  210E C8                   ret z
+ 172  210F FE 2D                cp "-"
+ 173  2111 28 06                jr z,.switch
+ 174  2113 CD 3B 21             call store_positional
+ 175  2116 D8                   ret c
+ 176  2117 18 ED                jr .next
+ 177  2119
+ 178  2119              .switch
+ 179  2119 23                   inc hl
+ 180  211A 7E                   ld a,(hl)
+ 181  211B E6 DF                and $DF
+ 182  211D 23                   inc hl
+ 183  211E FE 48                cp "H"
+ 184  2120 28 06                jr z,.help
+ 185  2122 FE 53                cp "S"
+ 186  2124 28 09                jr z,.source
+ 187  2126 37                   scf
+ 188  2127 C9                   ret
+ 189  2128              .help
+ 190  2128 3E 01                ld a,1
+ 191  212A 32 DC 26             ld (helpFlag),a
+ 192  212D B7                   or a
+ 193  212E C9                   ret
+ 194  212F              .source
+ 195  212F CD A0 21             call skip_separators
+ 196  2132 11 18 27             ld de,targetPath
+ 197  2135 CD AF 21             call extract_token
+ 198  2138 D8                   ret c
+ 199  2139 18 CB                jr .next
+ 200  213B
+ 201  213B
+ 202  213B              store_positional
+ 203  213B 3A DD 26             ld a,(posIndex)
+ 204  213E B7                   or a
+ 205  213F 28 02                jr z,.first
+ 206  2141 37                   scf
+ 207  2142 C9                   ret
+ 208  2143              .first
+ 209  2143 CD 5C 21             call is_command_name_token
+ 210  2146 38 0B                jr c,.skip_command_name
+ 211  2148 3E 01                ld a,1
+ 212  214A 32 DD 26             ld (posIndex),a
+ 213  214D 11 18 27             ld de,targetPath
+ 214  2150 C3 AF 21             jp extract_token
+ 215  2153              .skip_command_name
+ 216  2153 CD 8B 21             call skip_token
+ 217  2156 CD 97 21             call skip_spaces
+ 218  2159 C3 3B 21             jp store_positional
+ 219  215C
+ 220  215C
+ 221  215C              is_command_name_token
+ 222  215C E5                   push hl
+ 223  215D 7E                   ld a,(hl)
+ 224  215E FE 2E                cp "."
+ 225  2160 20 01                jr nz,.maybe
+ 226  2162 23                   inc hl
+ 227  2163              .maybe
+ 228  2163 11 52 28             ld de,cmdName
+ 229  2166              .loop
+ 230  2166 1A                   ld a,(de)
+ 231  2167 B7                   or a
+ 232  2168 28 0B                jr z,.end_name
+ 233  216A 4F                   ld c,a
+ 234  216B 7E                   ld a,(hl)
+ 235  216C E6 DF                and $DF
+ 236  216E B9                   cp c
+ 237  216F 20 14                jr nz,.no
+ 238  2171 23                   inc hl
+ 239  2172 13                   inc de
+ 240  2173 18 F1                jr .loop
+ 241  2175              .end_name
+ 242  2175 7E                   ld a,(hl)
+ 243  2176 B7                   or a
+ 244  2177 28 0F                jr z,.yes
+ 245  2179 FE 0D                cp 13
+ 246  217B 28 0B                jr z,.yes
+ 247  217D FE 20                cp " "
+ 248  217F 28 07                jr z,.yes
+ 249  2181 FE 3A                cp ":"
+ 250  2183 28 03                jr z,.yes
+ 251  2185              .no
+ 252  2185 E1                   pop hl
+ 253  2186 B7                   or a
+ 254  2187 C9                   ret
+ 255  2188              .yes
+ 256  2188 E1                   pop hl
+ 257  2189 37                   scf
+ 258  218A C9                   ret
+ 259  218B
+ 260  218B
+ 261  218B              skip_token
+ 262  218B 7E                   ld a,(hl)
+ 263  218C B7                   or a
+ 264  218D C8                   ret z
+ 265  218E FE 0D                cp 13
+ 266  2190 C8                   ret z
+ 267  2191 FE 20                cp " "
+ 268  2193 C8                   ret z
+ 269  2194 23                   inc hl
+ 270  2195 18 F4                jr skip_token
+ 271  2197
+ 272  2197
+ 273  2197              skip_spaces
+ 274  2197 7E                   ld a,(hl)
+ 275  2198 FE 20                cp " "
+ 276  219A 20 03                jr nz,.done
+ 277  219C 23                   inc hl
+ 278  219D 18 F8                jr skip_spaces
+ 279  219F              .done
+ 280  219F C9                   ret
+ 281  21A0
+ 282  21A0
+ 283  21A0              skip_separators
+ 284  21A0 CD 97 21             call skip_spaces
+ 285  21A3 7E                   ld a,(hl)
+ 286  21A4 FE 3D                cp "="
+ 287  21A6 28 03                jr z,.skip_one
+ 288  21A8 FE 3A                cp ":"
+ 289  21AA C0                   ret nz
+ 290  21AB              .skip_one
+ 291  21AB 23                   inc hl
+ 292  21AC C3 97 21             jp skip_spaces
+ 293  21AF
+ 294  21AF
+ 295  21AF              extract_token
+ 296  21AF 06 FF                ld b,255
+ 297  21B1 7E                   ld a,(hl)
+ 298  21B2 FE 22                cp 34
+ 299  21B4 28 17                jr z,.quoted
+ 300  21B6              .plain
+ 301  21B6 7E                   ld a,(hl)
+ 302  21B7 B7                   or a
+ 303  21B8 28 28                jr z,.done
+ 304  21BA FE 0D                cp 13
+ 305  21BC 28 24                jr z,.done
+ 306  21BE FE 20                cp " "
+ 307  21C0 28 20                jr z,.done
+ 308  21C2 FE A5                cp $A5
+ 309  21C4 30 1C                jr nc,.done
+ 310  21C6 12                   ld (de),a
+ 311  21C7 13                   inc de
+ 312  21C8 23                   inc hl
+ 313  21C9 10 EB                djnz .plain
+ 314  21CB 18 15                jr .done
+ 315  21CD              .quoted
+ 316  21CD 23                   inc hl
+ 317  21CE              .qloop
+ 318  21CE 7E                   ld a,(hl)
+ 319  21CF B7                   or a
+ 320  21D0 28 10                jr z,.done
+ 321  21D2 FE 0D                cp 13
+ 322  21D4 28 0C                jr z,.done
+ 323  21D6 FE 22                cp 34
+ 324  21D8 28 07                jr z,.qdone
+ 325  21DA 12                   ld (de),a
+ 326  21DB 13                   inc de
+ 327  21DC 23                   inc hl
+ 328  21DD 10 EF                djnz .qloop
+ 329  21DF 18 01                jr .done
+ 330  21E1              .qdone
+ 331  21E1 23                   inc hl
+ 332  21E2              .done
+ 333  21E2 AF                   xor a
+ 334  21E3 12                   ld (de),a
+ 335  21E4 B7                   or a
+ 336  21E5 C9                   ret
+ 337  21E6
+ 338  21E6
+ 339  21E6              trim_trailing_slash
+ 340  21E6 21 18 27             ld hl,targetPath
+ 341  21E9 11 18 27             ld de,targetPath
+ 342  21EC              .scan
+ 343  21EC 7E                   ld a,(hl)
+ 344  21ED B7                   or a
+ 345  21EE 28 03                jr z,.found_end
+ 346  21F0 23                   inc hl
+ 347  21F1 18 F9                jr .scan
+ 348  21F3              .found_end
+ 349  21F3 B7                   or a
+ 350  21F4 ED 52                sbc hl,de
+ 351  21F6 C8                   ret z
+ 352  21F7 19                   add hl,de
+ 353  21F8 2B                   dec hl
+ 354  21F9 7E                   ld a,(hl)
+ 355  21FA FE 2F                cp "/"
+ 356  21FC 28 03                jr z,.maybe_trim
+ 357  21FE FE 5C                cp 92
+ 358  2200 C0                   ret nz
+ 359  2201              .maybe_trim
+ 360  2201 2B                   dec hl
+ 361  2202 7E                   ld a,(hl)
+ 362  2203 FE 3A                cp ":"
+ 363  2205 C8                   ret z
+ 364  2206 23                   inc hl
+ 365  2207 AF                   xor a
+ 366  2208 77                   ld (hl),a
+ 367  2209 C9                   ret
+ 368  220A
+ 369  220A
+ 370  220A              copy_string
+ 371  220A 7E                   ld a,(hl)
+ 372  220B 12                   ld (de),a
+ 373  220C 23                   inc hl
+ 374  220D 13                   inc de
+ 375  220E B7                   or a
+ 376  220F 20 F9                jr nz,copy_string
+ 377  2211 C9                   ret
+ 378  2212
+ 379  2212
+ 380  2212              ; -----------------------------------------------------------------------------
+ 381  2212              ; File/directory scanning
+ 382  2212              ; -----------------------------------------------------------------------------
+ 383  2212
+ 384  2212              stat_target
+ 385  2212 3E 30                ld a,STAGE_STAT
+ 386  2214 32 E5 26             ld (failStage),a
+ 387  2217 21 18 27             ld hl,targetPath
+ 388  221A 11 00 D3             ld de,STAT_BUFFER
+ 389  221D 3E 2A                ld a,"*"
+ 390  221F CF                   rst $08
+ 391  2220 AC                   db F_STAT
+ 392  2221 C9                   ret
+ 393  2222
+ 394  2222
+ 395  2222              is_target_directory
+ 396  2222 3E 20                ld a,STAGE_OPEN
+ 397  2224 32 E5 26             ld (failStage),a
+ 398  2227 21 18 27             ld hl,targetPath
+ 399  222A 3E 2A                ld a,"*"
+ 400  222C 06 10                ld b,MODE_LFN_DIR
+ 401  222E CF                   rst $08
+ 402  222F A3                   db F_OPENDIR
+ 403  2230 D8                   ret c
+ 404  2231 CF                   rst $08
+ 405  2232 9B                   db F_CLOSE
+ 406  2233 AF                   xor a
+ 407  2234 C9                   ret
+ 408  2235
+ 409  2235
+ 410  2235              prepare_file_result
+ 411  2235 21 07 D3             ld hl,STAT_BUFFER+7
+ 412  2238 11 F8 26             ld de,totalBytes
+ 413  223B 01 04 00             ld bc,4
+ 414  223E ED B0                ldir
+ 415  2240 21 01 00             ld hl,1
+ 416  2243 22 F0 26             ld (fileCount),hl
+ 417  2246 AF                   xor a
+ 418  2247 C9                   ret
+ 419  2248
+ 420  2248
+ 421  2248              copy_root_path
+ 422  2248 CD AC 23             call get_path_for_depth
+ 423  224B EB                   ex de,hl
+ 424  224C 21 18 27             ld hl,targetPath
+ 425  224F C3 0A 22             jp copy_string
+ 426  2252
+ 427  2252
+ 428  2252              ; A = depth.
+ 429  2252              count_dir
+ 430  2252 FE 0C                cp MAX_DEPTH+1
+ 431  2254 D2 1B 23             jp nc,.depth_fail
+ 432  2257 32 DE 26             ld (curDepth),a
+ 433  225A
+ 434  225A CD 74 24             call print_current_dir
+ 435  225D CD AC 23             call get_path_for_depth
+ 436  2260 06 10                ld b,MODE_LFN_DIR
+ 437  2262 3E 20                ld a,STAGE_OPEN
+ 438  2264 32 E5 26             ld (failStage),a
+ 439  2267 3E 2A                ld a,"*"
+ 440  2269 CF                   rst $08
+ 441  226A A3                   db F_OPENDIR
+ 442  226B D8                   ret c
+ 443  226C 32 DF 26             ld (dirHandle),a
+ 444  226F 3A DE 26             ld a,(curDepth)
+ 445  2272 CD C2 23             call clear_dir_index
+ 446  2275
+ 447  2275              .next
+ 448  2275 CD 4B 26             call check_cancel
+ 449  2278 FE 01                cp 1
+ 450  227A CA 02 23             jp z,.cancel
+ 451  227D CD B7 24             call print_read_marker
+ 452  2280 21 00 D0             ld hl,DIR_ENTRY
+ 453  2283 3E 21                ld a,STAGE_READ
+ 454  2285 32 E5 26             ld (failStage),a
+ 455  2288 3A DF 26             ld a,(dirHandle)
+ 456  228B CF                   rst $08
+ 457  228C A4                   db F_READDIR
+ 458  228D DA 10 23             jp c,.read_fail
+ 459  2290 B7                   or a
+ 460  2291 28 68                jr z,.done
+ 461  2293 3A DE 26             ld a,(curDepth)
+ 462  2296 CD CB 23             call inc_dir_index
+ 463  2299 CD 93 23             call skip_dot_lfn_entry
+ 464  229C 28 D7                jr z,.next
+ 465  229E CD C9 24             call print_current_item
+ 466  22A1
+ 467  22A1 3A DE 26             ld a,(curDepth)
+ 468  22A4 FE 0B                cp MAX_DEPTH
+ 469  22A6 30 0A                jr nc,.count_only
+ 470  22A8 3E 22                ld a,STAGE_CHILD
+ 471  22AA 32 E5 26             ld (failStage),a
+ 472  22AD CD 1F 23             call build_child_path
+ 473  22B0 38 5E                jr c,.read_fail
+ 474  22B2              .count_only
+ 475  22B2 3A 00 D0             ld a,(DIR_ENTRY)
+ 476  22B5 E6 10                and ATTR_DIR
+ 477  22B7 20 08                jr nz,.dir
+ 478  22B9 CD 27 24             call inc_file_count
+ 479  22BC CD 3E 24             call add_entry_size
+ 480  22BF 18 B4                jr .next
+ 481  22C1
+ 482  22C1              .dir
+ 483  22C1 CD 2D 24             call inc_dir_count
+ 484  22C4 3A DE 26             ld a,(curDepth)
+ 485  22C7 FE 0B                cp MAX_DEPTH
+ 486  22C9 30 AA                jr nc,.next
+ 487  22CB F5                   push af
+ 488  22CC CD D3 23             call save_close_dir_pos
+ 489  22CF 38 3B                jr c,.restore_fail
+ 490  22D1 3A DE 26             ld a,(curDepth)
+ 491  22D4 3C                   inc a
+ 492  22D5 CD 52 22             call count_dir
+ 493  22D8 32 E7 26             ld (childResult),a
+ 494  22DB 3E 00                ld a,0
+ 495  22DD 30 01                jr nc,.child_ok
+ 496  22DF 3C                   inc a
+ 497  22E0              .child_ok
+ 498  22E0 32 E8 26             ld (childCarry),a
+ 499  22E3 F1                   pop af
+ 500  22E4 32 DE 26             ld (curDepth),a
+ 501  22E7 3A E8 26             ld a,(childCarry)
+ 502  22EA B7                   or a
+ 503  22EB 3A E7 26             ld a,(childResult)
+ 504  22EE 20 29                jr nz,.dir_fail
+ 505  22F0 3A DE 26             ld a,(curDepth)
+ 506  22F3 CD D9 23             call reopen_dir_pos
+ 507  22F6 38 21                jr c,.dir_fail
+ 508  22F8 C3 75 22             jp .next
+ 509  22FB
+ 510  22FB              .done
+ 511  22FB 3A DF 26             ld a,(dirHandle)
+ 512  22FE CF                   rst $08
+ 513  22FF 9B                   db F_CLOSE
+ 514  2300 AF                   xor a
+ 515  2301 C9                   ret
+ 516  2302
+ 517  2302              .cancel
+ 518  2302 3A DF 26             ld a,(dirHandle)
+ 519  2305 CF                   rst $08
+ 520  2306 9B                   db F_CLOSE
+ 521  2307 3E 7C                ld a,$7c
+ 522  2309 C3 9E 20             jp cancelled
+ 523  230C
+ 524  230C              .restore_fail
+ 525  230C F1                   pop af
+ 526  230D 32 DE 26             ld (curDepth),a
+ 527  2310              .read_fail
+ 528  2310 F5                   push af
+ 529  2311 3A DF 26             ld a,(dirHandle)
+ 530  2314 CF                   rst $08
+ 531  2315 9B                   db F_CLOSE
+ 532  2316 F1                   pop af
+ 533  2317 37                   scf
+ 534  2318 C9                   ret
+ 535  2319
+ 536  2319              .dir_fail
+ 537  2319 37                   scf
+ 538  231A C9                   ret
+ 539  231B
+ 540  231B              .depth_fail
+ 541  231B 3E 7F                ld a,$7f
+ 542  231D 37                   scf
+ 543  231E C9                   ret
+ 544  231F
+ 545  231F
+ 546  231F              build_child_path
+ 547  231F 3A DE 26             ld a,(curDepth)
+ 548  2322 CD AC 23             call get_path_for_depth
+ 549  2325 E5                   push hl
+ 550  2326 3A DE 26             ld a,(curDepth)
+ 551  2329 3C                   inc a
+ 552  232A CD AC 23             call get_path_for_depth
+ 553  232D EB                   ex de,hl
+ 554  232E E1                   pop hl
+ 555  232F 01 01 D0             ld bc,DIR_ENTRY+1
+ 556  2332 C3 35 23             jp build_path
+ 557  2335
+ 558  2335
+ 559  2335              ; HL = parent, DE = output, BC = child name.
+ 560  2335              build_path
+ 561  2335 ED 43 EE 26          ld (namePtr),bc          ; save name pointer before put_path_char corrupts C
+ 562  2339 3E FF                ld a,255
+ 563  233B 32 E4 26             ld (pathLeft),a
+ 564  233E AF                   xor a
+ 565  233F 32 E3 26             ld (lastChar),a
+ 566  2342              .copy_parent
+ 567  2342 7E                   ld a,(hl)
+ 568  2343 B7                   or a
+ 569  2344 28 0B                jr z,.parent_done
+ 570  2346 FE FF                cp 255
+ 571  2348 28 07                jr z,.parent_done
+ 572  234A CD 7C 23             call put_path_char
+ 573  234D D8                   ret c
+ 574  234E 23                   inc hl
+ 575  234F 18 F1                jr .copy_parent
+ 576  2351              .parent_done
+ 577  2351 3A E3 26             ld a,(lastChar)
+ 578  2354 FE 2F                cp "/"
+ 579  2356 28 0E                jr z,.copy_name
+ 580  2358 FE 5C                cp 92
+ 581  235A 28 0A                jr z,.copy_name
+ 582  235C FE 3A                cp ":"
+ 583  235E 28 06                jr z,.copy_name
+ 584  2360 3E 2F                ld a,"/"
+ 585  2362 CD 7C 23             call put_path_char
+ 586  2365 D8                   ret c
+ 587  2366              .copy_name
+ 588  2366 2A EE 26             ld hl,(namePtr)          ; restore name pointer (C was corrupted by put_path_char)
+ 589  2369              .name_loop
+ 590  2369 7E                   ld a,(hl)
+ 591  236A B7                   or a
+ 592  236B 28 0B                jr z,.name_done
+ 593  236D FE FF                cp 255
+ 594  236F 28 07                jr z,.name_done
+ 595  2371 CD 7C 23             call put_path_char
+ 596  2374 D8                   ret c
+ 597  2375 23                   inc hl
+ 598  2376 18 F1                jr .name_loop
+ 599  2378              .name_done
+ 600  2378 AF                   xor a
+ 601  2379 12                   ld (de),a
+ 602  237A B7                   or a
+ 603  237B C9                   ret
+ 604  237C
+ 605  237C
+ 606  237C              put_path_char
+ 607  237C 4F                   ld c,a
+ 608  237D 3A E4 26             ld a,(pathLeft)
+ 609  2380 B7                   or a
+ 610  2381 28 0C                jr z,.overflow
+ 611  2383 3D                   dec a
+ 612  2384 32 E4 26             ld (pathLeft),a
+ 613  2387 79                   ld a,c
+ 614  2388 12                   ld (de),a
+ 615  2389 32 E3 26             ld (lastChar),a
+ 616  238C 13                   inc de
+ 617  238D B7                   or a
+ 618  238E C9                   ret
+ 619  238F              .overflow
+ 620  238F 3E 7D                ld a,$7d
+ 621  2391 37                   scf
+ 622  2392 C9                   ret
+ 623  2393
+ 624  2393
+ 625  2393              skip_dot_lfn_entry
+ 626  2393 3A 01 D0             ld a,(DIR_ENTRY+1)
+ 627  2396 FE 2E                cp "."
+ 628  2398 20 0E                jr nz,.not_dot
+ 629  239A 3A 02 D0             ld a,(DIR_ENTRY+2)
+ 630  239D B7                   or a
+ 631  239E C8                   ret z
+ 632  239F FE 2E                cp "."
+ 633  23A1 20 05                jr nz,.not_dot
+ 634  23A3 3A 03 D0             ld a,(DIR_ENTRY+3)
+ 635  23A6 B7                   or a
+ 636  23A7 C9                   ret
+ 637  23A8              .not_dot
+ 638  23A8 3E 01                ld a,1
+ 639  23AA B7                   or a
+ 640  23AB C9                   ret
+ 641  23AC
+ 642  23AC
+ 643  23AC              get_path_for_depth
+ 644  23AC C6 C0                add a,$C0
+ 645  23AE 67                   ld h,a
+ 646  23AF 2E 00                ld l,0
+ 647  23B1 C9                   ret
+ 648  23B2
+ 649  23B2
+ 650  23B2              depth_to_offset2
+ 651  23B2 5F                   ld e,a
+ 652  23B3 16 00                ld d,0
+ 653  23B5 CB 23                sla e
+ 654  23B7 CB 12                rl d
+ 655  23B9 C9                   ret
+ 656  23BA
+ 657  23BA
+ 658  23BA              get_dir_pos_slot
+ 659  23BA CD B2 23             call depth_to_offset2
+ 660  23BD 21 00 27             ld hl,dirPosStack
+ 661  23C0 19                   add hl,de
+ 662  23C1 C9                   ret
+ 663  23C2
+ 664  23C2
+ 665  23C2              clear_dir_index
+ 666  23C2 CD BA 23             call get_dir_pos_slot
+ 667  23C5 36 00                ld (hl),0
+ 668  23C7 23                   inc hl
+ 669  23C8 36 00                ld (hl),0
+ 670  23CA C9                   ret
+ 671  23CB
+ 672  23CB
+ 673  23CB              inc_dir_index
+ 674  23CB CD BA 23             call get_dir_pos_slot
+ 675  23CE 34                   inc (hl)
+ 676  23CF C0                   ret nz
+ 677  23D0 23                   inc hl
+ 678  23D1 34                   inc (hl)
+ 679  23D2 C9                   ret
+ 680  23D3
+ 681  23D3
+ 682  23D3              save_close_dir_pos
+ 683  23D3 3A DF 26             ld a,(dirHandle)
+ 684  23D6 CF                   rst $08
+ 685  23D7 9B                   db F_CLOSE
+ 686  23D8 C9                   ret
+ 687  23D9
+ 688  23D9
+ 689  23D9              reopen_dir_pos
+ 690  23D9 CD AC 23             call get_path_for_depth
+ 691  23DC 06 10                ld b,MODE_LFN_DIR
+ 692  23DE 3E 2A                ld a,"*"
+ 693  23E0 CF                   rst $08
+ 694  23E1 A3                   db F_OPENDIR
+ 695  23E2 D8                   ret c
+ 696  23E3 32 DF 26             ld (dirHandle),a
+ 697  23E6 3A DE 26             ld a,(curDepth)
+ 698  23E9 CD BA 23             call get_dir_pos_slot
+ 699  23EC 3A DF 26             ld a,(dirHandle)
+ 700  23EF CD FB 23             call skip_saved_entries
+ 701  23F2 D0                   ret nc
+ 702  23F3 F5                   push af
+ 703  23F4 3A DF 26             ld a,(dirHandle)
+ 704  23F7 CF                   rst $08
+ 705  23F8 9B                   db F_CLOSE
+ 706  23F9 F1                   pop af
+ 707  23FA C9                   ret
+ 708  23FB
+ 709  23FB
+ 710  23FB              ; A=handle, HL=stored 16-bit entry count. Uses DIR_ENTRY as scratch.
+ 711  23FB              skip_saved_entries
+ 712  23FB 32 E0 26             ld (skipHandle),a
+ 713  23FE 4E                   ld c,(hl)
+ 714  23FF 23                   inc hl
+ 715  2400 46                   ld b,(hl)
+ 716  2401 ED 43 E1 26          ld (skipCount),bc
+ 717  2405              .loop
+ 718  2405 ED 4B E1 26          ld bc,(skipCount)
+ 719  2409 78                   ld a,b
+ 720  240A B1                   or c
+ 721  240B C8                   ret z
+ 722  240C 21 00 D0             ld hl,DIR_ENTRY
+ 723  240F 3A E0 26             ld a,(skipHandle)
+ 724  2412 CF                   rst $08
+ 725  2413 A4                   db F_READDIR
+ 726  2414 D8                   ret c
+ 727  2415 B7                   or a
+ 728  2416 20 04                jr nz,.read_one
+ 729  2418 3E 7E                ld a,$7e
+ 730  241A 37                   scf
+ 731  241B C9                   ret
+ 732  241C              .read_one
+ 733  241C ED 4B E1 26          ld bc,(skipCount)
+ 734  2420 0B                   dec bc
+ 735  2421 ED 43 E1 26          ld (skipCount),bc
+ 736  2425 18 DE                jr .loop
+ 737  2427
+ 738  2427
+ 739  2427              inc_file_count
+ 740  2427 21 F0 26             ld hl,fileCount
+ 741  242A C3 33 24             jp inc_u32_at_hl
+ 742  242D
+ 743  242D
+ 744  242D              inc_dir_count
+ 745  242D 21 F4 26             ld hl,dirCount
+ 746  2430 C3 33 24             jp inc_u32_at_hl
+ 747  2433
+ 748  2433
+ 749  2433              inc_u32_at_hl
+ 750  2433 34                   inc (hl)
+ 751  2434 C0                   ret nz
+ 752  2435 23                   inc hl
+ 753  2436 34                   inc (hl)
+ 754  2437 C0                   ret nz
+ 755  2438 23                   inc hl
+ 756  2439 34                   inc (hl)
+ 757  243A C0                   ret nz
+ 758  243B 23                   inc hl
+ 759  243C 34                   inc (hl)
+ 760  243D C9                   ret
+ 761  243E
+ 762  243E
+ 763  243E              add_entry_size
+ 764  243E                      ; Size field offset in LFN-mode READDIR buffer is TBD.
+ 765  243E                      ; F_STAT corrupts the open dir handle position, so skip for now.
+ 766  243E C9                   ret
+ 767  243F
+ 768  243F
+ 769  243F              ; -----------------------------------------------------------------------------
+ 770  243F              ; Output
+ 771  243F              ; -----------------------------------------------------------------------------
+ 772  243F
+ 773  243F              print_header_title
+ 774  243F CD 62 26             call clear_screen
+ 775  2442 21 5C 28             ld hl,msgTitle
+ 776  2445 CD AB 25             call print_msg
+ 777  2448 CD C6 25             call print_nl
+ 778  244B CD C6 25             call print_nl
+ 779  244E C9                   ret
+ 780  244F
+ 781  244F
+ 782  244F              print_header
+ 783  244F 21 00 00             ld hl,0*256+0
+ 784  2452 11 5C 28             ld de,msgTitle
+ 785  2455 CD 84 25             call print_at
+ 786  2458 21 02 00             ld hl,0*256+2
+ 787  245B 11 7A 28             ld de,msgTarget
+ 788  245E CD 84 25             call print_at
+ 789  2461 21 02 08             ld hl,8*256+2
+ 790  2464 11 18 27             ld de,targetPath
+ 791  2467 CD 84 25             call print_at
+ 792  246A 21 04 00             ld hl,0*256+4
+ 793  246D 11 83 28             ld de,msgBreak
+ 794  2470 CD 84 25             call print_at
+ 795  2473 C9                   ret
+ 796  2474
+ 797  2474
+ 798  2474              print_current_dir
+ 799  2474 F5                   push af
+ 800  2475 C5                   push bc
+ 801  2476 D5                   push de
+ 802  2477 E5                   push hl
+ 803  2478 21 18 28             ld hl,statusLine
+ 804  247B 06 2D                ld b,STATUS_LINE_LEN
+ 805  247D              .clear
+ 806  247D 36 20                ld (hl),32
+ 807  247F 23                   inc hl
+ 808  2480 10 FB                djnz .clear
+ 809  2482 AF                   xor a
+ 810  2483 77                   ld (hl),a
+ 811  2484 21 18 28             ld hl,statusLine
+ 812  2487 11 92 28             ld de,msgScanning
+ 813  248A              .copy_text
+ 814  248A 1A                   ld a,(de)
+ 815  248B B7                   or a
+ 816  248C 28 05                jr z,.path
+ 817  248E 77                   ld (hl),a
+ 818  248F 23                   inc hl
+ 819  2490 13                   inc de
+ 820  2491 18 F7                jr .copy_text
+ 821  2493              .path
+ 822  2493 3A DE 26             ld a,(curDepth)
+ 823  2496 CD AC 23             call get_path_for_depth
+ 824  2499 54 5D                ld de,hl
+ 825  249B 21 22 28             ld hl,statusLine+10
+ 826  249E 06 16                ld b,22
+ 827  24A0              .path_loop
+ 828  24A0 1A                   ld a,(de)
+ 829  24A1 B7                   or a
+ 830  24A2 28 05                jr z,.done
+ 831  24A4 77                   ld (hl),a
+ 832  24A5 13                   inc de
+ 833  24A6 23                   inc hl
+ 834  24A7 10 F7                djnz .path_loop
+ 835  24A9              .done
+ 836  24A9 21 06 00             ld hl,0*256+6
+ 837  24AC 11 18 28             ld de,statusLine
+ 838  24AF CD 84 25             call print_at
+ 839  24B2 E1                   pop hl
+ 840  24B3 D1                   pop de
+ 841  24B4 C1                   pop bc
+ 842  24B5 F1                   pop af
+ 843  24B6 C9                   ret
+ 844  24B7
+ 845  24B7
+ 846  24B7              print_read_marker
+ 847  24B7 F5                   push af
+ 848  24B8 C5                   push bc
+ 849  24B9 D5                   push de
+ 850  24BA E5                   push hl
+ 851  24BB 21 07 00             ld hl,0*256+7
+ 852  24BE 11 9D 28             ld de,msgReading
+ 853  24C1 CD 84 25             call print_at
+ 854  24C4 E1                   pop hl
+ 855  24C5 D1                   pop de
+ 856  24C6 C1                   pop bc
+ 857  24C7 F1                   pop af
+ 858  24C8 C9                   ret
+ 859  24C9
+ 860  24C9
+ 861  24C9              print_current_item
+ 862  24C9 F5                   push af
+ 863  24CA C5                   push bc
+ 864  24CB D5                   push de
+ 865  24CC E5                   push hl
+ 866  24CD 21 18 28             ld hl,statusLine
+ 867  24D0 06 2D                ld b,STATUS_LINE_LEN
+ 868  24D2              .clear
+ 869  24D2 36 20                ld (hl),32
+ 870  24D4 23                   inc hl
+ 871  24D5 10 FB                djnz .clear
+ 872  24D7 AF                   xor a
+ 873  24D8 77                   ld (hl),a
+ 874  24D9 21 18 28             ld hl,statusLine
+ 875  24DC 11 B2 28             ld de,msgItem
+ 876  24DF              .copy_text
+ 877  24DF 1A                   ld a,(de)
+ 878  24E0 B7                   or a
+ 879  24E1 28 05                jr z,.name
+ 880  24E3 77                   ld (hl),a
+ 881  24E4 23                   inc hl
+ 882  24E5 13                   inc de
+ 883  24E6 18 F7                jr .copy_text
+ 884  24E8              .name
+ 885  24E8 11 01 D0             ld de,DIR_ENTRY+1
+ 886  24EB 06 18                ld b,24
+ 887  24ED              .name_loop
+ 888  24ED 1A                   ld a,(de)
+ 889  24EE B7                   or a
+ 890  24EF 28 05                jr z,.done
+ 891  24F1 77                   ld (hl),a
+ 892  24F2 13                   inc de
+ 893  24F3 23                   inc hl
+ 894  24F4 10 F7                djnz .name_loop
+ 895  24F6              .done
+ 896  24F6 21 08 00             ld hl,0*256+8
+ 897  24F9 11 18 28             ld de,statusLine
+ 898  24FC CD 84 25             call print_at
+ 899  24FF E1                   pop hl
+ 900  2500 D1                   pop de
+ 901  2501 C1                   pop bc
+ 902  2502 F1                   pop af
+ 903  2503 C9                   ret
+ 904  2504
+ 905  2504
+ 906  2504              print_file_result
+ 907  2504 21 07 00             ld hl,0*256+7
+ 908  2507 11 B9 28             ld de,msgTypeFile
+ 909  250A CD 84 25             call print_at
+ 910  250D 21 09 00             ld hl,0*256+9
+ 911  2510 CD A1 25             call set_cursor
+ 912  2513 21 E3 28             ld hl,msgSize
+ 913  2516 CD AB 25             call print_msg
+ 914  2519 21 F8 26             ld hl,totalBytes
+ 915  251C CD DF 25             call print_u32
+ 916  251F 21 EA 28             ld hl,msgBytes
+ 917  2522 CD AB 25             call print_msg
+ 918  2525 21 0A 00             ld hl,0*256+10
+ 919  2528 CD A1 25             call set_cursor
+ 920  252B 21 F1 28             ld hl,msgAttr
+ 921  252E CD AB 25             call print_msg
+ 922  2531 3A 02 D3             ld a,(STAT_BUFFER+2)
+ 923  2534 CD CA 25             call print_hex8
+ 924  2537 C9                   ret
+ 925  2538
+ 926  2538
+ 927  2538              print_dir_result
+ 928  2538 21 07 00             ld hl,0*256+7
+ 929  253B 11 C4 28             ld de,msgTypeDir
+ 930  253E CD 84 25             call print_at
+ 931  2541 21 09 00             ld hl,0*256+9
+ 932  2544 CD A1 25             call set_cursor
+ 933  2547 21 D4 28             ld hl,msgFiles
+ 934  254A CD AB 25             call print_msg
+ 935  254D 21 F0 26             ld hl,fileCount
+ 936  2550 CD DF 25             call print_u32
+ 937  2553 21 0A 00             ld hl,0*256+10
+ 938  2556 CD A1 25             call set_cursor
+ 939  2559 21 DC 28             ld hl,msgDirs
+ 940  255C CD AB 25             call print_msg
+ 941  255F 21 F4 26             ld hl,dirCount
+ 942  2562 CD DF 25             call print_u32
+ 943  2565 21 0B 00             ld hl,0*256+11
+ 944  2568 CD A1 25             call set_cursor
+ 945  256B 21 E3 28             ld hl,msgSize
+ 946  256E CD AB 25             call print_msg
+ 947  2571 21 F8 26             ld hl,totalBytes
+ 948  2574 CD DF 25             call print_u32
+ 949  2577 21 EA 28             ld hl,msgBytes
+ 950  257A CD AB 25             call print_msg
+ 951  257D C9                   ret
+ 952  257E
+ 953  257E
+ 954  257E              show_help_body
+ 955  257E 21 4B 29             ld hl,msgHelp
+ 956  2581 C3 AB 25             jp print_msg
+ 957  2584
+ 958  2584
+ 959  2584              print_at
+ 960  2584 E5                   push hl
+ 961  2585 D5                   push de
+ 962  2586 CD A1 25             call set_cursor
+ 963  2589 E1                   pop hl
+ 964  258A CD B5 25             call print_msg_count
+ 965  258D 78                   ld a,b
+ 966  258E FE 20                cp SCREEN_LINE_LEN
+ 967  2590 30 0D                jr nc,.done
+ 968  2592 3E 20                ld a,SCREEN_LINE_LEN
+ 969  2594 90                   sub b
+ 970  2595 47                   ld b,a
+ 971  2596              .pad
+ 972  2596 78                   ld a,b
+ 973  2597 B7                   or a
+ 974  2598 28 05                jr z,.done
+ 975  259A 3E 20                ld a,32
+ 976  259C D7                   rst 16
+ 977  259D 10 F7                djnz .pad
+ 978  259F              .done
+ 979  259F E1                   pop hl
+ 980  25A0 C9                   ret
+ 981  25A1
+ 982  25A1
+ 983  25A1              set_cursor
+ 984  25A1 44                   ld b,h
+ 985  25A2 4D                   ld c,l
+ 986  25A3 3E 16                ld a,22
+ 987  25A5 D7                   rst 16
+ 988  25A6 79                   ld a,c
+ 989  25A7 D7                   rst 16
+ 990  25A8 78                   ld a,b
+ 991  25A9 D7                   rst 16
+ 992  25AA C9                   ret
+ 993  25AB
+ 994  25AB
+ 995  25AB              print_msg
+ 996  25AB 7E                   ld a,(hl)
+ 997  25AC B7                   or a
+ 998  25AD C8                   ret z
+ 999  25AE FE FF                cp 255
+1000  25B0 C8                   ret z
+1001  25B1 D7                   rst 16
+1002  25B2 23                   inc hl
+1003  25B3 18 F6                jr print_msg
+1004  25B5
+1005  25B5
+1006  25B5              print_msg_count
+1007  25B5 06 00                ld b,0
+1008  25B7              .loop
+1009  25B7 78                   ld a,b
+1010  25B8 FE 20                cp SCREEN_LINE_LEN
+1011  25BA D0                   ret nc
+1012  25BB 7E                   ld a,(hl)
+1013  25BC B7                   or a
+1014  25BD C8                   ret z
+1015  25BE FE FF                cp 255
+1016  25C0 C8                   ret z
+1017  25C1 D7                   rst 16
+1018  25C2 04                   inc b
+1019  25C3 23                   inc hl
+1020  25C4 18 F1                jr .loop
+1021  25C6
+1022  25C6
+1023  25C6              print_nl
+1024  25C6 3E 0D                ld a,13
+1025  25C8 D7                   rst 16
+1026  25C9 C9                   ret
+1027  25CA
+1028  25CA
+1029  25CA              print_hex8
+1030  25CA F5                   push af
+1031  25CB 0F                   rrca
+1032  25CC 0F                   rrca
+1033  25CD 0F                   rrca
+1034  25CE 0F                   rrca
+1035  25CF CD D3 25             call print_hex_nibble
+1036  25D2 F1                   pop af
+1037  25D3              print_hex_nibble
+1038  25D3 E6 0F                and $0F
+1039  25D5 C6 30                add a,"0"
+1040  25D7 FE 3A                cp "9"+1
+1041  25D9 38 02                jr c,.ok
+1042  25DB C6 07                add a,7
+1043  25DD              .ok
+1044  25DD D7                   rst 16
+1045  25DE C9                   ret
+1046  25DF
+1047  25DF
+1048  25DF              ; HL points to little-endian 32-bit value.
+1049  25DF              print_u32
+1050  25DF 11 FC 26             ld de,numWork
+1051  25E2 01 04 00             ld bc,4
+1052  25E5 ED B0                ldir
+1053  25E7 21 FC 26             ld hl,numWork
+1054  25EA CD 17 26             call is_u32_zero
+1055  25ED 20 04                jr nz,.convert
+1056  25EF 3E 30                ld a,"0"
+1057  25F1 D7                   rst 16
+1058  25F2 C9                   ret
+1059  25F3              .convert
+1060  25F3 21 51 28             ld hl,decBufEnd
+1061  25F6 22 EC 26             ld (decPtr),hl
+1062  25F9              .loop
+1063  25F9 CD 1F 26             call div_u32_by_10
+1064  25FC 2A EC 26             ld hl,(decPtr)
+1065  25FF 2B                   dec hl
+1066  2600 22 EC 26             ld (decPtr),hl
+1067  2603 3A EB 26             ld a,(remByte)
+1068  2606 C6 30                add a,"0"
+1069  2608 77                   ld (hl),a
+1070  2609 21 FC 26             ld hl,numWork
+1071  260C CD 17 26             call is_u32_zero
+1072  260F 20 E8                jr nz,.loop
+1073  2611 2A EC 26             ld hl,(decPtr)
+1074  2614 C3 AB 25             jp print_msg
+1075  2617
+1076  2617
+1077  2617              is_u32_zero
+1078  2617 7E                   ld a,(hl)
+1079  2618 23                   inc hl
+1080  2619 B6                   or (hl)
+1081  261A 23                   inc hl
+1082  261B B6                   or (hl)
+1083  261C 23                   inc hl
+1084  261D B6                   or (hl)
+1085  261E C9                   ret
+1086  261F
+1087  261F
+1088  261F              div_u32_by_10
+1089  261F AF                   xor a
+1090  2620 32 EB 26             ld (remByte),a
+1091  2623 06 20                ld b,32
+1092  2625              .loop
+1093  2625 21 FC 26             ld hl,numWork
+1094  2628 CB 26                sla (hl)
+1095  262A 23                   inc hl
+1096  262B CB 16                rl (hl)
+1097  262D 23                   inc hl
+1098  262E CB 16                rl (hl)
+1099  2630 23                   inc hl
+1100  2631 CB 16                rl (hl)
+1101  2633 3A EB 26             ld a,(remByte)
+1102  2636 17                   rla
+1103  2637 32 EB 26             ld (remByte),a
+1104  263A FE 0A                cp 10
+1105  263C 38 0A                jr c,.next
+1106  263E D6 0A                sub 10
+1107  2640 32 EB 26             ld (remByte),a
+1108  2643 21 FC 26             ld hl,numWork
+1109  2646 CB C6                set 0,(hl)
+1110  2648              .next
+1111  2648 10 DB                djnz .loop
+1112  264A C9                   ret
+1113  264B
+1114  264B
+1115  264B              ; -----------------------------------------------------------------------------
+1116  264B              ; System helpers
+1117  264B              ; -----------------------------------------------------------------------------
+1118  264B
+1119  264B              check_cancel
+1120  264B 01 FE FE             ld bc,$FEFE
+1121  264E ED 78                in a,(c)
+1122  2650 CB 47                bit 0,a
+1123  2652 20 0C                jr nz,.no
+1124  2654 01 FE 7F             ld bc,$7FFE
+1125  2657 ED 78                in a,(c)
+1126  2659 CB 47                bit 0,a
+1127  265B 20 03                jr nz,.no
+1128  265D 3E 01                ld a,1
+1129  265F C9                   ret
+1130  2660              .no
+1131  2660 AF                   xor a
+1132  2661 C9                   ret
+1133  2662
+1134  2662
+1135  2662              clear_screen
+1136  2662 21 00 40             ld hl,16384
+1137  2665 11 01 40             ld de,16385
+1138  2668 01 FF 17             ld bc,6143
+1139  266B 75                   ld (hl),l
+1140  266C ED B0                ldir
+1141  266E 21 00 58             ld hl,22528
+1142  2671 11 01 58             ld de,22529
+1143  2674 01 FF 02             ld bc,767
+1144  2677 36 38                ld (hl),56
+1145  2679 ED B0                ldir
+1146  267B C9                   ret
+1147  267C
+1148  267C
+1149  267C              install_error_handler
+1150  267C 21 88 26             ld hl,rom_error_handler
+1151  267F CF                   rst $08
+1152  2680 95                   db M_ERRH
+1153  2681 C9                   ret
+1154  2682
+1155  2682
+1156  2682              clear_error_handler
+1157  2682 21 00 00             ld hl,0
+1158  2685 CF                   rst $08
+1159  2686 95                   db M_ERRH
+1160  2687 C9                   ret
+1161  2688
+1162  2688
+1163  2688              rom_error_handler
+1164  2688 3E 7D                ld a,$7d
+1165  268A C3 71 20             jp failed
+1166  268D
+1167  268D
+1168  268D              set_turbo_28
+1169  268D F5                   push af
+1170  268E C5                   push bc
+1171  268F 3E 07                ld a,TURBO_CONTROL_NR_07
+1172  2691 CD CB 26             call read_nextreg
+1173  2694 32 E9 26             ld (savedTurbo),a
+1174  2697 3E 01                ld a,1
+1175  2699 32 EA 26             ld (turboEnabled),a
+1176  269C 01 3B 24             ld bc,TBBLUE_REGISTER_SELECT_P_243B
+1177  269F 3E 07                ld a,TURBO_CONTROL_NR_07
+1178  26A1 ED 79                out (c),a
+1179  26A3 01 3B 25             ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+1180  26A6 3E 03                ld a,3
+1181  26A8 ED 79                out (c),a
+1182  26AA C1                   pop bc
+1183  26AB F1                   pop af
+1184  26AC C9                   ret
+1185  26AD
+1186  26AD
+1187  26AD              restore_turbo
+1188  26AD F5                   push af
+1189  26AE C5                   push bc
+1190  26AF 3A EA 26             ld a,(turboEnabled)
+1191  26B2 B7                   or a
+1192  26B3 28 13                jr z,.done
+1193  26B5 AF                   xor a
+1194  26B6 32 EA 26             ld (turboEnabled),a
+1195  26B9 01 3B 24             ld bc,TBBLUE_REGISTER_SELECT_P_243B
+1196  26BC 3E 07                ld a,TURBO_CONTROL_NR_07
+1197  26BE ED 79                out (c),a
+1198  26C0 01 3B 25             ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+1199  26C3 3A E9 26             ld a,(savedTurbo)
+1200  26C6 ED 79                out (c),a
+1201  26C8              .done
+1202  26C8 C1                   pop bc
+1203  26C9 F1                   pop af
+1204  26CA C9                   ret
+1205  26CB
+1206  26CB
+1207  26CB              read_nextreg
+1208  26CB C5                   push bc
+1209  26CC 01 3B 24             ld bc,TBBLUE_REGISTER_SELECT_P_243B
+1210  26CF ED 79                out (c),a
+1211  26D1 01 3B 25             ld bc,TBBLUE_REGISTER_ACCESS_P_253B
+1212  26D4 ED 78                in a,(c)
+1213  26D6 C1                   pop bc
+1214  26D7 C9                   ret
+1215  26D8
+1216  26D8
+1217  26D8 00 00        argPtr       defw 0
+1218  26DA 00 00        savedSp      defw 0
+1219  26DC 00           helpFlag     defb 0
+1220  26DD 00           posIndex     defb 0
+1221  26DE 00           curDepth     defb 0
+1222  26DF 00           dirHandle    defb 0
+1223  26E0 00           skipHandle   defb 0
+1224  26E1 00 00        skipCount    defw 0
+1225  26E3 00           lastChar     defb 0
+1226  26E4 00           pathLeft     defb 0
+1227  26E5 00           failStage    defb 0
+1228  26E6 00           lastError    defb 0
+1229  26E7 00           childResult  defb 0
+1230  26E8 00           childCarry   defb 0
+1231  26E9 00           savedTurbo   defb 0
+1232  26EA 00           turboEnabled defb 0
+1233  26EB 00           remByte      defb 0
+1234  26EC 00 00        decPtr       defw 0
+1235  26EE 00 00        namePtr      defw 0
+1236  26F0
+1237  26F0 00 00 00 00  fileCount    defs 4
+1238  26F4 00 00 00 00  dirCount     defs 4
+1239  26F8 00 00 00 00  totalBytes   defs 4
+1240  26FC 00 00 00 00  numWork      defs 4
+1241  2700 00 00 00...  dirPosStack  defs (MAX_DEPTH+1)*2
+1242  2718 00 00 00...  targetPath   defs 256
+1243  2818 00 00 00...  statusLine   defs STATUS_LINE_LEN+1
+1244  2846 00 00 00...  decBuf       defs 11
+1245  2851 00           decBufEnd    defb 0
+1246  2852
+1247  2852 44 49 52 49  cmdName      defb "DIRINFO",0
+1247  2856 4E 46 4F 00
+1248  285A 2E 00        dotPath      defb ".",0
+1249  285C 2E 64 69 72  msgTitle     defb ".dirinfo - by Shrek/MB Maniax",0
+1249  2860 69 6E 66 6F
+1249  2864 20 2D 20 62
+1249  2868 79 20 53 68
+1249  286C 72 65 6B 2F
+1249  2870 4D 42 20 4D
+1249  2874 61 6E 69 61
+1249  2878 78 00
+1250  287A 54 61 72 67  msgTarget    defb "Target: ",0
+1250  287E 65 74 3A 20
+1250  2882 00
+1251  2883 42 52 45 41  msgBreak     defb "BREAK = cancel",0
+1251  2887 4B 20 3D 20
+1251  288B 63 61 6E 63
+1251  288F 65 6C 00
+1252  2892 53 63 61 6E  msgScanning  defb "Scanning: ",0
+1252  2896 6E 69 6E 67
+1252  289A 3A 20 00
+1253  289D 52 65 61 64  msgReading   defb "Reading directory...",0
+1253  28A1 69 6E 67 20
+1253  28A5 64 69 72 65
+1253  28A9 63 74 6F 72
+1253  28AD 79 2E 2E 2E
+1253  28B1 00
+1254  28B2 49 74 65 6D  msgItem      defb "Item: ",0
+1254  28B6 3A 20 00
+1255  28B9 54 79 70 65  msgTypeFile  defb "Type: file",0
+1255  28BD 3A 20 66 69
+1255  28C1 6C 65 00
+1256  28C4 54 79 70 65  msgTypeDir   defb "Type: directory",0
+1256  28C8 3A 20 64 69
+1256  28CC 72 65 63 74
+1256  28D0 6F 72 79 00
+1257  28D4 46 69 6C 65  msgFiles     defb "Files: ",0
+1257  28D8 73 3A 20 00
+1258  28DC 44 69 72 73  msgDirs      defb "Dirs: ",0
+1258  28E0 3A 20 00
+1259  28E3 53 69 7A 65  msgSize      defb "Size: ",0
+1259  28E7 3A 20 00
+1260  28EA 20 62 79 74  msgBytes     defb " bytes",0
+1260  28EE 65 73 00
+1261  28F1 41 74 74 72  msgAttr      defb "Attributes: $",0
+1261  28F5 69 62 75 74
+1261  28F9 65 73 3A 20
+1261  28FD 24 00
+1262  28FF 64 69 72 69  msgError     defb "dirinfo: esxDOS error $",0
+1262  2903 6E 66 6F 3A
+1262  2907 20 65 73 78
+1262  290B 44 4F 53 20
+1262  290F 65 72 72 6F
+1262  2913 72 20 24 00
+1263  2917 20 73 74 67  msgStage     defb " stg $",0
+1263  291B 20 24 00
+1264  291E 43 61 6E 63  msgCancelled defb "Cancelled.",0
+1264  2922 65 6C 6C 65
+1264  2926 64 2E 00
+1265  2929 64 69 72 69  msgBadArgs   defb "dirinfo: missing or bad arguments",0
+1265  292D 6E 66 6F 3A
+1265  2931 20 6D 69 73
+1265  2935 73 69 6E 67
+1265  2939 20 6F 72 20
+1265  293D 62 61 64 20
+1265  2941 61 72 67 75
+1265  2945 6D 65 6E 74
+1265  2949 73 00
+1266  294B 44 49 52 49  msgHelp      defb "DIRINFO 0.1 - directory info",13
+1266  294F 4E 46 4F 20
+1266  2953 30 2E 31 20
+1266  2957 2D 20 64 69
+1266  295B 72 65 63 74
+1266  295F 6F 72 79 20
+1266  2963 69 6E 66 6F
+1266  2967 0D
+1267  2968 55 73 61 67               defb "Usage:",13
+1267  296C 65 3A 0D
+1268  296F 20 20 2E 64               defb "  .dirinfo [path]",13
+1268  2973 69 72 69 6E
+1268  2977 66 6F 20 5B
+1268  297B 70 61 74 68
+1268  297F 5D 0D
+1269  2981 20 20 2E 64               defb "  .dirinfo -s path",13
+1269  2985 69 72 69 6E
+1269  2989 66 6F 20 2D
+1269  298D 73 20 70 61
+1269  2991 74 68 0D
+1270  2994 4F 70 74 69               defb "Options:",13
+1270  2998 6F 6E 73 3A
+1270  299C 0D
+1271  299D 20 20 2D 73               defb "  -s  source/target path",13
+1271  29A1 20 20 73 6F
+1271  29A5 75 72 63 65
+1271  29A9 2F 74 61 72
+1271  29AD 67 65 74 20
+1271  29B1 70 61 74 68
+1271  29B5 0D
+1272  29B6 20 20 2D 68               defb "  -h  show this help",13
+1272  29BA 20 20 73 68
+1272  29BE 6F 77 20 74
+1272  29C2 68 69 73 20
+1272  29C6 68 65 6C 70
+1272  29CA 0D
+1273  29CB 45 78 61 6D               defb "Examples:",13
+1273  29CF 70 6C 65 73
+1273  29D3 3A 0D
+1274  29D5 20 20 2E 64               defb "  .dirinfo dot",13
+1274  29D9 69 72 69 6E
+1274  29DD 66 6F 20 64
+1274  29E1 6F 74 0D
+1275  29E4 20 20 2E 64               defb "  .dirinfo ",34,"my dir",34,13
+1275  29E8 69 72 69 6E
+1275  29EC 66 6F 20 22
+1275  29F0 6D 79 20 64
+1275  29F4 69 72 22 0D
+1276  29F8 20 20 2E 64               defb "  .dirinfo c:/dot",13,0
+1276  29FC 69 72 69 6E
+1276  2A00 66 6F 20 63
+1276  2A04 3A 2F 64 6F
+1276  2A08 74 0D 00
+1277  2A0B
+1278  2A0B              plugin_end
+1279  2A0B                      assert plugin_end - MAIN <= 8192
+1280  2A0B                      SAVEBIN "extra/dirinfo", MAIN, plugin_end - MAIN
+1281  2A0B
+# file closed: dirinfo.asm
