@@ -10,7 +10,7 @@
         DEVICE ZXSPECTRUMNEXT
         org $2000
 
-        include "syscopy_api.i.asm"
+        include "../plugin/syscopy_api.i.asm"
 
 ; esxDOS / NextZXOS hooks used by this command.
 F_OPEN      equ $9A
@@ -2722,5 +2722,5 @@ dstFullPath defs 256
 
 plugin_end
         assert plugin_end - MAIN <= 8192
-        SAVEBIN "plugin/copy", MAIN, plugin_end - MAIN
+        SAVEBIN "extra/copy", MAIN, plugin_end - MAIN
         END MAIN

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>.copy – dot command pro ZX Spectrum Next</title>
+</head>
+<body>
+
+<h1>.copy – nový dot command pro ZX Spectrum Next</h1>
+
+<p>
+Při práci na <strong>Calm Commanderu</strong> jsem potřeboval spolehlivé kopírování souborů a celých adresářových stromů.
+Napsal jsem na to vlastní kód – a pak mě napadlo: proč ho nenabídnout i jako samostatný dot command?
+Tak vznikl <strong>.copy</strong>.
+</p>
+
+<p>
+Jde o standalone dot command pro <strong>NextZXOS / esxDOS</strong>, který kopíruje nebo přesouvá soubory
+a celé adresářové stromy. Spouští se z příkazové řádky nebo přímo z BASICu jako <code>.copy zdroj cil</code>.
+</p>
+
+<p>
+<strong>Ke stažení zdarma:</strong> <a href="https://shrek128.itch.io/copy-nextzxos-dot-command-for-zx-spectrum-next">shrek128.itch.io</a>
+</p>
+
+<h2>Instalace</h2>
+
+<p>
+Zkopírujte soubor <code>copy</code> (bez přípony) do adresáře <code>/dot</code> na vaší SD kartě.
+Pak ho spusťte přímo z NextZXOS příkazové řádky nebo z BASICu příkazem <code>.copy</code>.
+</p>
+
+<h2>Syntaxe</h2>
+
+<pre>
+.copy zdroj cil
+.copy -s zdroj -d cil
+</pre>
+
+<p>Oba formáty jsou rovnocenné. Cesty s mezerami v názvu uzavřete do uvozovek.</p>
+
+<h2>Přepínače</h2>
+
+<ul>
+  <li><code>-m</code> &mdash; <strong>move</strong> (přesun): po úspěšném zkopírování smaže zdrojový soubor nebo adresář</li>
+  <li><code>-y</code> &mdash; <strong>yes</strong> (přepis): přepisuje existující cílové soubory; bez tohoto přepínače se existující soubory přeskočí</li>
+  <li><code>-h</code> &mdash; zobrazí nápovědu</li>
+</ul>
+
+<h2>Jak to funguje</h2>
+
+<p>
+Po spuštění příkaz automaticky zjistí, zda je zdrojem <strong>soubor nebo adresář</strong> – pokusí se ho otevřít jako LFN adresář, a podle výsledku zvolí správnou cestu.
+</p>
+
+<p><strong>Kopírování jednoho souboru:</strong><br>
+Soubor se čte do 8&nbsp;kB pracovního bufferu na adrese <code>$DC00</code> a zapisuje se na cíl po blocích.
+Pokud cíl končí lomítkem nebo jde o existující adresář, jméno zdrojového souboru se přidá automaticky.
+Jinak se cílová cesta použije jako výsledné jméno souboru.
+</p>
+
+<p><strong>Kopírování adresáře (rekurzivní):</strong></p>
+<ol>
+  <li>Příkaz prochází adresářový strom do hloubky <strong>11 úrovní</strong> (MAX_DEPTH&nbsp;=&nbsp;11).</li>
+  <li>Každý podadresář vytvoří v cíli (F_MKDIR &ndash; chyba „již existuje" se ignoruje).</li>
+  <li>Soubory v každém podadresáři zkopíruje se zachováním <strong>dlouhých jmen (LFN)</strong>.</li>
+  <li>Před vlastní kopií projde strom naprázdno a spočítá položky – kvůli zobrazení průběhu.</li>
+  <li>Průběh se zobrazuje jako <code>Copying: nazev_adresare (X/celkem)</code> a pro každý soubor <code>soubor [XkB/CelkemkB]</code>.</li>
+  <li>Adresářové handles se před rekurzí uzavírají a po ní znovu otevírají – tím se obchází omezení NextZXOS na počet současně otevřených handles.</li>
+</ol>
+
+<p><strong>Přesun adresáře (<code>-m</code>):</strong><br>
+Nejprve proběhne kompletní rekurzivní kopie, pak se celý zdrojový strom smaže (soubory přes F_UNLINK, adresáře přes F_RMDIR zdola nahoru).
+Pro přesun jednoho souboru se nejdříve zkusí F_RENAME (rychlé přejmenování na stejném disku); teprve pokud selže, provede se kopie + smazání.
+</p>
+
+<h2>Chování při přepisu</h2>
+
+<ul>
+  <li>Bez <code>-y</code>: existující cílový soubor se <strong>přeskočí</strong> a zobrazí se <code>Skipping existing: jmeno</code>.</li>
+  <li>S <code>-y</code>: cílový soubor se přepíše.</li>
+</ul>
+
+<h2>Pravidla pro cílovou cestu</h2>
+
+<ul>
+  <li>Cíl končí <code>/</code> nebo <code>\</code> &rarr; zdrojové jméno se přidá za lomítko.</li>
+  <li>Cíl je existující adresář &rarr; zdrojové jméno se zkopíruje do tohoto adresáře.</li>
+  <li>Jinak &rarr; cíl je výsledné jméno souboru nebo adresáře.</li>
+  <li>Zdrojová cesta s koncovým lomítkem (<code>adresar/</code>) se normalizuje na <code>adresar</code>.</li>
+</ul>
+
+<h2>Bezpečnostní pojistky</h2>
+
+<ul>
+  <li><strong>Ochrana před kopírováním adresáře do sebe:</strong> příkaz zjistí, zda cílová cesta není podadresářem zdrojové, a kopii odmítne.</li>
+  <li><strong>Ověření cílového rodiče:</strong> před zahájením kopie zkontroluje, že nadřazený adresář cíle existuje. Pokud ne, skončí s hláškou <code>copy: destiny path not found</code>.</li>
+  <li><strong>Přerušení stiskem BREAK</strong> (CAPS SHIFT + SPACE): zastaví operaci kdykoli, smaže rozepsaný cílový soubor a vypíše <code>Cancelled.</code></li>
+  <li>Příkaz instaluje ROM error handler, aby chyby (typicky chybějící jednotka na emulátorech) nespadly do BASICu.</li>
+</ul>
+
+<h2>Výkon</h2>
+
+<p>
+Během kopírování a mazání se CPU dočasně přepne na <strong>28&nbsp;MHz</strong> (NextReg&nbsp;$07&nbsp;=&nbsp;3).
+Po skončení &ndash; ať úspěšném, chybném, nebo zrušeném &ndash; se turbo vrátí na původní hodnotu.
+</p>
+
+<h2>Technické parametry</h2>
+
+<ul>
+  <li>Pracovní buffer: 8192 bajtů na adrese <code>$DC00&ndash;$FBFF</code></li>
+  <li>Zásobník zdrojových cest: <code>$C000</code> (12 &times; 256 bajtů)</li>
+  <li>Zásobník cílových cest: <code>$CC00</code> (12 &times; 256 bajtů)</li>
+  <li>Maximální délka cesty: 255 znaků</li>
+  <li>Maximální hloubka podadresářů: <strong>11 úrovní</strong></li>
+  <li>Adresáře se čtou v LFN režimu &rarr; dlouhá jména jsou zachována</li>
+  <li>Spouští se na adrese <code>$2000</code> (standardní dot command)</li>
+</ul>
+
+<h2>Příklady</h2>
+
+<pre>
+.copy zaloha zaloha2
+</pre>
+<p>Zkopíruje soubor nebo adresář <code>zaloha</code> do <code>zaloha2</code>.</p>
+
+<pre>
+.copy -y "Calm Commander" "backup/"
+</pre>
+<p>Zkopíruje adresář <code>Calm Commander</code> (s mezerou v názvu) do <code>backup/Calm Commander</code>. Existující soubory přepíše.</p>
+
+<pre>
+.copy -s "muj adresar" -d "d:/moje zaloha"
+</pre>
+<p>Kopírování s pojmenovanými přepínači &ndash; vhodné, když cesta obsahuje mezery.</p>
+
+<pre>
+.copy -m stary novy
+</pre>
+<p>Přesune adresář <code>stary</code> na <code>novy</code> (kopie + smazání zdroje).</p>
+
+<h2>Chybová hlášení</h2>
+
+<ul>
+  <li><code>copy: missing or bad arguments</code> &mdash; chybí zdroj nebo cíl, nebo neznámý přepínač</li>
+  <li><code>copy: destiny path not found</code> &mdash; nadřazený adresář cíle neexistuje</li>
+  <li><code>copy: esxDOS error $XX stg $YY</code> &mdash; interní chyba; XX je esxDOS chybový kód, YY je fáze (pro ladění)</li>
+  <li><code>Skipping existing: jmeno</code> &mdash; soubor na cíli existuje a nebyl zadán <code>-y</code></li>
+  <li><code>Cancelled.</code> &mdash; uživatel stiskl BREAK</li>
+  <li><code>Done.</code> &mdash; kopírování nebo přesun úspěšně dokončen</li>
+</ul>
+
+<hr>
+
+<p>
+<em>
+.copy vznikl jako součást projektu Calm Commander, kde jsem stejnou funkcionalitu programoval přímo do file manageru.
+Pak mě napadlo, že by byla škoda to nenabídnout i jako samostatný dot command &ndash; hodí se i bez Calm Commanderu, prostě kdykoli potřebujete zkopírovat nebo přesunout adresářový strom.
+</em>
+</p>
+
+<p>
+<strong>Ke stažení zdarma:</strong> <a href="https://shrek128.itch.io/copy-nextzxos-dot-command-for-zx-spectrum-next">shrek128.itch.io</a>
+</p>
+
+</body>
+</html>

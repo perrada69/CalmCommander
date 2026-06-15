@@ -39,7 +39,8 @@ if exist build\*.bas del /Q build\*.bas
 if exist build\*.lst del /Q build\*.lst
 if exist build\*.sym del /Q build\*.sym
 if exist build\plugin\*.ccp del /Q build\plugin\*.ccp
-if exist build\plugin\copy del /Q build\plugin\copy
+if exist build\extra\copy del /Q build\extra\copy
+if exist build\extra\del del /Q build\extra\del
 if exist "%CSPECT_LOG%" del /Q "%CSPECT_LOG%"
 echo [OK]
 goto :end
@@ -68,6 +69,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/syscopy.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/dir_info.ccp 2>nul
 "%HDF%" rm "%IMG%" %DOT%/copy 2>nul
+"%HDF%" rm "%IMG%" %DOT%/del 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/asctest.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/TXT,ASM,BAS,CFG,INI_Text-Viewer.CCP 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/SCR_ZX-Screen.CCP 2>nul
@@ -114,9 +116,14 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\syscopy.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\dir_info.ccp %PLUG%/
 echo   [PUT] dot commands -^> %DOT%/
-"%HDF%" put "%IMG%" build\plugin\copy %DOT%/
+"%HDF%" put "%IMG%" build\extra\copy %DOT%/
 if errorlevel 1 (
     echo *** KOPIROVANI DOT COMMANDU COPY SELHALO ***
+    exit /b 1
+)
+"%HDF%" put "%IMG%" build\extra\del %DOT%/
+if errorlevel 1 (
+    echo *** KOPIROVANI DOT COMMANDU DEL SELHALO ***
     exit /b 1
 )
 
@@ -139,6 +146,7 @@ echo.
 
 if not exist build\nul mkdir build
 if not exist build\plugin\nul mkdir build\plugin
+if not exist build\extra\nul mkdir build\extra
 
 echo [BUILD] cc.asm ...
 "%SJASMPLUS%" cc.asm --lst=build\cc.lst --sym=build\cc.sym.txt
@@ -208,9 +216,13 @@ if exist plugin\tap.ccp ( copy /Y plugin\tap.ccp build\plugin\tap.ccp >nul )
 if errorlevel 1 ( echo *** BUILD FAILED: syscopy.asm *** & exit /b 1 )
 if exist plugin\syscopy.ccp ( copy /Y plugin\syscopy.ccp build\plugin\syscopy.ccp >nul )
 
-"%SJASMPLUS%" plugin\copy.asm
+"%SJASMPLUS%" extra\copy.asm
 if errorlevel 1 ( echo *** BUILD FAILED: copy.asm *** & exit /b 1 )
-if exist plugin\copy ( copy /Y plugin\copy build\plugin\copy >nul )
+if exist extra\copy ( copy /Y extra\copy build\extra\copy >nul )
+
+"%SJASMPLUS%" extra\del.asm
+if errorlevel 1 ( echo *** BUILD FAILED: del.asm *** & exit /b 1 )
+if exist extra\del ( copy /Y extra\del build\extra\del >nul )
 
 "%SJASMPLUS%" plugin\dir_info.asm
 if errorlevel 1 ( echo *** BUILD FAILED: dir_info.asm *** & exit /b 1 )
