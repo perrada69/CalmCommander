@@ -41,6 +41,7 @@ if exist build\*.sym del /Q build\*.sym
 if exist build\plugin\*.ccp del /Q build\plugin\*.ccp
 if exist build\extra\copy del /Q build\extra\copy
 if exist build\extra\del del /Q build\extra\del
+if exist build\extra\dirinfo del /Q build\extra\dirinfo
 if exist "%CSPECT_LOG%" del /Q "%CSPECT_LOG%"
 echo [OK]
 goto :end
@@ -70,6 +71,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/dir_info.ccp 2>nul
 "%HDF%" rm "%IMG%" %DOT%/copy 2>nul
 "%HDF%" rm "%IMG%" %DOT%/del 2>nul
+"%HDF%" rm "%IMG%" %DOT%/dirinfo 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/asctest.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/TXT,ASM,BAS,CFG,INI_Text-Viewer.CCP 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/SCR_ZX-Screen.CCP 2>nul
@@ -124,6 +126,11 @@ if errorlevel 1 (
 "%HDF%" put "%IMG%" build\extra\del %DOT%/
 if errorlevel 1 (
     echo *** KOPIROVANI DOT COMMANDU DEL SELHALO ***
+    exit /b 1
+)
+"%HDF%" put "%IMG%" build\extra\dirinfo %DOT%/
+if errorlevel 1 (
+    echo *** KOPIROVANI DOT COMMANDU DIRINFO SELHALO ***
     exit /b 1
 )
 
@@ -223,6 +230,10 @@ if exist extra\copy ( copy /Y extra\copy build\extra\copy >nul )
 "%SJASMPLUS%" extra\del.asm
 if errorlevel 1 ( echo *** BUILD FAILED: del.asm *** & exit /b 1 )
 if exist extra\del ( copy /Y extra\del build\extra\del >nul )
+
+"%SJASMPLUS%" extra\dirinfo.asm
+if errorlevel 1 ( echo *** BUILD FAILED: dirinfo.asm *** & exit /b 1 )
+if exist extra\dirinfo ( copy /Y extra\dirinfo build\extra\dirinfo >nul )
 
 "%SJASMPLUS%" plugin\dir_info.asm
 if errorlevel 1 ( echo *** BUILD FAILED: dir_info.asm *** & exit /b 1 )
