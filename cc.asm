@@ -3295,6 +3295,8 @@ acont
         pop bc
         dec bc                                    ; úprava počtu (pravděpodobně korekce o 1 položku – bez spekulace proč)
 
+        call NOBUFF83                             ; rutina níže běží z $A000, vrať tam programový kód
+        call promote_dot_dirs                     ; "." a ".." drž vždy na začátku výpisu
         call BUFF83                               ; přepni datovou stránku pro okno zpět (NextReg $55)
 
                                                   ; Přeskočí první položku (catbuff+13), pak načítá LFN pro všechny položky
@@ -4176,6 +4178,178 @@ E1
 
         org $a000
 S3
+        ; ------------------------------------------------------------
+        ; promote_dot_dirs
+        ; ------------------------------------------------------------
+        ; NextZXOS vrací katalog abecedně, takže položky začínající třeba "$"
+        ; nebo číslem mohou odsunout "." a ".." mimo první obrazovku.
+        ; Rutina běží z $A000, proto katalog aktuálního panelu namapuje do
+        ; $E000 přes MMU7, přesune přesné 8.3 adresářové záznamy "."/".."
+        ; na začátek a MMU7 vrátí na programovou stránku.
+        ; ------------------------------------------------------------
+promote_dot_dirs
+        ld hl,ALLFILES
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (dotRemaining),hl
+        ld a,h
+        or l
+        ret z
+
+        ld hl,buffl
+        call ROZHOD
+        ld a,(hl)
+        nextreg $57,a
+
+        ld hl,#e000+13
+        ld (dotInsertPtr),hl
+
+        ld a,32
+        ld (dotSecondChar+1),a
+        call promote_one_dot_dir
+
+        ld a,"."
+        ld (dotSecondChar+1),a
+        call promote_one_dot_dir
+
+        nextreg $57,1
+        ret
+
+promote_one_dot_dir
+        ld hl,(dotRemaining)
+        ld a,h
+        or l
+        ret z
+
+        ex de,hl                                  ; DE = počet zbývajících položek
+        ld hl,#e000                               ; hledej i v nultém katalogovém slotu
+
+find_dot_dir_loop
+        push hl
+        push de
+        call dot_dir_matches
+        pop de
+        pop hl
+        jr c,dot_dir_found
+
+        push de
+        ld de,13
+        add hl,de
+        pop de
+
+        dec de
+        ld a,d
+        or e
+        jr nz,find_dot_dir_loop
+        ret
+
+dot_dir_found
+        ld (dotFoundPtr),hl
+
+        ld de,bufftmp
+        ld bc,13
+        ldir
+
+        ld hl,(dotFoundPtr)
+        ld de,(dotInsertPtr)
+        or a
+        sbc hl,de
+        jr c,shift_dot_dir_from_hidden
+
+shift_dot_dir_loop
+        ld hl,(dotFoundPtr)
+        ld de,(dotInsertPtr)
+        or a
+        sbc hl,de
+        jr z,store_dot_dir
+
+        ld hl,(dotFoundPtr)
+        ld de,13
+        or a
+        sbc hl,de
+        push hl
+        ld de,(dotFoundPtr)
+        ld bc,13
+        ldir
+        pop hl
+        ld (dotFoundPtr),hl
+        jr shift_dot_dir_loop
+
+shift_dot_dir_from_hidden
+        ld hl,(dotRemaining)
+        dec hl
+        ld a,h
+        or l
+        jr z,store_dot_dir
+
+        ld b,13
+        call mull
+        push hl                                   ; počet bajtů k posunu doprava
+
+        ld de,(dotInsertPtr)
+        add hl,de
+        dec hl
+        push hl
+        pop de
+        ld hl,13
+        add hl,de
+        pop bc
+        ex de,hl
+        lddr
+
+store_dot_dir
+        ld hl,bufftmp
+        ld de,(dotInsertPtr)
+        ld bc,13
+        ldir
+
+        ld hl,(dotInsertPtr)
+        ld de,13
+        add hl,de
+        ld (dotInsertPtr),hl
+
+        ld hl,(dotRemaining)
+        dec hl
+        ld (dotRemaining),hl
+        ret
+
+dot_dir_matches
+        ld a,(hl)
+        and $7f
+        cp "."
+        jr nz,dot_dir_no_match
+        inc hl
+        ld a,(hl)
+        and $7f
+dotSecondChar cp 32
+        jr nz,dot_dir_no_match
+
+        ld b,5
+dot_dir_spaces
+        inc hl
+        ld a,(hl)
+        and $7f
+        cp 32
+        jr nz,dot_dir_no_match
+        djnz dot_dir_spaces
+
+        inc hl
+        bit 7,(hl)
+        jr z,dot_dir_no_match
+        scf
+        ret
+
+dot_dir_no_match
+        or a
+        ret
+
+dotInsertPtr defw 0
+dotFoundPtr  defw 0
+dotRemaining defw 0
+
         include "functions/copy.asm"
 reload_panels_after_cancel
         call obnov_okna
