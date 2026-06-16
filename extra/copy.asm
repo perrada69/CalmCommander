@@ -118,6 +118,10 @@ MAIN
         ld (ctxPtr),hl
         xor a
         ld (failStage),a
+        ld (cpFiles),a
+        ld (cpFiles+1),a
+        ld (cpDirs),a
+        ld (cpDirs+1),a
         ; Print the screen before probing destination paths. Some missing-drive
         ; failures in emulators may enter ROM error handling; at least the user
         ; sees the command context if that happens.
@@ -197,10 +201,8 @@ success
         ld (ix+SYSCOPYCTX_RESULT),a
         call restore_mmu
         ld sp,(savedSp)
-        ld hl,0*256+20
-        ld a,16
-        ld de,msgDone
-        call call_print
+        call clear_copy_display
+        call print_copy_result
         call clear_error_handler
         call restore_turbo
         ld bc,0
@@ -250,10 +252,12 @@ dest_parent_missing
         ret
 
 cancelled
+        call clear_copy_display
         ld hl,0*256+20
         ld a,16
         ld de,msgCancelled
         call call_print
+        call print_copy_result_r21
         call clear_error_handler
         call restore_turbo
         ld bc,0
@@ -289,7 +293,11 @@ copy_one_file
         ld a,"*"
         rst $08
         db F_RENAME
-        jp nc,success
+        jr c,.copy
+        ld hl,(cpFiles)
+        inc hl
+        ld (cpFiles),hl
+        jp success
 
 .copy
         call confirm_file_overwrite
@@ -346,6 +354,9 @@ copy_one_file
         ld a,(srcHandle)
         rst $08
         db F_CLOSE
+        ld hl,(cpFiles)
+        inc hl
+        ld (cpFiles),hl
         ld a,(moveFlag)
         or a
         jp z,success
@@ -956,6 +967,9 @@ copy_dir
         ld a,STAGE_COPY_MKDIR
         ld (failStage),a
         call esx_mkdir_ignore
+        ld hl,(cpDirs)
+        inc hl
+        ld (cpDirs),hl
         call inc_dir_count
         call inc_file_count
         ld de,copyPhaseTxt
@@ -1050,6 +1064,9 @@ copy_dir
         call print_counter_status
         call copy_child_file
         jr c,.read_fail
+        ld hl,(cpFiles)
+        inc hl
+        ld (cpFiles),hl
         jp .next
 
 .done
@@ -2043,6 +2060,80 @@ print_counter_status
         ret
 
 
+clear_copy_display
+        push af
+        push de
+        push hl
+        ld hl,0*256+7
+        ld a,16
+        ld de,msgBlank
+        call call_print
+        ld hl,0*256+8
+        ld a,16
+        ld de,msgBlank
+        call call_print
+        pop hl
+        pop de
+        pop af
+        ret
+
+
+print_copy_result
+        ld hl,0*256+20
+        jr print_copy_result_core
+
+print_copy_result_r21
+        ld hl,0*256+21
+
+print_copy_result_core
+        push af
+        push bc
+        push de
+        push hl
+        ld de,statusLine
+        ld hl,msgCopied
+.cp1    ld a,(hl)
+        or a
+        jr z,.cp1done
+        ld (de),a
+        inc hl
+        inc de
+        jr .cp1
+.cp1done
+        ld hl,(cpFiles)
+        call write_dec16
+        ld hl,msgFiles
+.cp2    ld a,(hl)
+        or a
+        jr z,.cp2done
+        ld (de),a
+        inc hl
+        inc de
+        jr .cp2
+.cp2done
+        ld hl,(cpDirs)
+        call write_dec16
+        ld hl,msgDirs
+.cp3    ld a,(hl)
+        or a
+        jr z,.cp3done
+        ld (de),a
+        inc hl
+        inc de
+        jr .cp3
+.cp3done
+        xor a
+        ld (de),a
+        pop hl
+        ld a,16
+        ld de,statusLine
+        call call_print
+        pop de
+        pop bc
+        pop af
+        ret
+
+
 init_file_progress
         ld hl,0
         ld (fileCopiedBytes),hl
@@ -2675,6 +2766,8 @@ savedTurbo  defb 0
 turboEnabled defb 0
 savedMmu6   defb 0
 savedMmu7   defb 0
+cpFiles     defw 0
+cpDirs      defw 0
 fileNameText defs 21
 decStarted defb 0
 dirPosStack defs (MAX_DEPTH+1)*4
@@ -2704,6 +2797,10 @@ msgStage    defb " stg $",0
 msgDestMissing defb "copy: destiny path not found",0
 msgCancelled defb "Cancelled.",0
 msgSkip     defb "Skipping existing:   ",0
+msgBlank    defb "                                ",0
+msgCopied   defb "Copied: ",0
+msgFiles    defb " files, ",0
+msgDirs     defb " dirs",0
 msgUsageError defb "copy: missing or bad arguments",13,0
 msgTitle    defb ".copy - by Shrek/MB Maniax 2026",0
 msgSource   defb "Source:",0
