@@ -1,0 +1,14 @@
+Small update round for my NextZXOS dot commands — .copy, .del and .dirinfo all got some love recently, so instead of three separate posts, here's one with everything in it:
+
+🔹 .copy — now saves and restores the MMU memory mapping around its work buffers, so it can no longer step on BASIC RAM or the stack (this fixed a rare BREAK-during-copy glitch). It also prints a short "Copied: N files, M dirs" summary when it finishes or when you cancel it.
+Devlog: https://shrek128.itch.io/copy-nextzxos-dot-command-for-zx-spectrum-next/devlog/1555313/copy-update-safer-memory-handling-and-operation-summary
+
+🔹 .del — recursively deletes files and whole directory trees with full LFN support, runs at 28 MHz, and now shows a "Deleted: N files, M dirs" summary too.
+https://shrek128.itch.io/del-nextzxos-dot-command-for-zx-spectrum-next
+
+🔹 .dirinfo — recursively scans a directory and reports file count, subdirectory count and total size, straight from the FAT entries.
+https://shrek128.itch.io/dirinfo-nextzxos-dot-command-for-zx-spectrum-next
+
+All three are standalone NextZXOS dot commands, part of the Calm Commander project. Feedback welcome!
+
+#ZXSpectrum #ZXSpectrumNext #NextZXOS #retrocomputing

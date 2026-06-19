@@ -1,0 +1,83 @@
+<article style="max-width: 920px; margin: 0 auto; color: #172033; font-family: Arial, Helvetica, sans-serif; line-height: 1.65;">
+
+  <h1 style="color: #101828; line-height: 1.2; font-size: 2.35rem; margin: 0 0 0.8em;">Aktualizace .copy a nové příkazy .del a .dirinfo</h1>
+
+  <p style="margin: 0 0 1.8em; color: #526174; font-size: 0.95em;">Novinky kolem samostatných NextZXOS dot commandů pro ZX Spectrum Next - součást projektu Calm Commander.</p>
+
+  <p style="margin: 0 0 1em;">
+    Tentokrát žádná velká feature, ale tři menší věci najednou - aktualizovaný příkaz <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.copy</code> a dva nové příkazy <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.del</code> a <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.dirinfo</code>. Všechny tři jsou samostatné dot commandy - nepotřebují tedy běžící Calm Commander, dají se spustit přímo z příkazové řádky NextZXOS.
+  </p>
+
+  <h2 style="color: #101828; line-height: 1.2; font-size: 1.55rem; margin-top: 2em;">.copy - bezpečnější práce s pamětí</h2>
+
+  <p style="margin: 0 0 1em;">
+    Příkaz <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.copy</code> si nyní před zahájením práce uloží aktuální mapování paměti (MMU) a nastránkuje si vlastní pracovní oblast pro své interní buffery. Díky tomu už nemůže omylem zasáhnout do BASIC RAM nebo do zásobníku (stacku) - to byl zdroj vzácné, ale nepříjemné chyby, kdy stisknutí BREAK během kopírování mohlo poškodit stack a příkaz se pak zacyklil. Po doběhnutí (ať úspěšném, nebo přerušeném klávesou BREAK) se původní mapování paměti vždy obnoví.
+  </p>
+
+  <p style="margin: 0 0 1em;">
+    Druhá novinka je kosmetická, ale užitečná - po skončení operace <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.copy</code> vypíše krátké shrnutí, kolik souborů a adresářů bylo skutečně zkopírováno - "Copied: N files, M dirs". Stejné shrnutí se zobrazí i v případě, že operaci zrušíte klávesou BREAK, takže vždy víte, jak daleko se kopírování dostalo.
+  </p>
+
+  <h2 style="color: #101828; line-height: 1.2; font-size: 1.55rem; margin-top: 2em;">.del - nový příkaz na mazání</h2>
+
+  <p style="margin: 0 0 1em;">
+    <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.del</code> rekurzivně maže soubory i celé adresářové stromy, včetně všech podadresářů na libovolné hloubce. Postavený je na stejném enginu jako vnitřní mazací funkce v Calm Commanderu, takže se chová stejně spolehlivě.
+  </p>
+
+  <ul style="margin: 0 0 1.2em; padding-left: 1.35em;">
+    <li style="margin-bottom: 0.4em;">Rekurzivní mazání celých adresářových stromů</li>
+    <li style="margin-bottom: 0.4em;">Plná podpora dlouhých jmen souborů (LFN), včetně mezer a speciálních znaků</li>
+    <li style="margin-bottom: 0.4em;">Podpora cest v uvozovkách pro názvy s mezerami</li>
+    <li style="margin-bottom: 0.4em;">Běží na 28 MHz turbu pro maximální rychlost</li>
+    <li style="margin-bottom: 0.4em;">Stisk BREAK kdykoliv přeruší mazání mezi jednotlivými soubory</li>
+  </ul>
+
+  <p style="margin: 0 0 1em;">
+    Stejně jako <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.copy</code> i <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.del</code> teď na konci ukáže přehled - "Deleted: N files, M dirs" - a stejně tak i po stisku BREAK.
+  </p>
+
+  <div style="margin: 1.4em 0; padding: 1em 1.2em; border-left: 4px solid #2367d1; background: #f3f7ff;">
+    <strong>Použití:</strong>
+    <pre style="overflow-x: auto; padding: 1em; border-radius: 8px; background: #111827; color: #e5eefb; font-size: 0.92em; line-height: 1.55; white-space: pre-wrap; margin-top: 0.6em;"><code style="background: transparent; padding: 0; border: 0; color: inherit;">.del tmp
+.del d:/backup
+.del "stara slozka"</code></pre>
+  </div>
+
+  <p style="margin: 0 0 1em; color: #8a3b3b;">
+    Mazání je nevratné - na FAT souborovém systému NextZXOS neexistuje žádný koš ani undo, takže opatrně.
+  </p>
+
+  <h2 style="color: #101828; line-height: 1.2; font-size: 1.55rem; margin-top: 2em;">.dirinfo - nový příkaz na informace o adresáři</h2>
+
+  <p style="margin: 0 0 1em;">
+    <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.dirinfo</code> rekurzivně projde zadaný adresář a vypíše:
+  </p>
+
+  <ul style="margin: 0 0 1.2em; padding-left: 1.35em;">
+    <li style="margin-bottom: 0.4em;">celkový počet souborů</li>
+    <li style="margin-bottom: 0.4em;">celkový počet podadresářů</li>
+    <li style="margin-bottom: 0.4em;">celkovou velikost v bajtech - čtenou přímo z FAT záznamů, bez zbytečných dalších volání API</li>
+  </ul>
+
+  <p style="margin: 0 0 1em;">
+    Podporuje dlouhá jména souborů, cesty s mezerami v uvozovkách a až 12 úrovní zanoření adresářů. I tady jde BREAK kdykoliv stisknout a dlouhé skenování přerušit.
+  </p>
+
+  <div style="margin: 1.4em 0; padding: 1em 1.2em; border-left: 4px solid #2367d1; background: #f3f7ff;">
+    <strong>Použití:</strong>
+    <pre style="overflow-x: auto; padding: 1em; border-radius: 8px; background: #111827; color: #e5eefb; font-size: 0.92em; line-height: 1.55; white-space: pre-wrap; margin-top: 0.6em;"><code style="background: transparent; padding: 0; border: 0; color: inherit;">.dirinfo
+.dirinfo hry
+.dirinfo -s "moje hry"</code></pre>
+  </div>
+
+  <p style="margin: 0 0 1em;">
+    Pozor - vypsaná velikost je součet syrových velikostí souborů. Reálné místo na disku je vyšší, protože FAT zaokrouhluje soubory na velikost clusteru.
+  </p>
+
+  <h2 style="color: #101828; line-height: 1.2; font-size: 1.55rem; margin-top: 2em;">Shrnutí</h2>
+
+  <p style="margin: 0 0 1em;">
+    Všechny tři příkazy jsou volně dostupné na itch.io a jsou součástí projektu Calm Commander pro ZX Spectrum Next. Aktualizace <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.copy</code> dělá kopírování bezpečnější a nové příkazy <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.del</code> a <code style="padding: 0.08em 0.28em; border-radius: 4px; background: #eef2f7; color: #111827; font-family: Consolas, 'Courier New', monospace; font-size: 0.95em;">.dirinfo</code> doplňují sadu o rychlé mazání a přehled o obsahu adresářů - vše přímo z příkazové řádky, bez nutnosti spouštět celý file manager.
+  </p>
+
+</article>
