@@ -67,6 +67,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/HelloWord.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/bas.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/tap.ccp 2>nul
+"%HDF%" rm "%IMG%" %PLUG%/edit.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/syscopy.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/dir_info.ccp 2>nul
 "%HDF%" rm "%IMG%" %DOT%/copy 2>nul
@@ -115,6 +116,7 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\HelloWord.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\bas.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\tap.ccp %PLUG%/
+"%HDF%" put "%IMG%" build\plugin\edit.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\syscopy.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\dir_info.ccp %PLUG%/
 echo   [PUT] dot commands -^> %DOT%/
@@ -218,6 +220,10 @@ if exist plugin\bas.ccp ( copy /Y plugin\bas.ccp build\plugin\bas.ccp >nul )
 "%SJASMPLUS%" plugin\tap.asm
 if errorlevel 1 ( echo *** BUILD FAILED: tap.asm *** & exit /b 1 )
 if exist plugin\tap.ccp ( copy /Y plugin\tap.ccp build\plugin\tap.ccp >nul )
+
+"%SJASMPLUS%" plugin\edit.asm
+if errorlevel 1 ( echo *** BUILD FAILED: edit.asm *** & exit /b 1 )
+if exist plugin\edit.ccp ( copy /Y plugin\edit.ccp build\plugin\edit.ccp >nul )
 
 "%SJASMPLUS%" plugin\syscopy.asm
 if errorlevel 1 ( echo *** BUILD FAILED: syscopy.asm *** & exit /b 1 )

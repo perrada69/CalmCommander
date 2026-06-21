@@ -1,0 +1,1497 @@
+# file opened: plugin\edit.asm
+   1  0000                      DEVICE ZXSPECTRUMNEXT
+   2  0000                      org VIEW_PLUGIN_ADDRESS
+   3  C000
+   4  C000                      include "plugin_api.i.asm"
+# file opened: plugin\plugin_api.i.asm
+   1+ C000              VIEW_PLUGIN_ADDRESS  equ 49152
+   2+ C000              VIEW_DATA_ADDRESS    equ 57344
+   3+ C000              VIEW_PLUGIN_SIZE     equ 4096
+   4+ C000
+   5+ C000              VIEWCTX_ABI          equ 0
+   6+ C000              VIEWCTX_TYPE         equ 1
+   7+ C000              VIEWCTX_FILENAME     equ 2
+   8+ C000              VIEWCTX_SIZE_LO      equ 4
+   9+ C000              VIEWCTX_SIZE_HI      equ 6
+  10+ C000              VIEWCTX_DATA_PAGE    equ 8
+  11+ C000              VIEWCTX_DATA_ADDR    equ 9
+  12+ C000              VIEWCTX_READ_LEN     equ 11
+  13+ C000              VIEWCTX_PAGE_COUNT   equ 13
+  14+ C000              VIEWCTX_DATA_PAGES   equ 14
+  15+ C000              VIEWCTX_SERVICES     equ 16
+  16+ C000              VIEWCTX_CURPATH      equ 18   ; pointer to active panel path string
+  17+ C000              VIEWCTX_EXTRACT_FLAG equ 20
+  18+ C000              VIEWCTX_EXTRACT_OFF  equ 21
+  19+ C000              VIEWCTX_EXTRACT_CNT  equ 23
+  20+ C000              VIEWCTX_EXTRACT_NAME equ 25   ; 16 bytes, 0/255 terminated
+  21+ C000              VIEWCTX_DIRTY        equ 40
+  22+ C000              VIEWCTX_P3DOS_TYPE   equ 41    ; 1 byte: $FF=no header, else TAP type (0=BASIC,1=NumArr,2=StrArr,3=Code)
+  23+ C000              VIEWCTX_P3DOS_P1     equ 42    ; 2 bytes: TAP param1 (LINE for BASIC, load address for CODE)
+  24+ C000              VIEWCTX_P3DOS_P2     equ 44    ; 2 bytes: TAP param2
+  25+ C000
+  26+ C000              SERVICE_PRINT        equ 0
+  27+ C000              SERVICE_INKEY        equ 2
+  28+ C000              SERVICE_WINDOW       equ 4
+  29+ C000              SERVICE_LAYER0       equ 6
+  30+ C000              SERVICE_INPUT_NOWAIT equ 8
+  31+ C000              SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)
+  32+ C000              SERVICE_BEEP         equ 12
+  33+ C000
+# file closed: plugin\plugin_api.i.asm
+   5  C000
+   6  C000              SCREEN_BASE     equ $4000
+   7  C000              TEXT_TOP        equ SCREEN_BASE+160*3+2
+   8  C000              TEXT_ROWS       equ 27
+   9  C000              TEXT_COLS       equ 78
+  10  C000              HEX_BYTES_ROW   equ 16
+  11  C000              STATUS_POS      equ SCREEN_BASE+160*31+2
+  12  C000              SEARCH_MAX      equ 32
+  13  C000              NAME_MAX        equ 48
+  14  C000
+  15  C000              plugin_start
+  16  C000 22 B8 C9             ld (ctxPtr),hl
+  17  C003 ED 53 BA C9          ld (svcPtr),de
+  18  C007 CD 72 C9             call patch_services
+  19  C00A CD D2 C7             call init_context
+  20  C00D
+  21  C00D 21 00 00             ld hl,0 * 256 + 0
+  22  C010 01 1E 4E             ld bc,78 * 256 + 30
+  23  C013 3E 10                ld a,16
+  24  C015 CD AC C9             call call_window
+  25  C018 21 01 02             ld hl,2*256+1
+  26  C01B 3E 10                ld a,16
+  27  C01D 11 37 CA             ld de,title
+  28  C020 CD A4 C9             call call_print
+  29  C023 DD 2A B8 C9          ld ix,(ctxPtr)
+  30  C027 DD 5E 02             ld e,(ix+VIEWCTX_FILENAME)
+  31  C02A DD 56 03             ld d,(ix+VIEWCTX_FILENAME+1)
+  32  C02D 21 01 0F             ld hl,15*256+1
+  33  C030 3E 10                ld a,16
+  34  C032 CD A4 C9             call call_print
+  35  C035
+  36  C035 CD 27 C3             call render
+  37  C038              .input
+  38  C038 CD A8 C9             call call_input
+  39  C03B B7                   or a
+  40  C03C 28 FA                jr z,.input
+  41  C03E FE 01                cp 1
+  42  C040 CA B1 C1             jp z,try_exit
+  43  C043 FE 0A                cp 10
+  44  C045 CA 33 C1             jp z,move_down
+  45  C048 FE 0B                cp 11
+  46  C04A CA 70 C1             jp z,move_up
+  47  C04D FE 09                cp 9
+  48  C04F CA C5 C0             jp z,move_right
+  49  C052 FE 08                cp 8
+  50  C054 CA DA C0             jp z,move_left
+  51  C057 FE 0C                cp 12
+  52  C059 CA F5 C0             jp z,backspace_key
+  53  C05C FE 84                cp 132
+  54  C05E CA 54 C2             jp z,find_prompt
+  55  C061 FE 80                cp 128
+  56  C063 CA E8 C1             jp z,save_current
+  57  C066 FE 81                cp 129
+  58  C068 CA FA C1             jp z,save_as
+  59  C06B FE 82                cp 130
+  60  C06D CA B5 C0             jp z,hex_mode
+  61  C070 FE 83                cp 131
+  62  C072 CA AB C0             jp z,text_mode
+  63  C075 47                   ld b,a
+  64  C076 3A E2 C9             ld a,(viewMode)
+  65  C079 B7                   or a
+  66  C07A 78                   ld a,b
+  67  C07B C2 C7 C2             jp nz,hex_key
+  68  C07E FE 0D                cp 13
+  69  C080 CA 8D C0             jp z,write_text_char
+  70  C083 FE 20                cp 32
+  71  C085 DA 38 C0             jp c,.input
+  72  C088 FE 80                cp 128
+  73  C08A D2 38 C0             jp nc,.input
+  74  C08D              write_text_char
+  75  C08D CD 89 C8             call key_beep
+  76  C090 2A C0 C9             ld hl,(curOffset)
+  77  C093 22 C2 C9             ld (oldOffset),hl
+  78  C096 CD 8F C8             call insert_current_byte
+  79  C099 CD 65 C8             call mark_dirty
+  80  C09C CD 3C C8             call inc_cursor
+  81  C09F CD 05 C4             call ensure_cursor_visible
+  82  C0A2 CD 27 C3             call render
+  83  C0A5 CD 78 C8             call key_repeat_delay
+  84  C0A8 C3 38 C0             jp plugin_start.input
+  85  C0AB
+  86  C0AB              text_mode
+  87  C0AB AF                   xor a
+  88  C0AC 32 E2 C9             ld (viewMode),a
+  89  C0AF CD 27 C3             call render
+  90  C0B2 C3 38 C0             jp plugin_start.input
+  91  C0B5
+  92  C0B5              hex_mode
+  93  C0B5 3E 01                ld a,1
+  94  C0B7 32 E2 C9             ld (viewMode),a
+  95  C0BA 3E FF                ld a,$ff
+  96  C0BC 32 E4 C9             ld (hexPending),a
+  97  C0BF CD 27 C3             call render
+  98  C0C2 C3 38 C0             jp plugin_start.input
+  99  C0C5
+ 100  C0C5              move_right
+ 101  C0C5 2A C0 C9             ld hl,(curOffset)
+ 102  C0C8 22 C2 C9             ld (oldOffset),hl
+ 103  C0CB CD 3C C8             call inc_cursor
+ 104  C0CE CD E7 C3             call cursor_moved
+ 105  C0D1 CD 89 C8             call key_beep
+ 106  C0D4 CD 72 C8             call arrow_repeat_delay
+ 107  C0D7 C3 38 C0             jp plugin_start.input
+ 108  C0DA
+ 109  C0DA              move_left
+ 110  C0DA 2A C0 C9             ld hl,(curOffset)
+ 111  C0DD 7C                   ld a,h
+ 112  C0DE B5                   or l
+ 113  C0DF CA 38 C0             jp z,plugin_start.input
+ 114  C0E2 22 C2 C9             ld (oldOffset),hl
+ 115  C0E5 2B                   dec hl
+ 116  C0E6 22 C0 C9             ld (curOffset),hl
+ 117  C0E9 CD E7 C3             call cursor_moved
+ 118  C0EC CD 89 C8             call key_beep
+ 119  C0EF CD 72 C8             call arrow_repeat_delay
+ 120  C0F2 C3 38 C0             jp plugin_start.input
+ 121  C0F5
+ 122  C0F5              backspace_key
+ 123  C0F5 2A BE C9             ld hl,(loadedSize)
+ 124  C0F8 7C                   ld a,h
+ 125  C0F9 B5                   or l
+ 126  C0FA CA 38 C0             jp z,plugin_start.input
+ 127  C0FD 2A C0 C9             ld hl,(curOffset)
+ 128  C100 7C                   ld a,h
+ 129  C101 B5                   or l
+ 130  C102 20 0E                jr nz,.move_before
+ 131  C104 2A BE C9             ld hl,(loadedSize)
+ 132  C107 2B                   dec hl
+ 133  C108 7C                   ld a,h
+ 134  C109 B5                   or l
+ 135  C10A C2 38 C0             jp nz,plugin_start.input
+ 136  C10D 21 00 00             ld hl,0
+ 137  C110 18 01                jr .delete
+ 138  C112              .move_before
+ 139  C112 2B                   dec hl
+ 140  C113              .delete
+ 141  C113 22 C0 C9             ld (curOffset),hl
+ 142  C116 22 C2 C9             ld (oldOffset),hl
+ 143  C119 3E FF                ld a,$ff
+ 144  C11B 32 E4 C9             ld (hexPending),a
+ 145  C11E CD F1 C8             call delete_current_byte
+ 146  C121 CD 65 C8             call mark_dirty
+ 147  C124 CD 05 C4             call ensure_cursor_visible
+ 148  C127 CD 27 C3             call render
+ 149  C12A CD 89 C8             call key_beep
+ 150  C12D CD 78 C8             call key_repeat_delay
+ 151  C130 C3 38 C0             jp plugin_start.input
+ 152  C133
+ 153  C133              move_down
+ 154  C133 3A E2 C9             ld a,(viewMode)
+ 155  C136 B7                   or a
+ 156  C137 28 1C                jr z,.text
+ 157  C139 2A C0 C9             ld hl,(curOffset)
+ 158  C13C 22 C2 C9             ld (oldOffset),hl
+ 159  C13F 11 10 00             ld de,HEX_BYTES_ROW
+ 160  C142 19                   add hl,de
+ 161  C143 CD 47 C8             call clamp_to_last
+ 162  C146 22 C0 C9             ld (curOffset),hl
+ 163  C149 CD 27 C3             call render
+ 164  C14C CD 89 C8             call key_beep
+ 165  C14F CD 72 C8             call arrow_repeat_delay
+ 166  C152 C3 38 C0             jp plugin_start.input
+ 167  C155              .text
+ 168  C155 2A C0 C9             ld hl,(curOffset)
+ 169  C158 22 C2 C9             ld (oldOffset),hl
+ 170  C15B CD D3 C4             call text_move_down
+ 171  C15E CD 7E C8             call cursor_changed
+ 172  C161 CA 38 C0             jp z,plugin_start.input
+ 173  C164 CD E7 C3             call cursor_moved
+ 174  C167 CD 89 C8             call key_beep
+ 175  C16A CD 72 C8             call arrow_repeat_delay
+ 176  C16D C3 38 C0             jp plugin_start.input
+ 177  C170
+ 178  C170              move_up
+ 179  C170 3A E2 C9             ld a,(viewMode)
+ 180  C173 B7                   or a
+ 181  C174 28 20                jr z,.text
+ 182  C176 2A C0 C9             ld hl,(curOffset)
+ 183  C179 22 C2 C9             ld (oldOffset),hl
+ 184  C17C 11 10 00             ld de,HEX_BYTES_ROW
+ 185  C17F B7                   or a
+ 186  C180 ED 52                sbc hl,de
+ 187  C182 30 03                jr nc,.store
+ 188  C184 21 00 00             ld hl,0
+ 189  C187              .store
+ 190  C187 22 C0 C9             ld (curOffset),hl
+ 191  C18A CD 27 C3             call render
+ 192  C18D CD 89 C8             call key_beep
+ 193  C190 CD 72 C8             call arrow_repeat_delay
+ 194  C193 C3 38 C0             jp plugin_start.input
+ 195  C196              .text
+ 196  C196 2A C0 C9             ld hl,(curOffset)
+ 197  C199 22 C2 C9             ld (oldOffset),hl
+ 198  C19C CD E3 C4             call text_move_up
+ 199  C19F CD 7E C8             call cursor_changed
+ 200  C1A2 CA 38 C0             jp z,plugin_start.input
+ 201  C1A5 CD E7 C3             call cursor_moved
+ 202  C1A8 CD 89 C8             call key_beep
+ 203  C1AB CD 72 C8             call arrow_repeat_delay
+ 204  C1AE C3 38 C0             jp plugin_start.input
+ 205  C1B1
+ 206  C1B1              try_exit
+ 207  C1B1 3A E3 C9             ld a,(dirty)
+ 208  C1B4 B7                   or a
+ 209  C1B5 C8                   ret z
+ 210  C1B6 CD B6 C7             call status_dirty
+ 211  C1B9              .wait
+ 212  C1B9 CD A8 C9             call call_input
+ 213  C1BC B7                   or a
+ 214  C1BD 28 FA                jr z,.wait
+ 215  C1BF FE 69                cp "i"
+ 216  C1C1 C8                   ret z
+ 217  C1C2 FE 49                cp "I"
+ 218  C1C4 C8                   ret z
+ 219  C1C5 FE 73                cp "s"
+ 220  C1C7 CA E0 C1             jp z,save_current_then_exit
+ 221  C1CA FE 53                cp "S"
+ 222  C1CC CA E0 C1             jp z,save_current_then_exit
+ 223  C1CF FE 65                cp "e"
+ 224  C1D1 CA E4 C1             jp z,save_as_then_exit
+ 225  C1D4 FE 45                cp "E"
+ 226  C1D6 CA E4 C1             jp z,save_as_then_exit
+ 227  C1D9 FE 01                cp 1
+ 228  C1DB CA 27 C3             jp z,render
+ 229  C1DE 18 D9                jr .wait
+ 230  C1E0
+ 231  C1E0              save_current_then_exit
+ 232  C1E0 CD EE C1             call save_current_raw
+ 233  C1E3 C9                   ret
+ 234  C1E4
+ 235  C1E4              save_as_then_exit
+ 236  C1E4 CD 00 C2             call save_as_raw
+ 237  C1E7 C9                   ret
+ 238  C1E8
+ 239  C1E8              save_current
+ 240  C1E8 CD EE C1             call save_current_raw
+ 241  C1EB C3 38 C0             jp plugin_start.input
+ 242  C1EE
+ 243  C1EE              save_current_raw
+ 244  C1EE DD 2A B8 C9          ld ix,(ctxPtr)
+ 245  C1F2 DD 6E 02             ld l,(ix+VIEWCTX_FILENAME)
+ 246  C1F5 DD 66 03             ld h,(ix+VIEWCTX_FILENAME+1)
+ 247  C1F8 18 1D                jr save_name_hl
+ 248  C1FA
+ 249  C1FA              save_as
+ 250  C1FA CD 00 C2             call save_as_raw
+ 251  C1FD C3 38 C0             jp plugin_start.input
+ 252  C200
+ 253  C200              save_as_raw
+ 254  C200 CD 35 C2             call copy_current_filename_to_save_name
+ 255  C203 11 06 CA             ld de,saveName
+ 256  C206 06 30                ld b,NAME_MAX
+ 257  C208 21 79 CA             ld hl,saveAsText
+ 258  C20B CD 8C C6             call line_input
+ 259  C20E FE 01                cp 1
+ 260  C210 C8                   ret z
+ 261  C211 21 06 CA             ld hl,saveName
+ 262  C214 7E                   ld a,(hl)
+ 263  C215 B7                   or a
+ 264  C216 C8                   ret z
+ 265  C217              save_name_hl
+ 266  C217 CD A8 C7             call status_saving
+ 267  C21A 11 00 00             ld de,0
+ 268  C21D ED 4B BE C9          ld bc,(loadedSize)
+ 269  C221 CD B0 C9             call call_extract
+ 270  C224 D8                   ret c
+ 271  C225 AF                   xor a
+ 272  C226 32 E3 C9             ld (dirty),a
+ 273  C229 DD 2A B8 C9          ld ix,(ctxPtr)
+ 274  C22D DD 36 28 01          ld (ix+VIEWCTX_DIRTY),1
+ 275  C231 CD 9A C7             call status_saved
+ 276  C234 C9                   ret
+ 277  C235
+ 278  C235              copy_current_filename_to_save_name
+ 279  C235 DD 2A B8 C9          ld ix,(ctxPtr)
+ 280  C239 DD 6E 02             ld l,(ix+VIEWCTX_FILENAME)
+ 281  C23C DD 66 03             ld h,(ix+VIEWCTX_FILENAME+1)
+ 282  C23F 11 06 CA             ld de,saveName
+ 283  C242 06 30                ld b,NAME_MAX
+ 284  C244              .copy
+ 285  C244 7E                   ld a,(hl)
+ 286  C245 FE FF                cp 255
+ 287  C247 28 08                jr z,.done
+ 288  C249 B7                   or a
+ 289  C24A 28 05                jr z,.done
+ 290  C24C 12                   ld (de),a
+ 291  C24D 23                   inc hl
+ 292  C24E 13                   inc de
+ 293  C24F 10 F3                djnz .copy
+ 294  C251              .done
+ 295  C251 AF                   xor a
+ 296  C252 12                   ld (de),a
+ 297  C253 C9                   ret
+ 298  C254
+ 299  C254              find_prompt
+ 300  C254 11 E5 C9             ld de,searchBuf
+ 301  C257 06 20                ld b,SEARCH_MAX
+ 302  C259 21 73 CA             ld hl,findText
+ 303  C25C CD 8C C6             call line_input
+ 304  C25F FE 01                cp 1
+ 305  C261 CA 27 C3             jp z,render
+ 306  C264 21 E5 C9             ld hl,searchBuf
+ 307  C267 7E                   ld a,(hl)
+ 308  C268 B7                   or a
+ 309  C269 CA 27 C3             jp z,render
+ 310  C26C CD 75 C2             call find_next
+ 311  C26F CD 27 C3             call render
+ 312  C272 C3 38 C0             jp plugin_start.input
+ 313  C275
+ 314  C275              find_next
+ 315  C275 2A C0 C9             ld hl,(curOffset)
+ 316  C278 22 C8 C9             ld (scanOffset),hl
+ 317  C27B              .scan
+ 318  C27B 2A C8 C9             ld hl,(scanOffset)
+ 319  C27E CD 59 C8             call offset_at_end
+ 320  C281 30 18                jr nc,.not_found
+ 321  C283 CD 9F C2             call compare_here
+ 322  C286 28 09                jr z,.found
+ 323  C288 2A C8 C9             ld hl,(scanOffset)
+ 324  C28B 23                   inc hl
+ 325  C28C 22 C8 C9             ld (scanOffset),hl
+ 326  C28F 18 EA                jr .scan
+ 327  C291              .found
+ 328  C291 2A C8 C9             ld hl,(scanOffset)
+ 329  C294 22 C0 C9             ld (curOffset),hl
+ 330  C297 CD 05 C4             call ensure_cursor_visible
+ 331  C29A C9                   ret
+ 332  C29B              .not_found
+ 333  C29B CD C4 C7             call status_not_found
+ 334  C29E C9                   ret
+ 335  C29F
+ 336  C29F              compare_here
+ 337  C29F 2A C8 C9             ld hl,(scanOffset)
+ 338  C2A2 22 CA C9             ld (matchOffset),hl
+ 339  C2A5 11 E5 C9             ld de,searchBuf
+ 340  C2A8              .loop
+ 341  C2A8 1A                   ld a,(de)
+ 342  C2A9 B7                   or a
+ 343  C2AA C8                   ret z
+ 344  C2AB 4F                   ld c,a
+ 345  C2AC 2A CA C9             ld hl,(matchOffset)
+ 346  C2AF CD 59 C8             call offset_at_end
+ 347  C2B2 30 10                jr nc,.fail
+ 348  C2B4 CD 40 C9             call read_byte_at_offset
+ 349  C2B7 B9                   cp c
+ 350  C2B8 20 0A                jr nz,.fail
+ 351  C2BA 13                   inc de
+ 352  C2BB 2A CA C9             ld hl,(matchOffset)
+ 353  C2BE 23                   inc hl
+ 354  C2BF 22 CA C9             ld (matchOffset),hl
+ 355  C2C2 18 E4                jr .loop
+ 356  C2C4              .fail
+ 357  C2C4 F6 01                or 1
+ 358  C2C6 C9                   ret
+ 359  C2C7
+ 360  C2C7              hex_key
+ 361  C2C7 CD 01 C3             call hex_value
+ 362  C2CA DA 38 C0             jp c,plugin_start.input
+ 363  C2CD CD 89 C8             call key_beep
+ 364  C2D0 4F                   ld c,a
+ 365  C2D1 3A E4 C9             ld a,(hexPending)
+ 366  C2D4 FE FF                cp $ff
+ 367  C2D6 20 11                jr nz,.low
+ 368  C2D8 79                   ld a,c
+ 369  C2D9 87                   add a,a
+ 370  C2DA 87                   add a,a
+ 371  C2DB 87                   add a,a
+ 372  C2DC 87                   add a,a
+ 373  C2DD 32 E4 C9             ld (hexPending),a
+ 374  C2E0 CD 27 C3             call render
+ 375  C2E3 CD 78 C8             call key_repeat_delay
+ 376  C2E6 C3 38 C0             jp plugin_start.input
+ 377  C2E9              .low
+ 378  C2E9 B1                   or c
+ 379  C2EA CD 4C C9             call write_current_byte
+ 380  C2ED 3E FF                ld a,$ff
+ 381  C2EF 32 E4 C9             ld (hexPending),a
+ 382  C2F2 CD 65 C8             call mark_dirty
+ 383  C2F5 CD 3C C8             call inc_cursor
+ 384  C2F8 CD 27 C3             call render
+ 385  C2FB CD 78 C8             call key_repeat_delay
+ 386  C2FE C3 38 C0             jp plugin_start.input
+ 387  C301
+ 388  C301              hex_value
+ 389  C301 FE 30                cp "0"
+ 390  C303 38 20                jr c,.bad
+ 391  C305 FE 3A                cp "9"+1
+ 392  C307 38 18                jr c,.num
+ 393  C309 FE 41                cp "A"
+ 394  C30B 38 04                jr c,.lower
+ 395  C30D FE 47                cp "F"+1
+ 396  C30F 38 0C                jr c,.upper
+ 397  C311              .lower
+ 398  C311 FE 61                cp "a"
+ 399  C313 38 10                jr c,.bad
+ 400  C315 FE 67                cp "f"+1
+ 401  C317 30 0C                jr nc,.bad
+ 402  C319 D6 57                sub "a"-10
+ 403  C31B B7                   or a
+ 404  C31C C9                   ret
+ 405  C31D              .upper
+ 406  C31D D6 37                sub "A"-10
+ 407  C31F B7                   or a
+ 408  C320 C9                   ret
+ 409  C321              .num
+ 410  C321 D6 30                sub "0"
+ 411  C323 B7                   or a
+ 412  C324 C9                   ret
+ 413  C325              .bad
+ 414  C325 37                   scf
+ 415  C326 C9                   ret
+ 416  C327
+ 417  C327              render
+ 418  C327 3A E2 C9             ld a,(viewMode)
+ 419  C32A B7                   or a
+ 420  C32B CC 39 C3             call z,render_text
+ 421  C32E 3A E2 C9             ld a,(viewMode)
+ 422  C331 B7                   or a
+ 423  C332 C4 F9 C5             call nz,render_hex
+ 424  C335 CD 5E C6             call render_status
+ 425  C338 C9                   ret
+ 426  C339
+ 427  C339              render_text
+ 428  C339 2A C4 C9             ld hl,(viewOffset)
+ 429  C33C 22 C6 C9             ld (renderOffset),hl
+ 430  C33F 11 E2 41             ld de,TEXT_TOP
+ 431  C342 06 1B                ld b,TEXT_ROWS
+ 432  C344              .row
+ 433  C344 C5                   push bc
+ 434  C345 06 4E                ld b,TEXT_COLS
+ 435  C347              .col
+ 436  C347 2A C6 C9             ld hl,(renderOffset)
+ 437  C34A CD 59 C8             call offset_at_end
+ 438  C34D 30 41                jr nc,.fill_row
+ 439  C34F CD A7 C3             call set_cursor_attr
+ 440  C352 CD 40 C9             call read_byte_at_offset
+ 441  C355 FE 0D                cp 13
+ 442  C357 28 28                jr z,.newline
+ 443  C359 FE 0A                cp 10
+ 444  C35B 28 24                jr z,.newline
+ 445  C35D FE 09                cp 9
+ 446  C35F 20 02                jr nz,.not_tab
+ 447  C361 3E 20                ld a,32
+ 448  C363              .not_tab
+ 449  C363 FE 20                cp 32
+ 450  C365 38 04                jr c,.dot
+ 451  C367 FE 7F                cp 127
+ 452  C369 38 04                jr c,.char
+ 453  C36B              .dot
+ 454  C36B 3E 2E                ld a,"."
+ 455  C36D 18 00                jr .char
+ 456  C36F              .char
+ 457  C36F 12                   ld (de),a
+ 458  C370 13                   inc de
+ 459  C371 3A DF C9             ld a,(cellAttr)
+ 460  C374 12                   ld (de),a
+ 461  C375 13                   inc de
+ 462  C376 2A C6 C9             ld hl,(renderOffset)
+ 463  C379 23                   inc hl
+ 464  C37A 22 C6 C9             ld (renderOffset),hl
+ 465  C37D 10 C8                djnz .col
+ 466  C37F 18 1D                jr .row_done
+ 467  C381              .newline
+ 468  C381 3E 20                ld a,32
+ 469  C383 12                   ld (de),a
+ 470  C384 13                   inc de
+ 471  C385 3A DF C9             ld a,(cellAttr)
+ 472  C388 12                   ld (de),a
+ 473  C389 13                   inc de
+ 474  C38A C5                   push bc
+ 475  C38B CD BC C3             call advance_newline
+ 476  C38E C1                   pop bc
+ 477  C38F 05                   dec b
+ 478  C390              .fill_row
+ 479  C390 78                   ld a,b
+ 480  C391 B7                   or a
+ 481  C392 28 0A                jr z,.row_done
+ 482  C394              .fill_loop
+ 483  C394 3E 20                ld a,32
+ 484  C396 12                   ld (de),a
+ 485  C397 13                   inc de
+ 486  C398 3E 10                ld a,16
+ 487  C39A 12                   ld (de),a
+ 488  C39B 13                   inc de
+ 489  C39C 10 F6                djnz .fill_loop
+ 490  C39E              .row_done
+ 491  C39E 21 04 00             ld hl,160-TEXT_COLS*2
+ 492  C3A1 19                   add hl,de
+ 493  C3A2 EB                   ex de,hl
+ 494  C3A3 C1                   pop bc
+ 495  C3A4 10 9E                djnz .row
+ 496  C3A6 C9                   ret
+ 497  C3A7
+ 498  C3A7              set_cursor_attr
+ 499  C3A7 D5                   push de
+ 500  C3A8 E5                   push hl
+ 501  C3A9 ED 5B C0 C9          ld de,(curOffset)
+ 502  C3AD B7                   or a
+ 503  C3AE ED 52                sbc hl,de
+ 504  C3B0 3E 10                ld a,16
+ 505  C3B2 20 02                jr nz,.store
+ 506  C3B4 3E 40                ld a,64
+ 507  C3B6              .store
+ 508  C3B6 32 DF C9             ld (cellAttr),a
+ 509  C3B9 E1                   pop hl
+ 510  C3BA D1                   pop de
+ 511  C3BB C9                   ret
+ 512  C3BC
+ 513  C3BC              advance_newline
+ 514  C3BC 2A C6 C9             ld hl,(renderOffset)
+ 515  C3BF CD 40 C9             call read_byte_at_offset
+ 516  C3C2 32 E0 C9             ld (newlineChar),a
+ 517  C3C5 2A C6 C9             ld hl,(renderOffset)
+ 518  C3C8 23                   inc hl
+ 519  C3C9 22 C6 C9             ld (renderOffset),hl
+ 520  C3CC 3A E0 C9             ld a,(newlineChar)
+ 521  C3CF FE 0D                cp 13
+ 522  C3D1 C0                   ret nz
+ 523  C3D2 2A C6 C9             ld hl,(renderOffset)
+ 524  C3D5 CD 59 C8             call offset_at_end
+ 525  C3D8 D0                   ret nc
+ 526  C3D9 CD 40 C9             call read_byte_at_offset
+ 527  C3DC FE 0A                cp 10
+ 528  C3DE C0                   ret nz
+ 529  C3DF 2A C6 C9             ld hl,(renderOffset)
+ 530  C3E2 23                   inc hl
+ 531  C3E3 22 C6 C9             ld (renderOffset),hl
+ 532  C3E6 C9                   ret
+ 533  C3E7
+ 534  C3E7              cursor_moved
+ 535  C3E7 3A E2 C9             ld a,(viewMode)
+ 536  C3EA B7                   or a
+ 537  C3EB 20 11                jr nz,.full
+ 538  C3ED 2A C2 C9             ld hl,(oldOffset)
+ 539  C3F0 CD 3C C4             call set_offset_normal_attr
+ 540  C3F3 38 09                jr c,.full
+ 541  C3F5 2A C0 C9             ld hl,(curOffset)
+ 542  C3F8 CD 43 C4             call set_offset_cursor_attr
+ 543  C3FB 38 01                jr c,.full
+ 544  C3FD C9                   ret
+ 545  C3FE              .full
+ 546  C3FE CD 05 C4             call ensure_cursor_visible
+ 547  C401 CD 27 C3             call render
+ 548  C404 C9                   ret
+ 549  C405
+ 550  C405              ensure_cursor_visible
+ 551  C405 2A C0 C9             ld hl,(curOffset)
+ 552  C408 CD 4A C4             call find_screen_attr_for_offset
+ 553  C40B D0                   ret nc
+ 554  C40C 2A C0 C9             ld hl,(curOffset)
+ 555  C40F ED 5B C4 C9          ld de,(viewOffset)
+ 556  C413 B7                   or a
+ 557  C414 ED 52                sbc hl,de
+ 558  C416 38 0E                jr c,.above
+ 559  C418              .scroll_down
+ 560  C418 CD 2D C4             call advance_view_one_line
+ 561  C41B 38 09                jr c,.above
+ 562  C41D 2A C0 C9             ld hl,(curOffset)
+ 563  C420 CD 4A C4             call find_screen_attr_for_offset
+ 564  C423 D0                   ret nc
+ 565  C424 18 F2                jr .scroll_down
+ 566  C426              .above
+ 567  C426 CD 05 C5             call find_current_line_start
+ 568  C429 22 C4 C9             ld (viewOffset),hl
+ 569  C42C C9                   ret
+ 570  C42D
+ 571  C42D              advance_view_one_line
+ 572  C42D 2A C4 C9             ld hl,(viewOffset)
+ 573  C430 22 CE C9             ld (lineStart),hl
+ 574  C433 CD 45 C5             call find_next_line_start
+ 575  C436 D8                   ret c
+ 576  C437 22 C4 C9             ld (viewOffset),hl
+ 577  C43A B7                   or a
+ 578  C43B C9                   ret
+ 579  C43C
+ 580  C43C              set_offset_normal_attr
+ 581  C43C CD 4A C4             call find_screen_attr_for_offset
+ 582  C43F D8                   ret c
+ 583  C440 36 10                ld (hl),16
+ 584  C442 C9                   ret
+ 585  C443
+ 586  C443              set_offset_cursor_attr
+ 587  C443 CD 4A C4             call find_screen_attr_for_offset
+ 588  C446 D8                   ret c
+ 589  C447 36 40                ld (hl),64
+ 590  C449 C9                   ret
+ 591  C44A
+ 592  C44A              find_screen_attr_for_offset
+ 593  C44A 22 CC C9             ld (targetOffset),hl
+ 594  C44D 2A C4 C9             ld hl,(viewOffset)
+ 595  C450 22 C8 C9             ld (scanOffset),hl
+ 596  C453 11 E2 41             ld de,TEXT_TOP
+ 597  C456 06 1B                ld b,TEXT_ROWS
+ 598  C458              .row
+ 599  C458 C5                   push bc
+ 600  C459 06 4E                ld b,TEXT_COLS
+ 601  C45B              .col
+ 602  C45B 2A C8 C9             ld hl,(scanOffset)
+ 603  C45E D5                   push de
+ 604  C45F ED 5B CC C9          ld de,(targetOffset)
+ 605  C463 B7                   or a
+ 606  C464 ED 52                sbc hl,de
+ 607  C466 D1                   pop de
+ 608  C467 28 2D                jr z,.found
+ 609  C469 2A C8 C9             ld hl,(scanOffset)
+ 610  C46C CD 59 C8             call offset_at_end
+ 611  C46F 30 2A                jr nc,.not_found_pop
+ 612  C471 CD 40 C9             call read_byte_at_offset
+ 613  C474 FE 0D                cp 13
+ 614  C476 28 11                jr z,.newline
+ 615  C478 FE 0A                cp 10
+ 616  C47A 28 0D                jr z,.newline
+ 617  C47C 2A C8 C9             ld hl,(scanOffset)
+ 618  C47F 23                   inc hl
+ 619  C480 22 C8 C9             ld (scanOffset),hl
+ 620  C483 13                   inc de
+ 621  C484 13                   inc de
+ 622  C485 10 D4                djnz .col
+ 623  C487 18 15                jr .row_done
+ 624  C489              .newline
+ 625  C489 CD A8 C4             call advance_scan_newline
+ 626  C48C 78                   ld a,b
+ 627  C48D B7                   or a
+ 628  C48E 28 0E                jr z,.row_done
+ 629  C490              .skip_rest
+ 630  C490 13                   inc de
+ 631  C491 13                   inc de
+ 632  C492 10 FC                djnz .skip_rest
+ 633  C494 18 08                jr .row_done
+ 634  C496              .found
+ 635  C496 13                   inc de
+ 636  C497 EB                   ex de,hl
+ 637  C498 C1                   pop bc
+ 638  C499 B7                   or a
+ 639  C49A C9                   ret
+ 640  C49B              .not_found_pop
+ 641  C49B C1                   pop bc
+ 642  C49C 37                   scf
+ 643  C49D C9                   ret
+ 644  C49E              .row_done
+ 645  C49E 21 04 00             ld hl,160-TEXT_COLS*2
+ 646  C4A1 19                   add hl,de
+ 647  C4A2 EB                   ex de,hl
+ 648  C4A3 C1                   pop bc
+ 649  C4A4 10 B2                djnz .row
+ 650  C4A6 37                   scf
+ 651  C4A7 C9                   ret
+ 652  C4A8
+ 653  C4A8              advance_scan_newline
+ 654  C4A8 2A C8 C9             ld hl,(scanOffset)
+ 655  C4AB CD 40 C9             call read_byte_at_offset
+ 656  C4AE 32 E0 C9             ld (newlineChar),a
+ 657  C4B1 2A C8 C9             ld hl,(scanOffset)
+ 658  C4B4 23                   inc hl
+ 659  C4B5 22 C8 C9             ld (scanOffset),hl
+ 660  C4B8 3A E0 C9             ld a,(newlineChar)
+ 661  C4BB FE 0D                cp 13
+ 662  C4BD C0                   ret nz
+ 663  C4BE 2A C8 C9             ld hl,(scanOffset)
+ 664  C4C1 CD 59 C8             call offset_at_end
+ 665  C4C4 D0                   ret nc
+ 666  C4C5 CD 40 C9             call read_byte_at_offset
+ 667  C4C8 FE 0A                cp 10
+ 668  C4CA C0                   ret nz
+ 669  C4CB 2A C8 C9             ld hl,(scanOffset)
+ 670  C4CE 23                   inc hl
+ 671  C4CF 22 C8 C9             ld (scanOffset),hl
+ 672  C4D2 C9                   ret
+ 673  C4D3
+ 674  C4D3              text_move_down
+ 675  C4D3 CD F5 C4             call get_current_column
+ 676  C4D6 CD 05 C5             call find_current_line_start
+ 677  C4D9 22 CE C9             ld (lineStart),hl
+ 678  C4DC CD 45 C5             call find_next_line_start
+ 679  C4DF D8                   ret c
+ 680  C4E0 C3 CB C5             jp move_to_column_from_hl
+ 681  C4E3
+ 682  C4E3              text_move_up
+ 683  C4E3 CD F5 C4             call get_current_column
+ 684  C4E6 CD 05 C5             call find_current_line_start
+ 685  C4E9 7C                   ld a,h
+ 686  C4EA B5                   or l
+ 687  C4EB C8                   ret z
+ 688  C4EC 22 CE C9             ld (lineStart),hl
+ 689  C4EF CD 79 C5             call find_previous_line_start
+ 690  C4F2 C3 CB C5             jp move_to_column_from_hl
+ 691  C4F5
+ 692  C4F5              get_current_column
+ 693  C4F5 CD 05 C5             call find_current_line_start
+ 694  C4F8 ED 5B C0 C9          ld de,(curOffset)
+ 695  C4FC B7                   or a
+ 696  C4FD EB                   ex de,hl
+ 697  C4FE ED 52                sbc hl,de
+ 698  C500 7D                   ld a,l
+ 699  C501 32 E1 C9             ld (desiredCol),a
+ 700  C504 C9                   ret
+ 701  C505
+ 702  C505              find_current_line_start
+ 703  C505 21 00 00             ld hl,0
+ 704  C508 22 C8 C9             ld (scanOffset),hl
+ 705  C50B 22 CE C9             ld (lineStart),hl
+ 706  C50E              .loop
+ 707  C50E 2A C8 C9             ld hl,(scanOffset)
+ 708  C511 ED 5B C0 C9          ld de,(curOffset)
+ 709  C515 B7                   or a
+ 710  C516 ED 52                sbc hl,de
+ 711  C518 30 27                jr nc,.done
+ 712  C51A 2A C8 C9             ld hl,(scanOffset)
+ 713  C51D CD 59 C8             call offset_at_end
+ 714  C520 30 1F                jr nc,.done
+ 715  C522 CD 40 C9             call read_byte_at_offset
+ 716  C525 FE 0D                cp 13
+ 717  C527 28 0D                jr z,.newline
+ 718  C529 FE 0A                cp 10
+ 719  C52B 28 09                jr z,.newline
+ 720  C52D 2A C8 C9             ld hl,(scanOffset)
+ 721  C530 23                   inc hl
+ 722  C531 22 C8 C9             ld (scanOffset),hl
+ 723  C534 18 D8                jr .loop
+ 724  C536              .newline
+ 725  C536 CD A8 C4             call advance_scan_newline
+ 726  C539 2A C8 C9             ld hl,(scanOffset)
+ 727  C53C 22 CE C9             ld (lineStart),hl
+ 728  C53F 18 CD                jr .loop
+ 729  C541              .done
+ 730  C541 2A CE C9             ld hl,(lineStart)
+ 731  C544 C9                   ret
+ 732  C545
+ 733  C545              find_next_line_start
+ 734  C545 2A CE C9             ld hl,(lineStart)
+ 735  C548 22 C8 C9             ld (scanOffset),hl
+ 736  C54B              .loop
+ 737  C54B 2A C8 C9             ld hl,(scanOffset)
+ 738  C54E CD 59 C8             call offset_at_end
+ 739  C551 30 24                jr nc,.fail
+ 740  C553 CD 40 C9             call read_byte_at_offset
+ 741  C556 FE 0D                cp 13
+ 742  C558 28 0D                jr z,.newline
+ 743  C55A FE 0A                cp 10
+ 744  C55C 28 09                jr z,.newline
+ 745  C55E 2A C8 C9             ld hl,(scanOffset)
+ 746  C561 23                   inc hl
+ 747  C562 22 C8 C9             ld (scanOffset),hl
+ 748  C565 18 E4                jr .loop
+ 749  C567              .newline
+ 750  C567 CD A8 C4             call advance_scan_newline
+ 751  C56A 2A C8 C9             ld hl,(scanOffset)
+ 752  C56D CD 59 C8             call offset_at_end
+ 753  C570 30 05                jr nc,.fail
+ 754  C572 2A C8 C9             ld hl,(scanOffset)
+ 755  C575 B7                   or a
+ 756  C576 C9                   ret
+ 757  C577              .fail
+ 758  C577 37                   scf
+ 759  C578 C9                   ret
+ 760  C579
+ 761  C579              find_previous_line_start
+ 762  C579 21 00 00             ld hl,0
+ 763  C57C 22 C8 C9             ld (scanOffset),hl
+ 764  C57F 22 D0 C9             ld (prevLineStart),hl
+ 765  C582              .loop
+ 766  C582 2A C8 C9             ld hl,(scanOffset)
+ 767  C585 ED 5B CE C9          ld de,(lineStart)
+ 768  C589 B7                   or a
+ 769  C58A ED 52                sbc hl,de
+ 770  C58C 30 39                jr nc,.done
+ 771  C58E 2A D0 C9             ld hl,(prevLineStart)
+ 772  C591 22 CC C9             ld (targetOffset),hl
+ 773  C594 2A C8 C9             ld hl,(scanOffset)
+ 774  C597 22 D0 C9             ld (prevLineStart),hl
+ 775  C59A              .seek_eol
+ 776  C59A 2A C8 C9             ld hl,(scanOffset)
+ 777  C59D ED 5B CE C9          ld de,(lineStart)
+ 778  C5A1 B7                   or a
+ 779  C5A2 ED 52                sbc hl,de
+ 780  C5A4 30 21                jr nc,.done
+ 781  C5A6 2A C8 C9             ld hl,(scanOffset)
+ 782  C5A9 CD 59 C8             call offset_at_end
+ 783  C5AC 30 19                jr nc,.done
+ 784  C5AE CD 40 C9             call read_byte_at_offset
+ 785  C5B1 FE 0D                cp 13
+ 786  C5B3 28 0D                jr z,.newline
+ 787  C5B5 FE 0A                cp 10
+ 788  C5B7 28 09                jr z,.newline
+ 789  C5B9 2A C8 C9             ld hl,(scanOffset)
+ 790  C5BC 23                   inc hl
+ 791  C5BD 22 C8 C9             ld (scanOffset),hl
+ 792  C5C0 18 D8                jr .seek_eol
+ 793  C5C2              .newline
+ 794  C5C2 CD A8 C4             call advance_scan_newline
+ 795  C5C5 18 BB                jr .loop
+ 796  C5C7              .done
+ 797  C5C7 2A CC C9             ld hl,(targetOffset)
+ 798  C5CA C9                   ret
+ 799  C5CB
+ 800  C5CB              move_to_column_from_hl
+ 801  C5CB 22 C8 C9             ld (scanOffset),hl
+ 802  C5CE 3A E1 C9             ld a,(desiredCol)
+ 803  C5D1 47                   ld b,a
+ 804  C5D2              .loop
+ 805  C5D2 78                   ld a,b
+ 806  C5D3 B7                   or a
+ 807  C5D4 28 1C                jr z,.store
+ 808  C5D6 2A C8 C9             ld hl,(scanOffset)
+ 809  C5D9 CD 59 C8             call offset_at_end
+ 810  C5DC 30 14                jr nc,.store
+ 811  C5DE CD 40 C9             call read_byte_at_offset
+ 812  C5E1 FE 0D                cp 13
+ 813  C5E3 28 0D                jr z,.store
+ 814  C5E5 FE 0A                cp 10
+ 815  C5E7 28 09                jr z,.store
+ 816  C5E9 2A C8 C9             ld hl,(scanOffset)
+ 817  C5EC 23                   inc hl
+ 818  C5ED 22 C8 C9             ld (scanOffset),hl
+ 819  C5F0 10 E0                djnz .loop
+ 820  C5F2              .store
+ 821  C5F2 2A C8 C9             ld hl,(scanOffset)
+ 822  C5F5 22 C0 C9             ld (curOffset),hl
+ 823  C5F8 C9                   ret
+ 824  C5F9
+ 825  C5F9              render_hex
+ 826  C5F9 2A C0 C9             ld hl,(curOffset)
+ 827  C5FC 22 C6 C9             ld (renderOffset),hl
+ 828  C5FF 11 E2 41             ld de,TEXT_TOP
+ 829  C602 06 1B                ld b,TEXT_ROWS
+ 830  C604              .row
+ 831  C604 C5                   push bc
+ 832  C605 06 10                ld b,HEX_BYTES_ROW
+ 833  C607              .bytes
+ 834  C607 2A C6 C9             ld hl,(renderOffset)
+ 835  C60A CD 59 C8             call offset_at_end
+ 836  C60D 30 08                jr nc,.blank
+ 837  C60F CD 40 C9             call read_byte_at_offset
+ 838  C612 CD 40 C6             call put_hex_byte
+ 839  C615 18 08                jr .next
+ 840  C617              .blank
+ 841  C617 3E 20                ld a,32
+ 842  C619 CD 5A C6             call put_pair
+ 843  C61C CD 5A C6             call put_pair
+ 844  C61F              .next
+ 845  C61F 3E 20                ld a,32
+ 846  C621 CD 53 C6             call put_cell
+ 847  C624 2A C6 C9             ld hl,(renderOffset)
+ 848  C627 23                   inc hl
+ 849  C628 22 C6 C9             ld (renderOffset),hl
+ 850  C62B 10 DA                djnz .bytes
+ 851  C62D 21 40 00             ld hl,160-(HEX_BYTES_ROW*3*2)
+ 852  C630 19                   add hl,de
+ 853  C631 EB                   ex de,hl
+ 854  C632 C1                   pop bc
+ 855  C633 10 CF                djnz .row
+ 856  C635 21 E3 41             ld hl,TEXT_TOP+1
+ 857  C638 3E 40                ld a,64
+ 858  C63A 77                   ld (hl),a
+ 859  C63B 21 E5 41             ld hl,TEXT_TOP+3
+ 860  C63E 77                   ld (hl),a
+ 861  C63F C9                   ret
+ 862  C640
+ 863  C640              put_hex_byte
+ 864  C640 F5                   push af
+ 865  C641 0F                   rrca
+ 866  C642 0F                   rrca
+ 867  C643 0F                   rrca
+ 868  C644 0F                   rrca
+ 869  C645 CD 49 C6             call put_hex_nibble
+ 870  C648 F1                   pop af
+ 871  C649              put_hex_nibble
+ 872  C649 E6 0F                and $0f
+ 873  C64B C6 30                add a,"0"
+ 874  C64D FE 3A                cp "9"+1
+ 875  C64F 38 02                jr c,put_cell
+ 876  C651 C6 07                add a,7
+ 877  C653              put_cell
+ 878  C653 12                   ld (de),a
+ 879  C654 13                   inc de
+ 880  C655 3E 10                ld a,16
+ 881  C657 12                   ld (de),a
+ 882  C658 13                   inc de
+ 883  C659 C9                   ret
+ 884  C65A
+ 885  C65A              put_pair
+ 886  C65A CD 53 C6             call put_cell
+ 887  C65D C9                   ret
+ 888  C65E
+ 889  C65E              render_status
+ 890  C65E CD 8C C7             call clear_status
+ 891  C661 21 1F 01             ld hl,1*256+31
+ 892  C664 3E 20                ld a,32
+ 893  C666 11 3D CA             ld de,statusText
+ 894  C669 CD A4 C9             call call_print
+ 895  C66C 3A E2 C9             ld a,(viewMode)
+ 896  C66F B7                   or a
+ 897  C670 11 43 CA             ld de,textModeText
+ 898  C673 28 03                jr z,.mode
+ 899  C675 11 48 CA             ld de,hexModeText
+ 900  C678              .mode
+ 901  C678 21 1F 07             ld hl,7*256+31
+ 902  C67B 3E 20                ld a,32
+ 903  C67D CD A4 C9             call call_print
+ 904  C680 21 1F 0D             ld hl,13*256+31
+ 905  C683 3E 20                ld a,32
+ 906  C685 11 4C CA             ld de,helpText
+ 907  C688 CD A4 C9             call call_print
+ 908  C68B C9                   ret
+ 909  C68C
+ 910  C68C              line_input
+ 911  C68C C5                   push bc
+ 912  C68D D5                   push de
+ 913  C68E CD 8C C7             call clear_status
+ 914  C691 22 D2 C9             ld (lineLabelPtr),hl
+ 915  C694 21 1F 01             ld hl,1*256+31
+ 916  C697 3E 20                ld a,32
+ 917  C699 ED 5B D2 C9          ld de,(lineLabelPtr)
+ 918  C69D CD A4 C9             call call_print
+ 919  C6A0 D1                   pop de
+ 920  C6A1 C1                   pop bc
+ 921  C6A2 ED 53 D4 C9          ld (inputPtr),de
+ 922  C6A6 78                   ld a,b
+ 923  C6A7 32 D7 C9             ld (inputMax),a
+ 924  C6AA CD 50 C7             call measure_input_value
+ 925  C6AD CD 25 C7             call render_input_value
+ 926  C6B0              .wait
+ 927  C6B0 CD A8 C9             call call_input
+ 928  C6B3 B7                   or a
+ 929  C6B4 28 FA                jr z,.wait
+ 930  C6B6 FE 01                cp 1
+ 931  C6B8 28 65                jr z,.done
+ 932  C6BA FE 0D                cp 13
+ 933  C6BC 28 61                jr z,.done
+ 934  C6BE FE 0C                cp 12
+ 935  C6C0 28 3B                jr z,.back
+ 936  C6C2 FE 20                cp 32
+ 937  C6C4 38 EA                jr c,.wait
+ 938  C6C6 FE 80                cp 128
+ 939  C6C8 30 E6                jr nc,.wait
+ 940  C6CA 32 D8 C9             ld (inputChar),a
+ 941  C6CD 3A D6 C9             ld a,(inputLen)
+ 942  C6D0 4F                   ld c,a
+ 943  C6D1 3A D7 C9             ld a,(inputMax)
+ 944  C6D4 B9                   cp c
+ 945  C6D5 28 D9                jr z,.wait
+ 946  C6D7 38 D7                jr c,.wait
+ 947  C6D9 C5                   push bc
+ 948  C6DA ED 5B D4 C9          ld de,(inputPtr)
+ 949  C6DE 06 00                ld b,0
+ 950  C6E0 3A D6 C9             ld a,(inputLen)
+ 951  C6E3 4F                   ld c,a
+ 952  C6E4 21 00 00             ld hl,0
+ 953  C6E7 19                   add hl,de
+ 954  C6E8 09                   add hl,bc
+ 955  C6E9 3A D8 C9             ld a,(inputChar)
+ 956  C6EC 77                   ld (hl),a
+ 957  C6ED 23                   inc hl
+ 958  C6EE 36 00                ld (hl),0
+ 959  C6F0 21 D6 C9             ld hl,inputLen
+ 960  C6F3 34                   inc (hl)
+ 961  C6F4 C1                   pop bc
+ 962  C6F5 CD 25 C7             call render_input_value
+ 963  C6F8 CD 6B C8             call wait_key_release
+ 964  C6FB 18 B3                jr .wait
+ 965  C6FD              .back
+ 966  C6FD 3A D6 C9             ld a,(inputLen)
+ 967  C700 B7                   or a
+ 968  C701 28 AD                jr z,.wait
+ 969  C703 3D                   dec a
+ 970  C704 32 D6 C9             ld (inputLen),a
+ 971  C707 C5                   push bc
+ 972  C708 ED 5B D4 C9          ld de,(inputPtr)
+ 973  C70C 06 00                ld b,0
+ 974  C70E 4F                   ld c,a
+ 975  C70F 21 00 00             ld hl,0
+ 976  C712 19                   add hl,de
+ 977  C713 09                   add hl,bc
+ 978  C714 36 00                ld (hl),0
+ 979  C716 C1                   pop bc
+ 980  C717 CD 25 C7             call render_input_value
+ 981  C71A CD 6B C8             call wait_key_release
+ 982  C71D 18 91                jr .wait
+ 983  C71F              .done
+ 984  C71F F5                   push af
+ 985  C720 CD 6B C8             call wait_key_release
+ 986  C723 F1                   pop af
+ 987  C724 C9                   ret
+ 988  C725
+ 989  C725              render_input_value
+ 990  C725 11 7A 53             ld de,SCREEN_BASE+160*31+13*2
+ 991  C728 06 41                ld b,65
+ 992  C72A              .clear
+ 993  C72A 3E 20                ld a,32
+ 994  C72C 12                   ld (de),a
+ 995  C72D 13                   inc de
+ 996  C72E 12                   ld (de),a
+ 997  C72F 13                   inc de
+ 998  C730 10 F8                djnz .clear
+ 999  C732 21 1F 0D             ld hl,13*256+31
+1000  C735 3E 20                ld a,32
+1001  C737 ED 5B D4 C9          ld de,(inputPtr)
+1002  C73B CD A4 C9             call call_print
+1003  C73E CD 42 C7             call draw_input_cursor
+1004  C741 C9                   ret
+1005  C742
+1006  C742              draw_input_cursor
+1007  C742 3A D6 C9             ld a,(inputLen)
+1008  C745 87                   add a,a
+1009  C746 4F                   ld c,a
+1010  C747 06 00                ld b,0
+1011  C749 21 7B 53             ld hl,SCREEN_BASE+160*31+13*2+1
+1012  C74C 09                   add hl,bc
+1013  C74D 36 40                ld (hl),64
+1014  C74F C9                   ret
+1015  C750
+1016  C750              measure_input_value
+1017  C750 ED 5B D4 C9          ld de,(inputPtr)
+1018  C754 21 00 00             ld hl,0
+1019  C757 19                   add hl,de
+1020  C758 0E 00                ld c,0
+1021  C75A              .loop
+1022  C75A 7E                   ld a,(hl)
+1023  C75B B7                   or a
+1024  C75C 28 0E                jr z,.done
+1025  C75E 79                   ld a,c
+1026  C75F 47                   ld b,a
+1027  C760 3A D7 C9             ld a,(inputMax)
+1028  C763 B8                   cp b
+1029  C764 28 04                jr z,.truncate
+1030  C766 0C                   inc c
+1031  C767 23                   inc hl
+1032  C768 18 F0                jr .loop
+1033  C76A              .truncate
+1034  C76A AF                   xor a
+1035  C76B 77                   ld (hl),a
+1036  C76C              .done
+1037  C76C 79                   ld a,c
+1038  C76D 32 D6 C9             ld (inputLen),a
+1039  C770 C9                   ret
+1040  C771
+1041  C771              clear_text_area
+1042  C771 11 E2 41             ld de,TEXT_TOP
+1043  C774 06 1B                ld b,TEXT_ROWS
+1044  C776              .row
+1045  C776 C5                   push bc
+1046  C777 06 4E                ld b,TEXT_COLS
+1047  C779              .col
+1048  C779 3E 20                ld a,32
+1049  C77B 12                   ld (de),a
+1050  C77C 13                   inc de
+1051  C77D 3E 10                ld a,16
+1052  C77F 12                   ld (de),a
+1053  C780 13                   inc de
+1054  C781 10 F6                djnz .col
+1055  C783 21 04 00             ld hl,160-TEXT_COLS*2
+1056  C786 19                   add hl,de
+1057  C787 EB                   ex de,hl
+1058  C788 C1                   pop bc
+1059  C789 10 EB                djnz .row
+1060  C78B C9                   ret
+1061  C78C
+1062  C78C              clear_status
+1063  C78C 11 62 53             ld de,STATUS_POS
+1064  C78F 06 4E                ld b,78
+1065  C791              .loop
+1066  C791 3E 20                ld a,32
+1067  C793 12                   ld (de),a
+1068  C794 13                   inc de
+1069  C795 12                   ld (de),a
+1070  C796 13                   inc de
+1071  C797 10 F8                djnz .loop
+1072  C799 C9                   ret
+1073  C79A
+1074  C79A              status_saved
+1075  C79A CD 8C C7             call clear_status
+1076  C79D 21 1F 01             ld hl,1*256+31
+1077  C7A0 3E 20                ld a,32
+1078  C7A2 11 82 CA             ld de,savedText
+1079  C7A5 C3 A4 C9             jp call_print
+1080  C7A8
+1081  C7A8              status_saving
+1082  C7A8 CD 8C C7             call clear_status
+1083  C7AB 21 1F 01             ld hl,1*256+31
+1084  C7AE 3E 20                ld a,32
+1085  C7B0 11 88 CA             ld de,savingText
+1086  C7B3 C3 A4 C9             jp call_print
+1087  C7B6
+1088  C7B6              status_dirty
+1089  C7B6 CD 8C C7             call clear_status
+1090  C7B9 21 1F 01             ld hl,1*256+31
+1091  C7BC 3E 40                ld a,64
+1092  C7BE 11 9C CA             ld de,dirtyText
+1093  C7C1 C3 A4 C9             jp call_print
+1094  C7C4
+1095  C7C4              status_not_found
+1096  C7C4 CD 8C C7             call clear_status
+1097  C7C7 21 1F 01             ld hl,1*256+31
+1098  C7CA 3E 40                ld a,64
+1099  C7CC 11 92 CA             ld de,notFoundText
+1100  C7CF C3 A4 C9             jp call_print
+1101  C7D2
+1102  C7D2              init_context
+1103  C7D2 DD 2A B8 C9          ld ix,(ctxPtr)
+1104  C7D6 DD 6E 0E             ld l,(ix+VIEWCTX_DATA_PAGES)
+1105  C7D9 DD 66 0F             ld h,(ix+VIEWCTX_DATA_PAGES+1)
+1106  C7DC 22 BC C9             ld (dataPagesPtr),hl
+1107  C7DF DD 6E 04             ld l,(ix+VIEWCTX_SIZE_LO)
+1108  C7E2 DD 66 05             ld h,(ix+VIEWCTX_SIZE_LO+1)
+1109  C7E5 DD 7E 06             ld a,(ix+VIEWCTX_SIZE_HI)
+1110  C7E8 DD B6 07             or (ix+VIEWCTX_SIZE_HI+1)
+1111  C7EB 28 03                jr z,.size_ok
+1112  C7ED 21 FF FF             ld hl,$ffff
+1113  C7F0              .size_ok
+1114  C7F0 22 BE C9             ld (loadedSize),hl
+1115  C7F3 21 00 00             ld hl,0
+1116  C7F6 22 C0 C9             ld (curOffset),hl
+1117  C7F9 22 C4 C9             ld (viewOffset),hl
+1118  C7FC AF                   xor a
+1119  C7FD 32 E3 C9             ld (dirty),a
+1120  C800 3E FF                ld a,$ff
+1121  C802 32 E4 C9             ld (hexPending),a
+1122  C805 CD 09 C8             call detect_binary
+1123  C808 C9                   ret
+1124  C809
+1125  C809              detect_binary
+1126  C809 AF                   xor a
+1127  C80A 32 E2 C9             ld (viewMode),a
+1128  C80D 21 00 00             ld hl,0
+1129  C810 22 C8 C9             ld (scanOffset),hl
+1130  C813              .loop
+1131  C813 2A C8 C9             ld hl,(scanOffset)
+1132  C816 CD 59 C8             call offset_at_end
+1133  C819 D0                   ret nc
+1134  C81A CD 40 C9             call read_byte_at_offset
+1135  C81D FE 09                cp 9
+1136  C81F 28 0C                jr z,.next
+1137  C821 FE 0A                cp 10
+1138  C823 28 08                jr z,.next
+1139  C825 FE 0D                cp 13
+1140  C827 28 04                jr z,.next
+1141  C829 FE 20                cp 32
+1142  C82B 38 09                jr c,.binary
+1143  C82D              .next
+1144  C82D 2A C8 C9             ld hl,(scanOffset)
+1145  C830 23                   inc hl
+1146  C831 22 C8 C9             ld (scanOffset),hl
+1147  C834 18 DD                jr .loop
+1148  C836              .binary
+1149  C836 3E 01                ld a,1
+1150  C838 32 E2 C9             ld (viewMode),a
+1151  C83B C9                   ret
+1152  C83C
+1153  C83C              inc_cursor
+1154  C83C 2A C0 C9             ld hl,(curOffset)
+1155  C83F 23                   inc hl
+1156  C840 CD 47 C8             call clamp_to_last
+1157  C843 22 C0 C9             ld (curOffset),hl
+1158  C846 C9                   ret
+1159  C847
+1160  C847              clamp_to_last
+1161  C847 E5                   push hl
+1162  C848 ED 5B BE C9          ld de,(loadedSize)
+1163  C84C B7                   or a
+1164  C84D ED 52                sbc hl,de
+1165  C84F E1                   pop hl
+1166  C850 D8                   ret c
+1167  C851 2A BE C9             ld hl,(loadedSize)
+1168  C854 7C                   ld a,h
+1169  C855 B5                   or l
+1170  C856 C8                   ret z
+1171  C857 2B                   dec hl
+1172  C858 C9                   ret
+1173  C859
+1174  C859              offset_at_end
+1175  C859 D5                   push de
+1176  C85A E5                   push hl
+1177  C85B ED 5B BE C9          ld de,(loadedSize)
+1178  C85F B7                   or a
+1179  C860 ED 52                sbc hl,de
+1180  C862 E1                   pop hl
+1181  C863 D1                   pop de
+1182  C864 C9                   ret
+1183  C865
+1184  C865              mark_dirty
+1185  C865 3E 01                ld a,1
+1186  C867 32 E3 C9             ld (dirty),a
+1187  C86A C9                   ret
+1188  C86B
+1189  C86B              wait_key_release
+1190  C86B CD A8 C9             call call_input
+1191  C86E B7                   or a
+1192  C86F 20 FA                jr nz,wait_key_release
+1193  C871 C9                   ret
+1194  C872
+1195  C872              arrow_repeat_delay
+1196  C872 06 05                ld b,5
+1197  C874              .wait
+1198  C874 76                   halt
+1199  C875 10 FD                djnz .wait
+1200  C877 C9                   ret
+1201  C878
+1202  C878              key_repeat_delay
+1203  C878 06 07                ld b,7
+1204  C87A              .wait
+1205  C87A 76                   halt
+1206  C87B 10 FD                djnz .wait
+1207  C87D C9                   ret
+1208  C87E
+1209  C87E              cursor_changed
+1210  C87E 2A C0 C9             ld hl,(curOffset)
+1211  C881 ED 5B C2 C9          ld de,(oldOffset)
+1212  C885 B7                   or a
+1213  C886 ED 52                sbc hl,de
+1214  C888 C9                   ret
+1215  C889
+1216  C889              key_beep
+1217  C889 F5                   push af
+1218  C88A CD B4 C9             call call_beep
+1219  C88D F1                   pop af
+1220  C88E C9                   ret
+1221  C88F
+1222  C88F              insert_current_byte
+1223  C88F 32 D9 C9             ld (insertChar),a
+1224  C892 2A BE C9             ld hl,(loadedSize)
+1225  C895 7C                   ld a,h
+1226  C896 FE FF                cp $ff
+1227  C898 20 06                jr nz,.space_ok
+1228  C89A 7D                   ld a,l
+1229  C89B FE FF                cp $ff
+1230  C89D CA 3A C9             jp z,write_current_from_insert
+1231  C8A0              .space_ok
+1232  C8A0 2A BE C9             ld hl,(loadedSize)
+1233  C8A3 7C                   ld a,h
+1234  C8A4 B5                   or l
+1235  C8A5 28 39                jr z,.write_insert
+1236  C8A7 22 DD C9             ld (shiftDst),hl
+1237  C8AA 2B                   dec hl
+1238  C8AB 22 DB C9             ld (shiftSrc),hl
+1239  C8AE              .shift_loop
+1240  C8AE 2A DB C9             ld hl,(shiftSrc)
+1241  C8B1 ED 5B C0 C9          ld de,(curOffset)
+1242  C8B5 B7                   or a
+1243  C8B6 ED 52                sbc hl,de
+1244  C8B8 38 26                jr c,.write_insert
+1245  C8BA 2A DB C9             ld hl,(shiftSrc)
+1246  C8BD CD 40 C9             call read_byte_at_offset
+1247  C8C0 32 DA C9             ld (shiftChar),a
+1248  C8C3 2A DD C9             ld hl,(shiftDst)
+1249  C8C6 3A DA C9             ld a,(shiftChar)
+1250  C8C9 CD 45 C9             call write_byte_at_offset
+1251  C8CC 2A DB C9             ld hl,(shiftSrc)
+1252  C8CF 7C                   ld a,h
+1253  C8D0 B5                   or l
+1254  C8D1 28 0D                jr z,.write_insert
+1255  C8D3 2B                   dec hl
+1256  C8D4 22 DB C9             ld (shiftSrc),hl
+1257  C8D7 2A DD C9             ld hl,(shiftDst)
+1258  C8DA 2B                   dec hl
+1259  C8DB 22 DD C9             ld (shiftDst),hl
+1260  C8DE 18 CE                jr .shift_loop
+1261  C8E0              .write_insert
+1262  C8E0 2A C0 C9             ld hl,(curOffset)
+1263  C8E3 3A D9 C9             ld a,(insertChar)
+1264  C8E6 CD 45 C9             call write_byte_at_offset
+1265  C8E9 2A BE C9             ld hl,(loadedSize)
+1266  C8EC 23                   inc hl
+1267  C8ED 22 BE C9             ld (loadedSize),hl
+1268  C8F0 C9                   ret
+1269  C8F1
+1270  C8F1              delete_current_byte
+1271  C8F1 2A C0 C9             ld hl,(curOffset)
+1272  C8F4 22 DD C9             ld (shiftDst),hl
+1273  C8F7 23                   inc hl
+1274  C8F8 22 DB C9             ld (shiftSrc),hl
+1275  C8FB              .shift_loop
+1276  C8FB 2A DB C9             ld hl,(shiftSrc)
+1277  C8FE ED 5B BE C9          ld de,(loadedSize)
+1278  C902 B7                   or a
+1279  C903 ED 52                sbc hl,de
+1280  C905 30 22                jr nc,.done
+1281  C907 2A DB C9             ld hl,(shiftSrc)
+1282  C90A CD 40 C9             call read_byte_at_offset
+1283  C90D 32 DA C9             ld (shiftChar),a
+1284  C910 2A DD C9             ld hl,(shiftDst)
+1285  C913 3A DA C9             ld a,(shiftChar)
+1286  C916 CD 45 C9             call write_byte_at_offset
+1287  C919 2A DB C9             ld hl,(shiftSrc)
+1288  C91C 23                   inc hl
+1289  C91D 22 DB C9             ld (shiftSrc),hl
+1290  C920 2A DD C9             ld hl,(shiftDst)
+1291  C923 23                   inc hl
+1292  C924 22 DD C9             ld (shiftDst),hl
+1293  C927 18 D2                jr .shift_loop
+1294  C929              .done
+1295  C929 2A BE C9             ld hl,(loadedSize)
+1296  C92C 2B                   dec hl
+1297  C92D 22 BE C9             ld (loadedSize),hl
+1298  C930 2A C0 C9             ld hl,(curOffset)
+1299  C933 CD 47 C8             call clamp_to_last
+1300  C936 22 C0 C9             ld (curOffset),hl
+1301  C939 C9                   ret
+1302  C93A
+1303  C93A              write_current_from_insert
+1304  C93A 3A D9 C9             ld a,(insertChar)
+1305  C93D C3 4C C9             jp write_current_byte
+1306  C940
+1307  C940              read_byte_at_offset
+1308  C940 CD 56 C9             call map_offset
+1309  C943 7E                   ld a,(hl)
+1310  C944 C9                   ret
+1311  C945
+1312  C945              write_byte_at_offset
+1313  C945 F5                   push af
+1314  C946 CD 56 C9             call map_offset
+1315  C949 F1                   pop af
+1316  C94A 77                   ld (hl),a
+1317  C94B C9                   ret
+1318  C94C
+1319  C94C              write_current_byte
+1320  C94C F5                   push af
+1321  C94D 2A C0 C9             ld hl,(curOffset)
+1322  C950 CD 56 C9             call map_offset
+1323  C953 F1                   pop af
+1324  C954 77                   ld (hl),a
+1325  C955 C9                   ret
+1326  C956
+1327  C956              map_offset
+1328  C956 D5                   push de
+1329  C957 7C                   ld a,h
+1330  C958 E6 E0                and $E0
+1331  C95A 07                   rlca
+1332  C95B 07                   rlca
+1333  C95C 07                   rlca
+1334  C95D 5F                   ld e,a
+1335  C95E 16 00                ld d,0
+1336  C960 E5                   push hl
+1337  C961 2A BC C9             ld hl,(dataPagesPtr)
+1338  C964 19                   add hl,de
+1339  C965 7E                   ld a,(hl)
+1340  C966 ED 92 57             nextreg $57,a
+1341  C969 E1                   pop hl
+1342  C96A 7C                   ld a,h
+1343  C96B E6 1F                and $1f
+1344  C96D F6 E0                or $e0
+1345  C96F 67                   ld h,a
+1346  C970 D1                   pop de
+1347  C971 C9                   ret
+1348  C972
+1349  C972              patch_services
+1350  C972 DD 2A BA C9          ld ix,(svcPtr)
+1351  C976 DD 6E 00             ld l,(ix+SERVICE_PRINT)
+1352  C979 DD 66 01             ld h,(ix+SERVICE_PRINT+1)
+1353  C97C 22 A5 C9             ld (call_print+1),hl
+1354  C97F DD 6E 08             ld l,(ix+SERVICE_INPUT_NOWAIT)
+1355  C982 DD 66 09             ld h,(ix+SERVICE_INPUT_NOWAIT+1)
+1356  C985 22 A9 C9             ld (call_input+1),hl
+1357  C988 DD 6E 04             ld l,(ix+SERVICE_WINDOW)
+1358  C98B DD 66 05             ld h,(ix+SERVICE_WINDOW+1)
+1359  C98E 22 AD C9             ld (call_window+1),hl
+1360  C991 DD 6E 0A             ld l,(ix+SERVICE_EXTRACT)
+1361  C994 DD 66 0B             ld h,(ix+SERVICE_EXTRACT+1)
+1362  C997 22 B1 C9             ld (call_extract+1),hl
+1363  C99A DD 6E 0C             ld l,(ix+SERVICE_BEEP)
+1364  C99D DD 66 0D             ld h,(ix+SERVICE_BEEP+1)
+1365  C9A0 22 B5 C9             ld (call_beep+1),hl
+1366  C9A3 C9                   ret
+1367  C9A4
+1368  C9A4              call_print
+1369  C9A4 CD 00 00             call 0
+1370  C9A7 C9                   ret
+1371  C9A8              call_input
+1372  C9A8 CD 00 00             call 0
+1373  C9AB C9                   ret
+1374  C9AC              call_window
+1375  C9AC CD 00 00             call 0
+1376  C9AF C9                   ret
+1377  C9B0              call_extract
+1378  C9B0 CD 00 00             call 0
+1379  C9B3 C9                   ret
+1380  C9B4              call_beep
+1381  C9B4 CD 00 00             call 0
+1382  C9B7 C9                   ret
+1383  C9B8
+1384  C9B8 00 00        ctxPtr       defw 0
+1385  C9BA 00 00        svcPtr       defw 0
+1386  C9BC 00 00        dataPagesPtr defw 0
+1387  C9BE 00 00        loadedSize   defw 0
+1388  C9C0 00 00        curOffset    defw 0
+1389  C9C2 00 00        oldOffset    defw 0
+1390  C9C4 00 00        viewOffset   defw 0
+1391  C9C6 00 00        renderOffset defw 0
+1392  C9C8 00 00        scanOffset   defw 0
+1393  C9CA 00 00        matchOffset  defw 0
+1394  C9CC 00 00        targetOffset defw 0
+1395  C9CE 00 00        lineStart    defw 0
+1396  C9D0 00 00        prevLineStart defw 0
+1397  C9D2 00 00        lineLabelPtr defw 0
+1398  C9D4 00 00        inputPtr     defw 0
+1399  C9D6 00           inputLen     defb 0
+1400  C9D7 00           inputMax     defb 0
+1401  C9D8 00           inputChar    defb 0
+1402  C9D9 00           insertChar   defb 0
+1403  C9DA 00           shiftChar    defb 0
+1404  C9DB 00 00        shiftSrc     defw 0
+1405  C9DD 00 00        shiftDst     defw 0
+1406  C9DF 10           cellAttr     defb 16
+1407  C9E0 00           newlineChar  defb 0
+1408  C9E1 00           desiredCol   defb 0
+1409  C9E2 00           viewMode     defb 0
+1410  C9E3 00           dirty        defb 0
+1411  C9E4 FF           hexPending   defb $ff
+1412  C9E5 00 00 00...  searchBuf    defs SEARCH_MAX+1
+1413  CA06 00 00 00...  saveName     defs NAME_MAX+1
+1414  CA37
+1415  CA37 45 44 49 54  title        defb "EDIT:",0
+1415  CA3B 3A 00
+1416  CA3D 4D 6F 64 65  statusText   defb "Mode:",0
+1416  CA41 3A 00
+1417  CA43 54 45 58 54  textModeText defb "TEXT",0
+1417  CA47 00
+1418  CA48 48 45 58 00  hexModeText  defb "HEX",0
+1419  CA4C 45 58 54 2B  helpText     defb "EXT+S save EXT+E as EXT+F find EXT+H/T",0
+1419  CA50 53 20 73 61
+1419  CA54 76 65 20 45
+1419  CA58 58 54 2B 45
+1419  CA5C 20 61 73 20
+1419  CA60 45 58 54 2B
+1419  CA64 46 20 66 69
+1419  CA68 6E 64 20 45
+1419  CA6C 58 54 2B 48
+1419  CA70 2F 54 00
+1420  CA73 46 69 6E 64  findText     defb "Find:",0
+1420  CA77 3A 00
+1421  CA79 53 61 76 65  saveAsText   defb "Save as:",0
+1421  CA7D 20 61 73 3A
+1421  CA81 00
+1422  CA82 53 61 76 65  savedText    defb "Saved",0
+1422  CA86 64 00
+1423  CA88 53 61 76 69  savingText   defb "Saving...",0
+1423  CA8C 6E 67 2E 2E
+1423  CA90 2E 00
+1424  CA92 4E 6F 74 20  notFoundText defb "Not found",0
+1424  CA96 66 6F 75 6E
+1424  CA9A 64 00
+1425  CA9C 43 68 61 6E  dirtyText    defb "Changed: S overwrite, E save as, I ignore",0
+1425  CAA0 67 65 64 3A
+1425  CAA4 20 53 20 6F
+1425  CAA8 76 65 72 77
+1425  CAAC 72 69 74 65
+1425  CAB0 2C 20 45 20
+1425  CAB4 73 61 76 65
+1425  CAB8 20 61 73 2C
+1425  CABC 20 49 20 69
+1425  CAC0 67 6E 6F 72
+1425  CAC4 65 00
+1426  CAC6
+1427  CAC6              plugin_end
+1428  CAC6                      assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE
+1429  CAC6                      SAVEBIN "plugin/edit.ccp", VIEW_PLUGIN_ADDRESS, VIEW_PLUGIN_SIZE
+1430  CAC6
+# file closed: plugin\edit.asm

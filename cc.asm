@@ -631,6 +631,9 @@ loop0
             cp "3"
             jp z,view_file
 
+            cp "4"
+            jp z,edit_file
+
             cp "P"
             jp z,view_plugin_menu
 
@@ -7907,7 +7910,7 @@ help1       defb    "Controls:",0
 help2       defb    "1:          switch to left panel",0
 help3       defb    "2:          switch to right panel",0
 help4       defb    "3:          View file",0
-help5       defb    "CAPS+P:     Choose viewer plugin",0
+help5       defb    "4:          Edit file",0
 help6       defb    "5:          Copy files (directory is not not support",0
 help7       defb    "6:          Move files (directory is not not support",0
 help8       defb    "7:          Create directory",0

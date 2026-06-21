@@ -52,6 +52,12 @@ VIEWTYPE_NXI         equ 8
 VIEWTYPE_HELLO       equ 9
 VIEWTYPE_BAS         equ 10
 VIEWTYPE_TAP         equ 11
+VIEWTYPE_EDIT        equ 12
+VIEW_EDIT_KEY_SAVE   equ 128
+VIEW_EDIT_KEY_SAVEAS equ 129
+VIEW_EDIT_KEY_HEX    equ 130
+VIEW_EDIT_KEY_TEXT   equ 131
+VIEW_EDIT_KEY_FIND   equ 132
 
 view_file
         call view_prepare_current_file
@@ -111,6 +117,11 @@ view_run_selected_plugin
         ld (viewNextAfterDown),a
         jp down
 .done
+        ld a,(viewPluginContext+VIEWCTX_DIRTY)
+        or a
+        jr z,.done_no_reload
+        call view_reload_active_panel
+.done_no_reload
         xor a
         ld (viewNextAfterDown),a
         jp loop0
@@ -135,6 +146,18 @@ view_plugin_menu
         call view_make_cmd2
         call view_choose_plugin_dialog
         jp c,loop0
+        jp view_run_selected_plugin
+
+
+edit_file
+        call view_prepare_current_file
+        jp c,view_no_viewer_or_skip
+
+        call view_make_cmd2
+        ld a,VIEWTYPE_EDIT
+        ld (viewPluginType),a
+        ld hl,viewEditPluginName
+        ld (viewPluginName),hl
         jp view_run_selected_plugin
 
 
@@ -1165,7 +1188,7 @@ svc_extract_to_file
 
 view_make_extract_path
         ld de,viewPluginDosName
-        ld b,16
+        ld b,63
 .copy_name
         ld a,(hl)
         or a
@@ -1256,6 +1279,7 @@ viewServices
         defw layer0
         defw view_plugin_input_nowait
         defw svc_extract_to_file
+        defw beepk
 
 
 view_init_plugin_input
@@ -1370,6 +1394,9 @@ view_plugin_input_nowait
         inc a
         jp z,.no_key
         ld a,(viewPluginType)
+        cp VIEWTYPE_EDIT
+        jr z,.edit_special
+.check_music_special
         cp VIEWTYPE_PT3
         jp z,.music_scan_keyboard
         cp VIEWTYPE_PT2
@@ -1421,6 +1448,30 @@ view_plugin_input_nowait
         jr z,.player_keyboard
         ld a,b
         ret
+.edit_special
+        ld a,d
+        cp $18
+        jr nz,.edit_not_special
+        ld hl,.edit_key_table
+        ld b,5
+.edit_key_loop
+        ld a,(hl)
+        cp e
+        inc hl
+        jr z,.edit_key_hit
+        inc hl
+        djnz .edit_key_loop
+.edit_not_special
+        jr .map_keyboard
+.edit_key_hit
+        ld a,(hl)
+        ret
+.edit_key_table
+        defb 30,VIEW_EDIT_KEY_SAVE
+        defb 21,VIEW_EDIT_KEY_SAVEAS
+        defb 1,VIEW_EDIT_KEY_HEX
+        defb 5,VIEW_EDIT_KEY_TEXT
+        defb 14,VIEW_EDIT_KEY_FIND
 .player_keyboard
         ld a,b
         cp 13
@@ -1460,6 +1511,7 @@ view_plugin_input_nowait
 .no_key
         xor a
         ret
+
 .mouse_click
         ld a,(viewPluginType)
         cp VIEWTYPE_ZXSCREEN
@@ -1885,6 +1937,7 @@ viewSqtPluginName      defb "sqtest.ccp",255
 viewHelloPluginName    defb "HelloWord.ccp",255
 viewBasPluginName      defb "bas.ccp",255
 viewTapPluginName      defb "tap.ccp",255
+viewEditPluginName     defb "edit.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
 viewMusicAbcTxt        defb " ABC ",0

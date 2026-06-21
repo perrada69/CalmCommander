@@ -29,3 +29,4 @@ SERVICE_WINDOW       equ 4
 SERVICE_LAYER0       equ 6
 SERVICE_INPUT_NOWAIT equ 8
 SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)
+SERVICE_BEEP         equ 12

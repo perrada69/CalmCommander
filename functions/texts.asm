@@ -62,7 +62,7 @@ notpresenttxt   defb    "not present",0
 left_txt        defb    "1: LEFT",0
 right_txt       defb    "2: RIGHT",0
 view_txt        defb    "3: VIEW",0
-edit_txt        defb    "4:     ",0
+edit_txt        defb    "4: EDIT",0
 copy_txt        defb    "5: COPY",0
 move_txt        defb    "6: MOVE",0
 mkdir_txt       defb    "7: MKDIR",0
