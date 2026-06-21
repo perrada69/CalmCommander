@@ -1518,7 +1518,9 @@ view_plugin_input_nowait
         jp z,view_image_mouse_click
         cp VIEWTYPE_NXI
         jp z,view_image_mouse_click
-        ld a,(viewPluginType)
+        sub VIEWTYPE_EDIT
+        ret z
+        add a,VIEWTYPE_EDIT
         cp VIEWTYPE_PT3
         jr z,.music_click
         cp VIEWTYPE_PT2

@@ -7,7 +7,7 @@ SCREEN_BASE     equ $4000
 TEXT_TOP        equ SCREEN_BASE+160*3+2
 TEXT_ROWS       equ 27
 TEXT_COLS       equ 78
-HEX_BYTES_ROW   equ 16
+HEX_BYTES_ROW   equ 26
 STATUS_POS      equ SCREEN_BASE+160*31+2
 SEARCH_MAX      equ 32
 NAME_MAX        equ 48
@@ -39,6 +39,8 @@ plugin_start
         or a
         jr z,.input
         cp 1
+        jp z,try_exit
+        cp 15
         jp z,try_exit
         cp 10
         jp z,move_down
@@ -86,6 +88,7 @@ write_text_char
 text_mode
         xor a
         ld (viewMode),a
+        call ensure_cursor_visible
         call render
         jp plugin_start.input
 
@@ -94,6 +97,7 @@ hex_mode
         ld (viewMode),a
         ld a,$ff
         ld (hexPending),a
+        call ensure_hex_cursor_visible
         call render
         jp plugin_start.input
 
@@ -160,7 +164,9 @@ move_down
         add hl,de
         call clamp_to_last
         ld (curOffset),hl
-        call render
+        call cursor_changed
+        jp z,plugin_start.input
+        call cursor_moved
         call key_beep
         call arrow_repeat_delay
         jp plugin_start.input
@@ -188,7 +194,9 @@ move_up
         ld hl,0
 .store
         ld (curOffset),hl
-        call render
+        call cursor_changed
+        jp z,plugin_start.input
+        call cursor_moved
         call key_beep
         call arrow_repeat_delay
         jp plugin_start.input
@@ -208,6 +216,7 @@ try_exit
         or a
         ret z
         call status_dirty
+        call wait_key_release
 .wait
         call call_input
         or a
@@ -225,8 +234,14 @@ try_exit
         cp "E"
         jp z,save_as_then_exit
         cp 1
-        jp z,render
+        jr z,.cancel
+        cp 15
+        jr z,.cancel
         jr .wait
+.cancel
+        call wait_key_release
+        call render
+        jp plugin_start.input
 
 save_current_then_exit
         call save_current_raw
@@ -238,6 +253,11 @@ save_as_then_exit
 
 save_current
         call save_current_raw
+        ld a,(saveOk)
+        or a
+        jp z,plugin_start.input
+        call saved_status_pause
+        call render_status
         jp plugin_start.input
 
 save_current_raw
@@ -248,9 +268,16 @@ save_current_raw
 
 save_as
         call save_as_raw
+        ld a,(saveOk)
+        or a
+        jp z,plugin_start.input
+        call saved_status_pause
+        call render_status
         jp plugin_start.input
 
 save_as_raw
+        xor a
+        ld (saveOk),a
         call copy_current_filename_to_save_name
         ld de,saveName
         ld b,NAME_MAX
@@ -263,7 +290,11 @@ save_as_raw
         or a
         ret z
 save_name_hl
+        xor a
+        ld (saveOk),a
+        push hl
         call status_saving
+        pop hl
         ld de,0
         ld bc,(loadedSize)
         call call_extract
@@ -272,6 +303,8 @@ save_name_hl
         ld (dirty),a
         ld ix,(ctxPtr)
         ld (ix+VIEWCTX_DIRTY),1
+        ld a,1
+        ld (saveOk),a
         call status_saved
         ret
 
@@ -534,7 +567,7 @@ advance_newline
 cursor_moved
         ld a,(viewMode)
         or a
-        jr nz,.full
+        jr nz,.hex
         ld hl,(oldOffset)
         call set_offset_normal_attr
         jr c,.full
@@ -544,6 +577,18 @@ cursor_moved
         ret
 .full
         call ensure_cursor_visible
+        call render
+        ret
+.hex
+        ld hl,(oldOffset)
+        call set_hex_offset_normal_attr
+        jr c,.hex_full
+        ld hl,(curOffset)
+        call set_hex_offset_cursor_attr
+        jr c,.hex_full
+        ret
+.hex_full
+        call ensure_hex_cursor_visible
         call render
         ret
 
@@ -568,6 +613,29 @@ ensure_cursor_visible
         ld (viewOffset),hl
         ret
 
+ensure_hex_cursor_visible
+        ld hl,(curOffset)
+        call find_hex_attr_for_offset
+        ret nc
+        ld hl,(curOffset)
+        ld de,(viewOffset)
+        or a
+        sbc hl,de
+        jr c,.above
+.scroll_down
+        ld hl,(viewOffset)
+        ld de,HEX_BYTES_ROW
+        add hl,de
+        ld (viewOffset),hl
+        ld hl,(curOffset)
+        call find_hex_attr_for_offset
+        ret nc
+        jr .scroll_down
+.above
+        ld hl,(curOffset)
+        ld (viewOffset),hl
+        ret
+
 advance_view_one_line
         ld hl,(viewOffset)
         ld (lineStart),hl
@@ -587,6 +655,71 @@ set_offset_cursor_attr
         call find_screen_attr_for_offset
         ret c
         ld (hl),64
+        ret
+
+set_hex_offset_normal_attr
+        call find_hex_attr_for_offset
+        ret c
+        ld (hl),16
+        inc hl
+        inc hl
+        ld (hl),16
+        inc hl
+        inc hl
+        ld (hl),16
+        ret
+
+set_hex_offset_cursor_attr
+        call find_hex_attr_for_offset
+        ret c
+        ld (hl),64
+        inc hl
+        inc hl
+        ld (hl),64
+        inc hl
+        inc hl
+        ld (hl),16
+        ret
+
+find_hex_attr_for_offset
+        ld (targetOffset),hl
+        ld hl,(viewOffset)
+        ld (scanOffset),hl
+        ld de,TEXT_TOP
+        ld b,TEXT_ROWS
+.row
+        push bc
+        ld b,HEX_BYTES_ROW
+.col
+        ld hl,(scanOffset)
+        push de
+        ld de,(targetOffset)
+        or a
+        sbc hl,de
+        pop de
+        jr z,.found
+        ld hl,(scanOffset)
+        inc hl
+        ld (scanOffset),hl
+        inc de
+        inc de
+        inc de
+        inc de
+        inc de
+        inc de
+        djnz .col
+        ld hl,160-HEX_BYTES_ROW*3*2
+        add hl,de
+        ex de,hl
+        pop bc
+        djnz .row
+        scf
+        ret
+.found
+        pop bc
+        inc de
+        ex de,hl
+        or a
         ret
 
 find_screen_attr_for_offset
@@ -823,7 +956,7 @@ move_to_column_from_hl
         ret
 
 render_hex
-        ld hl,(curOffset)
+        ld hl,(viewOffset)
         ld (renderOffset),hl
         ld de,TEXT_TOP
         ld b,TEXT_ROWS
@@ -834,14 +967,19 @@ render_hex
         ld hl,(renderOffset)
         call offset_at_end
         jr nc,.blank
+        call set_cursor_attr
         call read_byte_at_offset
         call put_hex_byte
         jr .next
 .blank
+        ld a,16
+        ld (cellAttr),a
         ld a,32
         call put_pair
         call put_pair
 .next
+        ld a,16
+        ld (cellAttr),a
         ld a,32
         call put_cell
         ld hl,(renderOffset)
@@ -853,11 +991,6 @@ render_hex
         ex de,hl
         pop bc
         djnz .row
-        ld hl,TEXT_TOP+1
-        ld a,64
-        ld (hl),a
-        ld hl,TEXT_TOP+3
-        ld (hl),a
         ret
 
 put_hex_byte
@@ -877,7 +1010,7 @@ put_hex_nibble
 put_cell
         ld (de),a
         inc de
-        ld a,16
+        ld a,(cellAttr)
         ld (de),a
         inc de
         ret
@@ -931,52 +1064,56 @@ line_input
         jr z,.done
         cp 13
         jr z,.done
+        cp 8
+        jr z,.left
+        cp 9
+        jr z,.right
         cp 12
         jr z,.back
+        cp 199
+        jr z,.delete
         cp 32
         jr c,.wait
         cp 128
         jr nc,.wait
         ld (inputChar),a
-        ld a,(inputLen)
-        ld c,a
-        ld a,(inputMax)
-        cp c
+        call input_insert_char
+        call render_input_value
+        call wait_key_release
+        jr .wait
+.left
+        ld a,(inputCursor)
+        or a
         jr z,.wait
-        jr c,.wait
-        push bc
-        ld de,(inputPtr)
-        ld b,0
+        dec a
+        ld (inputCursor),a
+        call render_input_value
+        call wait_key_release
+        jr .wait
+.right
+        ld a,(inputCursor)
+        ld b,a
         ld a,(inputLen)
-        ld c,a
-        ld hl,0
-        add hl,de
-        add hl,bc
-        ld a,(inputChar)
-        ld (hl),a
-        inc hl
-        ld (hl),0
-        ld hl,inputLen
-        inc (hl)
-        pop bc
+        cp b
+        jr z,.wait
+        ld a,b
+        inc a
+        ld (inputCursor),a
         call render_input_value
         call wait_key_release
         jr .wait
 .back
-        ld a,(inputLen)
+        ld a,(inputCursor)
         or a
         jr z,.wait
         dec a
-        ld (inputLen),a
-        push bc
-        ld de,(inputPtr)
-        ld b,0
-        ld c,a
-        ld hl,0
-        add hl,de
-        add hl,bc
-        ld (hl),0
-        pop bc
+        ld (inputCursor),a
+        call input_delete_at_cursor
+        call render_input_value
+        call wait_key_release
+        jr .wait
+.delete
+        call input_delete_at_cursor
         call render_input_value
         call wait_key_release
         jr .wait
@@ -1004,7 +1141,7 @@ render_input_value
         ret
 
 draw_input_cursor
-        ld a,(inputLen)
+        ld a,(inputCursor)
         add a,a
         ld c,a
         ld b,0
@@ -1036,6 +1173,80 @@ measure_input_value
 .done
         ld a,c
         ld (inputLen),a
+        ld (inputCursor),a
+        ret
+
+input_insert_char
+        ld a,(inputLen)
+        ld b,a
+        ld a,(inputMax)
+        cp b
+        ret z
+        ret c
+        ld a,(inputLen)
+        ld b,a
+        ld a,(inputCursor)
+        ld e,b
+        sub e
+        neg
+        ld b,a
+        ld a,(inputLen)
+        ld e,a
+        ld d,0
+        ld hl,(inputPtr)
+        add hl,de
+        ld a,b
+        or a
+        jr z,.store
+.shift
+        dec hl
+        ld a,(hl)
+        inc hl
+        ld (hl),a
+        dec hl
+        djnz .shift
+.store
+        ld a,(inputCursor)
+        ld e,a
+        ld d,0
+        ld hl,(inputPtr)
+        add hl,de
+        ld a,(inputChar)
+        ld (hl),a
+        ld hl,inputLen
+        inc (hl)
+        ld a,(hl)
+        ld e,a
+        ld d,0
+        ld hl,(inputPtr)
+        add hl,de
+        ld (hl),0
+        ld hl,inputCursor
+        inc (hl)
+        ret
+
+input_delete_at_cursor
+        ld a,(inputCursor)
+        ld b,a
+        ld a,(inputLen)
+        cp b
+        ret z
+        ret c
+        ld e,b
+        ld d,0
+        ld hl,(inputPtr)
+        add hl,de
+        ex de,hl
+        inc hl
+.shift
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        or a
+        jr nz,.shift
+        ld hl,inputLen
+        dec (hl)
         ret
 
 clear_text_area
@@ -1077,6 +1288,13 @@ status_saved
         ld a,32
         ld de,savedText
         jp call_print
+
+saved_status_pause
+        ld b,50
+.wait
+        halt
+        djnz .wait
+        ret
 
 status_saving
         call clear_status
@@ -1193,7 +1411,7 @@ wait_key_release
         ret
 
 arrow_repeat_delay
-        ld b,5
+        ld b,15
 .wait
         halt
         djnz .wait
@@ -1397,6 +1615,7 @@ prevLineStart defw 0
 lineLabelPtr defw 0
 inputPtr     defw 0
 inputLen     defb 0
+inputCursor  defb 0
 inputMax     defb 0
 inputChar    defb 0
 insertChar   defb 0
@@ -1408,6 +1627,7 @@ newlineChar  defb 0
 desiredCol   defb 0
 viewMode     defb 0
 dirty        defb 0
+saveOk       defb 0
 hexPending   defb $ff
 searchBuf    defs SEARCH_MAX+1
 saveName     defs NAME_MAX+1
