@@ -4349,10 +4349,6 @@ dot_dir_no_match
         or a
         ret
 
-dotInsertPtr defw 0
-dotFoundPtr  defw 0
-dotRemaining defw 0
-
         include "functions/copy.asm"
 reload_panels_after_cancel
         call obnov_okna
@@ -4477,12 +4473,15 @@ pjs_store
         ld (hl),c
         ret
 
-oknoVyber	defb	64,32
-            defb	100,96
-
 E3
         org 49152
 S2
+dotInsertPtr defw 0
+dotFoundPtr  defw 0
+dotRemaining defw 0
+oknoVyber	defb	64,32
+            defb	100,96
+
 pjs_cap_end
         ld hl,ALLFILES
         call ROZHOD2
@@ -6853,48 +6852,13 @@ help
 ; Po stisku klávesy obnoví původní obrazovku + znovu překreslí nadpis
 ; (ruční kopie nadpisu do #4000 s atributem 16).
 ; ============================================================
-notimplemented defb "This feature is not yet implemented.",0
-
 notnow
-        call savescr
-        ld hl,8 * 256 + 10
-        ld bc,60 * 256 + 3
-        ld a,16
-        call window
-
-        ld hl,11*256+11
-        ld a,16
-        ld de,notimplemented
-        call print
-
-        ld hl,42*256+13
-        ld a,32
-        ld de,pressanykeytxt
-        call print
-
-        xor a
-        ld (TLACITKO),a
-        call INKEY
-        call loadscr
-
-        ; ručně překresli nadpis do obrazovky (nadpis → #4000),
-        ; vždy znak + atribut 16 (ink/paper)
-        ld hl,nadpis
-        ld de,#4000
-        ld bc,80
-not0
-        ld a,(hl)
-        ld (de),a                                   ; znak
-        inc de
-        ld a,16
-        ld (de),a                                   ; atribut
-        inc de
-        inc hl
-        dec bc
-        ld a,c
-        or b
-        jr nz,not0
-
+        NEXTREG2A MMU7_E000_NR_57
+        push af
+        nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
+        call EXTRA_NOTNOW
+        pop af
+        nextreg MMU7_E000_NR_57, a
         jp loop0
 
 
@@ -7924,6 +7888,48 @@ help15      defb    "            close this window...)",0
 help16      defb    "CAPS+1      Change drive in left window",0
 help17      defb    "CAPS+2      Change drive in right window",0
 help18      defb    "SS+I:       Info about Calm Commander ",0
+
+EXTRA_NOTNOW:
+        call savescr
+        ld hl,8 * 256 + 10
+        ld bc,60 * 256 + 3
+        ld a,16
+        call window
+
+        ld hl,11*256+11
+        ld a,16
+        ld de,notimplemented
+        call print
+
+        ld hl,42*256+13
+        ld a,32
+        ld de,pressanykeytxt
+        call print
+
+        xor a
+        ld (TLACITKO),a
+        call INKEY
+        call loadscr
+
+        ; rucne prekresli nadpis do obrazovky
+        ld hl,nadpis
+        ld de,#4000
+        ld bc,80
+.not0
+        ld a,(hl)
+        ld (de),a
+        inc de
+        ld a,16
+        ld (de),a
+        inc de
+        inc hl
+        dec bc
+        ld a,c
+        or b
+        jr nz,.not0
+        ret
+
+notimplemented defb "This feature is not yet implemented.",0
 
 EXTRA_SYSCOPY_SHOW_ERROR:
         call savescr

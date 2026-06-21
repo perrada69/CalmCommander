@@ -222,9 +222,9 @@ try_exit
         or a
         jr z,.wait
         cp "i"
-        ret z
+        jr z,.exit_ignore
         cp "I"
-        ret z
+        jr z,.exit_ignore
         cp "s"
         jp z,save_current_then_exit
         cp "S"
@@ -242,13 +242,18 @@ try_exit
         call wait_key_release
         call render
         jp plugin_start.input
+.exit_ignore
+        call wait_key_release
+        ret
 
 save_current_then_exit
         call save_current_raw
+        call wait_key_release
         ret
 
 save_as_then_exit
         call save_as_raw
+        call wait_key_release
         ret
 
 save_current
