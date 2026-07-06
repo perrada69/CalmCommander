@@ -34,10 +34,17 @@ plugin_start
         ld a,$55
         call read_nextreg
         ld (savedMmu5),a
+        ld a,$06
+        call read_nextreg
+        ld (savedPeriph2),a
+        and %11111100
+        or %00000001
+        nextreg $06,a
 
         call prepare_pt3_info
         call show_player_screen
         call map_pt3_data
+        call prepare_stp_size
         call stp.music_init
         call show_music_mode
         ei
@@ -66,6 +73,7 @@ plugin_start
         call stp.music_mute
         call wait_stop_release
         di
+        call restore_audio
         call restore_mmu
         ld sp,(savedSp)
         xor a
@@ -75,6 +83,7 @@ plugin_start
         call stp.music_mute
         call wait_stop_release
         di
+        call restore_audio
         call restore_mmu
         ld sp,(savedSp)
         ld a,1
@@ -128,6 +137,22 @@ restore_mmu
         nextreg $54,a
         ld a,(savedMmu5)
         nextreg $55,a
+        ret
+
+
+restore_audio
+        ld a,(savedPeriph2)
+        nextreg $06,a
+        ret
+
+
+prepare_stp_size
+        ld ix,(ctxPtr)
+        ld l,(ix+VIEWCTX_SIZE_LO)
+        ld h,(ix+VIEWCTX_SIZE_LO+1)
+        ld de,MUSIC_LINEAR_ADDR-1
+        add hl,de
+        ld (delka_souboru),hl
         ret
 
 
@@ -397,6 +422,8 @@ savedMmu2    defb 0
 savedMmu3    defb 0
 savedMmu4    defb 0
 savedMmu5    defb 0
+savedPeriph2 defb 0
+delka_souboru defw 0
 secondModuleAddr defw 0
 pt3Setup    defb 0
 title        defb "STP:",0

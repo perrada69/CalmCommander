@@ -34,7 +34,7 @@ music_init0:	ld	(module_addr+1),hl
 		ld	(hl),0
 		pop	hl
 		or	a
-		jr	z,.noreloc
+		jr	z,.auto_relocator
 
 .relocator:	call	add_offset.de
 		ex	de,hl
@@ -46,6 +46,21 @@ music_init0:	ld	(module_addr+1),hl
 		inc	hl
 		dec	a
 		jr	nz,.relocator
+		jr	.noreloc
+
+.auto_relocator:
+		inc	hl
+		ld	a,(module_addr+2)
+		ld	b,a
+		ld	a,(hl)
+		dec	hl
+		cp	b
+		jr	c,.auto_relocate
+		xor	a
+		jr	.noreloc
+.auto_relocate:
+		call	relocate_tables
+		xor	a
 
 .noreloc:	ld	hl,empty_pattern
 		ld	c,3
@@ -95,6 +110,58 @@ add_offset	ex	de,hl
 		ex	de,hl
 module_addr:	ld	bc,0
 		add	hl,bc
+		ret
+
+relocate_tables:
+		ld	de,(ChA.ornoffs+1)
+		call	relocate_word_range
+		ld	hl,(ChA.ornoffs+1)
+		ld	de,(ChA.smpoffs+1)
+		call	relocate_word_range
+		ld	hl,(ChA.smpoffs+1)
+		ld	de,(delka_souboru)
+		inc	de
+		call	relocate_word_range
+		ret
+
+relocate_word_range:
+		push	bc
+relocate_word_range_loop:
+		push	hl
+		or	a
+		sbc	hl,de
+		pop	hl
+		jr	nc,relocate_word_range_done
+		push	de
+		dec	de
+		push	hl
+		or	a
+		sbc	hl,de
+		pop	hl
+		pop	de
+		jr	nc,relocate_word_range_done
+		ld	c,(hl)
+		inc	hl
+		ld	b,(hl)
+		push	de
+		push	hl
+		ld	l,c
+		ld	h,b
+		ld	bc,(module_addr+1)
+		add	hl,bc
+		pop	de
+		ld	a,h
+		ld	(de),a
+		dec	de
+		ld	a,l
+		ld	(de),a
+		inc	de
+		inc	de
+		ex	de,hl
+		pop	de
+		jr	relocate_word_range_loop
+relocate_word_range_done:
+		pop	bc
 		ret
 
 ; ---------------------------------------------------------------------------
@@ -996,7 +1063,7 @@ pattstep_cnt:	db	0
 
 ;-----------------------------------------------------------------------------			
 ; bit.0 no loop, bit.1 fadeout after loop, bit.7 set when finished
-music_setup:	db	1
+music_setup:	db	2
 			
 			
 			endmodule
