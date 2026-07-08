@@ -622,6 +622,9 @@ loop0
             cp "-"
             jp z,deselect
 
+            cp "s"
+            jp z,jump_search
+
             cp "1"
             jp z,leftwin
 
@@ -3581,8 +3584,8 @@ Count11  ld hl,catbuff                            ; self-modify: base adresa se 
         ret
 
 
-changedrivetxt defb "Select drive:",0
-selecttxt     defb "ENTER = select",0
+changedrivetxt defb "Drive:",0
+selecttxt     defb "ENTER",0
 
 
 ; ------------------------------------------------------------
@@ -4666,11 +4669,11 @@ adr_cur defw $4002+160*8 + 63                     ; adresa prvni polozky ve vybe
 
 
 
-vyberTxt defb "Select computer:",0
-txt128	defb "128k/+2",0
+vyberTxt defb "Computer:",0
+txt128	defb "128k",0
 txt48	defb	"48k",0
-Pentagontxt	defb	"Pentagon",0
-NextTxt		defb "+2A/+3/Next",0
+Pentagontxt	defb	"Pent",0
+NextTxt		defb "Next",0
 
 tilemapFont:    ds   16*32
 
@@ -6079,8 +6082,8 @@ selcont
 
 rightMouse      db 0
 
-quittxt	defb "You want realy quit from Calm Commander?",0
-emul    defb "Sorry, you use emulator... ;) Reset not works.",0
+quittxt	defb "Quit?",0
+emul    defb "No reset.",0
 
 quit
         call savescr
@@ -6386,15 +6389,15 @@ archivea
         ld (hl),a
         ret
 
-namefile	defb "Name of file:",0
-attr_nadpis	defb "Edit file attribute",0
-readonlytxt	defb "[R]ead only",0
-systemfiletxt defb "[S]ystem file",0
-archivedtxt defb "[A]rchived",0
+namefile	defb "Name",0
+attr_nadpis	defb "Attr",0
+readonlytxt	defb "[R]",0
+systemfiletxt defb "[S]",0
+archivedtxt defb "[A]",0
 
-readonlytxt2	defb "Read only",0
-systemfiletxt2 defb "System file",0
-archivedtxt2 defb "Archived",0
+readonlytxt2	defb "Read",0
+systemfiletxt2 defb "System",0
+archivedtxt2 defb "Arch",0
 
 ; ============================================================
 ; info_file
@@ -6632,7 +6635,7 @@ info_file_show_ready
 ; Texty
 ; ============================================================
 sizetxt  defb "Size:",0
-bytestxt defb "bytes",0
+bytestxt defb "B",0
 
 
 ; ============================================================
@@ -7104,11 +7107,11 @@ lfnat		ld de,20672+2
 
 
 
-sysatrtxt	defb "System attributes:",0
+sysatrtxt	defb "Attr:",0
 fileinfonadpis
-            defb "File/directory informations:",0
-filedate	defb "Date:",0
-filetime	defb "Time:",0
+            defb "Info:",0
+filedate	defb "D:",0
+filetime	defb "T:",0
 tecka		defb ". ",0
 dvojtecka 	defb ":",0
 DISC
@@ -7747,9 +7750,9 @@ overwrite_choice
 
 overwriteAll defb 0
 
-morecopytxt      defb "Copy     files?",0
-moremovetxt      defb "Move     files?",0
-moredeletetxt    defb "Delete     files?",0
+morecopytxt      defb "Copy?",0
+moremovetxt      defb "Move?",0
+moredeletetxt    defb "Del?",0
 
 sysvars 	defs 500
 
@@ -7875,8 +7878,8 @@ help2       defb    "1:          switch to left panel",0
 help3       defb    "2:          switch to right panel",0
 help4       defb    "3:          View file",0
 help5       defb    "4:          Edit file",0
-help6       defb    "5:          Copy files (directory is not not support",0
-help7       defb    "6:          Move files (directory is not not support",0
+help6       defb    "5:          Copy files (directory is not support",0
+help7       defb    "6:          Move files (directory is not support",0
 help8       defb    "7:          Create directory",0
 help9       defb    "8:          Delete files/directory",0
 help10      defb    "9:          Rename files/directory",0

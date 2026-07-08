@@ -150,6 +150,251 @@ specific_search
 			pop ix
 			ret
 
+; ------------------------------------------------------------
+; jump_search
+;   S spusti rychle hledani podle zacatku jmena.
+;   Psané znaky se prubezne pridavaji do searchJumpBuf a po kazdem
+;   kroku se kurzor presune na prvni case-insensitive prefix match.
+; ------------------------------------------------------------
+searchJumpBuf   equ 23296
+searchJumpLen   equ FILES
+
+jump_search
+        xor a
+        ld (searchJumpLen),a
+        ld hl,searchJumpBuf
+        ld (hl),'*'
+        inc hl
+        ld (hl),255
+
+.wait_release
+        call KEYSCAN
+        ld a,e
+        inc a
+        jr nz,.wait_release
+        xor a
+        ld (aLAST_KEY+1),a
+        ld (aREPEAT_CNT+1),a
+
+.wait_key
+        call INKEY
+        cp 13
+        jp z,jump_search_exit
+        cp 1
+        jp z,jump_search_exit
+        cp 10
+        jp z,jump_search_down
+        cp 11
+        jp z,jump_search_up
+        cp 12
+        jr z,.backspace
+        cp 199
+        jr z,.backspace
+        cp 32
+        jr c,.wait_key
+
+        ld c,a
+        ld hl,searchJumpLen
+        ld a,(hl)
+        ld e,a
+        ld d,0
+        inc (hl)
+        ld hl,searchJumpBuf
+        add hl,de
+        ld a,c
+        ld (hl),a
+        inc hl
+        ld (hl),'*'
+        inc hl
+        ld (hl),255
+        call jump_search_draw
+        call jump_search_apply
+        jr .wait_key
+
+.backspace
+        ld hl,searchJumpLen
+        ld a,(hl)
+        or a
+        jr z,.wait_key
+        dec a
+        ld (hl),a
+        ld e,a
+        ld d,0
+        ld hl,searchJumpBuf
+        add hl,de
+        ld (hl),'*'
+        inc hl
+        ld (hl),255
+        call jump_search_draw
+        call jump_search_apply
+        jr .wait_key
+
+jump_search_apply
+        call jump_search_find
+        jr c,.not_found
+        call jump_search_place_cursor
+        ret
+.not_found
+        call beepk
+        ret
+
+; OUT: C=0 found, HL = 1-based katalogovy index
+;      C=1 not found
+jump_search_find
+        ld hl,ALLFILES
+        call ROZHOD2
+        ld a,(hl)
+        or a
+        jr z,jump_search_not_found
+        ld (jump_search_count+1),a
+        call getroot_reload
+        ld (jump_search_base+1),hl
+        ld (jump_search_scan+1),hl
+
+jump_search_loop
+jump_search_count
+        ld a,0
+        or a
+        jr z,jump_search_not_found
+        dec a
+        ld (jump_search_count+1),a
+jump_search_scan
+        ld hl,0
+        push hl
+        inc hl
+        call find83
+        pop hl
+        push hl
+        call FINDLFN
+        ld de,searchJumpBuf
+        ld hl,LFNNAME
+        call search
+        pop hl
+        jr z,jump_search_found
+        inc hl
+        ld (jump_search_scan+1),hl
+        jr jump_search_loop
+jump_search_not_found
+        scf
+        ret
+jump_search_found
+        ret
+
+; IN: HL = nalezeny 1-based index
+jump_search_place_cursor
+        push hl
+        ld a,0
+        call writecur
+        pop hl
+jump_search_base
+        ld de,0
+        ld a,l
+        ld b,a
+        sub e
+        ld c,a
+        cp 27
+        jr c,.store_pos
+        ld a,b
+        sub 13
+        ld e,a
+        ld c,13
+        call pjs_cap_end
+.store_pos
+        ld hl,STARTWINL
+        call ROZHOD2
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        ld hl,POSKURZL
+        call ROZHOD
+        ld a,c
+        ld (hl),a
+
+        ld hl,adrl
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld (adrs+1),hl
+        call getroot
+        call showwin
+        ld a,32
+        jp writecur
+
+jump_search_exit
+        call jump_search_restore_title
+        jp loop0
+jump_search_down
+        call jump_search_restore_title
+        jp down
+jump_search_up
+        call jump_search_restore_title
+        jp up
+
+jump_search_restore_title
+        xor a
+        ld (searchJumpLen),a
+        call jump_search_draw
+        ld hl,emptypos
+        call ROZHOD2
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        xor a
+        ld de,emptydir
+        call print
+        jp GETDIR
+
+jump_search_draw
+        ld hl,$4000+160+24
+        ld a,(OKNO)
+        bit 4,a
+        jr z,.pos_ok
+        ld de,80
+        add hl,de
+.pos_ok
+        ld a,(searchJumpLen)
+        or a
+        jr nz,.box
+        ld b,14
+.clear
+        ld (hl),' '
+        inc hl
+        ld (hl),16
+        inc hl
+        djnz .clear
+        ret
+.box
+        ld (hl),'['
+        inc hl
+        ld (hl),16
+        inc hl
+        ld b,12
+        ld a,(searchJumpLen)
+        ld c,a
+        ld de,searchJumpBuf
+.chars
+        ld a,c
+        or a
+        jr z,.space
+        ld a,(de)
+        inc de
+        dec c
+        jr .char_ok
+.space
+        ld a,' '
+.char_ok
+        ld (hl),a
+        inc hl
+        ld (hl),16
+        inc hl
+        djnz .chars
+        ld (hl),']'
+        inc hl
+        ld (hl),16
+        ret
 
 deselect
         call savescr
@@ -409,9 +654,9 @@ idfind_end
 		
         jp loop0        
 
-SELTXT		defb "Search and select files.",0
-SELTXT2		defb "Please insert part of name:",0
-DESELTXT	defb "Search and deselect files.",0
+SELTXT		defb "Select.",0
+SELTXT2		defb "Name:",0
+DESELTXT	defb "Deselect.",0
 
 
 select_files

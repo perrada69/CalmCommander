@@ -1948,24 +1948,24 @@ viewMusicAyActiveTxt   defb "[AY]",0
 viewMusicYmActiveTxt   defb "[YM]",0
 viewMusicAbcActiveTxt  defb "[ABC]",0
 viewMusicAcbActiveTxt  defb "[ACB]",0
-viewPluginMenuTitleTxt defb "Select viewer plugin:",0
-viewPluginMenuTextTxt  defb "Text viewer     text.ccp",0
-viewPluginMenuZxTxt    defb "ZX screen       zxscreen.ccp",0
-viewPluginMenuNxiTxt   defb "NXI image       nxi.ccp",0
-viewPluginMenuPt3Txt   defb "PT3 player      pt3test.ccp",0
-viewPluginMenuPt2Txt   defb "PT2 player      pt2test.ccp",0
-viewPluginMenuStcTxt   defb "STC player      stctest.ccp",0
-viewPluginMenuStpTxt   defb "STP player      stptest.ccp",0
-viewPluginMenuSqtTxt   defb "SQT player      sqtest.ccp",0
-viewPluginMenuHelloTxt defb "Hello demo     HelloWord.ccp",0
-viewPluginMenuBasTxt   defb "BAS viewer      bas.ccp",0
+viewPluginMenuTitleTxt defb "Viewer:",0
+viewPluginMenuTextTxt  defb "Text text.ccp",0
+viewPluginMenuZxTxt    defb "SCR zxscreen.ccp",0
+viewPluginMenuNxiTxt   defb "NXI nxi.ccp",0
+viewPluginMenuPt3Txt   defb "PT3 pt3test.ccp",0
+viewPluginMenuPt2Txt   defb "PT2 pt2test.ccp",0
+viewPluginMenuStcTxt   defb "STC stctest.ccp",0
+viewPluginMenuStpTxt   defb "STP stptest.ccp",0
+viewPluginMenuSqtTxt   defb "SQT sqtest.ccp",0
+viewPluginMenuHelloTxt defb "Hello HelloWord.ccp",0
+viewPluginMenuBasTxt   defb "BAS bas.ccp",0
 viewPluginMenuBlankTxt defb "                            ",0
 
 viewErrorTitleTxt       defb "Viewer:",0
-viewNoViewerTxt         defb "No viewer is available for this file.",0
-viewFileErrorTxt        defb "Cannot open selected file.",0
-viewPluginErrorTxt      defb "Cannot load viewer plugin.",0
-viewTryOtherTxt         defb "Install a matching plugin or use another file.",0
+viewNoViewerTxt         defb "No viewer.",0
+viewFileErrorTxt        defb "Cannot open file.",0
+viewPluginErrorTxt      defb "Cannot load plugin.",0
+viewTryOtherTxt         defb "Try another file.",0
 viewPluginDosName       defs 64
 viewExtractOff          defw 0
 viewExtractCnt          defw 0
