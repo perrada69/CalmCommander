@@ -28,7 +28,15 @@ YMIN     equ  0
 ;TAKE COORDINATES FROM CURPOS=
 ;=COORD
          
-MOUSE    
+MOUSE
+         ld   a,(cfgUseKMouse)
+         or   a
+         jr   nz,.enabled
+         xor  a
+         ld   (CONTRB),a
+         ld   hl,(COORD)
+         ret
+.enabled
          ld   hl,(COORD)
 ;L=X-axis
 ;H=Y-axis

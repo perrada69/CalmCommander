@@ -31,6 +31,8 @@ ALLPOSR		defw 0
 STARTWINL	defw 1				;pocatecni soubor na zacatku okna
 STARTWINR	defw 1
 cursorComp	defb 0
+cfgUseKMouse	defb 0				; 0 = K-Mouse vypnuta (vychozi), 1 = zapnuta
+cfgDirsFirst	defb 0				; 0 = poradi z DOSu, 1 = adresare pred soubory
 
 DelkaCfg	equ $-PATHLEFT
 

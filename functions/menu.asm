@@ -556,6 +556,8 @@ rohAktivnihoMenu
 ; =============================================================================
 show_menu
 SAS
+        call menu_sync_config_marks
+
         ; --- zjisti délku menu (počet řádků) ---
         ld a,(nummenu)
         ld e,a
@@ -790,7 +792,7 @@ nummenu     defb 0              ; index hlavního menu (0..4)
 menuitems   defw menuleft, menufile, menuutil, menuright, menuquit
 
 ; počet položek v každém menu (pozor: používám to jako počet řádků pro smyčku)
-menulenght  defb 4, 6, 3, 4, 2
+menulenght  defb 4, 6, 5, 4, 2
 
 ; index vybrané položky v aktuálním menu (0-based)
 menucur     defb 0
@@ -851,9 +853,42 @@ menuutil
         defw help
         defb " ABOUT CC    (SS+I)",0
         defw info
-        defb " SORT DIRECTORY    ",0
-        defw notnow
+menuUseKMouseTxt
+        defb CHAR_DOT_RED,"  USE K-MOUSE     ",0
+        defw toggle_kmouse
+menuDirsFirstTxt
+        defb CHAR_DOT_RED,"  DIRS FIRST      ",0
+        defw toggle_dirs_first
         defb 255
+
+menu_sync_config_marks
+        ld a,(cfgUseKMouse)
+        add a,a
+        add a,CHAR_DOT_RED
+        ld (menuUseKMouseTxt),a
+        ld a,(cfgDirsFirst)
+        add a,a
+        add a,CHAR_DOT_RED
+        ld (menuDirsFirstTxt),a
+        ret
+
+toggle_kmouse
+        ld hl,cfgUseKMouse
+        jr toggle_config
+
+toggle_dirs_first
+        ld hl,cfgDirsFirst
+
+toggle_config
+        ld a,(hl)
+        xor 1
+        ld (hl),a
+        call dospage
+        call zapisCfg
+        call basicpage
+        call showSprite
+        call obnov_okna
+        jp loop0
 
 menuquit
         defb " EXIT MENU  (BREAK)",0

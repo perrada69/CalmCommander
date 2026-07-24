@@ -3303,6 +3303,9 @@ acont
 
         call NOBUFF83                             ; rutina níže běží z $A000, vrať tam programový kód
         call promote_dot_dirs                     ; "." a ".." drž vždy na začátku výpisu
+        ld a,(cfgDirsFirst)
+        or a
+        call nz,promote_all_dirs                  ; volitelně stabilně přesuň adresáře před soubory
         call BUFF83                               ; přepni datovou stránku pro okno zpět (NextReg $55)
 
                                                   ; Přeskočí první položku (catbuff+13), pak načítá LFN pro všechny položky
@@ -4179,6 +4182,10 @@ syscopy_overwrite_prompt
         pop af
         ret
 
+dotInsertPtr defw 0
+dotFoundPtr  defw 0
+dotRemaining defw 0
+overwriteAll defb 0
 
 E1
 
@@ -4476,12 +4483,96 @@ pjs_store
         ld (hl),c
         ret
 
+promote_all_dirs
+        ld hl,ALLFILES
+        call ROZHOD2
+        ld a,(hl)
+        ld (dirsRemaining),a
+        inc hl
+        ld a,(hl)
+        ld (dirsRemaining+1),a
+        ld hl,buffl
+        call ROZHOD
+        ld a,(hl)
+        nextreg $57,a
+        ld hl,#e000+13
+        ld (dirsScanPtr),hl
+        ld (dirsInsertPtr),hl
+promote_dirs_find_file
+        ld hl,(dirsRemaining)
+        ld a,h
+        or l
+        jr z,promote_dirs_done
+        ld hl,(dirsScanPtr)
+        ld de,7
+        add hl,de
+        bit 7,(hl)
+        call nz,promote_dirs_bubble
+        jr z,promote_dirs_advance_scan
+        ld hl,(dirsInsertPtr)
+        ld de,13
+        add hl,de
+        ld (dirsInsertPtr),hl
+promote_dirs_advance_scan
+        ld hl,(dirsScanPtr)
+        ld de,13
+        add hl,de
+        ld (dirsScanPtr),hl
+        ld hl,(dirsRemaining)
+        dec hl
+        ld (dirsRemaining),hl
+        jr promote_dirs_find_file
+promote_dirs_done
+        nextreg $57,1
+        ret
+
+promote_dirs_bubble
+        push af
+        ld hl,(dirsScanPtr)
+        push hl
+promote_dirs_bubble_next
+        ld de,(dirsInsertPtr)
+        or a
+        sbc hl,de
+        jr z,promote_dirs_bubble_done
+        ld hl,(dirsScanPtr)
+        ld de,13
+        or a
+        sbc hl,de
+        ld (dirsScanPtr),hl
+        push hl
+        add hl,de
+        ex de,hl
+        pop hl
+        jp promote_dirs_bubble_swap
+
+dirsScanPtr   defb 0
+
 E3
         org 49152
 S2
-dotInsertPtr defw 0
-dotFoundPtr  defw 0
-dotRemaining defw 0
+        defb 0                                   ; high byte dirsScanPtr
+dirsInsertPtr defw 0
+dirsRemaining defw 0
+promote_dirs_bubble_swap
+        ld b,13
+.swap_byte
+        ld c,(hl)
+        ld a,(de)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc hl
+        inc de
+        djnz .swap_byte
+        ld hl,(dirsScanPtr)
+        jp promote_dirs_bubble_next
+promote_dirs_bubble_done
+        pop hl
+        ld (dirsScanPtr),hl
+        pop af
+        ret
+
 oknoVyber	defb	64,32
             defb	100,96
 
@@ -7178,6 +7269,14 @@ showSprite
             push hl
             push de
 
+            ld a,(cfgUseKMouse)
+            or a
+            jr nz,.mouse_enabled
+            nextreg $34,0
+            nextreg $38,0
+            jr showSpriteDone
+.mouse_enabled
+
 
         ; ------------------------------------------------------------
         ; Načtení nové pozice a tlačítek z driveru
@@ -7261,7 +7360,7 @@ mouseY      nextreg $36,80                        ; Y
 moreX       nextreg $37,%00001000                 ; X high + flags
             nextreg $38,%10000000                 ; další sprite flags
 
-
+showSpriteDone
             pop de
             pop hl
             pop bc
@@ -7747,8 +7846,6 @@ overwrite_choice
 .enter
         ld a,13
         ret
-
-overwriteAll defb 0
 
 morecopytxt      defb "Copy?",0
 moremovetxt      defb "Move?",0
