@@ -20,6 +20,10 @@ zobrazeneMenu
 menu
         ld a,1
         ld (zobrazeneMenu),a
+        ld a,(cfgSortMode)
+        ld (menuSortOriginal),a
+        ld hl,(COORD)
+        ld (menuMouseCoord),hl
 
         ld hl,0*256+0           ; HL = pozice tisku (X=0,Y=0) 
         ld de,text              ; DE = ukazatel na text
@@ -164,6 +168,18 @@ menu001
         or b
         jr nz,menu001
 
+        ld a,(cfgSortMode)
+        ld b,a
+        ld a,(menuSortOriginal)
+        cp b
+        jp z,loop0
+
+        ; Volba se ukládá a oba panely se přerovnají teprve při opuštění menu.
+        call dospage
+        call zapisCfg
+        call basicpage
+        call showSprite
+        call obnov_okna
         jp loop0                 ; pokračuj v hlavním programu
 
 
@@ -485,6 +501,17 @@ podbarviPodlePoziceMysky
         or a
         ret z                   ; pokud menu není zobrazené, nic nedělej
 
+        ; Hover reaguje jen na pohyb. Jinak by stojící myš po každém
+        ; stisku šipky okamžitě vrátila kurzor na svůj řádek.
+        ld hl,(COORD)
+        ld de,(menuMouseCoord)
+        push hl
+        or a
+        sbc hl,de
+        pop hl
+        ret z
+        ld (menuMouseCoord),hl
+
         call ZjistiJestliJsemVMenu
         ret c                   ; Carry=1 => myš není v menu oblasti
 
@@ -516,6 +543,8 @@ JsemVMenu
         call writecurmenu
 
         ret
+
+menuMouseCoord defw 0
 
 
 ; =============================================================================
@@ -717,6 +746,16 @@ curmen0
 ; =============================================================================
 MENUENTER
 menuenter
+        ; Poslední položka Utils je jediná "živá" položka menu:
+        ; cykluje hodnotu a menu nezavírá.
+        ld a,(nummenu)
+        cp 2
+        jr nz,menuenter_close
+        ld a,(menucur)
+        cp 5
+        jp z,cycle_sort_mode
+
+menuenter_close
         ; --- vyber správnou definici menu podle nummenu ---
         ld a,(nummenu)
         ld e,a
@@ -792,7 +831,7 @@ nummenu     defb 0              ; index hlavního menu (0..4)
 menuitems   defw menuleft, menufile, menuutil, menuright, menuquit
 
 ; počet položek v každém menu (pozor: používám to jako počet řádků pro smyčku)
-menulenght  defb 4, 6, 5, 4, 2
+menulenght  defb 4, 6, 6, 4, 2
 
 ; index vybrané položky v aktuálním menu (0-based)
 menucur     defb 0
@@ -859,6 +898,9 @@ menuUseKMouseTxt
 menuDirsFirstTxt
         defb CHAR_DOT_RED,"  DIRS FIRST      ",0
         defw toggle_dirs_first
+menuSortTxt
+        defb " SORT BY: NAME     ",0
+        defw cycle_sort_mode
         defb 255
 
 menu_sync_config_marks
@@ -870,7 +912,44 @@ menu_sync_config_marks
         add a,a
         add a,CHAR_DOT_RED
         ld (menuDirsFirstTxt),a
+        ld a,(cfgSortMode)
+        ld e,a
+        ld d,0
+        ld hl,menuSortTextTable
+        add hl,de
+        add hl,de
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ld de,menuSortTxt+10
+        ld bc,9
+        ldir
         ret
+
+menuSortTextTable
+        defw menuSortName,menuSortExt,menuSortDate
+menuSortName defb "NAME     "
+menuSortExt  defb "EXTENSION"
+menuSortDate defb "DATE     "
+
+menuSortOriginal defb 0
+
+cycle_sort_mode
+        ld a,(cfgSortMode)
+        inc a
+        cp 3
+        jr c,.store
+        xor a
+.store
+        ld (cfgSortMode),a
+        call menu_sync_config_marks
+        ; Překreslení celého popupu je bezpečné, uložené pozadí zůstává stejné.
+        call show_menu
+        ld a,64
+        call writecurmenu
+        call menu_wait_mouse_release
+        jp menu01
 
 toggle_kmouse
         ld hl,cfgUseKMouse

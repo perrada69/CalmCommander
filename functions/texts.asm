@@ -33,6 +33,7 @@ STARTWINR	defw 1
 cursorComp	defb 0
 cfgUseKMouse	defb 0				; 0 = K-Mouse vypnuta (vychozi), 1 = zapnuta
 cfgDirsFirst	defb 0				; 0 = poradi z DOSu, 1 = adresare pred soubory
+cfgSortMode	defb 0				; 0 = jmeno, 1 = pripona, 2 = datum (nejnovejsi prvni)
 
 DelkaCfg	equ $-PATHLEFT
 

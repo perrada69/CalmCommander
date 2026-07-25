@@ -2655,9 +2655,13 @@ clickMouse
         ret
 
 INKEY 	call gettime
+        ; Nejdřív načti aktuální souřadnice a tlačítka. Dříve se hover
+        ; vyhodnotil nad starou pozicí a klik pak spustil předchozí řádek menu.
+        call MOUSE
+        push af
         call podbarviPodlePoziceMysky
         call zjistiJestliMyskaNeniVHorniCastiMenu
-        call MOUSE
+        pop af
         ld b,a                                    ; uložit aktuální stav tlačítek
 
                                                   ; kontrola změny tlačítek oproti uloženému stavu
@@ -3302,16 +3306,13 @@ acont
         dec bc                                    ; úprava počtu (pravděpodobně korekce o 1 položku – bez spekulace proč)
 
         call NOBUFF83                             ; rutina níže běží z $A000, vrať tam programový kód
-        call promote_dot_dirs                     ; "." a ".." drž vždy na začátku výpisu
-        ld a,(cfgDirsFirst)
-        or a
-        call nz,promote_all_dirs                  ; volitelně stabilně přesuň adresáře před soubory
         call BUFF83                               ; přepni datovou stránku pro okno zpět (NextReg $55)
 
                                                   ; Přeskočí první položku (catbuff+13), pak načítá LFN pro všechny položky
         ld hl,catbuff+13
 askon
         call getAllLFN                            ; interní: prochází catbuff a pro každou položku ukládá LFN do “paged bufferu”
+        call sort_loaded_dir_trampoline
         call getdir                               ; interní/external mix: aktualizace cesty (nemám celý include, neodhaduju)
 
         ; root detekce: path + 3 == 255
@@ -3497,8 +3498,426 @@ contin
         jp nz,LFN1
 
 AAA
-        nextreg $57,1                             ; vrať stránku 1 (programová data)
         ret
+
+
+; ------------------------------------------------------------
+; sort_loaded_dir
+; ------------------------------------------------------------
+; Selection sort nad právě načteným panelem. Společně přehazuje 13B DOS
+; katalog a odpovídající maxlen LFN blok, takže všechny následné operace
+; používají stále správné jméno, atributy, velikost, datum i čas.
+; "." a ".." se neřadí. Při cfgDirsFirst se zvlášť seřadí souvislá skupina
+; adresářů a zvlášť soubory.
+; ------------------------------------------------------------
+        MACRO emit_sort_code
+sort_loaded_dir
+        ld hl,ALLFILES
+        call ROZHOD2
+        ld a,(hl)                                ; katalog má nejvýše pocetpolozek (200)
+        cp 2
+        ret c
+        ld (sortEnd),a
+
+        xor a
+        ld (sortStart),a
+        call sort_skip_dot
+        call sort_skip_dot
+
+        ld a,(sortEnd)
+        ld (sortRangeEnd),a
+        call sort_range
+        nextreg $56,1
+        ret
+
+sort_skip_dot
+        ld a,(sortStart)
+        ld b,a
+        ld a,(sortEnd)
+        cp b
+        ret z
+        ld a,b
+        call sort_cat_ptr
+        ld a,(hl)
+        and $7f
+        cp "."
+        call NOBUFF83
+        ret nz
+        ld hl,sortStart
+        inc (hl)
+        ret
+
+; A = fyzický index položky (0 = catbuff+13), HL = ukazatel v katalogové bance
+sort_cat_ptr
+        ld l,a
+        ld h,0
+        ld b,13
+        call mull
+        ld de,catbuff+13
+        add hl,de
+        call BUFF83
+        ret
+
+sort_range
+        ld a,(sortStart)
+        ld (sortOuter),a
+.outer
+        ld a,(sortOuter)
+        inc a
+        ld b,a
+        ld a,(sortRangeEnd)
+        cp b
+        ret c
+        ret z
+
+        ld a,(sortOuter)
+        ld (sortBest),a
+        ld de,LFNNAME2
+        call sort_load_lfn
+
+        ld a,(sortOuter)
+        inc a
+        ld (sortCandidate),a
+.inner
+        ld a,(sortCandidate)
+        ld b,a
+        ld a,(sortRangeEnd)
+        cp b
+        jr z,.selected
+
+        ld a,b
+        ld de,LFNNAME
+        call sort_load_lfn
+        call sort_candidate_before_best
+        jr nc,.next_candidate
+        ld a,(sortCandidate)
+        ld (sortBest),a
+        ld hl,LFNNAME
+        ld de,LFNNAME2
+        ld bc,maxlen
+        ldir
+.next_candidate
+        ld hl,sortCandidate
+        inc (hl)
+        jr .inner
+
+.selected
+        ld a,(sortBest)
+        ld b,a
+        ld a,(sortOuter)
+        cp b
+        call nz,sort_swap_items
+        ld hl,sortOuter
+        inc (hl)
+        jr .outer
+
+; C=1 pokud LFNNAME (candidate) patří před LFNNAME2 (best)
+sort_candidate_before_best
+        ; Speciální adresáře mají vždy pořadí "." -> ".." -> ostatní.
+        ld a,(sortCandidate)
+        call sort_item_dot_rank
+        ld (sortTempKey),a
+        ld a,(sortBest)
+        call sort_item_dot_rank
+        ld b,a
+        ld a,(sortTempKey)
+        cp b
+        jr z,.not_dot_priority
+        jr nc,.dot_before
+        or a
+        ret
+.dot_before
+        scf
+        ret
+.not_dot_priority
+        ; DIRS FIRST je primární klíč, vlastní způsob řazení až sekundární.
+        ld a,(cfgDirsFirst)
+        or a
+        jr z,.same_kind
+        ld a,(sortCandidate)
+        call sort_item_is_dir
+        ld (sortTempKey),a
+        ld a,(sortBest)
+        call sort_item_is_dir
+        ld b,a
+        ld a,(sortTempKey)
+        cp b
+        jr z,.same_kind
+        or a
+        jr nz,.dir_before
+        or a
+        ret
+.dir_before
+        scf
+        ret
+.same_kind
+        ld a,(cfgSortMode)
+        cp 2
+        jp z,sort_compare_date
+        cp 1
+        jp z,sort_compare_extension
+sort_compare_name
+        ld hl,LFNNAME
+        ld de,LFNNAME2
+sort_compare_strings
+        ld b,0                                    ; max. 256 znaků LFN
+.loop
+        ld a,(de)
+        call sort_normalize_char
+        ld c,a
+        ld a,(hl)
+        call sort_normalize_char
+        cp c
+        jr c,.before
+        jr nz,.after
+        or a
+        jr z,.equal
+        inc hl
+        inc de
+        djnz .loop
+.equal
+        or a
+        ret
+.before
+        scf
+        ret
+.after
+        or a
+        ret
+
+sort_normalize_char
+        cp 255
+        jr z,.zero
+        or a
+        ret z
+        cp "a"
+        ret c
+        cp "z"+1
+        ret nc
+        sub 32
+        ret
+.zero
+        xor a
+        ret
+
+sort_item_is_dir
+        call sort_cat_ptr
+        ld de,7
+        add hl,de
+        ld a,(hl)
+        rlca
+        and 1
+        push af
+        call NOBUFF83
+        pop af
+        ret
+
+sort_item_dot_rank
+        call sort_cat_ptr
+        ld a,(hl)
+        and $7f
+        cp "."
+        jr nz,.normal
+        inc hl
+        ld a,(hl)
+        and $7f
+        cp 32
+        jr z,.one_dot
+        cp "."
+        jr nz,.normal
+        ld b,1
+        jr .dot_done
+.one_dot
+        ld b,2
+        jr .dot_done
+.normal
+        ld b,0
+.dot_done
+        push bc
+        call NOBUFF83
+        pop bc
+        ld a,b
+        ret
+
+sort_compare_extension
+        ld hl,LFNNAME
+        call sort_find_extension
+        push hl
+        ld hl,LFNNAME2
+        call sort_find_extension
+        ex de,hl
+        pop hl
+        call sort_compare_strings
+        ret c
+        ret nz
+        jp sort_compare_name
+
+; HL = jméno, vrací HL = znak za poslední tečkou (nebo terminátor)
+sort_find_extension
+        ld de,0                                   ; bez tečky se porovnává prázdná přípona
+        ld b,0
+.scan
+        ld a,(hl)
+        cp 255
+        jr z,.done
+        or a
+        jr z,.done
+        cp "."
+        jr nz,.next
+        push hl
+        pop de
+        inc de
+.next
+        inc hl
+        djnz .scan
+.done
+        ld a,d
+        or e
+        ret z                                    ; HL už ukazuje na terminátor
+        ex de,hl
+        ret
+
+; Datum a čas sestupně (nejnovější první), při shodě jméno.
+sort_compare_date
+        ld hl,(LFNNAME+265)
+        ld de,(LFNNAME2+265)
+        ld a,h
+        cp d
+        jr c,.date_after
+        jr nz,.date_before
+        ld a,l
+        cp e
+        jr c,.date_after
+        jr nz,.date_before
+        ld hl,(LFNNAME+267)
+        ld de,(LFNNAME2+267)
+        ld a,h
+        cp d
+        jr c,.date_after
+        jr nz,.date_before
+        ld a,l
+        cp e
+        jr c,.date_after
+        jr nz,.date_before
+        jp sort_compare_name
+.date_before
+        scf
+        ret
+.date_after
+        or a
+        ret
+
+; A=index, DE=cílový buffer
+sort_load_lfn
+        push de
+        call sort_lfn_ptr
+        pop de
+        ld bc,maxlen
+        ldir
+        nextreg $56,1
+        ret
+
+; A=index, HL=zdrojový buffer
+sort_store_lfn
+        push hl
+        call sort_lfn_ptr
+        ex de,hl                                 ; DE = cíl v bance
+        pop hl                                   ; HL = zdroj
+        ld bc,maxlen
+        ldir
+        nextreg $56,1
+        ret
+
+; A=index, vrací HL=adresa LFN bloku a namapuje správnou stránku do MMU7.
+sort_lfn_ptr
+        ld c,0                                   ; číslo stránky nad základem
+.divide30
+        cp 30
+        jr c,.remainder
+        sub 30
+        inc c
+        jr .divide30
+.remainder
+        ld e,a
+        ld d,0
+        ld hl,0
+        ld b,e
+        ld de,maxlen
+        ld a,b
+        or a
+        jr z,.offset_done
+.multiply
+        add hl,de
+        djnz .multiply
+.offset_done
+        ld de,#c000
+        add hl,de
+        push hl
+        ld hl,lfnpage
+        call ROZHOD
+        ld a,(hl)
+        add a,c
+        nextreg $56,a
+        pop hl
+        ret
+
+; A=outer, B=best
+sort_swap_items
+        ld (sortSwapA),a
+        ld a,b
+        ld (sortSwapB),a
+
+        ld a,(sortSwapA)
+        ld de,LFNNAME2
+        call sort_load_lfn
+        ld a,(sortSwapB)
+        ld de,LFNNAME
+        call sort_load_lfn
+        ld a,(sortSwapA)
+        ld hl,LFNNAME
+        call sort_store_lfn
+        ld a,(sortSwapB)
+        ld hl,LFNNAME2
+        call sort_store_lfn
+
+        ld a,(sortSwapA)
+        call sort_cat_ptr
+        ld de,bufftmp
+        ld bc,13
+        ldir
+        call NOBUFF83
+
+        ld a,(sortSwapB)
+        call sort_cat_ptr
+        push hl
+        ld de,LFNNAME                            ; dočasných 13 B
+        ld bc,13
+        ldir
+        pop de
+        ld hl,bufftmp
+        ld bc,13
+        ldir
+        call NOBUFF83
+
+        ld a,(sortSwapA)
+        call sort_cat_ptr
+        ex de,hl
+        ld hl,LFNNAME
+        ld bc,13
+        ldir
+        call NOBUFF83
+        ret
+
+sortStart      defb 0
+sortEnd        defb 0
+sortRangeEnd   defb 0
+sortOuter      defb 0
+sortCandidate  defb 0
+sortBest       defb 0
+sortSwapA      defb 0
+sortSwapB      defb 0
+sortTempKey    defb 0
+        ENDM
 
 
         ; ------------------------------------------------------------
@@ -4200,6 +4619,7 @@ S3
         ; $E000 přes MMU7, přesune přesné 8.3 adresářové záznamy "."/".."
         ; na začátek a MMU7 vrátí na programovou stránku.
         ; ------------------------------------------------------------
+        MACRO unused_promote_dot_dirs
 promote_dot_dirs
         ld hl,ALLFILES
         call ROZHOD2
@@ -4358,6 +4778,7 @@ dot_dir_spaces
 dot_dir_no_match
         or a
         ret
+        ENDM
 
         include "functions/copy.asm"
 reload_panels_after_cancel
@@ -4483,96 +4904,9 @@ pjs_store
         ld (hl),c
         ret
 
-promote_all_dirs
-        ld hl,ALLFILES
-        call ROZHOD2
-        ld a,(hl)
-        ld (dirsRemaining),a
-        inc hl
-        ld a,(hl)
-        ld (dirsRemaining+1),a
-        ld hl,buffl
-        call ROZHOD
-        ld a,(hl)
-        nextreg $57,a
-        ld hl,#e000+13
-        ld (dirsScanPtr),hl
-        ld (dirsInsertPtr),hl
-promote_dirs_find_file
-        ld hl,(dirsRemaining)
-        ld a,h
-        or l
-        jr z,promote_dirs_done
-        ld hl,(dirsScanPtr)
-        ld de,7
-        add hl,de
-        bit 7,(hl)
-        call nz,promote_dirs_bubble
-        jr z,promote_dirs_advance_scan
-        ld hl,(dirsInsertPtr)
-        ld de,13
-        add hl,de
-        ld (dirsInsertPtr),hl
-promote_dirs_advance_scan
-        ld hl,(dirsScanPtr)
-        ld de,13
-        add hl,de
-        ld (dirsScanPtr),hl
-        ld hl,(dirsRemaining)
-        dec hl
-        ld (dirsRemaining),hl
-        jr promote_dirs_find_file
-promote_dirs_done
-        nextreg $57,1
-        ret
-
-promote_dirs_bubble
-        push af
-        ld hl,(dirsScanPtr)
-        push hl
-promote_dirs_bubble_next
-        ld de,(dirsInsertPtr)
-        or a
-        sbc hl,de
-        jr z,promote_dirs_bubble_done
-        ld hl,(dirsScanPtr)
-        ld de,13
-        or a
-        sbc hl,de
-        ld (dirsScanPtr),hl
-        push hl
-        add hl,de
-        ex de,hl
-        pop hl
-        jp promote_dirs_bubble_swap
-
-dirsScanPtr   defb 0
-
 E3
         org 49152
 S2
-        defb 0                                   ; high byte dirsScanPtr
-dirsInsertPtr defw 0
-dirsRemaining defw 0
-promote_dirs_bubble_swap
-        ld b,13
-.swap_byte
-        ld c,(hl)
-        ld a,(de)
-        ld (hl),a
-        ld a,c
-        ld (de),a
-        inc hl
-        inc de
-        djnz .swap_byte
-        ld hl,(dirsScanPtr)
-        jp promote_dirs_bubble_next
-promote_dirs_bubble_done
-        pop hl
-        ld (dirsScanPtr),hl
-        pop af
-        ret
-
 oknoVyber	defb	64,32
             defb	100,96
 
@@ -6930,6 +7264,7 @@ snuly   ld a,(hl)
 ; help - trampoline do extra banky (EXTRA_BANK_PAGE)
 ; ============================================================
 help
+        call savescr
         NEXTREG2A MMU7_E000_NR_57
         push af
         nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
@@ -6947,18 +7282,41 @@ help
 ; (ruční kopie nadpisu do #4000 s atributem 16).
 ; ============================================================
 notnow
+        call savescr
         NEXTREG2A MMU7_E000_NR_57
         push af
         nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
         call EXTRA_NOTNOW
         pop af
         nextreg MMU7_E000_NR_57, a
+        call loadscr
+        jp loop0
+
+sort_loaded_dir_trampoline
+        nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE
+        call sort_loaded_dir
+        nextreg MMU7_E000_NR_57,1
+        ret
+
+infoend
+        call loadscr
         jp loop0
 
 
 
 info
         call savescr
+        NEXTREG2A MMU7_E000_NR_57
+        push af
+        nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
+        call EXTRA_INFO
+        pop af
+        nextreg MMU7_E000_NR_57, a
+        call loadscr
+        jp loop0
+
+        MACRO emit_info_code
+EXTRA_INFO
         ld hl,8 * 256 + 10
         ld bc,60 * 256 + 10
         ld a,16
@@ -7041,10 +7399,9 @@ info0
         ld (TLACITKO),a
         call INKEY
         cp 1
-        jp z,infoend
+        ret z
         jp info0
-infoend call loadscr
-        jp loop0
+        ENDM
 
 kresli
         call prekresli_prazdne_okna
@@ -7874,6 +8231,9 @@ E2
             MMU 7, EXTRA_BANK_PAGE
             ORG $E000
 
+            emit_sort_code
+            emit_info_code
+
 ; --- Font data (specialchar) - label je definovan uvnitr include na radku 1 ---
             include "tilemap_font_8x6.i.asm"
 ; specialchar2 je definovana uvnitr include
@@ -7884,7 +8244,6 @@ sipka:
 
 ; --- Help dialog ---
 EXTRA_HELP:
-            call savescr
             ld hl,8 * 256 + 4
             ld bc,60 * 256 + 20
             ld a,16
@@ -7990,7 +8349,6 @@ help17      defb    "CAPS+2      Change drive in right window",0
 help18      defb    "SS+I:       Info about Calm Commander ",0
 
 EXTRA_NOTNOW:
-        call savescr
         ld hl,8 * 256 + 10
         ld bc,60 * 256 + 3
         ld a,16
@@ -8009,24 +8367,6 @@ EXTRA_NOTNOW:
         xor a
         ld (TLACITKO),a
         call INKEY
-        call loadscr
-
-        ; rucne prekresli nadpis do obrazovky
-        ld hl,nadpis
-        ld de,#4000
-        ld bc,80
-.not0
-        ld a,(hl)
-        ld (de),a
-        inc de
-        ld a,16
-        ld (de),a
-        inc de
-        inc hl
-        dec bc
-        ld a,c
-        or b
-        jr nz,.not0
         ret
 
 notimplemented defb "This feature is not yet implemented.",0
