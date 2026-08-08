@@ -1,0 +1,84 @@
+<h1>Calm Commander 1.4 &mdash; bookmarks, settings and loading feedback</h1>
+
+<p>
+Version <strong>1.4</strong> of Calm Commander brings several quality-of-life
+improvements focused on faster navigation, customization, and clearer feedback
+when working with large directories.
+</p>
+
+<h2>Bookmarks</h2>
+
+<p>
+Frequently used directories can now be saved as bookmarks and opened again
+without navigating through the complete directory structure.
+</p>
+
+<ul>
+  <li>Press <strong>Shift+B</strong> to bookmark the current directory.</li>
+  <li>Press <strong>B</strong> to open the bookmark list.</li>
+  <li>Bookmark names can contain up to 24 characters.</li>
+  <li>Long file name paths are shown when adding and browsing bookmarks.</li>
+  <li>Opening a bookmark refreshes only the active panel.</li>
+</ul>
+
+<p>
+Bookmarks are stored alongside <strong>cc.cfg</strong>. Existing bookmark files
+using the older format are upgraded automatically without losing saved entries.
+The complete feature is implemented as an 8 KB plugin to save space in the main
+program.
+</p>
+
+<h2>Settings</h2>
+
+<p>
+The new <strong>Settings</strong> window can be opened with
+<strong>Caps+S</strong>. It allows you to customize Calm Commander's colours and
+remap its keyboard shortcuts.
+</p>
+
+<ul>
+  <li>Switch between the Colours and Keys tabs with the left and right arrows.</li>
+  <li>Assign your preferred shortcut to every available action.</li>
+  <li>Duplicate shortcuts are detected and cannot be assigned.</li>
+  <li>Caps Shift combinations such as Caps+3 and Caps+C are handled correctly.</li>
+  <li>The Help screen and bottom shortcut bar reflect the customized controls.</li>
+</ul>
+
+<p>
+The new configuration is saved for future sessions. Settings are also provided
+as a plugin, keeping the resident part of Calm Commander as small as possible.
+</p>
+
+<h2>Automatic plugin check</h2>
+
+<p>
+Calm Commander now verifies all 16 standard plugin files during startup. When
+the installation is complete, the check remains silent and startup continues
+normally.
+</p>
+
+<p>
+If one or more plugins are missing, a centred dialog lists their complete file
+paths. This makes an incomplete installation immediately visible and shows
+exactly which files need to be restored. Press any key to continue starting
+Calm Commander.
+</p>
+
+<h2>Loading large directories</h2>
+
+<p>
+Calm Commander now provides visual feedback while a larger directory is being
+loaded and sorted. After approximately half a second of work, a compact
+<strong>Loading / sorting...</strong> message appears inside the active panel.
+</p>
+
+<p>
+The message disappears automatically when loading is complete and the panel is
+redrawn. Small and quickly loaded directories continue to open without an
+unnecessary popup.
+</p>
+
+<p>
+Thank you for using <strong>Calm Commander</strong> and for reporting bugs and
+suggesting improvements!
+</p>

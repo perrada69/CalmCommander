@@ -305,6 +305,7 @@ neskenuj
             call LoadSprites                      ; externí
 
             call VSE_NASTAV                       ; externí: globální nastavení aplikace/GUI?
+            call EXTRA_CHECK_PLUGINS              ; silent unless an installed plugin is missing
             nextreg MMU7_E000_NR_57,1             ; obnov MMU7 na default po inicializaci
 
 
@@ -8239,19 +8240,18 @@ loading_status_draw
         push bc
         ld a,(OKNO)
         and 16
-        ld h,2
+        ld h,6
         jr z,.position_ready
-        ld h,42
+        ld h,46
 .position_ready
-        ld l,11
+        ld l,13
         push hl
-        ld bc,34*256+5
+        ld bc,26*256+1
         ld a,16
         call window
         pop hl
         inc h
         inc h
-        inc l
         inc l
         ld de,loadingStatusTxt
         ld a,16
@@ -8294,6 +8294,143 @@ E2
             emit_key_dispatch_code
             emit_sort_code
             emit_info_code
+
+; Verify the complete standard plugin set while the extra bank is already
+; mapped during startup. RST $08 file access does not disturb the resident
+; code banks. Preserve every caller register because VSE_NASTAV prepares
+; HL/DE/BC for the drawing loop that follows this call.
+EXTRA_CHECK_PLUGINS:
+            push af
+            push bc
+            push de
+            push hl
+            push ix
+            push iy
+            ld hl,extraPluginTable
+            ld (extraPluginScanPtr),hl
+            xor a
+            ld (extraPluginMissingCount),a
+.next
+            ld hl,(extraPluginScanPtr)
+            ld e,(hl)
+            inc hl
+            ld d,(hl)
+            inc hl
+            ld (extraPluginScanPtr),hl
+            ld a,d
+            or e
+            jr z,.complete
+            ld (extraPluginCurrentPath),de
+            push de
+            pop ix
+            xor a
+            ld b,FA_READ
+            rst $08
+            db F_OPEN
+            jr c,.missing
+            rst $08
+            db F_CLOSE
+            jr .next
+.missing
+            ld a,(extraPluginMissingCount)
+            inc a
+            ld (extraPluginMissingCount),a
+            cp 1
+            call z,extra_plugin_check_draw_box
+            add a,5
+            ld l,a
+            ld h,4
+            ld de,(extraPluginCurrentPath)
+            ld a,16
+            call print
+            jr .next
+.complete
+            ld a,(extraPluginMissingCount)
+            or a
+            jr z,.done
+            ld hl,4*256+26
+            ld de,extraPluginContinueTxt
+            ld a,16
+            call print
+            xor a
+            ld (TLACITKO),a
+            call INKEY
+.release
+            call KEYSCAN
+            ld a,e
+            inc a
+            jr nz,.release
+            xor a
+            ld (TLACITKO),a
+.done
+            pop iy
+            pop ix
+            pop hl
+            pop de
+            pop bc
+            pop af
+            ret
+
+extra_plugin_check_draw_box:
+            push af
+            ld hl,2*256+1
+            ld bc,74*256+28
+            ld a,16
+            call window
+            ld hl,4*256+2
+            ld de,extraPluginTitleTxt
+            ld a,16
+            call print
+            ld hl,4*256+4
+            ld de,extraPluginMissingTxt
+            ld a,16
+            call print
+            pop af
+            ret
+
+extraPluginTitleTxt    defb "Calm Commander plugin check",0
+extraPluginMissingTxt  defb "Missing plugin files:",0
+extraPluginContinueTxt defb "Press any key to continue",0
+
+extraPluginTable:
+            defw extraPluginSyscopy
+            defw extraPluginDirInfo
+            defw extraPluginBookmarks
+            defw extraPluginSettings
+            defw extraPluginText
+            defw extraPluginZxScreen
+            defw extraPluginNxi
+            defw extraPluginPt2
+            defw extraPluginPt3
+            defw extraPluginStc
+            defw extraPluginStp
+            defw extraPluginSqt
+            defw extraPluginHello
+            defw extraPluginBas
+            defw extraPluginTap
+            defw extraPluginEdit
+            defw 0
+
+extraPluginSyscopy   defb "c:/CalmCommander/plugin/syscopy.ccp",0
+extraPluginDirInfo   defb "c:/CalmCommander/plugin/dir_info.ccp",0
+extraPluginBookmarks defb "c:/CalmCommander/plugin/bookmarks.ccp",0
+extraPluginSettings  defb "c:/CalmCommander/plugin/settings.ccp",0
+extraPluginText      defb "c:/CalmCommander/plugin/text.ccp",0
+extraPluginZxScreen  defb "c:/CalmCommander/plugin/zxscreen.ccp",0
+extraPluginNxi       defb "c:/CalmCommander/plugin/nxi.ccp",0
+extraPluginPt2       defb "c:/CalmCommander/plugin/pt2test.ccp",0
+extraPluginPt3       defb "c:/CalmCommander/plugin/pt3test.ccp",0
+extraPluginStc       defb "c:/CalmCommander/plugin/stctest.ccp",0
+extraPluginStp       defb "c:/CalmCommander/plugin/stptest.ccp",0
+extraPluginSqt       defb "c:/CalmCommander/plugin/sqtest.ccp",0
+extraPluginHello     defb "c:/CalmCommander/plugin/HelloWord.ccp",0
+extraPluginBas       defb "c:/CalmCommander/plugin/bas.ccp",0
+extraPluginTap       defb "c:/CalmCommander/plugin/tap.ccp",0
+extraPluginEdit      defb "c:/CalmCommander/plugin/edit.ccp",0
+
+extraPluginScanPtr      defw 0
+extraPluginCurrentPath  defw 0
+extraPluginMissingCount defb 0
 
 ; --- Font data (specialchar) - label je definovan uvnitr include na radku 1 ---
             include "tilemap_font_8x6.i.asm"
