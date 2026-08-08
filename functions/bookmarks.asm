@@ -53,7 +53,11 @@ bookmarks_run
         ld hl,LFNNAME
         ld bc,BOOKMARK_PATH_SIZE
         ldir
-        call reload_panels_after_cancel
+        call obnov_jedno_okno
+        call GETDIR
+        ld a,32
+        call writecur
+        call freespace
         call dospage
         call zapisCfg
         call basicpage

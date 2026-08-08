@@ -71,6 +71,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/syscopy.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/dir_info.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/bookmarks.ccp 2>nul
+"%HDF%" rm "%IMG%" %PLUG%/settings.ccp 2>nul
 "%HDF%" rm "%IMG%" %DOT%/copy 2>nul
 "%HDF%" rm "%IMG%" %DOT%/del 2>nul
 "%HDF%" rm "%IMG%" %DOT%/dirinfo 2>nul
@@ -121,6 +122,7 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\syscopy.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\dir_info.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\bookmarks.ccp %PLUG%/
+"%HDF%" put "%IMG%" build\plugin\settings.ccp %PLUG%/
 echo   [PUT] dot commands -^> %DOT%/
 "%HDF%" put "%IMG%" build\extra\copy %DOT%/
 if errorlevel 1 (
@@ -142,7 +144,7 @@ echo.
 echo [OK] Soubory zkopirovany na SD kartu.
 if exist "%CSPECT_LOG%" del /Q "%CSPECT_LOG%"
 echo Spoustim CSpect... (log: %CD%\%CSPECT_LOG%)
-"%CSPECT%" -zxnext -basickeys -nextrom -map=player.map -tv -mmc="%IMG%" 1>>"%CSPECT_LOG%" 2>&1
+"%CSPECT%" -zxnext -nextrom -map=player.map -tv -mmc="%IMG%" 1>>"%CSPECT_LOG%" 2>&1
 set "CSPECT_EXIT=%ERRORLEVEL%"
 echo.
 echo --- POSLEDNI RADKY CSPECT LOGU ---
@@ -250,6 +252,10 @@ if exist plugin\dir_info.ccp ( copy /Y plugin\dir_info.ccp build\plugin\dir_info
 "%SJASMPLUS%" plugin\bookmarks.asm
 if errorlevel 1 ( echo *** BUILD FAILED: bookmarks.asm *** & exit /b 1 )
 if exist plugin\bookmarks.ccp ( copy /Y plugin\bookmarks.ccp build\plugin\bookmarks.ccp >nul )
+
+"%SJASMPLUS%" plugin\settings.asm
+if errorlevel 1 ( echo *** BUILD FAILED: settings.asm *** & exit /b 1 )
+if exist plugin\settings.ccp ( copy /Y plugin\settings.ccp build\plugin\settings.ccp >nul )
 
 echo.
 echo [OK] Build hotov.

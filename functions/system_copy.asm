@@ -360,6 +360,10 @@ sysCopyServices
         defw print
         defw window
         defw syscopy_overwrite_prompt
+        defw KEYSCAN
+        defw SYMTAB
+        defw CAPSTAB
+        defw NORMTAB
 
 sysCopyContext  defs SYSCOPYCTX_SIZE
 sysCopyName     defs 13
@@ -368,3 +372,19 @@ sysCopySavedMmu7 defb 0
 
 sysCopyPluginDir  defb "c:/CalmCommander/plugin",255
 sysCopyPluginName defb "syscopy.ccp",255
+; Plugin names passed to syscopy_load_plugin must remain visible while
+; dospage has bank 7 mapped at $C000-$FFFF. Keep Settings' name here below
+; $C000; placing it beside settings_open ($DDxx) makes the DOS open read
+; unrelated bank-7 data and the dialog then fails silently.
+settingsPluginName defb "settings.ccp",255
+        assert settingsPluginName < $C000
+
+; settings_open itself lives in the banked $C000-$DFFF area. It must not
+; regain control between dospage and basicpage, because dospage maps that
+; code out. Keep the complete configuration write transition resident here.
+settings_save_config
+        call dospage
+        call zapisCfg
+        call basicpage
+        ret
+        assert settings_save_config < $C000

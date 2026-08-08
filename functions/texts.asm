@@ -35,6 +35,25 @@ cfgUseKMouse	defb 0				; 0 = K-Mouse vypnuta (vychozi), 1 = zapnuta
 cfgDirsFirst	defb 0				; 0 = poradi z DOSu, 1 = adresare pred soubory
 cfgSortMode	defb 0				; 0 = jmeno, 1 = pripona, 2 = datum (nejnovejsi prvni)
 
+; Map legacy Tilemap attribute groups 0..15 to user-selected palette groups.
+; Values are palette bases, so the default identity map preserves the original
+; Calm Commander colour scheme and old cc.cfg files remain compatible.
+cfgPaletteMap
+		defb 0,16,32,48,64,80,96,112
+		defb 128,144,160,176,192,208,224,240
+cfgPaletteMapEnd
+		assert cfgPaletteMapEnd-cfgPaletteMap = SETTINGS_PALETTE_COUNT
+
+; One physical INKEY result per logical action (see settings_api.i.asm).
+; Keeping action -> key makes dispatch, Settings and dynamic Help share the
+; same single source of truth.
+cfgKeyBindings
+		defb 127,10,11,9,8,4,13,"8",12,"9","0","5","6",32,"7",7
+		defb 6,"+","*","-","s","1","2","3","4","P","B","b","h","c","i",199
+		defb "S"
+cfgKeyBindingsEnd
+		assert cfgKeyBindingsEnd-cfgKeyBindings = SETTINGS_ACTION_COUNT
+
 DelkaCfg	equ $-PATHLEFT
 
 bottom		defb 	"                                                                                ",0			

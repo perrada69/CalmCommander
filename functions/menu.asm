@@ -197,7 +197,7 @@ nadpis111
         ld a,(hl)
         ld (de),a
         inc de
-        ld a,16
+        ld a,(cfgPaletteMap+1)
         ld (de),a
         inc de
         inc hl
@@ -711,6 +711,7 @@ SASS
 ;   a pak se 18× v rozestupu 2 bajty zapisuje hodnota A (atributový pruh)
 ; =============================================================================
 writecurmenu
+        call cc_map_palette_attr
         ld (curmencolor+1),a    ; SMC: operand u "ld a,16"
 
 curmen   ld hl,0                ; SMC: base adresa menu v obrazovce
@@ -831,7 +832,7 @@ nummenu     defb 0              ; index hlavního menu (0..4)
 menuitems   defw menuleft, menufile, menuutil, menuright, menuquit
 
 ; počet položek v každém menu (pozor: používám to jako počet řádků pro smyčku)
-menulenght  defb 4, 6, 8, 4, 2
+menulenght  defb 4, 6, 9, 4, 2
 
 ; index vybrané položky v aktuálním menu (0-based)
 menucur     defb 0
@@ -905,9 +906,21 @@ menuSortTxt
         defw bookmarks_add
         defb " SHOW BOOKMARK  (B)",0
         defw bookmarks_list
+        defb " SETTINGS          ",0
+        defw settings_open
         defb 255
 
 menu_sync_config_marks
+        NEXTREG2A MMU7_E000_NR_57
+        push af
+        nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE
+        call EXTRA_MENU_SYNC_CONFIG_MARKS
+        pop af
+        nextreg MMU7_E000_NR_57,a
+        ret
+
+        MACRO emit_menu_settings_code
+EXTRA_MENU_SYNC_CONFIG_MARKS
         ld a,(cfgUseKMouse)
         add a,a
         add a,CHAR_DOT_RED
@@ -936,6 +949,7 @@ menuSortTextTable
 menuSortName defb "NAME     "
 menuSortExt  defb "EXTENSION"
 menuSortDate defb "DATE     "
+        ENDM
 
 menuSortOriginal defb 0
 

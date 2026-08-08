@@ -21,11 +21,11 @@ WORK_AREA        equ $E000
 RECORD_BUFFER    equ WORK_AREA
 LINE_BUFFER      equ RECORD_BUFFER+BOOKMARK_RECORD_SIZE
 NAME_BUFFER      equ LINE_BUFFER+72
-LFN_PATH_BUFFER  equ $E180
-TRAVERSE_PATH    equ $E288
-COMPONENT_BUFFER equ $E390
-SHORT_ENTRY      equ $E3A0
-LFN_ENTRY        equ $E400
+LFN_PATH_BUFFER  equ $E1A0
+TRAVERSE_PATH    equ $E2A8
+COMPONENT_BUFFER equ $E3B0
+SHORT_ENTRY      equ $E3C0
+LFN_ENTRY        equ $E420
 
 BOX_X            equ 4
 BOX_Y            equ 3
@@ -103,6 +103,8 @@ bookmark_add
         call plot_string
         call edit_name
         ret c
+        call migrate_bookmark_file
+        jp c,file_error
 
         ld hl,RECORD_BUFFER
         ld de,RECORD_BUFFER+1
@@ -136,7 +138,7 @@ bookmark_add
         ld ixl,SEEK_SET
         rst $08
         db F_SEEK
-        jr c,.close_error
+        jp c,.close_error
         ld a,b
         or c
         jr nz,.limit
@@ -176,10 +178,208 @@ file_error
         jp show_message
 
 
+; Upgrade the original 12-character records in place. Work from the final
+; record backwards so extending a record never overwrites one not read yet.
+migrate_bookmark_file
+        xor a
+        ld ix,bookmarkFile
+        ld b,MODE_READ_EXIST
+        rst $08
+        db F_OPEN
+        jr nc,.opened
+        or a                                      ; a missing file needs no migration
+        ret
+.opened
+        ld (fileHandle),a
+        ld bc,$ffff
+        ld de,$ffff
+        ld ixl,SEEK_SET
+        rst $08
+        db F_SEEK
+        jp c,migration_close_error
+        ld a,b
+        or c
+        jp nz,migration_close_ok                  ; outside the supported <64K file size
+        ld (migrationSize),de
+        ld a,(fileHandle)
+        rst $08
+        db F_CLOSE
+        ret c
+
+        ld hl,(migrationSize)
+        ld de,BOOKMARK_RECORD_SIZE
+        call size_is_multiple
+        ret z                                     ; already current
+        ld hl,(migrationSize)
+        ld de,BOOKMARK_OLD_RECORD_SIZE
+        call size_is_multiple
+        jp nz,.bad_format
+
+        ld hl,(migrationSize)
+        xor a
+        ld (migrationCount),a
+.count_old
+        ld a,h
+        or l
+        jr z,.count_ready
+        ld de,BOOKMARK_OLD_RECORD_SIZE
+        or a
+        sbc hl,de
+        jp c,.bad_format
+        ld a,(migrationCount)
+        inc a
+        ld (migrationCount),a
+        jr .count_old
+.count_ready
+        ld a,(migrationCount)
+        or a
+        ret z
+        ld a,(migrationCount)
+        dec a
+        ld (migrationIndex),a
+.record_loop
+        ld a,(migrationIndex)
+        call migration_read_old_record
+        ret c
+
+        ld hl,RECORD_BUFFER+BOOKMARK_OLD_RECORD_SIZE-1
+        ld de,RECORD_BUFFER+BOOKMARK_RECORD_SIZE-1
+        ld bc,BOOKMARK_OLD_RECORD_SIZE-BOOKMARK_OLD_NAME_SIZE
+        lddr
+        ld hl,RECORD_BUFFER+BOOKMARK_OLD_NAME_SIZE
+        ld de,RECORD_BUFFER+BOOKMARK_OLD_NAME_SIZE+1
+        ld bc,BOOKMARK_NAME_SIZE-BOOKMARK_OLD_NAME_SIZE-1
+        xor a
+        ld (hl),a
+        ldir
+
+        ld a,(migrationIndex)
+        call migration_write_new_record
+        ret c
+        ld a,(migrationIndex)
+        or a
+        ret z
+        dec a
+        ld (migrationIndex),a
+        jr .record_loop
+.bad_format
+        ld a,$ff
+        scf
+        ret
+
+
+; NextZXOS does not accept the old combined read/write open mode here. Open
+; the file separately for every read and write; backwards processing still
+; guarantees that extending a record cannot overwrite unread source data.
+migration_read_old_record
+        call old_record_offset
+        ld (migrationOffset),hl
+        xor a
+        ld ix,bookmarkFile
+        ld b,MODE_READ_EXIST
+        rst $08
+        db F_OPEN
+        ret c
+        ld (fileHandle),a
+        ld hl,(migrationOffset)
+        call migration_seek
+        jp c,migration_close_error
+        ld a,(fileHandle)
+        ld ix,RECORD_BUFFER
+        ld bc,BOOKMARK_OLD_RECORD_SIZE
+        rst $08
+        db F_READ
+        jp c,migration_close_error
+        ld a,b
+        or c
+        jr nz,migration_short_io
+        jp migration_close_ok
+
+
+migration_write_new_record
+        call record_offset
+        ld (migrationOffset),hl
+        xor a
+        ld ix,bookmarkFile
+        ld b,MODE_WRITE_CREATE
+        rst $08
+        db F_OPEN
+        ret c
+        ld (fileHandle),a
+        ld hl,(migrationOffset)
+        call migration_seek
+        jp c,migration_close_error
+        ld a,(fileHandle)
+        ld ix,RECORD_BUFFER
+        ld bc,BOOKMARK_RECORD_SIZE
+        rst $08
+        db F_WRITE
+        jp c,migration_close_error
+        ld a,b
+        or c
+        jr nz,migration_short_io
+        jp migration_close_ok
+
+
+migration_short_io
+        ld a,$ff
+migration_close_error
+        push af
+        ld a,(fileHandle)
+        rst $08
+        db F_CLOSE
+        pop af
+        scf
+        ret
+migration_close_ok
+        ld a,(fileHandle)
+        rst $08
+        db F_CLOSE
+        ret
+
+
+; Z when HL is an exact multiple of DE.
+size_is_multiple
+.loop
+        ld a,h
+        or l
+        ret z
+        or a
+        sbc hl,de
+        jr nc,.loop
+        ld a,1
+        or a
+        ret
+
+
+old_record_offset
+        ld hl,0
+        or a
+        ret z
+        ld b,a
+.loop
+        ld de,BOOKMARK_OLD_RECORD_SIZE
+        add hl,de
+        djnz .loop
+        ret
+
+
+migration_seek
+        ex de,hl
+        ld bc,0
+        ld a,(fileHandle)
+        ld ixl,SEEK_SET
+        rst $08
+        db F_SEEK
+        ret
+
+
 ; -----------------------------------------------------------------------------
 ; Open, count and browse the fixed-size records.
 ; -----------------------------------------------------------------------------
 bookmark_list
+        call migrate_bookmark_file
+        jp c,file_error
         xor a
         ld ix,bookmarkFile
         ld b,MODE_READ_EXIST
@@ -442,14 +642,14 @@ draw_one_row
 .name
         ld hl,RECORD_BUFFER
         ld de,LINE_BUFFER+2
-        ld b,12
+        ld b,24
         call copy_field
         ld hl,RECORD_BUFFER+BOOKMARK_NAME_SIZE+1
         ld a,(RECORD_BUFFER+BOOKMARK_NAME_SIZE)
         call resolve_lfn_path
         ld hl,LFN_PATH_BUFFER
-        ld de,LINE_BUFFER+15
-        ld b,LIST_WIDTH-15
+        ld de,LINE_BUFFER+27
+        ld b,LIST_WIDTH-27
         call copy_field
 .plot
         ld b,LIST_X
@@ -941,7 +1141,7 @@ titleList   defb " Bookmarks",0
 promptPath  defb "Directory (LFN):",0
 promptName  defb "Bookmark name:",0
 addHint     defb "ENTER save  BREAK cancel",0
-listHeader  defb "  Name         LFN path",0
+listHeader  defb "  Name                     LFN path",0
 listHint    defb "UP/DOWN move  LEFT/RIGHT page  ENTER jump  BREAK cancel",0
 msgEmpty    defb "No bookmarks yet.",0
 msgFileError defb "Cannot access c:/sys/bookmark.cfg.",0
@@ -964,6 +1164,10 @@ topIndex    defb 0
 visibleRow  defb 0
 drawIndex   defb 0
 namePos     defb 0
+migrationSize defw 0
+migrationCount defb 0
+migrationIndex defb 0
+migrationOffset defw 0
 
 plugin_end
         assert plugin_end - plugin_start <= BOOKMARK_PLUGIN_SIZE

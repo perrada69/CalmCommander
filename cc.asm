@@ -119,6 +119,7 @@ CHAR_ARROW_B        EQU     31
 
             ; další konstanty (HW/API) jsou v include
             INCLUDE "constants.i.asm"
+            INCLUDE "plugin/settings_api.i.asm"
 
 
             ; ------------------------------------------------------------
@@ -322,6 +323,7 @@ menu0
             ld (de),a
             inc de
             ld a,16
+            call cc_map_palette_attr
             ld (de),a
             inc de
             inc hl
@@ -560,104 +562,12 @@ loop0
             call NOBUFF83                         ; externí: pravděpodobně práce s 8.3 bufferem (neodhadovat)
             call INKEY                            ; externí: načtení klávesy do A
             ld (klavesa),a                        ; uložit poslední klávesu
+            call key_dispatch_action
+            or a
+            jp z,.mouse_input
+            jp (hl)
 
-                                                  ; dispatch kláves – mapování na akce (externí rutiny)
-            cp ''
-            jp z,info
-
-            cp 10
-            jp z,down
-
-            cp 11
-            jp z,up
-
-            cp 9
-            jp z,rightcur
-
-            cp 8
-            jp z,leftcur
-
-            cp 4                                  ; “true video”
-            jp z,changewin
-
-            cp 13
-            jp z,enter
-
-            cp "8"
-            jp z,delete
-
-            cp 12                                 ; Spectrum Delete (Caps Shift + 0)
-            jp z,delete_key_parent
-
-            cp "9"
-            jp z,RENAME
-
-            cp "0"
-            jp z,menu
-
-            cp "5"
-            jp z,copy
-
-            cp "6"
-            jp z,move
-
-            cp 32
-            jp z,select
-
-            cp "7"
-            jp z,MKDIR
-
-            cp 7
-            jp z,newdisc_left
-
-            cp 6
-            jp z,newdisc_right
-
-            cp "+"
-            jp z,select_files
-
-            cp "*"
-            jp z,invert_select_files
-
-            cp "-"
-            jp z,deselect
-
-            cp "s"
-            jp z,jump_search
-
-            cp "1"
-            jp z,leftwin
-
-            cp "2"
-            jp z,rightwin
-
-            cp "3"
-            jp z,view_file
-
-            cp "4"
-            jp z,edit_file
-
-            cp "P"
-            jp z,view_plugin_menu
-
-            cp "B"
-            jp z,bookmarks_add
-
-            cp "b"
-            jp z,bookmarks_list
-
-            cp "h"
-            jp z,help
-
-            cp "c"
-            jp z,CHNG_ATTR
-
-            cp "i"
-            jp z,info_file
-
-            cp 199
-            jp z,quit
-
+.mouse_input
             call MOUSE
             ; ------------------------------------------------------------
             ; Myš: test levého tlačítka + kolečko (v cspect poznámka, že kolečko nefunguje)
@@ -683,7 +593,7 @@ loop0
             cp 15
             jr z,hranicniPatnact
             or a
-            jr z,hranicniNula
+            jp z,hranicniNula
 
             ld e,a                                ; E = stará poloha kolečka
             call nactiWheelMysky                  ; načti aktuální polohu kolečka do A
@@ -727,6 +637,70 @@ hranicniPatnact
             cp 14
             jp z,leftcur                          ; 15 -> 14 směr "leftcur"
             jp loop0
+
+
+; Translate the INKEY result in A through the persistent action->key table.
+; OUT: A=ACT_* and HL=handler, or A=0 when the key is unbound. The scan and
+; jump table live in the extra code bank; this small trampoline is all that
+; remains resident.
+key_dispatch_action
+            ld c,a
+            NEXTREG2A MMU7_E000_NR_57
+            push af
+            nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE
+            ld a,c
+            call EXTRA_KEY_DISPATCH
+            ld b,a
+            pop af
+            nextreg MMU7_E000_NR_57,a
+            ld a,b
+            ret
+
+            MACRO emit_key_dispatch_code
+EXTRA_KEY_DISPATCH
+            ld hl,cfgKeyBindings
+            ld b,SETTINGS_ACTION_COUNT
+            ld c,a
+            ld a,1
+.scan
+            ld e,(hl)
+            inc hl
+            cp 0                                  ; keep flags independent of key value
+            ld d,a
+            ld a,e
+            cp c
+            ld a,d
+            jr z,.found
+            inc a
+            djnz .scan
+            xor a
+            ld hl,0
+            ret
+.found
+            push af
+            dec a
+            add a,a
+            ld e,a
+            ld d,0
+            ld hl,extraKeyActionJumpTable
+            add hl,de
+            ld e,(hl)
+            inc hl
+            ld h,(hl)
+            ld l,e
+            pop af
+            ret
+
+extraKeyActionJumpTable
+            defw info,down,up,rightcur,leftcur,changewin,enter,delete
+            defw delete_key_parent,RENAME,menu,copy,move,select,MKDIR
+            defw newdisc_left,newdisc_right,select_files,invert_select_files
+            defw deselect,jump_search,leftwin,rightwin,view_file,edit_file
+            defw view_plugin_menu,bookmarks_add,bookmarks_list,help,CHNG_ATTR
+            defw info_file,quit,settings_open
+extraKeyActionJumpTableEnd
+            assert extraKeyActionJumpTableEnd-extraKeyActionJumpTable = SETTINGS_ACTION_COUNT*2
+            ENDM
 
 hranicniNula
             ld e,a
@@ -2558,6 +2532,7 @@ neni_oznacen
 writecur
         ld (curcolor+1),a
         call CHECKSEL
+        call cc_map_palette_attr
         ld (curcolor+1),a
         ld hl,KURZL
         call ROZHOD2
@@ -2764,38 +2739,56 @@ aNO_KEY xor  a
          ld   (aREPEAT_CNT+1),a
          jp   INKEY
 
-        ; KeyScan od Busyho z MRSu
-KEYSCAN  ld   l,47                                ; testovani klavesnice
-         ld   de,65535
-         ld   bc,65278
-KEYLINE  in   a,(c)
+        ; Fyzický scanner klávesnice.
+        ; OUT: D=$27 CAPS SHIFT, D=$18 SYMBOL SHIFT, jinak D=$FF.
+        ;      E=index 0..38 do SYMTAB/CAPSTAB/NORMTAB, nebo $FF bez klávesy.
+        ; Modifier se čte samostatně a při procházení 38 běžných kláves se
+        ; jeho vlastní maticový bit vynechá. Všechny kombinace CAPS/SYMBOL
+        ; tak používají stejnou obecnou cestu bez speciálních výjimek.
+KEYSCAN  ld   de,$ffff
+         ld   bc,$fefe                            ; CAPS SHIFT, Z, X, C, V
+         in   a,(c)
+         rra                                       ; CAPS SHIFT = bit 0 aktivní v nule
+         jr   c,.check_symbol
+         ld   d,$27
+         jr   .scan_init
+.check_symbol
+         ld   b,$7f                               ; SPACE, SYMBOL SHIFT, M, N, B
+         in   a,(c)
+         bit  1,a
+         jr   nz,.scan_init
+         ld   d,$18
+.scan_init
+         ld   l,47                                ; základ kódu pro první půlřádek
+         ld   b,$fe                               ; C zůstává $FE
+.row
+         in   a,(c)
          cpl
          and  31
-         jr   z,KEYDONE
          ld   h,a
          ld   a,l
-KEY3KEYS inc  d
-         ret  nz
-KEYBITS  sub  8
-         srl  h
-         jr   nc,KEYBITS
-         ld   d,e
-         ld   e,a
-         jr   nz,KEY3KEYS
-KEYDONE  dec  l
-         rlc  b
-         jr   c,KEYLINE
-         ld   a,d
-         inc  a
-         ret  z
+         cp   47
+         jr   nz,.not_caps_row
+         res  0,h                                 ; CAPS není samostatná výsledná klávesa
+.not_caps_row
          cp   40
-         ret  z
-         cp   25
-         ret  z
-         ld   a,e
-         ld   e,d
-         ld   d,a
-         cp   24
+         jr   nz,.find_key
+         res  1,h                                 ; SYMBOL není samostatná výsledná klávesa
+.find_key
+         ld   a,h
+         or   a
+         jr   z,.next_row
+         ld   a,l
+.next_bit
+         sub  8
+         srl  h
+         jr   nc,.next_bit
+         ld   e,a
+         ret
+.next_row
+         dec  l
+         rlc  b
+         jr   c,.row
          ret
 keysound db 0                                     ; key sound 0= yes,1= no, klavesnicove echo
 SYMTAB   db "*^[&%>}/"
@@ -2837,32 +2830,43 @@ NORMTAB  db "bhy65tgv"
          db 32,13
          db "p01qa"
          db 0
-
-beepk	ld a,(keysound)                             ; Busyho nahradni rutina,kratsi
-        or a
-        ret nz
-        ld a,(BORDER)
-        ld e,a
-        ld b,$10
-        add a,b
-        ; ld a,$10+border
-        out ($fe),a
-        ld b,$1c
-beepk1	djnz beepk1
-        ld a,$08
-        add a,e
-        ; ld a,$08+border
-        out ($fe),a
-        ret
 BORDER   db 1                                     ; okraj
 
 offset	equ 3
+
+; Map a legacy Tilemap palette attribute through the persistent Settings map.
+; The low nibble is preserved, allowing callers to address another colour
+; inside the selected 16-colour group. All other registers are preserved.
+cc_map_palette_attr
+        push bc
+        push de
+        push hl
+        ld b,a
+        and $0f
+        ld c,a
+        ld a,b
+        rrca
+        rrca
+        rrca
+        rrca
+        and $0f
+        ld e,a
+        ld d,0
+        ld hl,cfgPaletteMap
+        add hl,de
+        ld a,(hl)
+        or c
+        pop hl
+        pop de
+        pop bc
+        ret
 
 ; vstup:
 ; HL .... XY
 ; DE .... TEXT zakonceny 0 bytem
 ; A ..... atribut palety
-print  ld (paleta + 1),a
+print  call cc_map_palette_attr
+        ld (paleta + 1),a
         push de
         ld d,l
         ld e,160
@@ -2889,6 +2893,7 @@ paleta	ld a,0
         jr print0
 
 window
+        call cc_map_palette_attr
         ld (atr1+1),a
         ld (atr2+1),a
         ld (atr3+1),a
@@ -2995,6 +3000,7 @@ atr9	ld (hl),0
         module draw
 window
 UZZ
+        call cc_map_palette_attr
         ld (atr1+1),a
         ld (atr2+1),a
         ld (atr3+1),a
@@ -4201,6 +4207,7 @@ levy_panel
 
 pravy_panel
         pop af
+        call cc_map_palette_attr
         ld (chngcol+1),a                          ; self-modify: barva/atribut kurzoru
 
                                                   ; posuň se o (posdrv * 160) řádků
@@ -4304,32 +4311,26 @@ clr_arch
 zapisCfg
         ld hl,pathCfg
         xor a
-        call $01b1                                ; externí: nastavení cesty
-
+        call $01b1
         ld b,1
-        ld c,3                                    ; exclusive WRITE
+        ld c,3
         ld d,1
         ld e,1
         ld hl,nameCfg
-        call 0106h                                ; externí: create file
-
+        call 0106h
         ld c,PAGE_BUFF
         ld b,1
         ld de,DelkaCfg
         ld hl,Cfg
-        call 115h                                 ; externí: WRITE
-
+        call 115h
         ld b,1
-        call $0109                                ; externí: close
-
-                                                  ; vrať cestu podle aktuálního panelu
+        call $0109
         ld hl,pathl
         call ROZHOD2
         ld a,(hl)
         inc hl
         ld h,(hl)
         ld l,a
-
         xor a
         call $01b1
         ret
@@ -4346,40 +4347,32 @@ zapisCfg
         ; ------------------------------------------------------------
 createCfg
         call dospage
-
         ld hl,pathCfg
         xor a
-        call $01b1                                ; externí: nastavení cesty
-
+        call $01b1
         ld b,1
         ld c,3
         ld d,1
         ld e,1
         ld hl,nameCfg
-        call 0106h                                ; externí: create file
-
-        jr nz,NactiKonfiguraci                    ; pokud create “nevyšlo” (NZ), jde se číst existující (bez spekulace přesné podmínky)
-
-VytvorKonfiguraci
+        call 0106h
+        jr nz,.read
         ld c,PAGE_BUFF
         ld b,1
         ld de,DelkaCfg
         ld hl,Cfg
-        call 115h                                 ; externí: WRITE
-
-zavriSoubor
+        call 115h
+        jr .close
+.read
         ld b,1
-        call $0109                                ; externí: close
+        ld c,PAGE_BUFF
+        ld de,DelkaCfg
+        ld hl,Cfg
+        call 0112h
+.close
+        ld b,1
+        call $0109
         ret
-
-NactiKonfiguraci
-        ld b,1
-        ld c,PAGE_BUFF
-        ld de,DelkaCfg
-        ld hl,Cfg
-        call 0112h                                ; externí: READ
-
-        jr zavriSoubor
 
 
         ; ------------------------------------------------------------
@@ -4913,6 +4906,24 @@ pjs_store
 
         include "functions/bookmarks.asm"
 
+
+; Zvuk klávesy je mimo těsnou residentní část; KEYSCAN tak může mít přímou
+; kontrolu CAPS+3 a přitom zůstává celý bezpečný při přepnutí MMU stránek.
+beepk   ld a,(keysound)                          ; Busyho nahradni rutina,kratsi
+        or a
+        ret nz
+        ld a,(BORDER)
+        ld e,a
+        ld b,$10
+        add a,b
+        out ($fe),a
+        ld b,$1c
+beepk1  djnz beepk1
+        ld a,$08
+        add a,e
+        out ($fe),a
+        ret
+
 E3
         org 49152
 S2
@@ -5085,6 +5096,7 @@ compdown
 
 
 kreslicurcomp
+        call cc_map_palette_attr
         ld (clrComp+1),a
         ld a,(cursorComp)
         ld e,a
@@ -6000,6 +6012,9 @@ obarvi_spustitelny_soubor
         ld a,128
         ld (inkcolor+1),a
 SSSS
+        ld a,(inkcolor+1)
+        call cc_map_palette_attr
+        ld (inkcolor+1),a
 
 ypos	ld e,2
         ld d,80 * 2
@@ -8217,6 +8232,8 @@ morecopytxt      defb "Copy?",0
 moremovetxt      defb "Move?",0
 moredeletetxt    defb "Del?",0
 
+        include "functions/settings.asm"
+
 sysvars 	defs 500
 
 last:
@@ -8240,6 +8257,8 @@ E2
             MMU 7, EXTRA_BANK_PAGE
             ORG $E000
 
+            emit_menu_settings_code
+            emit_key_dispatch_code
             emit_sort_code
             emit_info_code
 
@@ -8253,119 +8272,328 @@ sipka:
 
 ; --- Help dialog ---
 EXTRA_HELP:
-            ld hl,8 * 256 + 4
-            ld bc,60 * 256 + 23
-            ld a,16
-            call window
-            ld hl,11*256+5
-            ld a,16
-            ld de,help1
-            call print
-            ld hl,11*256+7
-            ld a,16
-            ld de,help2
-            call print
-            ld hl,11*256+8
-            ld a,16
-            ld de,help3
-            call print
-            ld hl,11*256+9
-            ld a,16
-            ld de,help4
-            call print
-            ld hl,11*256+10
-            ld a,16
-            ld de,help5
-            call print
-            ld hl,11*256+11
-            ld a,16
-            ld de,help6
-            call print
-            ld hl,11*256+12
-            ld a,16
-            ld de,help7
-            call print
-            ld hl,11*256+13
-            ld a,16
-            ld de,help8
-            call print
-            ld hl,11*256+14
-            ld a,16
-            ld de,help9
-            call print
-            ld hl,11*256+15
-            ld a,16
-            ld de,help10
-            call print
-            ld hl,11*256+16
-            ld a,16
-            ld de,help11
-            call print
-            ld hl,11*256+17
-            ld a,16
-            ld de,help12
-            call print
-            ld hl,11*256+18
-            ld a,16
-            ld de,help13
-            call print
-            ld hl,11*256+19
-            ld a,16
-            ld de,help14
-            call print
-            ld hl,11*256+20
-            ld a,16
-            ld de,help15
-            call print
-            ld hl,11*256+21
-            ld a,16
-            ld de,help16
-            call print
-            ld hl,11*256+22
-            ld a,16
-            ld de,help17
-            call print
-            ld hl,11*256+23
-            ld a,16
-            ld de,help18
-            call print
-            ld hl,11*256+24
-            ld a,16
-            ld de,help19
-            call print
-            ld hl,11*256+25
-            ld a,16
-            ld de,help20
-            call print
-.help0:
+            xor a
+            ld (extraHelpTop),a
+.redraw
+            call extra_help_draw
+.input
             xor a
             ld (TLACITKO),a
             call INKEY
             cp 1
             ret z
-            jr .help0
+            call key_dispatch_action
+            cp ACT_HELP
+            ret z
+            cp ACT_PARENT
+            ret z
+            cp ACT_UP
+            jr z,.up
+            cp ACT_DOWN
+            jr z,.down
+            cp ACT_PAGE_UP
+            jr z,.page_up
+            cp ACT_PAGE_DOWN
+            jr nz,.input
+            ld a,SETTINGS_ACTION_COUNT-18
+            ld (extraHelpTop),a
+            jr .redraw
+.page_up
+            xor a
+            ld (extraHelpTop),a
+            jr .redraw
+.up
+            ld hl,extraHelpTop
+            ld a,(hl)
+            or a
+            jr z,.input
+            dec (hl)
+            jr .redraw
+.down
+            ld hl,extraHelpTop
+            ld a,(hl)
+            cp SETTINGS_ACTION_COUNT-18
+            jr z,.input
+            inc (hl)
+            jr .redraw
 
-; --- Help texty ---
-help1       defb    "Controls:",0
-help2       defb    "1:          switch to left panel",0
-help3       defb    "2:          switch to right panel",0
-help4       defb    "3:          View file",0
-help5       defb    "4:          Edit file",0
-help6       defb    "5:          Copy files (directory is not support",0
-help7       defb    "6:          Move files (directory is not support",0
-help8       defb    "7:          Create directory",0
-help9       defb    "8:          Delete files/directory",0
-help10      defb    "9:          Rename files/directory",0
-help11      defb    "0:          Menu (items is not activ",0
-help12      defb    "+:          Search and select files/directory",0
-help13      defb    "-:          Search and deselect files/directory",0
-help14      defb    "BREAK:      Cancel operations (copy, move, delete, ",0
-help15      defb    "            close this window...)",0
-help16      defb    "CAPS+1      Change drive in left window",0
-help17      defb    "CAPS+2      Change drive in right window",0
-help18      defb    "SS+I:       Info about Calm Commander ",0
-help19      defb    "B:          Show bookmarks",0
-help20      defb    "SHIFT+B:    Add bookmark",0
+extra_help_draw
+            ld hl,8*256+3
+            ld bc,64*256+27
+            ld a,16
+            call window
+            ld hl,11*256+4
+            ld de,extraHelpTitle
+            ld a,16
+            call print
+            ld hl,11*256+6
+            ld de,extraHelpHeader
+            ld a,16
+            call print
+            ld hl,11*256+28
+            ld de,extraHelpHint
+            ld a,16
+            call print
+            xor a
+            ld (extraHelpRow),a
+.row
+            call extra_help_prepare_row
+            ld a,(extraHelpRow)
+            add a,7
+            ld l,a
+            ld h,11
+            ld de,extraHelpLine
+            ld a,16
+            call print
+            ld a,(extraHelpRow)
+            inc a
+            ld (extraHelpRow),a
+            cp 18
+            jr nz,.row
+            ret
+
+extra_help_prepare_row
+            ld hl,extraHelpLine
+            ld de,extraHelpLine+1
+            ld bc,57
+            ld (hl),' '
+            ldir
+            xor a
+            ld (extraHelpLine+58),a
+            ld a,(extraHelpTop)
+            ld hl,extraHelpRow
+            add a,(hl)
+            cp SETTINGS_ACTION_COUNT
+            ret nc
+            ld (extraHelpAction),a
+            add a,a
+            ld e,a
+            ld d,0
+            ld hl,extraHelpActionNames
+            add hl,de
+            ld e,(hl)
+            inc hl
+            ld d,(hl)
+            ex de,hl
+            ld de,extraHelpLine
+            ld b,32
+            call extra_help_copy_field
+            ld a,(extraHelpAction)
+            ld e,a
+            ld d,0
+            ld hl,cfgKeyBindings
+            add hl,de
+            ld a,(hl)
+            call extra_help_format_key
+            ld hl,extraHelpKeyBuf
+            ld de,extraHelpLine+36
+            ld b,20
+            jp extra_help_copy_field
+
+extra_help_format_key
+            ld (extraHelpKeyCode),a
+            ld de,extraHelpKeyBuf
+            cp 1
+            ld hl,extraKeyBreak
+            jp z,extra_help_copy_zero
+            cp 4
+            ld hl,extraKeyCs3
+            jp z,.known
+            cp 5
+            ld hl,extraKeyCs4
+            jp z,.known
+            cp 6
+            ld hl,extraKeyCs2
+            jp z,.known
+            cp 7
+            ld hl,extraKeyCs1
+            jp z,.known
+            cp 8
+            ld hl,extraKeyCs5
+            jp z,.known
+            cp 9
+            ld hl,extraKeyCs8
+            jp z,.known
+            cp 10
+            ld hl,extraKeyCs6
+            jp z,.known
+            cp 11
+            ld hl,extraKeyCs7
+            jp z,.known
+            cp 12
+            ld hl,extraKeyDelete
+            jp z,.known
+            cp 13
+            ld hl,extraKeyEnter
+            jp z,.known
+            cp 15
+            ld hl,extraKeyCs9
+            jp z,.known
+            cp 32
+            ld hl,extraKeySpace
+            jp z,.known
+            cp 127
+            ld hl,extraKeySsI
+            jp z,.known
+            cp 199
+            ld hl,extraKeySsQ
+            jp z,.known
+            cp 200
+            ld hl,extraKeySsE
+            jp z,.known
+            cp 201
+            ld hl,extraKeySsW
+            jp z,.known
+            cp 'A'
+            jr c,.plain
+            cp 'Z'+1
+            jr nc,.plain
+            ld hl,extraKeyCaps
+            call extra_help_copy_zero
+            dec de
+            ld a,(extraHelpKeyCode)
+            ld (de),a
+            inc de
+            xor a
+            ld (de),a
+            ret
+.plain
+            cp 32
+            jr c,.hex
+            cp 127
+            jr nc,.hex
+            cp 'a'
+            jr c,.one
+            cp 'z'+1
+            jr nc,.one
+            sub 32
+.one
+            ld (de),a
+            inc de
+            xor a
+            ld (de),a
+            ret
+.hex
+            push af
+            ld a,'$'
+            ld (de),a
+            inc de
+            pop af
+            push af
+            rrca
+            rrca
+            rrca
+            rrca
+            call extra_help_hex_digit
+            ld (de),a
+            inc de
+            pop af
+            call extra_help_hex_digit
+            ld (de),a
+            inc de
+            xor a
+            ld (de),a
+            ret
+.known
+            jp extra_help_copy_zero
+
+extra_help_copy_zero
+            ld a,(hl)
+            ld (de),a
+            inc hl
+            inc de
+            or a
+            jr nz,extra_help_copy_zero
+            ret
+
+extra_help_copy_field
+            ld a,(hl)
+            or a
+            ret z
+            ld (de),a
+            inc hl
+            inc de
+            djnz extra_help_copy_field
+            ret
+
+extra_help_hex_digit
+            and $0f
+            add a,'0'
+            cp '9'+1
+            ret c
+            add a,'A'-'9'-1
+            ret
+
+extraHelpTitle  defb "Help - current key bindings",0
+extraHelpHeader defb "Action                              Shortcut",0
+extraHelpHint   defb "UP/DOWN scroll  LEFT/RIGHT page  HELP/BREAK close",0
+extraHelpTop    defb 0
+extraHelpRow    defb 0
+extraHelpAction defb 0
+extraHelpKeyCode defb 0
+extraHelpLine   defs 59
+extraHelpKeyBuf defs 20
+
+extraHelpActionNames
+            defw ehaSysInfo,ehaDown,ehaUp,ehaPageDown,ehaPageUp,ehaSwitch,ehaEnter,ehaDelete
+            defw ehaParent,ehaRename,ehaMenu,ehaCopy,ehaMove,ehaMark,ehaMkdir,ehaDriveL
+            defw ehaDriveR,ehaSelect,ehaInvert,ehaDeselect,ehaSearch,ehaLeft,ehaRight,ehaView
+            defw ehaEdit,ehaPlugins,ehaBookmarkAdd,ehaBookmarkList,ehaHelp,ehaAttr,ehaFileInfo,ehaQuit
+            defw ehaSettings
+extraHelpActionNamesEnd
+            assert extraHelpActionNamesEnd-extraHelpActionNames = SETTINGS_ACTION_COUNT*2
+ehaSysInfo      defb "About Calm Commander",0
+ehaDown         defb "Cursor down",0
+ehaUp           defb "Cursor up",0
+ehaPageDown     defb "Page down",0
+ehaPageUp       defb "Page up",0
+ehaSwitch       defb "Switch panel",0
+ehaEnter        defb "Open / Enter",0
+ehaDelete       defb "Delete",0
+ehaParent       defb "Parent directory",0
+ehaRename       defb "Rename",0
+ehaMenu         defb "Menu",0
+ehaCopy         defb "Copy",0
+ehaMove         defb "Move",0
+ehaMark         defb "Mark file",0
+ehaMkdir        defb "Create directory",0
+ehaDriveL       defb "Left drive",0
+ehaDriveR       defb "Right drive",0
+ehaSelect       defb "Select by mask",0
+ehaInvert       defb "Invert selection",0
+ehaDeselect     defb "Deselect by mask",0
+ehaSearch       defb "Search",0
+ehaLeft         defb "Activate left panel",0
+ehaRight        defb "Activate right panel",0
+ehaView         defb "View file",0
+ehaEdit         defb "Edit file",0
+ehaPlugins      defb "Plugin menu",0
+ehaBookmarkAdd  defb "Add bookmark",0
+ehaBookmarkList defb "Show bookmarks",0
+ehaHelp         defb "Help",0
+ehaAttr         defb "Change attributes",0
+ehaFileInfo     defb "File info",0
+ehaQuit         defb "Quit",0
+ehaSettings     defb "Settings",0
+
+extraKeyBreak  defb "BREAK",0
+extraKeyCs1    defb "CAPS+1",0
+extraKeyCs2    defb "CAPS+2",0
+extraKeyCs3    defb "CAPS+3",0
+extraKeyCs4    defb "CAPS+4",0
+extraKeyCs5    defb "CAPS+5",0
+extraKeyCs6    defb "CAPS+6",0
+extraKeyCs7    defb "CAPS+7",0
+extraKeyCs8    defb "CAPS+8",0
+extraKeyCs9    defb "CAPS+9",0
+extraKeyDelete defb "DELETE",0
+extraKeyEnter  defb "ENTER",0
+extraKeySpace  defb "SPACE",0
+extraKeySsI    defb "SS+I",0
+extraKeySsQ    defb "SS+Q",0
+extraKeySsE    defb "SS+E",0
+extraKeySsW    defb "SS+W",0
+extraKeyCaps   defb "CAPS+",0
 
 EXTRA_NOTNOW:
         ld hl,8 * 256 + 10
