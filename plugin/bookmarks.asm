@@ -40,6 +40,9 @@ ADD_X            equ 8
 ADD_Y            equ 8
 ADD_WIDTH        equ 64
 ADD_HEIGHT       equ 10
+NAME_INPUT_X     equ ADD_X+18
+NAME_INPUT_Y     equ ADD_Y+7
+NAME_INPUT_WIDTH equ BOOKMARK_NAME_SIZE-1
 
 plugin_start
         ld (ctxPtr),hl
@@ -96,6 +99,7 @@ bookmark_add
         ld hl,promptName
         ld a,16
         call plot_string
+        call draw_name_input_field
         ld b,ADD_X+2
         ld c,ADD_Y+ADD_HEIGHT-2
         ld hl,addHint
@@ -582,6 +586,23 @@ draw_add_box
         ld a,16
         jp call_window
 
+
+; Paint the whole editable width independently of the current text. This
+; keeps all 24 available character cells visible, including unused cells.
+draw_name_input_field
+        ld hl,LINE_BUFFER
+        ld de,LINE_BUFFER+1
+        ld bc,NAME_INPUT_WIDTH-1
+        ld (hl),' '
+        ldir
+        xor a
+        ld (LINE_BUFFER+NAME_INPUT_WIDTH),a
+        ld b,NAME_INPUT_X
+        ld c,NAME_INPUT_Y
+        ld hl,LINE_BUFFER
+        ld a,80
+        jp plot_string
+
 draw_list_screen
         call draw_box
         ld b,BOX_X+2
@@ -948,8 +969,8 @@ edit_name
         add hl,de
         ld (hl),'_'
         push hl
-        ld b,ADD_X+18
-        ld c,ADD_Y+7
+        ld b,NAME_INPUT_X
+        ld c,NAME_INPUT_Y
         ld hl,NAME_BUFFER
         ld a,80
         call plot_string
@@ -957,8 +978,8 @@ edit_name
         ld (hl),' '
         jr .read
 .draw_full
-        ld b,ADD_X+18
-        ld c,ADD_Y+7
+        ld b,NAME_INPUT_X
+        ld c,NAME_INPUT_Y
         ld hl,NAME_BUFFER
         ld a,80
         call plot_string

@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "1.3" : ENDM
+            MACRO VERSION : defb "1.4" : ENDM
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
@@ -3438,6 +3438,9 @@ LFN1
         ld hl,(numLoop)
         inc hl
         ld (numLoop),hl
+        ld a,l
+        cp 48                                     ; roughly 0.5 s of normal LFN work
+        call z,loading_status_draw
 
 lfnpos  ld de,18560+24                            ; pozice ve VRAM (nejspíš ladění / nepoužité v tomto úryvku)
 
@@ -8227,6 +8230,36 @@ overwrite_choice
 .enter
         ld a,13
         ret
+
+
+; Compact delayed status shown only for larger directories. It deliberately
+; stays in the resident bank: changing MMU7 from the LFN loop is unsafe.
+; The active panel is redrawn immediately after reload_dir, removing the box.
+loading_status_draw
+        push bc
+        ld a,(OKNO)
+        and 16
+        ld h,2
+        jr z,.position_ready
+        ld h,42
+.position_ready
+        ld l,11
+        push hl
+        ld bc,34*256+5
+        ld a,16
+        call window
+        pop hl
+        inc h
+        inc h
+        inc l
+        inc l
+        ld de,loadingStatusTxt
+        ld a,16
+        call print
+        pop bc
+        ret
+
+loadingStatusTxt defb "Loading / sorting...",0
 
 morecopytxt      defb "Copy?",0
 moremovetxt      defb "Move?",0
