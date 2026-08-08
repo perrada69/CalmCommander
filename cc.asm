@@ -8295,6 +8295,51 @@ E2
             emit_sort_code
             emit_info_code
 
+; Blocking keyboard input for code running in MMU7.  The resident INKEY
+; cannot be used here: its retry path calls gettime, and gettime changes the
+; $C000-$FFFF mapping through $7FFD.  Require a full release both before and
+; after the key so the H used to open Help is not consumed by the dialog.
+extra_read_key:
+.release_before
+            ei
+            halt
+            call KEYSCAN
+            ld a,e
+            inc a
+            jr nz,.release_before
+.press
+            halt
+            call KEYSCAN
+            ld a,e
+            inc a
+            jr z,.press
+            ld a,d
+            ld hl,SYMTAB
+            cp $18
+            jr z,.decode
+            ld hl,CAPSTAB
+            cp $27
+            jr z,.decode
+            ld hl,NORMTAB
+.decode
+            ld d,0
+            add hl,de
+            ld a,(hl)
+            or a
+            jr z,.release_before
+            push af
+.release_after
+            halt
+            call KEYSCAN
+            ld a,e
+            inc a
+            jr nz,.release_after
+            pop af
+            push af
+            call beepk
+            pop af
+            ret
+
 ; Verify the complete standard plugin set while the extra bank is already
 ; mapped during startup. RST $08 file access does not disturb the resident
 ; code banks. Preserve every caller register because VSE_NASTAV prepares
@@ -8354,7 +8399,7 @@ EXTRA_CHECK_PLUGINS:
             call print
             xor a
             ld (TLACITKO),a
-            call INKEY
+            call extra_read_key
 .release
             call KEYSCAN
             ld a,e
@@ -8444,12 +8489,11 @@ sipka:
 EXTRA_HELP:
             xor a
             ld (extraHelpTop),a
-.redraw
             call extra_help_draw
 .input
             xor a
             ld (TLACITKO),a
-            call INKEY
+            call extra_read_key
             cp 1
             ret z
             call key_dispatch_action
@@ -8486,6 +8530,9 @@ EXTRA_HELP:
             jr z,.input
             inc (hl)
             jr .redraw
+.redraw
+            call extra_help_draw
+            jr .input
 
 extra_help_draw
             ld hl,8*256+3
@@ -8783,7 +8830,7 @@ EXTRA_NOTNOW:
 
         xor a
         ld (TLACITKO),a
-        call INKEY
+        call extra_read_key
         ret
 
 notimplemented defb "This feature is not yet implemented.",0
@@ -8816,7 +8863,7 @@ EXTRA_SYSCOPY_SHOW_ERROR:
 
         xor a
         ld (TLACITKO),a
-        call INKEY
+        call extra_read_key
         ret
 
 
