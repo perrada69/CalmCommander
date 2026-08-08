@@ -26,6 +26,10 @@ TRAVERSE_PATH    equ $E2A8
 COMPONENT_BUFFER equ $E3B0
 SHORT_ENTRY      equ $E3C0
 LFN_ENTRY        equ $E420
+FILTER_MAP       equ $E600
+FILTER_SEARCH    equ FILTER_MAP+BOOKMARK_MAX_COUNT
+FILTER_LINE      equ FILTER_SEARCH+25
+NAME_CACHE       equ $E800
 
 BOX_X            equ 4
 BOX_Y            equ 3
@@ -43,6 +47,11 @@ ADD_HEIGHT       equ 10
 NAME_INPUT_X     equ ADD_X+18
 NAME_INPUT_Y     equ ADD_Y+7
 NAME_INPUT_WIDTH equ BOOKMARK_NAME_SIZE-1
+
+SEARCH_X           equ LIST_X+8
+SEARCH_Y           equ BOX_Y+BOX_HEIGHT-4
+SEARCH_FIELD_WIDTH equ 45
+SEARCH_MAX         equ 24
 
 plugin_start
         ld (ctxPtr),hl
@@ -422,16 +431,20 @@ bookmark_list
 .count_ready
         ld (recordCount),a
         or a
-        jr z,.close_empty
+        jp z,.close_empty
         xor a
         ld (cursor),a
         ld (topIndex),a
+        ld (searchPos),a
+        ld (FILTER_SEARCH),a
+        call build_name_cache
+        call rebuild_filter
         call draw_list_screen
 
 .input
         call read_key
         cp 1
-        jr z,.cancel
+        jp z,.cancel
         cp 13
         jr z,.select
         cp 11
@@ -442,6 +455,27 @@ bookmark_list
         jr z,.page_up
         cp 9
         jr z,.page_down
+        cp 12
+        jr z,.filter_backspace
+        cp 32
+        jr c,.input
+        cp 127
+        jr nc,.input
+        call filter_add_char
+        call filter_changed
+        jr .input
+.filter_backspace
+        ld a,(searchPos)
+        or a
+        jr z,.input
+        dec a
+        ld (searchPos),a
+        ld e,a
+        ld d,0
+        ld hl,FILTER_SEARCH
+        add hl,de
+        ld (hl),0
+        call filter_changed
         jr .input
 .up
         call cursor_up
@@ -469,7 +503,11 @@ bookmark_list
         jr .input
 
 .select
+        ld a,(filteredCount)
+        or a
+        jr z,.input
         ld a,(cursor)
+        call filtered_record_index
         call read_record
         jr c,.cancel
         ld ix,(ctxPtr)
@@ -550,7 +588,7 @@ cursor_up
         ret
 
 cursor_down
-        ld a,(recordCount)
+        ld a,(filteredCount)
         ld b,a
         ld a,(cursor)
         inc a
@@ -620,7 +658,8 @@ draw_list_screen
         ld hl,listHint
         ld a,16
         call plot_string
-        jp draw_rows
+        call draw_rows
+        jp draw_search_status
 
 draw_rows
         xor a
@@ -647,9 +686,11 @@ draw_one_row
         ld hl,topIndex
         add a,(hl)
         ld (drawIndex),a
-        ld hl,recordCount
+        ld hl,filteredCount
         cp (hl)
         jr nc,.plot
+        ld a,(drawIndex)
+        call filtered_record_index
         call read_record
         jr c,.plot
 
@@ -680,6 +721,229 @@ draw_one_row
         ld hl,LINE_BUFFER
         ld a,16
         jp plot_string
+
+
+filtered_record_index
+        ld e,a
+        ld d,0
+        ld hl,FILTER_MAP
+        add hl,de
+        ld a,(hl)
+        ret
+
+
+filter_add_char
+        ld b,a
+        ld a,(searchPos)
+        cp SEARCH_MAX
+        ret nc
+        ld e,a
+        ld d,0
+        ld hl,FILTER_SEARCH
+        add hl,de
+        ld (hl),b
+        inc hl
+        ld (hl),0
+        inc a
+        ld (searchPos),a
+        ret
+
+
+filter_changed
+        xor a
+        ld (cursor),a
+        ld (topIndex),a
+        call rebuild_filter
+        call draw_rows
+        jp draw_search_status
+
+
+; Rebuild the filtered-index -> file-record-index map from bookmark names.
+rebuild_filter
+        xor a
+        ld (filteredCount),a
+        ld (filterScanIndex),a
+.scan
+        ld a,(filterScanIndex)
+        ld hl,recordCount
+        cp (hl)
+        ret nc
+        call name_cache_address
+        call bookmark_name_matches
+        jr nc,.next
+        ld a,(filteredCount)
+        ld e,a
+        ld d,0
+        ld hl,FILTER_MAP
+        add hl,de
+        ld a,(filterScanIndex)
+        ld (hl),a
+        ld hl,filteredCount
+        inc (hl)
+.next
+        ld hl,filterScanIndex
+        inc (hl)
+        jr .scan
+
+
+; Cache all fixed-size names once so inline filtering never performs disk I/O.
+build_name_cache
+        xor a
+        ld (filterScanIndex),a
+.scan
+        ld a,(filterScanIndex)
+        ld hl,recordCount
+        cp (hl)
+        ret nc
+        call read_record
+        ret c
+        ld a,(filterScanIndex)
+        call name_cache_address
+        ex de,hl
+        ld hl,RECORD_BUFFER
+        ld bc,BOOKMARK_NAME_SIZE
+        ldir
+        ld hl,filterScanIndex
+        inc (hl)
+        jr .scan
+
+
+; IN: A=record index. OUT: HL=NAME_CACHE + A*BOOKMARK_NAME_SIZE.
+name_cache_address
+        ld hl,NAME_CACHE
+        or a
+        ret z
+        ld b,a
+        ld de,BOOKMARK_NAME_SIZE
+.offset
+        add hl,de
+        djnz .offset
+        ret
+
+
+; Case-insensitive substring test against FILTER_SEARCH.
+; IN: HL=zero-terminated bookmark name. OUT: carry set on match.
+bookmark_name_matches
+        ld a,(FILTER_SEARCH)
+        or a
+        jr z,.match
+.candidate
+        ld a,(hl)
+        or a
+        jr z,.miss
+        push hl
+        ld de,FILTER_SEARCH
+.compare
+        ld a,(de)
+        or a
+        jr z,.match_pop
+        call upper_ascii
+        ld b,a
+        ld a,(hl)
+        or a
+        jr z,.candidate_failed
+        call upper_ascii
+        cp b
+        jr nz,.candidate_failed
+        inc hl
+        inc de
+        jr .compare
+.candidate_failed
+        pop hl
+        inc hl
+        jr .candidate
+.match_pop
+        pop hl
+.match
+        scf
+        ret
+.miss
+        or a
+        ret
+
+
+draw_search_status
+        ld b,LIST_X
+        ld c,SEARCH_Y
+        ld hl,searchLabel
+        ld a,16
+        call plot_string
+
+        ld hl,FILTER_LINE
+        ld de,FILTER_LINE+1
+        ld bc,SEARCH_FIELD_WIDTH-1
+        ld (hl),' '
+        ldir
+        xor a
+        ld (FILTER_LINE+SEARCH_FIELD_WIDTH),a
+        ld a,(searchPos)
+        or a
+        jr z,.cursor
+        ld c,a
+        ld b,0
+        ld hl,FILTER_SEARCH
+        ld de,FILTER_LINE
+        ldir
+.cursor
+        ld a,(searchPos)
+        ld e,a
+        ld d,0
+        ld hl,FILTER_LINE
+        add hl,de
+        ld (hl),'_'
+        ld b,SEARCH_X
+        ld c,SEARCH_Y
+        ld hl,FILTER_LINE
+        ld a,80
+        call plot_string
+
+        call format_filter_counts
+        ld b,SEARCH_X+SEARCH_FIELD_WIDTH+1
+        ld c,SEARCH_Y
+        ld hl,countText
+        ld a,16
+        jp plot_string
+
+
+format_filter_counts
+        ld a,(filteredCount)
+        ld de,countText
+        call format_u8_3
+        ld a,(recordCount)
+        ld de,countText+4
+        jp format_u8_3
+
+
+format_u8_3
+        ld c,'0'
+.hundreds
+        cp 100
+        jr c,.hundreds_done
+        sub 100
+        inc c
+        jr .hundreds
+.hundreds_done
+        ld b,a
+        ld a,c
+        ld (de),a
+        ld a,b
+        inc de
+        ld c,'0'
+.tens
+        cp 10
+        jr c,.tens_done
+        sub 10
+        inc c
+        jr .tens
+.tens_done
+        ld b,a
+        ld a,c
+        ld (de),a
+        ld a,b
+        inc de
+        add a,'0'
+        ld (de),a
+        ret
 
 copy_field
         ld a,(hl)
@@ -1163,7 +1427,9 @@ promptPath  defb "Directory (LFN):",0
 promptName  defb "Bookmark name:",0
 addHint     defb "ENTER save  BREAK cancel",0
 listHeader  defb "  Name                     LFN path",0
-listHint    defb "UP/DOWN move  LEFT/RIGHT page  ENTER jump  BREAK cancel",0
+listHint    defb "TYPE filter  DELETE erase  UP/DOWN move  ENTER jump  BREAK cancel",0
+searchLabel defb "Search:",0
+countText   defb "000/000",0
 msgEmpty    defb "No bookmarks yet.",0
 msgFileError defb "Cannot access c:/sys/bookmark.cfg.",0
 msgLimit    defb "Bookmark limit reached (200).",0
@@ -1180,11 +1446,14 @@ sourcePtr   defw 0
 lfnOutPtr   defw 0
 traverseOutPtr defw 0
 recordCount defb 0
+filteredCount defb 0
+filterScanIndex defb 0
 cursor      defb 0
 topIndex    defb 0
 visibleRow  defb 0
 drawIndex   defb 0
 namePos     defb 0
+searchPos   defb 0
 migrationSize defw 0
 migrationCount defb 0
 migrationIndex defb 0
@@ -1192,4 +1461,5 @@ migrationOffset defw 0
 
 plugin_end
         assert plugin_end - plugin_start <= BOOKMARK_PLUGIN_SIZE
+        assert NAME_CACHE+BOOKMARK_NAME_SIZE*BOOKMARK_MAX_COUNT < $FF00
         SAVEBIN "plugin/bookmarks.ccp", BOOKMARK_PLUGIN_ADDRESS, BOOKMARK_PLUGIN_SIZE

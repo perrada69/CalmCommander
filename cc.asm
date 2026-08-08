@@ -8489,6 +8489,9 @@ sipka:
 EXTRA_HELP:
             xor a
             ld (extraHelpTop),a
+            ld (extraHelpSearchPos),a
+            ld (extraHelpSearch),a
+            call extra_help_rebuild_filter
             call extra_help_draw
 .input
             xor a
@@ -8496,11 +8499,32 @@ EXTRA_HELP:
             call extra_read_key
             cp 1
             ret z
+            cp 12
+            jr z,.backspace
+            cp 32
+            jr c,.action
+            cp 127
+            jr nc,.input
+            call extra_help_add_search_char
+            jr .filter_changed
+.backspace
+            ld a,(extraHelpSearchPos)
+            or a
+            jr z,.input
+            dec a
+            ld (extraHelpSearchPos),a
+            ld e,a
+            ld d,0
+            ld hl,extraHelpSearch
+            add hl,de
+            ld (hl),0
+.filter_changed
+            xor a
+            ld (extraHelpTop),a
+            call extra_help_rebuild_filter
+            jr .redraw
+.action
             call key_dispatch_action
-            cp ACT_HELP
-            ret z
-            cp ACT_PARENT
-            ret z
             cp ACT_UP
             jr z,.up
             cp ACT_DOWN
@@ -8509,7 +8533,7 @@ EXTRA_HELP:
             jr z,.page_up
             cp ACT_PAGE_DOWN
             jr nz,.input
-            ld a,SETTINGS_ACTION_COUNT-18
+            call extra_help_max_top
             ld (extraHelpTop),a
             jr .redraw
 .page_up
@@ -8524,15 +8548,129 @@ EXTRA_HELP:
             dec (hl)
             jr .redraw
 .down
-            ld hl,extraHelpTop
-            ld a,(hl)
-            cp SETTINGS_ACTION_COUNT-18
+            call extra_help_max_top
+            ld b,a
+            ld a,(extraHelpTop)
+            cp b
             jr z,.input
-            inc (hl)
+            inc a
+            ld (extraHelpTop),a
             jr .redraw
 .redraw
             call extra_help_draw
             jr .input
+
+extra_help_max_top
+            ld a,(extraHelpMatchCount)
+            cp 19
+            jr nc,.scrollable
+            xor a
+            ret
+.scrollable
+            sub 18
+            ret
+
+extra_help_add_search_char
+            ld b,a
+            ld a,(extraHelpSearchPos)
+            cp EXTRA_HELP_SEARCH_MAX
+            ret nc
+            ld e,a
+            ld d,0
+            ld hl,extraHelpSearch
+            add hl,de
+            ld (hl),b
+            inc hl
+            ld (hl),0
+            inc a
+            ld (extraHelpSearchPos),a
+            ret
+
+extra_help_rebuild_filter
+            xor a
+            ld (extraHelpMatchCount),a
+            ld (extraHelpScanAction),a
+.scan
+            ld a,(extraHelpScanAction)
+            cp SETTINGS_ACTION_COUNT
+            ret z
+            call extra_help_action_name
+            call extra_help_name_matches
+            jr nc,.next
+            ld a,(extraHelpMatchCount)
+            ld e,a
+            ld d,0
+            ld hl,extraHelpMatches
+            add hl,de
+            ld a,(extraHelpScanAction)
+            ld (hl),a
+            ld hl,extraHelpMatchCount
+            inc (hl)
+.next
+            ld hl,extraHelpScanAction
+            inc (hl)
+            jr .scan
+
+; IN: A=action index. OUT: HL=zero-terminated action description.
+extra_help_action_name
+            add a,a
+            ld e,a
+            ld d,0
+            ld hl,extraHelpActionNames
+            add hl,de
+            ld e,(hl)
+            inc hl
+            ld d,(hl)
+            ex de,hl
+            ret
+
+; Case-insensitive substring test.
+; IN: HL=description. OUT: carry set when extraHelpSearch is contained in it.
+extra_help_name_matches
+            ld a,(extraHelpSearch)
+            or a
+            jr z,.match
+.candidate
+            ld a,(hl)
+            or a
+            jr z,.miss
+            push hl
+            ld de,extraHelpSearch
+.compare
+            ld a,(de)
+            or a
+            jr z,.match_pop
+            call extra_help_upper_ascii
+            ld b,a
+            ld a,(hl)
+            or a
+            jr z,.candidate_failed
+            call extra_help_upper_ascii
+            cp b
+            jr nz,.candidate_failed
+            inc hl
+            inc de
+            jr .compare
+.candidate_failed
+            pop hl
+            inc hl
+            jr .candidate
+.match_pop
+            pop hl
+.match
+            scf
+            ret
+.miss
+            or a
+            ret
+
+extra_help_upper_ascii
+            cp 'a'
+            ret c
+            cp 'z'+1
+            ret nc
+            sub 32
+            ret
 
 extra_help_draw
             ld hl,8*256+3
@@ -8547,6 +8685,11 @@ extra_help_draw
             ld de,extraHelpHeader
             ld a,16
             call print
+            ld hl,11*256+26
+            ld de,extraHelpSearchLabel
+            ld a,16
+            call print
+            call extra_help_draw_search
             ld hl,11*256+28
             ld de,extraHelpHint
             ld a,16
@@ -8580,18 +8723,16 @@ extra_help_prepare_row
             ld a,(extraHelpTop)
             ld hl,extraHelpRow
             add a,(hl)
-            cp SETTINGS_ACTION_COUNT
+            ld hl,extraHelpMatchCount
+            cp (hl)
             ret nc
-            ld (extraHelpAction),a
-            add a,a
             ld e,a
             ld d,0
-            ld hl,extraHelpActionNames
+            ld hl,extraHelpMatches
             add hl,de
-            ld e,(hl)
-            inc hl
-            ld d,(hl)
-            ex de,hl
+            ld a,(hl)
+            ld (extraHelpAction),a
+            call extra_help_action_name
             ld de,extraHelpLine
             ld b,32
             call extra_help_copy_field
@@ -8741,15 +8882,55 @@ extra_help_hex_digit
             add a,'A'-'9'-1
             ret
 
+extra_help_draw_search
+            ld hl,extraHelpSearchLine
+            ld de,extraHelpSearchLine+1
+            ld bc,EXTRA_HELP_SEARCH_FIELD_WIDTH-1
+            ld (hl),' '
+            ldir
+            xor a
+            ld (extraHelpSearchLine+EXTRA_HELP_SEARCH_FIELD_WIDTH),a
+            ld a,(extraHelpSearchPos)
+            or a
+            jr z,.cursor
+            ld c,a
+            ld b,0
+            ld hl,extraHelpSearch
+            ld de,extraHelpSearchLine
+            ldir
+.cursor
+            ld a,(extraHelpSearchPos)
+            cp EXTRA_HELP_SEARCH_FIELD_WIDTH
+            jr nc,.plot
+            ld e,a
+            ld d,0
+            ld hl,extraHelpSearchLine
+            add hl,de
+            ld (hl),'_'
+.plot
+            ld hl,19*256+26
+            ld de,extraHelpSearchLine
+            ld a,80
+            jp print
+
 extraHelpTitle  defb "Help - current key bindings",0
 extraHelpHeader defb "Action                              Shortcut",0
-extraHelpHint   defb "UP/DOWN scroll  LEFT/RIGHT page  HELP/BREAK close",0
+extraHelpSearchLabel defb "Search:",0
+extraHelpHint   defb "TYPE filter  DELETE erase  UP/DOWN scroll  BREAK close",0
+EXTRA_HELP_SEARCH_MAX equ 32
+EXTRA_HELP_SEARCH_FIELD_WIDTH equ 48
 extraHelpTop    defb 0
 extraHelpRow    defb 0
 extraHelpAction defb 0
 extraHelpKeyCode defb 0
+extraHelpMatchCount defb 0
+extraHelpScanAction defb 0
+extraHelpSearchPos defb 0
 extraHelpLine   defs 59
 extraHelpKeyBuf defs 20
+extraHelpSearch defs EXTRA_HELP_SEARCH_MAX+1
+extraHelpSearchLine defs EXTRA_HELP_SEARCH_FIELD_WIDTH+1
+extraHelpMatches defs SETTINGS_ACTION_COUNT
 
 extraHelpActionNames
             defw ehaSysInfo,ehaDown,ehaUp,ehaPageDown,ehaPageUp,ehaSwitch,ehaEnter,ehaDelete
