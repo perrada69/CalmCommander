@@ -21,5 +21,7 @@ SYSCOPYCTX_STAGE       equ 22
 SYSCOPYCTX_SIZE        equ 23
 
 SYSCOPY_SERVICE_PRINT  equ 0
-SYSCOPY_SERVICE_CANCEL equ 2
+; Slot +2 is the shared Calm Commander WINDOW callback. Copy/delete plugins
+; scan CAPS+SPACE locally, so feature plugins can use the standard window ABI.
+SYSCOPY_SERVICE_WINDOW equ 2
 SYSCOPY_SERVICE_OVERWRITE equ 4

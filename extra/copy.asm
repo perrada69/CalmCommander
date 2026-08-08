@@ -1923,9 +1923,6 @@ patch_services
         ld l,(ix+SYSCOPY_SERVICE_PRINT)
         ld h,(ix+SYSCOPY_SERVICE_PRINT+1)
         ld (call_print+1),hl
-        ld l,(ix+SYSCOPY_SERVICE_CANCEL)
-        ld h,(ix+SYSCOPY_SERVICE_CANCEL+1)
-        ld (call_cancel+1),hl
         ld l,(ix+SYSCOPY_SERVICE_OVERWRITE)
         ld h,(ix+SYSCOPY_SERVICE_OVERWRITE+1)
         ld (call_overwrite+1),hl

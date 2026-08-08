@@ -1,0 +1,16 @@
+Calm Commander 1.3 is out now! 💾
+
+The new version brings several useful options for both file panels:
+
+📁 display directories before files
+🔤 sort entries by name, extension, or date
+🖱️ enable or disable K-Mouse support
+⚙️ automatically save all these settings to cc.cfg
+🔧 several minor bug fixes and menu improvements
+
+The sorting mode can be changed directly from the Utils menu. The menu stays open while you cycle through the available options, and the panels are rearranged when you leave it.
+
+Read the full devlog here:
+https://shrek128.itch.io/calmcommander/devlog/1602676/calm-commander-13-mdash-sorting-and-new-panel-options
+
+#CalmCommander #ZXSpectrumNext #ZXSpectrum #FileManager #RetroComputing #NextZXOS

@@ -358,7 +358,7 @@ syscopy_show_error
 
 sysCopyServices
         defw print
-        defw syscopy_check_cancel
+        defw window
         defw syscopy_overwrite_prompt
 
 sysCopyContext  defs SYSCOPYCTX_SIZE

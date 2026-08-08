@@ -831,7 +831,7 @@ nummenu     defb 0              ; index hlavního menu (0..4)
 menuitems   defw menuleft, menufile, menuutil, menuright, menuquit
 
 ; počet položek v každém menu (pozor: používám to jako počet řádků pro smyčku)
-menulenght  defb 4, 6, 6, 4, 2
+menulenght  defb 4, 6, 8, 4, 2
 
 ; index vybrané položky v aktuálním menu (0-based)
 menucur     defb 0
@@ -901,6 +901,10 @@ menuDirsFirstTxt
 menuSortTxt
         defb " SORT BY: NAME     ",0
         defw cycle_sort_mode
+        defb " ADD BOOKMARK(CS+B)",0
+        defw bookmarks_add
+        defb " SHOW BOOKMARK  (B)",0
+        defw bookmarks_list
         defb 255
 
 menu_sync_config_marks

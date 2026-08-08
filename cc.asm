@@ -640,6 +640,12 @@ loop0
             cp "P"
             jp z,view_plugin_menu
 
+            cp "B"
+            jp z,bookmarks_add
+
+            cp "b"
+            jp z,bookmarks_list
+
             cp "h"
             jp z,help
 
@@ -4472,15 +4478,16 @@ svc_fill_p3dos_header
         ret
 
 
+; Returns A=1 for CAPS+SPACE, otherwise A=0.
 syscopy_check_cancel
         call KEYSCAN
         ld a,d
         cp $27
         jr nz,.no
         ld a,e
-        cp 32
-        jr nz,.no
-        ld a,1
+        sub 32
+        ret nz
+        inc a
         ret
 .no
         xor a
@@ -4903,6 +4910,8 @@ pjs_store
         call ROZHOD
         ld (hl),c
         ret
+
+        include "functions/bookmarks.asm"
 
 E3
         org 49152
@@ -8245,7 +8254,7 @@ sipka:
 ; --- Help dialog ---
 EXTRA_HELP:
             ld hl,8 * 256 + 4
-            ld bc,60 * 256 + 20
+            ld bc,60 * 256 + 23
             ld a,16
             call window
             ld hl,11*256+5
@@ -8320,6 +8329,14 @@ EXTRA_HELP:
             ld a,16
             ld de,help18
             call print
+            ld hl,11*256+24
+            ld a,16
+            ld de,help19
+            call print
+            ld hl,11*256+25
+            ld a,16
+            ld de,help20
+            call print
 .help0:
             xor a
             ld (TLACITKO),a
@@ -8347,6 +8364,8 @@ help15      defb    "            close this window...)",0
 help16      defb    "CAPS+1      Change drive in left window",0
 help17      defb    "CAPS+2      Change drive in right window",0
 help18      defb    "SS+I:       Info about Calm Commander ",0
+help19      defb    "B:          Show bookmarks",0
+help20      defb    "SHIFT+B:    Add bookmark",0
 
 EXTRA_NOTNOW:
         ld hl,8 * 256 + 10

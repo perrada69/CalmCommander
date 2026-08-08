@@ -70,6 +70,7 @@ echo [SD] Odstranuji stare soubory ze SD karty...
 "%HDF%" rm "%IMG%" %PLUG%/edit.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/syscopy.ccp 2>nul
 "%HDF%" rm "%IMG%" %PLUG%/dir_info.ccp 2>nul
+"%HDF%" rm "%IMG%" %PLUG%/bookmarks.ccp 2>nul
 "%HDF%" rm "%IMG%" %DOT%/copy 2>nul
 "%HDF%" rm "%IMG%" %DOT%/del 2>nul
 "%HDF%" rm "%IMG%" %DOT%/dirinfo 2>nul
@@ -119,6 +120,7 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\edit.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\syscopy.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\dir_info.ccp %PLUG%/
+"%HDF%" put "%IMG%" build\plugin\bookmarks.ccp %PLUG%/
 echo   [PUT] dot commands -^> %DOT%/
 "%HDF%" put "%IMG%" build\extra\copy %DOT%/
 if errorlevel 1 (
@@ -244,6 +246,10 @@ if exist extra\dirinfo ( copy /Y extra\dirinfo build\extra\dirinfo >nul )
 "%SJASMPLUS%" plugin\dir_info.asm
 if errorlevel 1 ( echo *** BUILD FAILED: dir_info.asm *** & exit /b 1 )
 if exist plugin\dir_info.ccp ( copy /Y plugin\dir_info.ccp build\plugin\dir_info.ccp >nul )
+
+"%SJASMPLUS%" plugin\bookmarks.asm
+if errorlevel 1 ( echo *** BUILD FAILED: bookmarks.asm *** & exit /b 1 )
+if exist plugin\bookmarks.ccp ( copy /Y plugin\bookmarks.ccp build\plugin\bookmarks.ccp >nul )
 
 echo.
 echo [OK] Build hotov.

@@ -1112,9 +1112,6 @@ patch_services
         ld l,(ix+SYSCOPY_SERVICE_PRINT)
         ld h,(ix+SYSCOPY_SERVICE_PRINT+1)
         ld (call_print+1),hl
-        ld l,(ix+SYSCOPY_SERVICE_CANCEL)
-        ld h,(ix+SYSCOPY_SERVICE_CANCEL+1)
-        ld (call_cancel+1),hl
         ld l,(ix+SYSCOPY_SERVICE_OVERWRITE)
         ld h,(ix+SYSCOPY_SERVICE_OVERWRITE+1)
         ld (call_overwrite+1),hl
@@ -1446,7 +1443,21 @@ call_print
 
 
 call_cancel
-        jp 0
+        ; CAPS+SPACE, read locally so service slot +2 can be shared with
+        ; feature plugins as Calm Commander's standard window callback.
+        ld bc,$fefe
+        in a,(c)
+        bit 0,a
+        jr nz,.no
+        ld b,$7f
+        in a,(c)
+        bit 0,a
+        jr nz,.no
+        ld a,1
+        ret
+.no
+        xor a
+        ret
 
 
 call_overwrite
