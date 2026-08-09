@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "1.4" : ENDM
+            MACRO VERSION : defb "1.5" : ENDM
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
@@ -299,6 +299,7 @@ neskenuj
 
                                                   ; načti sprite grafiku “sipka” do sprite systému (externí LoadSprites)
             nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE   ; mapuj extra banku (sipka + specialchar tam jsou)
+            call EXTRA_CFG_PREPARE
             ld hl,sipka
             ld bc,16*16*1
             ld a,0
@@ -2839,27 +2840,6 @@ offset	equ 3
 ; The low nibble is preserved, allowing callers to address another colour
 ; inside the selected 16-colour group. All other registers are preserved.
 cc_map_palette_attr
-        push bc
-        push de
-        push hl
-        ld b,a
-        and $0f
-        ld c,a
-        ld a,b
-        rrca
-        rrca
-        rrca
-        rrca
-        and $0f
-        ld e,a
-        ld d,0
-        ld hl,cfgPaletteMap
-        add hl,de
-        ld a,(hl)
-        or c
-        pop hl
-        pop de
-        pop bc
         ret
 
 ; vstup:
@@ -4368,6 +4348,8 @@ createCfg
         call 115h
         jr .close
 .read
+        xor a
+        ld (cfgColourVersion),a
         ld b,1
         ld c,PAGE_BUFF
         ld de,DelkaCfg
@@ -4605,9 +4587,6 @@ syscopy_overwrite_prompt
         pop af
         ret
 
-dotInsertPtr defw 0
-dotFoundPtr  defw 0
-dotRemaining defw 0
 overwriteAll defb 0
 
 E1
@@ -5219,6 +5198,7 @@ VSE_NASTAV
         ld a,b
         or c
         jr nz,.setPalLoop
+        call vse_apply_configured_palette
         ld hl,$4000
         ld de,$4001
         ld bc,80*32*2
@@ -5230,6 +5210,48 @@ VSE_NASTAV
         ld bc,80
         ret
 
+; Overlay the 16 configurable background/foreground RGB333 pairs on the base
+; palette. The packed blue-bit tail keeps the persistent theme block at 36 B.
+vse_apply_configured_palette
+        push ix
+        nextreg PALETTE_CONTROL_NR_43,%0'011'0000
+        ld hl,cfgStyleColours
+        ld ix,cfgStyleColours+SETTINGS_COLOUR_PRIMARY_BYTES
+        ld d,(ix+0)
+        ld e,1
+        ld b,SETTINGS_STYLE_COUNT
+        ld c,0
+.group
+        ld a,c
+        nextreg PALETTE_INDEX_NR_40,a
+        call .write_colour
+        ld a,c
+        add a,3
+        nextreg PALETTE_INDEX_NR_40,a
+        call .write_colour
+        ld a,c
+        add a,16
+        ld c,a
+        djnz .group
+        pop ix
+        ret
+.write_colour
+        ld a,(hl)
+        inc hl
+        nextreg PALETTE_VALUE_9BIT_NR_44,a
+        ld a,d
+        and e
+        jr z,.blue_zero
+        ld a,1
+.blue_zero
+        nextreg PALETTE_VALUE_9BIT_NR_44,a
+        rlc e
+        ret nc
+        inc ix
+        ld d,(ix+0)
+        ret
+
+        MACRO emit_tilemap_palette
 tilemapPalette:
                 db  %000'000'10,0                 ; 0 tmavá navy R=0,G=0,B=4 (paper)				0
                 db  %001'001'11,0                 ; 1 (nepoužito)
@@ -5348,6 +5370,7 @@ tilemapPalette:
 
 
 tilemapPalette_SZ:  EQU $ - tilemapPalette
+        ENDM
 
 lftw	defb 0
         defb 1
@@ -9084,6 +9107,150 @@ extra_write_hex_nibble
 sysCopyErrorTxt     defb "Directory copy failed.",0
 sysCopyErrorHintTxt defb "Check syscopy.ccp and free space.",0
 sysCopyErrorDiagTxt defb "Stage $00  Error $00",0
+
+; Upgrade the legacy 16-byte palette map + 33-byte key table after cc.cfg has
+; been read. This code lives in the extra bank to keep scarce resident RAM
+; available for the persistent packed theme itself.
+EXTRA_CFG_PREPARE:
+        ld a,(cfgColourVersion)
+        cp SETTINGS_COLOUR_VERSION
+        ret z
+
+        ld hl,cfgLegacyThemeArea
+        ld de,extraLegacyPaletteMap
+        ld bc,SETTINGS_PALETTE_COUNT
+        ldir
+
+        ; Old keys begin 16 bytes into the legacy area. Copy backwards because
+        ; their new destination overlaps the old source range.
+        ld hl,cfgLegacyThemeArea+SETTINGS_PALETTE_COUNT+SETTINGS_ACTION_COUNT-1
+        ld de,cfgKeyBindings+SETTINGS_ACTION_COUNT-1
+        ld bc,SETTINGS_ACTION_COUNT
+        lddr
+
+        ld hl,extraDefaultColours
+        ld de,extraMigratedColours
+        ld bc,SETTINGS_COLOUR_BYTES
+        ldir
+        xor a
+        ld (extraMigratedColours+32),a
+        ld (extraMigratedColours+33),a
+        ld (extraMigratedColours+34),a
+        ld (extraMigratedColours+35),a
+        ld (extraMigStyle),a
+.style
+        ld a,(extraMigStyle)
+        ld e,a
+        ld d,0
+        ld hl,extraLegacyPaletteMap
+        add hl,de
+        ld a,(hl)
+        and $f0
+        rrca
+        rrca
+        rrca                              ; physical group * two
+        ld (extraMigSourceColour),a
+        ld e,a
+        ld d,0
+        ld hl,extraDefaultColours
+        add hl,de
+        push hl
+        ld a,(extraMigStyle)
+        add a,a
+        ld (extraMigDestColour),a
+        ld e,a
+        ld d,0
+        ld hl,extraMigratedColours
+        add hl,de
+        ex de,hl
+        pop hl
+        ldi
+        ldi
+        xor a
+        ld (extraMigChannel),a
+.bit
+        ld a,(extraMigSourceColour)
+        ld b,a
+        ld a,(extraMigChannel)
+        add a,b
+        ld b,a
+        and 7
+        ld e,a
+        ld d,0
+        ld hl,extraBitMasks
+        add hl,de
+        ld a,(hl)
+        ld (extraMigMask),a
+        ld a,b
+        rrca
+        rrca
+        rrca
+        and 3
+        ld e,a
+        ld d,0
+        ld hl,extraDefaultColours+SETTINGS_COLOUR_PRIMARY_BYTES
+        add hl,de
+        ld a,(extraMigMask)
+        and (hl)
+        jr z,.next_bit
+        ld a,(extraMigDestColour)
+        ld b,a
+        ld a,(extraMigChannel)
+        add a,b
+        ld b,a
+        and 7
+        ld e,a
+        ld d,0
+        ld hl,extraBitMasks
+        add hl,de
+        ld a,(hl)
+        ld (extraMigMask),a
+        ld a,b
+        rrca
+        rrca
+        rrca
+        and 3
+        ld e,a
+        ld d,0
+        ld hl,extraMigratedColours+SETTINGS_COLOUR_PRIMARY_BYTES
+        add hl,de
+        ld a,(extraMigMask)
+        or (hl)
+        ld (hl),a
+.next_bit
+        ld a,(extraMigChannel)
+        inc a
+        ld (extraMigChannel),a
+        cp 2
+        jr nz,.bit
+        ld a,(extraMigStyle)
+        inc a
+        ld (extraMigStyle),a
+        cp SETTINGS_STYLE_COUNT
+        jp nz,.style
+
+        ld hl,extraMigratedColours
+        ld de,cfgStyleColours
+        ld bc,SETTINGS_COLOUR_BYTES
+        ldir
+        ld a,SETTINGS_SCHEME_CUSTOM
+        ld (cfgColourScheme),a
+        ld a,SETTINGS_COLOUR_VERSION
+        ld (cfgColourVersion),a
+        ret
+
+extraDefaultColours
+        EMIT_SETTINGS_DEFAULT_COLOURS
+extraMigratedColours defs SETTINGS_COLOUR_BYTES
+extraLegacyPaletteMap defs SETTINGS_PALETTE_COUNT
+extraBitMasks defb 1,2,4,8,16,32,64,128
+extraMigStyle defb 0
+extraMigChannel defb 0
+extraMigSourceColour defb 0
+extraMigDestColour defb 0
+extraMigMask defb 0
+
+        emit_tilemap_palette
 
 EXTRA_BANK_END:
             SAVEBIN "cc_xb.bin", $E000, EXTRA_BANK_END - $E000

@@ -197,7 +197,7 @@ nadpis111
         ld a,(hl)
         ld (de),a
         inc de
-        ld a,(cfgPaletteMap+1)
+        ld a,16
         ld (de),a
         inc de
         inc hl

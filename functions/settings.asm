@@ -5,10 +5,12 @@
 settings_open
         ld a,SETTINGS_ABI
         ld (sysCopyContext+SETTINGSCTX_ABI),a
-        ld hl,cfgPaletteMap
+        ld hl,cfgStyleColours
         ld (sysCopyContext+SETTINGSCTX_PALETTE),hl
         ld hl,cfgKeyBindings
         ld (sysCopyContext+SETTINGSCTX_KEYS),hl
+        ld hl,cfgColourScheme
+        ld (sysCopyContext+SETTINGSCTX_SCHEME),hl
         xor a
         ld (sysCopyContext+SETTINGSCTX_RESULT),a
         ld (sysCopyContext+SETTINGSCTX_ERROR),a

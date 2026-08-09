@@ -35,14 +35,14 @@ cfgUseKMouse	defb 0				; 0 = K-Mouse vypnuta (vychozi), 1 = zapnuta
 cfgDirsFirst	defb 0				; 0 = poradi z DOSu, 1 = adresare pred soubory
 cfgSortMode	defb 0				; 0 = jmeno, 1 = pripona, 2 = datum (nejnovejsi prvni)
 
-; Map legacy Tilemap attribute groups 0..15 to user-selected palette groups.
-; Values are palette bases, so the default identity map preserves the original
-; Calm Commander colour scheme and old cc.cfg files remain compatible.
-cfgPaletteMap
-		defb 0,16,32,48,64,80,96,112
-		defb 128,144,160,176,192,208,224,240
-cfgPaletteMapEnd
-		assert cfgPaletteMapEnd-cfgPaletteMap = SETTINGS_PALETTE_COUNT
+; New theme data intentionally begins where the legacy 16-byte palette map
+; lived. On first load of an old cc.cfg the upgrade routine consumes the raw
+; map/key layout before replacing it with this packed RGB333 table.
+cfgLegacyThemeArea
+cfgStyleColours
+		EMIT_SETTINGS_DEFAULT_COLOURS
+cfgStyleColoursEnd
+		assert cfgStyleColoursEnd-cfgStyleColours = SETTINGS_COLOUR_BYTES
 
 ; One physical INKEY result per logical action (see settings_api.i.asm).
 ; Keeping action -> key makes dispatch, Settings and dynamic Help share the
@@ -53,6 +53,13 @@ cfgKeyBindings
 		defb "S"
 cfgKeyBindingsEnd
 		assert cfgKeyBindingsEnd-cfgKeyBindings = SETTINGS_ACTION_COUNT
+
+; Kept after the old end-of-file, allowing createCfg to distinguish old and
+; new layouts after it clears this byte immediately before reading.
+cfgColourVersion
+		defb SETTINGS_COLOUR_VERSION
+cfgColourScheme
+		defb SETTINGS_SCHEME_DEFAULT
 
 DelkaCfg	equ $-PATHLEFT
 
