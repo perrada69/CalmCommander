@@ -37,7 +37,9 @@ VIEWCTX_DIRTY        equ 40
 VIEWCTX_P3DOS_TYPE   equ 41    ; 1 byte: $FF=no header, else TAP type (0=BASIC,1=NumArr,2=StrArr,3=Code)
 VIEWCTX_P3DOS_P1     equ 42    ; 2 bytes: TAP param1
 VIEWCTX_P3DOS_P2     equ 44    ; 2 bytes: TAP param2
-VIEWCTX_SIZE         equ 46
+VIEWCTX_EXTRACT_OFHI equ 46    ; 2 bytes: bits 16-31 of the source offset
+                               ; (SERVICE_EXTRACT_SEEK only; bits 0-15 come in DE)
+VIEWCTX_SIZE         equ 48
 
 
 
@@ -53,6 +55,7 @@ VIEWTYPE_HELLO       equ 9
 VIEWTYPE_BAS         equ 10
 VIEWTYPE_TAP         equ 11
 VIEWTYPE_EDIT        equ 12
+VIEWTYPE_TRD         equ 13
 VIEW_EDIT_KEY_SAVE   equ 128
 VIEW_EDIT_KEY_SAVEAS equ 129
 VIEW_EDIT_KEY_HEX    equ 130
@@ -103,7 +106,10 @@ view_run_selected_plugin
         cp VIEWTYPE_SQT
         jr z,.music_result
         cp VIEWTYPE_TAP
+        jr z,.extract_capable
+        cp VIEWTYPE_TRD
         jr nz,.done
+.extract_capable
         call view_handle_plugin_extract
         ld a,(viewPluginContext+VIEWCTX_DIRTY)
         or a
@@ -417,6 +423,15 @@ view_select_plugin
         call pripony
         jp z,.tap_plugin
 
+        ld hl,viewShortName
+        ld de,ext_trd
+        call pripony
+        jp z,.trd_plugin
+        ld hl,viewShortName
+        ld de,ext_TRD
+        call pripony
+        jp z,.trd_plugin
+
         scf
         ret
 
@@ -424,6 +439,14 @@ view_select_plugin
         ld a,VIEWTYPE_TAP
         ld (viewPluginType),a
         ld hl,viewTapPluginName
+        ld (viewPluginName),hl
+        xor a
+        ret
+
+.trd_plugin
+        ld a,VIEWTYPE_TRD
+        ld (viewPluginType),a
+        ld hl,viewTrdPluginName
         ld (viewPluginName),hl
         xor a
         ret
@@ -510,168 +533,6 @@ view_is_zx_screen
         ld de,6912
         or a
         sbc hl,de
-        ret
-
-
-view_choose_plugin_dialog
-        call savescr
-        xor a
-        ld (viewPluginMenuCursor),a
-        ld (viewPluginMenuTop),a
-        call view_read_wheel
-        ld (viewWheelOld),a
-
-        ld hl,23*256+8
-        ld bc,34*256+12
-        ld a,144
-        call window
-        ld hl,25*256+9
-        ld a,144
-        ld de,viewPluginMenuTitleTxt
-        call print
-        call view_plugin_menu_print_items
-        ld a,64
-        call view_plugin_menu_write_cursor
-
-.loop
-        xor a
-        ld (TLACITKO),a
-        call INKEY
-        cp 1
-        jp z,.cancel
-        cp 10
-        jp z,.down
-        cp 11
-        jp z,.up
-        cp 13
-        jp z,.enter
-
-        call view_plugin_menu_wheel
-        cp 10
-        jp z,.down
-        cp 11
-        jp z,.up
-
-        ld a,(TLACITKO)
-        bit 1,a
-        jp nz,.mouse
-        jp .loop
-
-.down
-        ld a,(viewPluginMenuCursor)
-        cp VIEW_PLUGIN_MENU_VISIBLE-1
-        jr z,.down_scroll
-        ld b,a
-        ld a,(viewPluginMenuTop)
-        add a,b
-        cp VIEW_PLUGIN_MENU_LAST
-        jp z,.loop
-        ld a,144
-        call view_plugin_menu_write_cursor
-        ld hl,viewPluginMenuCursor
-        inc (hl)
-        ld a,64
-        call view_plugin_menu_write_cursor
-        jp .loop
-
-.down_scroll
-        ld a,(viewPluginMenuTop)
-        add a,VIEW_PLUGIN_MENU_VISIBLE
-        cp VIEW_PLUGIN_MENU_COUNT
-        jp nc,.loop
-        ld hl,viewPluginMenuTop
-        inc (hl)
-        call view_plugin_menu_print_items
-        ld a,64
-        call view_plugin_menu_write_cursor
-        jp .loop
-
-.up
-        ld a,(viewPluginMenuCursor)
-        or a
-        jp z,.up_scroll
-        ld a,144
-        call view_plugin_menu_write_cursor
-        ld hl,viewPluginMenuCursor
-        dec (hl)
-        ld a,64
-        call view_plugin_menu_write_cursor
-        jp .loop
-
-.up_scroll
-        ld a,(viewPluginMenuTop)
-        or a
-        jp z,.loop
-        ld hl,viewPluginMenuTop
-        dec (hl)
-        call view_plugin_menu_print_items
-        ld a,64
-        call view_plugin_menu_write_cursor
-        jp .loop
-
-.mouse
-        ld hl,viewPluginMenuMouseArea
-        call CONTROL
-        jp c,.loop
-        ld a,(COORD+1)
-        ld d,a
-        ld e,8
-        call deleno8
-        ld a,d
-        cp 11
-        jp c,.loop
-        cp 18
-        jp nc,.loop
-        sub 11
-        cp VIEW_PLUGIN_MENU_VISIBLE
-        jp nc,.loop
-        ld c,a
-        ld a,(viewPluginMenuTop)
-        add a,c
-        cp VIEW_PLUGIN_MENU_COUNT
-        jp nc,.loop
-        ld a,c
-        ld (viewPluginMenuCursor),a
-        jp .enter
-
-.enter
-        call loadscr
-        call view_plugin_menu_set_plugin
-        xor a
-        ret
-
-.cancel
-        xor a
-        ld (viewNextAfterDown),a
-        call loadscr
-        scf
-        ret
-
-
-view_plugin_menu_wheel
-        call view_read_wheel
-        ld b,a
-        ld a,(viewWheelOld)
-        ld c,a
-        cp b
-        jr z,.no_wheel
-        ld a,b
-        ld (viewWheelOld),a
-        ld a,c
-        cp 15
-        jr z,.no_wheel
-        or a
-        jr z,.no_wheel
-        ld a,b
-        cp c
-        jr c,.wheel_up
-        ld a,10
-        ret
-.wheel_up
-        ld a,11
-        ret
-.no_wheel
-        xor a
         ret
 
 
@@ -1085,44 +946,80 @@ view_reload_active_panel
         ret
 
 
-; svc_extract_to_file: HL=plugin filename, DE=file-data offset, BC=byte count.
-; Export through the native NextZXOS +3DOS-compatible API. The data chunk is
-; copied to a private buffer below $C000, then DOS_WRITE writes from that stable
-; buffer without touching the panel directory cache.
-svc_extract_to_file
+; ================================================================
+; Extraction services. Both write a byte range into a new file in the
+; active panel directory; they differ only in where the bytes come from.
+;
+; SERVICE_EXTRACT takes them from the loaded data pages, so a plugin can
+; write back data it has modified in RAM (the editor saves this way).
+; SERVICE_EXTRACT_SEEK re-reads them from the source file instead, which
+; is the only way to reach data past the 64KB the viewer keeps in RAM
+; (TRD disk images are up to 640K).
+; The shared steps live in view_extract_prepare/open_dest/exit.
+; ================================================================
+
+; view_extract_prepare: HL=plugin filename, DE=offset bits 0-15,
+; BC=byte count. Saves the paging state and builds the output path.
+view_extract_prepare
+        ld (viewExtractOff),de
+        ld (viewExtractCnt),bc
         ld a,$56
         call ReadNextReg2A
         ld (viewExtractSavedMmu6),a
         ld a,$57
         call ReadNextReg2A
         ld (viewExtractSavedMmu7),a
+        jp view_make_extract_path
 
-        ld (viewExtractOff),de
-        ld (viewExtractCnt),bc
-        call view_make_extract_path
 
-        call dospage
-        call view_set_current_path
-        ; d=1 creates file with +3DOS header, d=2 creates raw (no header)
+; view_extract_open_dest: create the output file as file 1 and fill in its
+; +3DOS header when the plugin asked for one. Carry set on failure.
+; Must be called while in dospage.
+view_extract_open_dest
         ld a,(viewPluginContext+VIEWCTX_P3DOS_TYPE)
-        ld d,2
+        ld d,2                  ; create action 2: raw file, no header
         cp $FF
         jr z,.do_open
-        ld d,1
+        ld d,1                  ; create action 1: file with +3DOS header
 .do_open
         ld b,1                  ; file number
         ld c,2                  ; exclusive write
         ld e,4                  ; erase existing, then create
         ld hl,viewPluginDosName
         call $0106
-        jr nc,.open_fail
-        ; if +3DOS header requested: fill 8-byte header via DOS_REF_HEAD
+        ccf
+        ret c                   ; DOS reports success with carry set
         ld a,(viewPluginContext+VIEWCTX_P3DOS_TYPE)
         cp $FF
-        jr z,.header_done
+        ret z
         ld b,1
         call svc_fill_p3dos_header
-.header_done
+        or a
+        ret
+
+
+; view_extract_exit: A = error code, 0 = success. Restores the paging
+; state and returns with carry set when the extraction failed.
+view_extract_exit
+        ld (viewExtractError),a
+        call basicpage
+        call view_restore_extract_state
+        ld a,(viewExtractError)
+        or a
+        ret z
+        scf
+        ret
+
+
+; svc_extract_to_file: HL=plugin filename, DE=data offset, BC=byte count.
+; The chunk is copied out of the data pages into a private buffer below
+; $C000, from where DOS_WRITE takes it without touching the directory cache.
+svc_extract_to_file
+        call view_extract_prepare
+        call dospage
+        call view_set_current_path
+        call view_extract_open_dest
+        jr c,.open_fail
         call basicpage
 
 .write_loop
@@ -1156,34 +1053,129 @@ svc_extract_to_file
         ld b,1
         call $0109
         jr nc,.close_error
-        call basicpage
         ld a,1
         ld (viewPluginContext+VIEWCTX_DIRTY),a
-        call view_restore_extract_state
         xor a
-        ret
+        jp view_extract_exit
 
 .write_fail
         call basicpage
         call dospage
         ld b,1
         call $0109
-        call basicpage
         ld a,2
-        jr .fail
+        jp view_extract_exit
 .close_error
-        call basicpage
         ld a,3
-        jr .fail
+        jp view_extract_exit
 .open_fail
-        call basicpage
         ld a,1
-.fail
+        jp view_extract_exit
+
+
+; svc_extract_seek: HL=plugin filename, DE=source offset bits 0-15,
+; BC=byte count. Bits 16-31 of the offset come from VIEWCTX_EXTRACT_OFHI.
+; The source file is reopened and streamed straight into the output file,
+; so the data may sit anywhere in it, not just in the loaded 64KB.
+; Error codes 1-3 match svc_extract_to_file; 4-6 are specific to this path.
+svc_extract_seek
+        call view_extract_prepare
+        ld hl,(viewPluginContext+VIEWCTX_EXTRACT_OFHI)
+        ld (viewExtractOffHi),hl
+
+        call dospage
+        call view_set_current_path
+
+        ; source (file 0): must exist, ignore any header, pointer at 0
+        ld b,0
+        ld c,1                  ; read access
+        ld d,0                  ; create action 0: error when missing
+        ld e,2                  ; open action 2: ignore header
+        ld hl,TMP83
+        call $0106
+        ld a,4
+        jp nc,view_extract_exit
+
+        ld b,0
+        ld hl,(viewExtractOff)
+        ld de,(viewExtractOffHi)
+        call $0136              ; DOS_SET_POSITION, DEHL = byte offset
+        jr nc,.seek_fail
+
+        call view_extract_open_dest
+        jr c,.dest_fail
+
+.copy_loop
+        ld hl,(viewExtractCnt)
+        ld a,h
+        or l
+        jr z,.close_ok
+
+        ld de,LENGHT_BUFFER     ; same transfer size the file copier uses
+        or a
+        sbc hl,de
+        jr nc,.chunk_set        ; a whole chunk or more is left: keep DE
+        ld de,(viewExtractCnt)  ; tail shorter than one chunk
+.chunk_set
+        ld (viewExtractChunk),de
+
+        ld b,0
+        ld c,PAGE_BUFF
+        ld de,(viewExtractChunk)
+        ld hl,49152
+        call $0112
+        jr nc,.read_fail
+
+        ld b,1
+        ld c,PAGE_BUFF
+        ld de,(viewExtractChunk)
+        ld hl,49152
+        call $0115
+        jr nc,.write_fail
+
+        ld hl,(viewExtractCnt)
+        ld de,(viewExtractChunk)
+        or a
+        sbc hl,de
+        ld (viewExtractCnt),hl
+        jr .copy_loop
+
+.close_ok
+        ld b,1
+        call $0109
+        jr nc,.close_error
+        ld b,0
+        call $0109
+        ld a,1
+        ld (viewPluginContext+VIEWCTX_DIRTY),a
+        xor a
+        jp view_extract_exit
+
+.write_fail
+        ld a,2
+        jr .close_dest
+.read_fail
+        ld a,6
+.close_dest
         ld (viewExtractError),a
-        call view_restore_extract_state
+        ld b,1
+        call $0109
+        jr .close_src
+.close_error
+        ld a,3
+        jr .store_err
+.dest_fail
+        ld a,1
+        jr .store_err
+.seek_fail
+        ld a,5
+.store_err
+        ld (viewExtractError),a
+.close_src
+        ld b,0
+        call $0109
         ld a,(viewExtractError)
-        scf
-        ret
+        jp view_extract_exit
 
 
 view_make_extract_path
@@ -1280,6 +1272,7 @@ viewServices
         defw view_plugin_input_nowait
         defw svc_extract_to_file
         defw beepk
+        defw svc_extract_seek
 
 
 view_init_plugin_input
@@ -1939,6 +1932,7 @@ viewSqtPluginName      defb "sqtest.ccp",255
 viewHelloPluginName    defb "HelloWord.ccp",255
 viewBasPluginName      defb "bas.ccp",255
 viewTapPluginName      defb "tap.ccp",255
+viewTrdPluginName      defb "trd.ccp",255
 viewEditPluginName     defb "edit.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
@@ -1974,3 +1968,4 @@ viewExtractHandle       defb 0
 viewExtractSavedMmu6    defb 0
 viewExtractSavedMmu7    defb 0
 viewExtractError        defb 0
+viewExtractOffHi        defw 0

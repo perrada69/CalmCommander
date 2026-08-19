@@ -8200,6 +8200,7 @@ aKEY_NEW_NOWAIT
 
 
         include "functions/dir_info_late.asm"
+        include "functions/viewer_late.asm"
 
 overwrite_draw_options
         ld hl,46*256+20

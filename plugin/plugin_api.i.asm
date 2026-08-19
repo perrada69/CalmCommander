@@ -22,6 +22,7 @@ VIEWCTX_DIRTY        equ 40
 VIEWCTX_P3DOS_TYPE   equ 41    ; 1 byte: $FF=no header, else TAP type (0=BASIC,1=NumArr,2=StrArr,3=Code)
 VIEWCTX_P3DOS_P1     equ 42    ; 2 bytes: TAP param1 (LINE for BASIC, load address for CODE)
 VIEWCTX_P3DOS_P2     equ 44    ; 2 bytes: TAP param2
+VIEWCTX_EXTRACT_OFHI equ 46    ; 2 bytes: bits 16-31 of source offset (SERVICE_EXTRACT_SEEK)
 
 SERVICE_PRINT        equ 0
 SERVICE_INKEY        equ 2
@@ -30,3 +31,8 @@ SERVICE_LAYER0       equ 6
 SERVICE_INPUT_NOWAIT equ 8
 SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)
 SERVICE_BEEP         equ 12
+SERVICE_EXTRACT_SEEK equ 14   ; extract straight from the source file:
+                              ; HL=name, DE=offset bits 0-15, BC=byte count,
+                              ; offset bits 16-31 in VIEWCTX_EXTRACT_OFHI.
+                              ; Needed when the data lies beyond the 64KB
+                              ; the viewer keeps in RAM.
