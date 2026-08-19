@@ -173,3 +173,5 @@ view_plugin_menu_wheel
 ; part of the binary is full, and only view_select_plugin reads these.
 ext_trd defb ".trd"
 ext_TRD defb ".TRD"
+ext_scl defb ".scl"
+ext_SCL defb ".SCL"

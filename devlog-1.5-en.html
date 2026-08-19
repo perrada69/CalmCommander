@@ -1,0 +1,90 @@
+<h1>Calm Commander 1.5 &mdash; TR-DOS disk images and colour themes</h1>
+
+<p>
+Version <strong>1.5</strong> adds a viewer for <strong>TR-DOS disk images</strong>
+with file extraction, and <strong>predefined colour themes</strong> that can be
+switched with a single keypress.
+</p>
+
+<h2>TRD viewer</h2>
+
+<p>
+Files with the <strong>.trd</strong> extension are now opened by a new viewer
+plugin that lists the complete TR-DOS catalogue. Point the cursor at an image
+and press <strong>View</strong> (3 by default).
+</p>
+
+<ul>
+  <li>Every catalogue entry is listed with its name, type, size in bytes,
+      position on the disk (track/sector) and load address.</li>
+  <li>BASIC entries show the length of the program without variables instead of
+      the load address.</li>
+  <li>The title line shows the disk geometry (80T/2S, 40T/1S and so on) and the
+      number of catalogue entries; the header line adds the disk label and the
+      number of free sectors.</li>
+  <li>Deleted entries remain visible and are marked <strong>DEL</strong>.</li>
+  <li>Entries that point outside the image are marked <strong>BAD</strong> and
+      are never written to disk.</li>
+  <li>Navigation works the same way as in the TAP viewer: arrows, PgUp and
+      PgDn.</li>
+</ul>
+
+<h2>Extracting files from an image</h2>
+
+<p>
+Files stored in the image can be written to the SD card without any external
+tool. <strong>e</strong> extracts the entry under the cursor and
+<strong>Caps+e</strong> extracts all of them. Files are created in the directory
+shown in the active panel, and the panel is refreshed when the export finishes.
+</p>
+
+<ul>
+  <li><strong>d</strong> switches the +3DOS header on and off. With headers
+      enabled (the default) NextZXOS recognises the exported files as BASIC or
+      CODE, together with their line number and load address.</li>
+  <li>BASIC files are saved with the <strong>.BAS</strong> extension, everything
+      else as <strong>.BIN</strong>. Names that TR-DOS allows but a FAT card
+      does not are sanitised automatically.</li>
+  <li>A deleted entry can still be exported individually, which makes it
+      possible to rescue data from a file that TR-DOS has already dropped from
+      its catalogue. Bulk export skips deleted entries.</li>
+  <li>During the export the plugin shows the target name, its length,
+      a <strong>WORKING...</strong> indicator and a file counter, so a longer
+      export never looks like a frozen program.</li>
+</ul>
+
+<p>
+Images of every common size are supported &mdash; 160K, 320K and 640K. Because
+a disk image is far larger than the memory the viewer keeps a file in, data is
+read directly from the image at the exact position of the requested file, so
+files stored in the outer tracks are extracted just as reliably as those at the
+beginning of the disk.
+</p>
+
+<h2>Colour themes</h2>
+
+<p>
+The Colours tab in the <strong>Settings</strong> window (<strong>Caps+S</strong>)
+starts with a new <strong>Colour scheme</strong> row. Pressing
+<strong>Enter</strong> on it cycles through the prepared themes:
+<strong>Default</strong>, <strong>Light</strong> and <strong>Dark</strong>.
+</p>
+
+<ul>
+  <li>Selecting a theme rewrites all sixteen interface styles at once and is
+      applied immediately, so the result is visible while choosing.</li>
+  <li>Each style can still be adjusted separately &mdash; background and
+      foreground are set as R/G/B values from 0 to 7. The list covers the panel
+      cursor, marked files, directories, executable files, dialogs, the viewer
+      and the colours used by plugins.</li>
+  <li>As soon as an individual colour is edited, the scheme is reported as
+      <strong>Custom</strong>.</li>
+  <li><strong>S</strong> saves the configuration for future sessions,
+      <strong>BREAK</strong> cancels the whole editing session and restores the
+      previous colours.</li>
+</ul>
+
+<p>
+Thank you for using <strong>Calm Commander</strong> and for reporting bugs and
+suggesting improvements!
+</p>

@@ -48,6 +48,19 @@ ATTR_BUSY       equ 224     ; window background, yellow ink: no colour block
 ; which is why exporting only needs a seek plus one linear copy.
 ; Sector 8 of track 0 holds the disk information block.
 
+; ---- SCL archive layout ----
+; The same plugin serves SCL, which is the TR-DOS catalogue without the
+; position fields, because the files simply follow each other:
+;   +0  8 bytes  "SINCLAIR"
+;   +8  1 byte   number of files N (1-255)
+;   +9  N entries of 14 bytes: the TR-DOS entry minus start sector/track
+;   then the file data back to back, each file sectors * 256 bytes long,
+;   and a 4 byte checksum at the very end.
+; A file's offset is therefore 9 + N*14 plus the sectors of everything
+; before it, which means every file in one archive shares the same low
+; byte of the offset. Only the upper 16 bits differ, so the same
+; entryStartSec arithmetic used for TRD works here too.
+
 MAX_ENTRIES     equ 128
 INFO_TYPE       equ $08E3
 INFO_FREE       equ $08E5
@@ -153,8 +166,10 @@ plugin_start
         cp b
         jp z,.input
         add a,CONTENT_ROWS
+        jr c,.pgdn_last     ; past 255 entries the addition wraps
         cp b
         jp c,.pgdn_set
+.pgdn_last
         ld a,b
 .pgdn_set
         ld (curEntry),a
@@ -235,21 +250,88 @@ init_context
         ld (curEntry),a
         ld (topEntry),a
 
-        ; an image without a full catalogue cannot be listed
+        ; an image without any loaded data cannot be listed
         ld a,(pageCount)
         or a
         jr z,.invalid
+
+        call detect_scl
+        ld a,(isScl)
+        or a
+        jr nz,.usable       ; SCL carries its own file count
+
+        ; TRD needs the catalogue and the info sector to be present
         ld hl,(totalSectors)
         ld de,MIN_SECTORS
         or a
         sbc hl,de
         jr c,.invalid
+.usable
         ld a,1
         ld (trdValid),a
         ret
 .invalid
         xor a
         ld (trdValid),a
+        ret
+
+
+; ================================================================
+; detect_scl: sets isScl when the file starts with the SCL signature,
+; and works out the offset every file in the archive is measured from.
+; ================================================================
+detect_scl
+        xor a
+        ld (isScl),a
+        ld (offsetLowByte),a
+        ld hl,0
+        ld (sclDataHigh),hl
+        ld (sigOff),hl
+        ld hl,sclSignature
+        ld (sigPtr),hl
+        ld b,8
+.cmp
+        ld hl,(sigOff)
+        call read_byte_at_offset
+        ld hl,(sigPtr)
+        cp (hl)
+        ret nz
+        inc hl
+        ld (sigPtr),hl
+        ld hl,(sigOff)
+        inc hl
+        ld (sigOff),hl
+        djnz .cmp
+
+        ld hl,8
+        call read_byte_at_offset
+        ld (sclFiles),a         ; catalogue size is stored, not scanned
+        ld l,a
+        ld h,0
+        call mul14
+        ld de,9
+        add hl,de               ; HL = first data byte
+        ld a,l
+        ld (offsetLowByte),a    ; shared by every file in the archive
+        ld l,h
+        ld h,0
+        ld (sclDataHigh),hl
+        ld a,1
+        ld (isScl),a
+        ret
+
+
+; HL = HL * 14
+mul14
+        add hl,hl               ; *2
+        push hl
+        add hl,hl               ; *4
+        ld d,h
+        ld e,l
+        add hl,hl               ; *8
+        add hl,de               ; *12
+        pop de
+        add hl,de               ; *14
         ret
 
 
@@ -264,6 +346,12 @@ scan_catalog
         ld a,(trdValid)
         or a
         ret z
+        ld a,(isScl)
+        or a
+        jr z,.loop
+        ld a,(sclFiles)         ; SCL states its file count in the header
+        ld (totalFiles),a
+        ret
 .loop
         ld a,(totalFiles)
         cp MAX_ENTRIES
@@ -286,6 +374,9 @@ read_disk_info
         ld a,(trdValid)
         or a
         ret z
+        ld a,(isScl)
+        or a
+        ret nz                  ; an archive has no label, geometry or free space
         ld hl,INFO_TYPE
         call read_byte_at_offset
         ld (diskType),a
@@ -311,10 +402,51 @@ read_disk_info
 entry_offset
         ld l,a
         ld h,0
+        ld a,(isScl)
+        or a
+        jr nz,.scl
         add hl,hl
         add hl,hl
         add hl,hl
-        add hl,hl
+        add hl,hl               ; TRD: index * 16
+        ret
+.scl
+        call mul14              ; SCL: 9 + index * 14
+        ld de,9
+        add hl,de
+        ret
+
+
+; ================================================================
+; scl_entry_start: A = entry index -> HL = upper 16 bits of the file
+; offset, i.e. the data start plus the sectors of every earlier entry.
+; ================================================================
+scl_entry_start
+        ld (sumIdx),a
+        ld hl,(sclDataHigh)
+        ld (sumAcc),hl
+        ld a,(sumIdx)
+        or a
+        jr z,.done
+        ld b,a
+        xor a
+        ld (sumCur),a
+.loop
+        ld a,(sumCur)
+        ld c,13
+        push bc
+        call entry_byte         ; A = sectors used by that entry
+        pop bc
+        ld l,a
+        ld h,0
+        ld de,(sumAcc)
+        add hl,de
+        ld (sumAcc),hl
+        ld hl,sumCur
+        inc (hl)
+        djnz .loop
+.done
+        ld hl,(sumAcc)
         ret
 
 
@@ -367,6 +499,10 @@ read_entry_fields
         ld c,13
         call entry_byte
         ld (entrySectors),a
+        ld a,(isScl)
+        or a
+        jr nz,.scl_pos
+
         ld a,(fieldIdx)
         ld c,14
         call entry_byte
@@ -389,6 +525,15 @@ read_entry_fields
         ld d,0
         add hl,de
         ld (entryStartSec),hl
+        jr .length
+.scl_pos
+        xor a               ; an archive has no track/sector to show
+        ld (entrySector),a
+        ld (entryTrack),a
+        ld a,(fieldIdx)
+        call scl_entry_start
+        ld (entryStartSec),hl
+.length
 
         ; byte length: trust the stored value only while it fits inside the
         ; sectors the catalogue reserved for the file
@@ -604,7 +749,10 @@ render_entry
         ld a,' '
         call put_char
 
-        ; position on the disk: track/sector
+        ; TRD shows where the file sits on the disk, SCL its sector count
+        ld a,(isScl)
+        or a
+        jr nz,.sectors
         ld a,(entryTrack)
         ld l,a
         ld h,0
@@ -615,6 +763,19 @@ render_entry
         ld l,a
         ld h,0
         call write_dec2
+        jr .pos_done
+.sectors
+        ld a,' '
+        call put_char
+        ld a,(entrySectors)
+        ld l,a
+        ld h,0
+        call write_dec3
+        ld a,' '
+        call put_char
+        ld a,' '
+        call put_char
+.pos_done
         ld a,' '
         call put_char
 
@@ -680,6 +841,11 @@ render_title
         call clear_row
 
         ld de,strTrd
+        ld a,(isScl)
+        or a
+        jr z,.label
+        ld de,strScl
+.label
         ld hl,1*256+TITLE_ROW
         ld a,ATTR_TITLE
         call call_print
@@ -692,11 +858,15 @@ render_title
         ld a,ATTR_TITLE
         call call_print
 
-        ; disk geometry
+        ; disk geometry (a TRD property only)
+        ld a,(isScl)
+        or a
+        jr nz,.count
         call disk_type_text
         ld hl,64*256+TITLE_ROW
         ld a,ATTR_TITLE
         call call_print
+.count
 
         ; number of catalogue entries
         ld a,(totalFiles)
@@ -745,9 +915,18 @@ render_col_header
         call clear_row
 
         ld de,strColHdr
+        ld a,(isScl)
+        or a
+        jr z,.hdr
+        ld de,strColHdrScl
+.hdr
         ld hl,1*256+HEADER_ROW
         ld a,ATTR_HEADER
         call call_print
+
+        ld a,(isScl)
+        or a
+        jp nz,render_p3dos_flag ; no label or free space to report
 
         ld de,labelBuf
         ld hl,41*256+HEADER_ROW
@@ -932,13 +1111,15 @@ do_extract_entry
         ld a,ATTR_CODE
         call call_print
 
-        ; 24-bit image offset = first sector * 256
+        ; 24-bit image offset = start sector * 256, plus the constant low
+        ; byte an SCL archive is shifted by (zero for TRD)
         ld hl,(entryStartSec)
-        ld a,h
-        ld h,l
-        ld l,0
+        ld d,h                  ; bits 16-23
+        ld h,l                  ; bits 8-15
+        ld a,(offsetLowByte)
+        ld l,a                  ; bits 0-7
         ld (extractOffLo),hl
-        ld l,a
+        ld l,d
         ld h,0
         ld (extractOffHi),hl
 
@@ -1130,7 +1311,20 @@ build_extract_name
         ld a,'S' : ld (hl),a : inc hl
         jr .term
 .ext_bin
+        ; CODE and data arrays become .BIN; any other TR-DOS type letter is
+        ; kept as the extension, so entries that differ only by type cannot
+        ; overwrite each other
         ld a,'.' : ld (hl),a : inc hl
+        ld a,(entryType)
+        cp 'C'
+        jr z,.bin
+        cp 'D'
+        jr z,.bin
+        call sanitize_filename_char
+        ld (hl),a
+        inc hl
+        jr .term
+.bin
         ld a,'B' : ld (hl),a : inc hl
         ld a,'I' : ld (hl),a : inc hl
         ld a,'N' : ld (hl),a : inc hl
@@ -1485,6 +1679,15 @@ dataPagesPtr    defw 0
 pageCount       defb 0
 totalSectors    defw 0
 trdValid        defb 0
+isScl           defb 0      ; SCL archive instead of a TR-DOS disk image
+sclFiles        defb 0
+offsetLowByte   defb 0      ; low byte shared by every file offset in an SCL
+sclDataHigh     defw 0
+sigPtr          defw 0
+sigOff          defw 0
+sumAcc          defw 0
+sumCur          defb 0
+sumIdx          defb 0
 diskType        defb 0
 diskId          defb 0
 diskFree        defw 0
@@ -1528,6 +1731,8 @@ p3dosEnabled    defb 1
 ; Strings
 ; ================================================================
 strTrd          defb "TRD: ",0
+strScl          defb "SCL: ",0
+sclSignature    defb "SINCLAIR"
 strFl           defb "fl",0
 strGeo802       defb "80T/2S",0
 strGeo402       defb "40T/2S",0
@@ -1537,6 +1742,7 @@ strGeoBad       defb "??????",0
 ; Column header aligned with the data rows:
 ;  0-2=## 4-11=Name 13-18=Type 20-25=Size 27-32=Trk/Sc 34-38=Start
 strColHdr       defb " ## Name     Type   Size   Trk/Sc Start",0
+strColHdrScl    defb " ## Name     Type   Size   Sect   Start",0
 strFree         defb " free",0
 strHelp         defb " BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header",0
 strTBasic       defb "BASIC ",0

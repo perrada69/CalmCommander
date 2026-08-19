@@ -432,6 +432,17 @@ view_select_plugin
         call pripony
         jp z,.trd_plugin
 
+        ; SCL archives are handled by the same plugin, which tells the two
+        ; formats apart by their signature rather than by the extension
+        ld hl,viewShortName
+        ld de,ext_scl
+        call pripony
+        jp z,.trd_plugin
+        ld hl,viewShortName
+        ld de,ext_SCL
+        call pripony
+        jp z,.trd_plugin
+
         scf
         ret
 

@@ -1,0 +1,18 @@
+Calm Commander 1.5 is out now! 💾
+
+Two bigger additions this time — TR-DOS disk images and colour themes:
+
+💿 open .trd images straight from the panel and browse the whole TR-DOS catalogue
+📋 every entry shows name, type, size, track/sector and load address, plus the disk label, geometry and free sectors
+📤 extract a single file with "e" or the entire image with CAPS+e — no external tools needed
+🏷️ optional +3DOS headers, so NextZXOS recognises the exported files as BASIC or CODE
+🗑️ deleted entries stay visible and can still be extracted one by one, which comes in handy for rescuing data
+🎨 new Colour scheme row in Settings (Caps+S) — switch between Default, Light and Dark with Enter
+🖌️ all 16 interface styles can still be tuned by hand in R/G/B: panel cursor, marked files, directories, dialogs, plugin colours...
+
+160K, 320K and 640K images are supported. Data is read directly from the image at the exact position of the requested file, so files stored in the outer tracks extract just as reliably as those at the start of the disk.
+
+Read the full devlog here:
+https://shrek128.itch.io/calmcommander
+
+#CalmCommander #ZXSpectrumNext #ZXSpectrum #FileManager #RetroComputing #NextZXOS #TRDOS

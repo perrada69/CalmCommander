@@ -1,0 +1,87 @@
+<h1>Calm Commander 1.5 &mdash; diskové obrazy TR-DOSu a barevná témata</h1>
+
+<p>
+Verze <strong>1.5</strong> přináší prohlížeč <strong>diskových obrazů
+TR-DOSu</strong> včetně rozbalení souborů a <strong>připravená barevná
+témata</strong>, mezi kterými se dá přepínat jedinou klávesou.
+</p>
+
+<h2>Prohlížeč TRD</h2>
+
+<p>
+Soubory s příponou <strong>.trd</strong> nyní otevírá nový plugin, který vypíše
+celý katalog TR-DOSu. Stačí najet kurzorem na obraz disku a stisknout
+<strong>View</strong> (ve výchozím nastavení 3).
+</p>
+
+<ul>
+  <li>U každé položky katalogu se zobrazí jméno, typ, délka v bajtech, pozice na
+      disku (stopa/sektor) a zaváděcí adresa.</li>
+  <li>U BASICových položek se místo zaváděcí adresy zobrazuje délka programu bez
+      proměnných.</li>
+  <li>V titulku je geometrie disku (80T/2S, 40T/1S a podobně) a počet položek
+      katalogu, v hlavičce navíc jmenovka disku a počet volných sektorů.</li>
+  <li>Smazané položky zůstávají viditelné a jsou označené <strong>DEL</strong>.</li>
+  <li>Položky, které ukazují mimo obraz disku, jsou označené <strong>BAD</strong>
+      a nikdy se nezapisují na kartu.</li>
+  <li>Ovládání je stejné jako u prohlížeče TAP &mdash; šipky, PgUp a PgDn.</li>
+</ul>
+
+<h2>Rozbalení souborů z obrazu</h2>
+
+<p>
+Soubory uložené v obrazu disku lze zapsat na SD kartu bez jakéhokoli externího
+nástroje. <strong>e</strong> rozbalí položku pod kurzorem,
+<strong>Caps+e</strong> rozbalí všechny. Soubory se vytvářejí v adresáři
+zobrazeném v aktivním panelu a panel se po dokončení překreslí.
+</p>
+
+<ul>
+  <li><strong>d</strong> zapíná a vypíná +3DOS hlavičku. Se zapnutou hlavičkou
+      (výchozí stav) NextZXOS rozpozná rozbalené soubory jako BASIC nebo CODE
+      včetně čísla řádku a zaváděcí adresy.</li>
+  <li>BASICové soubory se ukládají s příponou <strong>.BAS</strong>, ostatní jako
+      <strong>.BIN</strong>. Znaky, které TR-DOS ve jméně povoluje, ale karta ne,
+      se automaticky nahrazují.</li>
+  <li>Smazanou položku je možné rozbalit jednotlivě, takže jde zachránit data
+      souboru, který už TR-DOS z katalogu vyřadil. Hromadné rozbalení smazané
+      položky přeskakuje.</li>
+  <li>Během rozbalování plugin ukazuje cílové jméno, délku, indikaci
+      <strong>WORKING...</strong> a počítadlo souborů, takže delší export
+      nepůsobí jako zamrznutý program.</li>
+</ul>
+
+<p>
+Podporované jsou obrazy všech běžných velikostí &mdash; 160K, 320K i 640K.
+Protože je obraz disku výrazně větší než paměť, do které si prohlížeč soubor
+načítá, čtou se data přímo z obrazu na přesné pozici požadovaného souboru.
+Soubory z vnějších stop se tedy rozbalí stejně spolehlivě jako ty ze začátku
+disku.
+</p>
+
+<h2>Barevná témata</h2>
+
+<p>
+Záložka Colours v okně <strong>Settings</strong> (<strong>Caps+S</strong>) nově
+začíná řádkem <strong>Colour scheme</strong>. Stisk <strong>Enter</strong> na
+něm přepíná mezi připravenými tématy: <strong>Default</strong>,
+<strong>Light</strong> a <strong>Dark</strong>.
+</p>
+
+<ul>
+  <li>Výběr tématu najednou přepíše všech šestnáct stylů rozhraní a projeví se
+      okamžitě, takže je výsledek vidět už při vybírání.</li>
+  <li>Každý styl je možné i nadále upravit samostatně &mdash; pozadí a popředí se
+      zadávají jako složky R/G/B v rozsahu 0 až 7. Seznam pokrývá kurzor
+      v panelu, označené soubory, adresáře, spustitelné soubory, dialogy,
+      prohlížeč i barvy používané pluginy.</li>
+  <li>Jakmile upravíte jednotlivou barvu, schéma se označí jako
+      <strong>Custom</strong>.</li>
+  <li><strong>S</strong> uloží nastavení pro další spuštění, <strong>BREAK</strong>
+      celou úpravu zruší a vrátí původní barvy.</li>
+</ul>
+
+<p>
+Děkuji, že používáte <strong>Calm Commander</strong>, hlásíte chyby a navrhujete
+vylepšení!
+</p>
