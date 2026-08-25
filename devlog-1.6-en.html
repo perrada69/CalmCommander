@@ -1,0 +1,114 @@
+<h1>Calm Commander 1.6 &mdash; SCL archives and ZIP files</h1>
+
+<p>
+Version <strong>1.6</strong> adds a viewer for <strong>SCL archives</strong> and,
+for the first time, support for <strong>ZIP files</strong> &mdash; listed and
+extracted directly on the Spectrum, including compressed entries.
+</p>
+
+<h2>SCL archives</h2>
+
+<p>
+SCL files are now opened by the same plugin that handles TR-DOS disk images, and
+everything you already know from the TRD viewer works here as well.
+</p>
+
+<ul>
+  <li>An archive is recognised by the <strong>SINCLAIR</strong> signature at the
+      start of the file rather than by its extension, so an SCL that arrived
+      under some other name is still opened correctly.</li>
+  <li>The listing shows the name, type and length of every file, together with
+      the number of sectors it occupies. An SCL carries no disk label, geometry
+      or free space, so those columns are simply left out.</li>
+  <li>Extraction is identical to TRD: <strong>e</strong> writes out the entry
+      under the cursor, <strong>Caps+e</strong> writes out all of them, and
+      <strong>d</strong> switches the +3DOS header on and off.</li>
+  <li>Entries with a length of zero, which do occur in the wild, fall back to
+      the sector count so that the file is still extracted whole.</li>
+</ul>
+
+<h2>ZIP files</h2>
+
+<p>
+Files with the <strong>.zip</strong> extension open in a new viewer that lists
+the contents of the archive and extracts them to the SD card. No external tool
+and no PC are needed at any point.
+</p>
+
+<ul>
+  <li>Every entry is listed with its original size, its packed size and a letter
+      showing how it is stored: <strong>S</strong> for stored,
+      <strong>D</strong> for deflate, <strong>X</strong> for encrypted,
+      <strong>/</strong> for a folder and <strong>?</strong> for a compression
+      method Calm Commander does not implement.</li>
+  <li>The panel on the right shows the name the file will be given, its length
+      and its type, so it is clear what will land on the card before anything is
+      written.</li>
+  <li><strong>e</strong> extracts the entry under the cursor,
+      <strong>Caps+e</strong> extracts the whole archive.</li>
+  <li>Encrypted entries and unknown compression methods are listed but never
+      extracted. ZIP64 archives are refused with a clear message.</li>
+</ul>
+
+<h2>How it works</h2>
+
+<p>
+A ZIP keeps its index at the very end of the file, which is awkward on a machine
+that can hold only a small part of a file in memory at once. The plugin
+therefore reads the index straight from the card at the position where it
+actually lies, and does the same for each file it later extracts.
+</p>
+
+<p>
+Compressed entries are decompressed on the Spectrum by a full
+<strong>deflate</strong> decoder. Output is produced through a 32K window in
+extra memory, which doubles as the window deflate itself needs for its back
+references, and is handed over to the card in 8K pieces as it fills. Nothing is
+ever held in memory in one piece, so <strong>the size of an extracted file is
+not limited</strong> &mdash; a 640K disk image packed inside an archive is
+extracted just as reliably as a small screen.
+</p>
+
+<p>
+Every extracted file is checked against the <strong>CRC32</strong> recorded in
+the archive, so a damaged download is reported instead of quietly producing a
+broken file. Unpacking a large file takes a while on a Spectrum, so the plugin
+shows a running count of the bytes written and of the compressed data still to
+be read; <strong>BREAK</strong> stops an export that is taking longer than you
+are willing to wait.
+</p>
+
+<h2>Folders inside archives</h2>
+
+<p>
+One limitation is worth knowing about before you start, because it is a
+deliberate decision rather than an oversight:
+<strong>the folder structure of an archive is not recreated</strong>.
+</p>
+
+<ul>
+  <li>Every extracted file is created directly in the directory shown in the
+      active panel. The path inside the archive is dropped and only the file
+      name itself is used, shortened to the 8.3 form the card requires. An entry
+      called <strong>demos/1997/screen.scr</strong> therefore lands in the
+      current directory as <strong>SCREEN.SCR</strong>.</li>
+  <li>Folder entries in the archive are shown in the listing, marked with
+      <strong>/</strong>, but they are skipped when extracting &mdash; no
+      directories are created.</li>
+  <li>Two files with the same name in different folders will therefore overwrite
+      each other during <strong>Caps+e</strong>. If an archive is built that way,
+      extract those entries one at a time with <strong>e</strong> into
+      directories of your choosing.</li>
+</ul>
+
+<p>
+Recreating the tree is something I would like to add later; for now, unpacking
+into the current directory covers what these archives are usually used for on
+the Spectrum &mdash; a handful of demos, screens or disk images that you want on
+the card and nothing more.
+</p>
+
+<p>
+Thank you for using <strong>Calm Commander</strong> and for reporting bugs and
+suggesting improvements!
+</p>

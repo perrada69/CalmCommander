@@ -68,6 +68,8 @@ VIEW_EDIT_KEY_TEXT   equ 131
 VIEW_EDIT_KEY_FIND   equ 132
 
 view_file
+        xor a
+        ld (viewErrorStage),a
         call view_prepare_current_file
         jp c,view_no_viewer_or_skip
 
@@ -1897,6 +1899,13 @@ view_error_dialog
         ld a,144
         ld de,viewTryOtherTxt
         call print
+        ld a,(viewErrorStage)
+        add a,"0"
+        ld (viewErrorStageTxt),a
+        ld de,viewErrorStageTxt
+        ld hl,64*256+13
+        ld a,144
+        call print
         ld hl,49*256+17
         ld a,16
         ld de,conttxt
@@ -2001,6 +2010,7 @@ viewNoViewerTxt         defb "No viewer.",0
 viewFileErrorTxt        defb "Cannot open file.",0
 viewPluginErrorTxt      defb "Cannot load plugin.",0
 viewTryOtherTxt         defb "Try another file.",0
+viewErrorStageTxt       defb "?",0
 viewPluginDosName       defs 64
 viewExtractOff          defw 0
 viewExtractCnt          defw 0

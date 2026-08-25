@@ -1,0 +1,110 @@
+<h1>Calm Commander 1.6 &mdash; archivy SCL a soubory ZIP</h1>
+
+<p>
+Verze <strong>1.6</strong> přidává prohlížeč <strong>archivů SCL</strong> a
+poprvé také podporu <strong>souborů ZIP</strong> &mdash; vypsání obsahu
+i rozbalení přímo na Spectru, včetně komprimovaných položek.
+</p>
+
+<h2>Archivy SCL</h2>
+
+<p>
+Soubory SCL nyní otevírá stejný plugin, který se stará o diskové obrazy
+TR-DOSu, a všechno, co znáte z prohlížeče TRD, funguje i tady.
+</p>
+
+<ul>
+  <li>Archiv se pozná podle signatury <strong>SINCLAIR</strong> na začátku
+      souboru, ne podle přípony &mdash; SCL, který k vám dorazil pod jiným
+      jménem, se tedy otevře správně.</li>
+  <li>Ve výpisu je u každého souboru jméno, typ a délka spolu s počtem sektorů,
+      které zabírá. SCL neobsahuje jmenovku disku, geometrii ani volné místo,
+      takže tyhle údaje ve výpisu prostě nejsou.</li>
+  <li>Rozbalení je stejné jako u TRD: <strong>e</strong> zapíše položku pod
+      kurzorem, <strong>Caps+e</strong> všechny a <strong>d</strong> zapíná
+      a vypíná +3DOS hlavičku.</li>
+  <li>Položky s nulovou délkou, které se v praxi vyskytují, se rozbalí podle
+      počtu sektorů, takže soubor vyjde celý.</li>
+</ul>
+
+<h2>Soubory ZIP</h2>
+
+<p>
+Soubory s příponou <strong>.zip</strong> otevírá nový prohlížeč, který vypíše
+obsah archivu a umí ho rozbalit na SD kartu. Není k tomu potřeba žádný externí
+nástroj ani počítač.
+</p>
+
+<ul>
+  <li>U každé položky je původní velikost, velikost po kompresi a písmeno, které
+      říká, jak je uložená: <strong>S</strong> nekomprimovaně,
+      <strong>D</strong> deflate, <strong>X</strong> zašifrovaná,
+      <strong>/</strong> složka a <strong>?</strong> kompresní metoda, kterou
+      Calm Commander neumí.</li>
+  <li>Panel vpravo ukazuje jméno, které soubor dostane, jeho délku a typ &mdash;
+      je tedy dopředu jasné, co na kartě přibude.</li>
+  <li><strong>e</strong> rozbalí položku pod kurzorem, <strong>Caps+e</strong>
+      celý archiv.</li>
+  <li>Zašifrované položky a neznámé kompresní metody se vypíšou, ale nikdy se
+      nerozbalují. Archivy ZIP64 plugin odmítne se srozumitelnou hláškou.</li>
+</ul>
+
+<h2>Jak to funguje</h2>
+
+<p>
+ZIP má svůj rejstřík až na úplném konci souboru, což je na počítači, který si do
+paměti načte vždycky jen malou část souboru, nepříjemné. Plugin proto rejstřík
+čte přímo z karty na pozici, kde skutečně leží, a stejně postupuje i u každého
+souboru, který pak rozbaluje.
+</p>
+
+<p>
+Komprimované položky rozbaluje přímo Spectrum plnohodnotným dekodérem
+<strong>deflate</strong>. Výstup vzniká v 32K okně v přídavné paměti, které
+zároveň slouží jako okno, do kterého se deflate odkazuje zpět, a po osmikilových
+blocích se předává na kartu. Nic se nikdy nedrží v paměti vcelku, takže
+<strong>velikost rozbalovaného souboru není ničím omezená</strong> &mdash;
+640K obraz disku zabalený v archivu se rozbalí stejně spolehlivě jako malá
+obrazovka.
+</p>
+
+<p>
+Každý rozbalený soubor se kontroluje proti <strong>CRC32</strong> uloženému
+v archivu, takže poškozené stažení se ohlásí místo toho, aby po sobě tiše
+nechalo vadný soubor. Rozbalení většího souboru chvíli trvá, a tak plugin průběžně
+ukazuje počet zapsaných bajtů i kolik komprimovaných dat ještě zbývá přečíst;
+klávesa <strong>BREAK</strong> rozbalování zastaví, pokud se vám nechce čekat.
+</p>
+
+<h2>Složky uvnitř archivů</h2>
+
+<p>
+Jedno omezení je dobré znát dopředu, protože jde o vědomé rozhodnutí, ne
+o opomenutí: <strong>adresářová struktura archivu se nevytváří</strong>.
+</p>
+
+<ul>
+  <li>Každý rozbalený soubor vznikne přímo v adresáři zobrazeném v aktivním
+      panelu. Cesta uvnitř archivu se zahodí a použije se jen samotné jméno
+      souboru zkrácené do tvaru 8.3, který karta vyžaduje. Položka
+      <strong>demos/1997/screen.scr</strong> tedy přistane v aktuálním adresáři
+      jako <strong>SCREEN.SCR</strong>.</li>
+  <li>Položky složek jsou ve výpisu vidět, označené <strong>/</strong>, ale při
+      rozbalování se přeskakují &mdash; žádné adresáře se nezakládají.</li>
+  <li>Dva soubory se stejným jménem v různých složkách se tedy při
+      <strong>Caps+e</strong> navzájem přepíšou. Pokud je archiv postavený takhle,
+      rozbalte tyhle položky jednotlivě klávesou <strong>e</strong> do adresářů,
+      které si zvolíte.</li>
+</ul>
+
+<p>
+Obnovování stromu adresářů bych rád doplnil někdy později. Zatím rozbalení do
+aktuálního adresáře pokrývá to, k čemu se archivy na Spectru obvykle používají
+&mdash; pár dem, obrazovek nebo obrazů disků, které chcete dostat na kartu,
+a nic víc.
+</p>
+
+<p>
+Děkuji, že používáte <strong>Calm Commander</strong>, hlásíte chyby a navrhujete
+vylepšení!
+</p>
