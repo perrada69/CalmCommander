@@ -1,6 +1,10 @@
 VIEW_PLUGIN_ADDRESS  equ 49152
 VIEW_DATA_ADDRESS    equ 57344
 VIEW_PLUGIN_SIZE     equ 4096
+; The plugin page is 8K. A plugin that asks the host for the big size gets
+; all of it; the viewer only does that for plugin types that need it.
+VIEW_PLUGIN_BIG_SIZE equ 8192
+VIEW_PLUGIN_PAGE     equ 82      ; the 8K page the plugin itself runs in
 
 VIEWCTX_ABI          equ 0
 VIEWCTX_TYPE         equ 1
@@ -31,6 +35,13 @@ SERVICE_LAYER0       equ 6
 SERVICE_INPUT_NOWAIT equ 8
 SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)
 SERVICE_BEEP         equ 12
+SERVICE_READ_AT      equ 16   ; read part of the source file into RAM:
+                              ; C=destination 8K page, HL=offset in that
+                              ; page (0-8191), DE=byte count, source
+                              ; offset in VIEWCTX_EXTRACT_OFF plus
+                              ; VIEWCTX_EXTRACT_OFHI. The counterpart of
+                              ; SERVICE_EXTRACT_SEEK for data a plugin
+                              ; needs to look at rather than copy out.
 SERVICE_EXTRACT_SEEK equ 14   ; extract straight from the source file:
                               ; HL=name, DE=offset bits 0-15, BC=byte count,
                               ; offset bits 16-31 in VIEWCTX_EXTRACT_OFHI.

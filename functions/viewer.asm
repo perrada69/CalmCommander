@@ -14,6 +14,10 @@ VIEW_PLUGIN_ADDRESS  equ 49152
 VIEW_DATA_ADDRESS    equ 57344
 VIEW_TEXT_MAX_READ   equ 8192
 VIEW_PLUGIN_MAX_SIZE equ 4096
+; The plugin page is 8K, so a plugin that cannot live inside 4096 bytes may
+; ask for the whole of it. The ZIP viewer does: an inflate engine will not
+; fit next to the archive listing.
+VIEW_PLUGIN_BIG_SIZE equ 8192
 VIEW_DATA_MAX_PAGES  equ 8
 
 ; PluginContext offsets
@@ -56,6 +60,7 @@ VIEWTYPE_BAS         equ 10
 VIEWTYPE_TAP         equ 11
 VIEWTYPE_EDIT        equ 12
 VIEWTYPE_TRD         equ 13
+VIEWTYPE_ZIP         equ 14
 VIEW_EDIT_KEY_SAVE   equ 128
 VIEW_EDIT_KEY_SAVEAS equ 129
 VIEW_EDIT_KEY_HEX    equ 130
@@ -108,6 +113,8 @@ view_run_selected_plugin
         cp VIEWTYPE_TAP
         jr z,.extract_capable
         cp VIEWTYPE_TRD
+        jr z,.extract_capable
+        cp VIEWTYPE_ZIP
         jr nz,.done
 .extract_capable
         call view_handle_plugin_extract
@@ -314,225 +321,100 @@ view_make_short_name
         ret
 
 
+; ================================================================
+; view_select_plugin: pick the viewer plugin for the file under the
+; cursor from its extension. Carry set = nothing here can show it.
+;
+; viewExtTable is scanned in order, so an extension that has to win over
+; a later one must come first. NXI is tested before the screen size
+; check, because a 6912 byte .nxi would otherwise look like a SCR dump.
+; ================================================================
 view_select_plugin
         call view_make_short_name
+
         ld hl,viewShortName
         ld de,ext_nxi
         call pripony
-        jp z,.nxi
+        jr z,.nxi
         ld hl,viewShortName
         ld de,ext_NXI
         call pripony
-        jp z,.nxi
-
-        call view_is_zx_screen
-        jp z,.zxscreen
-
-        ld hl,viewShortName
-        ld de,ext_stc
-        call pripony
-        jp z,.stc
-        ld hl,viewShortName
-        ld de,ext_STC
-        call pripony
-        jp z,.stc
-
-        ld hl,viewShortName
-        ld de,ext_stp
-        call pripony
-        jp z,.stp
-        ld hl,viewShortName
-        ld de,ext_STP
-        call pripony
-        jp z,.stp
-
-        ld hl,viewShortName
-        ld de,ext_sqt
-        call pripony
-        jp z,.sqt
-        ld hl,viewShortName
-        ld de,ext_SQT
-        call pripony
-        jp z,.sqt
-
-        ld hl,viewShortName
-        ld de,ext_pt2
-        call pripony
-        jp z,.pt2
-        ld hl,viewShortName
-        ld de,ext_PT2
-        call pripony
-        jp z,.pt2
-
-        ld hl,viewShortName
-        ld de,ext_pt3
-        call pripony
-        jp z,.pt3
-        ld hl,viewShortName
-        ld de,ext_PT3
-        call pripony
-        jp z,.pt3
-
-        ld hl,viewShortName
-        ld de,ext_txt
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_TXT
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_asm
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_ASM
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_bas
-        call pripony
-        jp z,.bas_plugin
-        ld hl,viewShortName
-        ld de,ext_BAS
-        call pripony
-        jp z,.bas_plugin
-        ld hl,viewShortName
-        ld de,ext_cfg
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_CFG
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_ini
-        call pripony
-        jp z,.text
-        ld hl,viewShortName
-        ld de,ext_INI
-        call pripony
-        jp z,.text
-
-        ld hl,viewShortName
-        ld de,ext_tap
-        call pripony
-        jp z,.tap_plugin
-        ld hl,viewShortName
-        ld de,ext_TAP
-        call pripony
-        jp z,.tap_plugin
-
-        ld hl,viewShortName
-        ld de,ext_trd
-        call pripony
-        jp z,.trd_plugin
-        ld hl,viewShortName
-        ld de,ext_TRD
-        call pripony
-        jp z,.trd_plugin
-
-        ; SCL archives are handled by the same plugin, which tells the two
-        ; formats apart by their signature rather than by the extension
-        ld hl,viewShortName
-        ld de,ext_scl
-        call pripony
-        jp z,.trd_plugin
-        ld hl,viewShortName
-        ld de,ext_SCL
-        call pripony
-        jp z,.trd_plugin
-
-        scf
-        ret
-
-.tap_plugin
-        ld a,VIEWTYPE_TAP
-        ld (viewPluginType),a
-        ld hl,viewTapPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.trd_plugin
-        ld a,VIEWTYPE_TRD
-        ld (viewPluginType),a
-        ld hl,viewTrdPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.text
-        ld a,VIEWTYPE_TEXT
-        ld (viewPluginType),a
-        ld hl,viewTextPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.bas_plugin
-        ld a,VIEWTYPE_BAS
-        ld (viewPluginType),a
-        ld hl,viewBasPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.zxscreen
-        ld a,VIEWTYPE_ZXSCREEN
-        ld (viewPluginType),a
-        ld hl,viewZxScreenPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.pt3
-        ld a,VIEWTYPE_PT3
-        ld (viewPluginType),a
-        ld hl,viewPt3PluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.pt2
-        ld a,VIEWTYPE_PT2
-        ld (viewPluginType),a
-        ld hl,viewPt2PluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.stc
-        ld a,VIEWTYPE_STC
-        ld (viewPluginType),a
-        ld hl,viewStcPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.stp
-        ld a,VIEWTYPE_STP
-        ld (viewPluginType),a
-        ld hl,viewStpPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
-.sqt
-        ld a,VIEWTYPE_SQT
-        ld (viewPluginType),a
-        ld hl,viewSqtPluginName
-        ld (viewPluginName),hl
-        xor a
-        ret
-
+        jr nz,.not_nxi
 .nxi
         ld a,VIEWTYPE_NXI
-        ld (viewPluginType),a
         ld hl,viewNxiPluginName
+        jr .store
+
+.not_nxi
+        call view_is_zx_screen
+        jr nz,.scan
+        ld a,VIEWTYPE_ZXSCREEN
+        ld hl,viewZxScreenPluginName
+        jr .store
+
+.scan
+        ld ix,viewExtTable
+.loop
+        ld e,(ix+0)
+        ld d,(ix+1)
+        ld a,d
+        or e
+        scf
+        ret z                       ; end of table: no viewer for this one
+        ld hl,viewShortName
+        call pripony
+        jr z,.hit
+        ld bc,VIEW_EXT_ENTRY
+        add ix,bc
+        jr .loop
+.hit
+        ld a,(ix+2)
+        ld l,(ix+3)
+        ld h,(ix+4)
+.store
+        ld (viewPluginType),a
         ld (viewPluginName),hl
         xor a
         ret
+
+
+; One row per extension: the ".xyz" text, the plugin type and the plugin
+; file name. Upper and lower case need rows of their own because pripony
+; compares case sensitively.
+VIEW_EXT_ENTRY equ 5
+
+viewExtTable
+        defw ext_stc : defb VIEWTYPE_STC : defw viewStcPluginName
+        defw ext_STC : defb VIEWTYPE_STC : defw viewStcPluginName
+        defw ext_stp : defb VIEWTYPE_STP : defw viewStpPluginName
+        defw ext_STP : defb VIEWTYPE_STP : defw viewStpPluginName
+        defw ext_sqt : defb VIEWTYPE_SQT : defw viewSqtPluginName
+        defw ext_SQT : defb VIEWTYPE_SQT : defw viewSqtPluginName
+        defw ext_pt2 : defb VIEWTYPE_PT2 : defw viewPt2PluginName
+        defw ext_PT2 : defb VIEWTYPE_PT2 : defw viewPt2PluginName
+        defw ext_pt3 : defb VIEWTYPE_PT3 : defw viewPt3PluginName
+        defw ext_PT3 : defb VIEWTYPE_PT3 : defw viewPt3PluginName
+        defw ext_txt : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_TXT : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_asm : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_ASM : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_bas : defb VIEWTYPE_BAS : defw viewBasPluginName
+        defw ext_BAS : defb VIEWTYPE_BAS : defw viewBasPluginName
+        defw ext_cfg : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_CFG : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_ini : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_INI : defb VIEWTYPE_TEXT : defw viewTextPluginName
+        defw ext_tap : defb VIEWTYPE_TAP : defw viewTapPluginName
+        defw ext_TAP : defb VIEWTYPE_TAP : defw viewTapPluginName
+        ; SCL archives are handled by the TRD plugin, which tells the two
+        ; formats apart by their signature rather than by the extension
+        defw ext_trd : defb VIEWTYPE_TRD : defw viewTrdPluginName
+        defw ext_TRD : defb VIEWTYPE_TRD : defw viewTrdPluginName
+        defw ext_scl : defb VIEWTYPE_TRD : defw viewTrdPluginName
+        defw ext_SCL : defb VIEWTYPE_TRD : defw viewTrdPluginName
+        defw ext_zip : defb VIEWTYPE_ZIP : defw viewZipPluginName
+        defw ext_ZIP : defb VIEWTYPE_ZIP : defw viewZipPluginName
+        defw 0
 
 
 view_is_zx_screen
@@ -754,6 +636,11 @@ view_load_plugin
         ld b,0
         ld c,VIEW_PLUGIN_BANK
         ld de,VIEW_PLUGIN_MAX_SIZE
+        ld a,(viewPluginType)
+        cp VIEWTYPE_ZIP
+        jr nz,.size_ok
+        ld de,VIEW_PLUGIN_BIG_SIZE
+.size_ok
         ld hl,VIEW_PLUGIN_ADDRESS
         call 0112h
         push af
@@ -974,13 +861,20 @@ view_reload_active_panel
 view_extract_prepare
         ld (viewExtractOff),de
         ld (viewExtractCnt),bc
+        call view_save_paging
+        jp view_make_extract_path
+
+
+; view_save_paging: remember the slots the plugin was running with, so
+; view_extract_exit can put them back once DOS has moved them around.
+view_save_paging
         ld a,$56
         call ReadNextReg2A
         ld (viewExtractSavedMmu6),a
         ld a,$57
         call ReadNextReg2A
         ld (viewExtractSavedMmu7),a
-        jp view_make_extract_path
+        ret
 
 
 ; view_extract_open_dest: create the output file as file 1 and fill in its
@@ -1189,6 +1083,71 @@ svc_extract_seek
         jp view_extract_exit
 
 
+; ================================================================
+; svc_read_at: read a byte range of the file being viewed into RAM.
+;   C  = destination 8K page (a number out of VIEWCTX_DATA_PAGES),
+;   HL = offset inside that page (0-8191), DE = byte count,
+;   source offset bits 0-15 in VIEWCTX_EXTRACT_OFF, bits 16-31 in
+;   VIEWCTX_EXTRACT_OFHI.
+; Returns A = 0 and carry clear on success; 4 = open, 5 = seek, 6 = read.
+;
+; The viewer preloads only the first 64KB of a file, which is no use to a
+; plugin whose index sits at the end - a ZIP keeps its directory there.
+; DOS_READ pages by 16K bank, so the 8K page has to be split into the
+; bank number and the address that half of it appears at.
+; ================================================================
+svc_read_at
+        ld (viewReadAtLen),de
+        ld a,h
+        and $1F
+        or $C0
+        ld h,a
+        bit 0,c
+        jr z,.lower_half
+        set 5,h                 ; odd page: it shows up at $E000
+.lower_half
+        ld (viewReadAtAddr),hl
+        srl c
+        ld a,c
+        ld (viewReadAtBank),a
+
+        call view_save_paging
+        call dospage
+        call view_set_current_path
+
+        ld b,0
+        ld c,1                  ; read access
+        ld d,0                  ; create action 0: error when missing
+        ld e,2                  ; open action 2: ignore any header
+        ld hl,TMP83
+        call $0106
+        ld a,4
+        jp nc,view_extract_exit
+
+        ld b,0
+        ld hl,(viewPluginContext+VIEWCTX_EXTRACT_OFF)
+        ld de,(viewPluginContext+VIEWCTX_EXTRACT_OFHI)
+        call $0136              ; DOS_SET_POSITION, DEHL = byte offset
+        ld a,5
+        jr nc,.failed
+
+        ld b,0
+        ld a,(viewReadAtBank)
+        ld c,a
+        ld de,(viewReadAtLen)
+        ld hl,(viewReadAtAddr)
+        call $0112
+        ld a,6
+        jr nc,.failed
+        xor a
+.failed
+        ld (viewExtractError),a
+        ld b,0
+        call $0109
+        ld a,(viewExtractError)
+        jp view_extract_exit
+
+
 view_make_extract_path
         ld de,viewPluginDosName
         ld b,63
@@ -1284,6 +1243,7 @@ viewServices
         defw svc_extract_to_file
         defw beepk
         defw svc_extract_seek
+        defw svc_read_at
 
 
 view_init_plugin_input
@@ -1944,6 +1904,7 @@ viewHelloPluginName    defb "HelloWord.ccp",255
 viewBasPluginName      defb "bas.ccp",255
 viewTapPluginName      defb "tap.ccp",255
 viewTrdPluginName      defb "trd.ccp",255
+viewZipPluginName      defb "zip.ccp",255
 viewEditPluginName     defb "edit.ccp",255
 viewMusicAyTxt         defb " AY ",0
 viewMusicYmTxt         defb " YM ",0
@@ -1980,3 +1941,6 @@ viewExtractSavedMmu6    defb 0
 viewExtractSavedMmu7    defb 0
 viewExtractError        defb 0
 viewExtractOffHi        defw 0
+viewReadAtLen           defw 0
+viewReadAtAddr          defw 0
+viewReadAtBank          defb 0
