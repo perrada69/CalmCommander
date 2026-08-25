@@ -66,23 +66,60 @@ MAX_ENTRIES     equ 128
 CD_MAX_PAGES    equ 7           ; the directory copy lives in data pages 0-6
 CD_MAX_BYTES    equ CD_MAX_PAGES*8192
 SCRATCH_PAGE_IX equ 7           ; last data page: EOCD scan and local headers
+IN_PAGE_IX      equ 4           ; staging page for compressed input; the
+                                ; ring only reaches pages 0-3
 EOCD_SCAN       equ 8192        ; how much of the tail is searched for the EOCD
 EOCD_MIN        equ 22          ; an EOCD without a comment
 LOCAL_HDR       equ 30
 DISP_NAME       equ 15          ; width of the name column
 
+; ---- inflate working area ----
+; Output goes into a 32K ring in data pages 0-3. That is exactly the
+; largest distance deflate can reference, so the ring doubles as the
+; LZ77 window and needs no separate copy. Whole 8K pages are handed to
+; the output file as they fill, which is what lets a member be any size
+; at all instead of being capped by what fits in RAM. Page 7 stays
+; scratch for local headers.
+WIN_PAGES       equ 4
+WIN_SIZE        equ WIN_PAGES*8192
+WIN_MASK_HI     equ (WIN_SIZE-1)>>8     ; masks a ring offset held in H
+FLUSH_SIZE      equ 8192        ; one page, handed over at a time
+IN_BUF_SIZE     equ 512         ; compressed data is pulled in in chunks
+MAXBITS         equ 15
+NSYMS           equ 288         ; literal/length alphabet
+NDIST           equ 30
+NLENGTHS        equ NSYMS+32    ; code lengths for both tables while building
+
 ; entryKind values
-KIND_STORED     equ 0           ; ready to be written out
+KIND_STORED     equ 0           ; ready to be written out as it stands
 KIND_DIR        equ 1
 KIND_CRYPT      equ 2
-KIND_PACKED     equ 3
-KIND_BIG        equ 4           ; over 64KB: one extract call cannot span it
+KIND_PACKED     equ 3           ; deflate
+KIND_METHOD     equ 4           ; a compression method we do not implement
 
 ; zipError values
 ZERR_NONE       equ 0
 ZERR_NOEOCD     equ 1
 ZERR_ZIP64      equ 2
 ZERR_READ       equ 3
+
+; inflErr values, reported as the export failure code
+IERR_NONE       equ 0
+IERR_EOF        equ 1           ; stream ended in the middle of a block
+IERR_READ       equ 2
+IERR_BLOCK      equ 3           ; reserved block type
+IERR_CODE       equ 4           ; no code matched the bits in the stream
+IERR_SYMBOL     equ 5           ; symbol outside the alphabet
+IERR_DIST       equ 6           ; back reference points before the output
+IERR_SPACE      equ 7           ; over-subscribed Huffman code
+IERR_LEN        equ 8           ; stored block length check failed
+IERR_OVER       equ 9           ; output length disagrees with the directory
+IERR_CRC        equ 10          ; the bytes came out wrong
+IERR_WRITE      equ 11          ; the output file would not take the data
+IERR_ABORT      equ 12          ; BREAK during a long export
+IERR_DSYM       equ 13          ; distance symbol outside the alphabet
+IERR_HDR        equ 14          ; dynamic block header out of range
+IERR_LENS       equ 15          ; more code lengths than the header allows
 
 
 ; ================================================================
@@ -215,13 +252,17 @@ plugin_start
 
 ; ---- extract the entry under the cursor ----
 .extract
+        xor a
+        ld (abortFlag),a
         call show_busy_one
         call do_extract_current
         call restore_help
         jp .wait_release
 
-; ---- extract every stored entry ----
+; ---- extract every entry ----
 .extract_all
+        xor a
+        ld (abortFlag),a
         call show_busy_all
         call do_extract_all
         call restore_help
@@ -611,6 +652,13 @@ read_entry_fields
         ld (entryMethod),hl
 
         ld hl,(entryBase)
+        ld de,16
+        add hl,de
+        call read_cd_dword
+        ld (entryCrcLo),hl
+        ld (entryCrcHi),de
+
+        ld hl,(entryBase)
         ld de,20
         add hl,de
         call read_cd_dword
@@ -718,8 +766,8 @@ locate_basename
 
 ; ================================================================
 ; classify_entry: decide what can be done with the entry under the
-; cursor. Only stored members can be written out at the moment; deflate
-; needs an inflate engine, which is the next step for this plugin.
+; cursor. Both stored and deflated members are streamed out a piece at
+; a time, so neither has a size limit.
 ; ================================================================
 classify_entry
         ld a,(isDir)
@@ -732,15 +780,19 @@ classify_entry
         jr nz,.set
         ld hl,(entryMethod)
         ld a,h
-        or l
+        or a
+        jr nz,.method_bad
+        ld a,l
+        or a
+        jr z,.stored
+        cp 8
         ld a,KIND_PACKED
-        jr nz,.set
-        ld hl,(entryCompHi)
-        ld a,h
-        or l
-        ld a,KIND_BIG
-        jr nz,.set
-        xor a               ; stored and under 64KB: extractable
+        jr z,.set
+.method_bad
+        ld a,KIND_METHOD
+        jr .set
+.stored
+        xor a
 .set
         ld (entryKind),a
         ret
@@ -1374,7 +1426,7 @@ kind_text
         cp KIND_PACKED
         ld de,strKindPacked
         ret z
-        ld de,strKindBig
+        ld de,strKindMethod
         ret
 
 
@@ -1408,14 +1460,94 @@ do_extract_entry
         call show_progress
 
         ld a,(entryKind)
+        cp KIND_PACKED
+        jr z,.supported
         or a
         jp nz,.unsupported
-
+.supported
         ld de,strWorking
-        ld hl,42*256+(CONTENT_ROW+4)
+        ld hl,42*256+(CONTENT_ROW+5)
         ld a,ATTR_PACKED
         call call_print
 
+        call find_data_offset
+        jr c,.fail_code
+
+        ld ix,(ctxPtr)
+        ld a,$FF
+        ld (ix+VIEWCTX_P3DOS_TYPE),a    ; a ZIP member is a raw file
+        ld hl,extractName
+        call call_write_open
+        jr c,.fail_code
+
+        ld a,(entryKind)
+        cp KIND_PACKED
+        jr z,.inflate_it
+        call stream_stored
+        jr .finish
+.inflate_it
+        call run_inflate
+.finish
+        ld (opCode),a
+        jr nc,.wrote_ok
+        call call_write_close       ; the file is closed either way
+        call restore_central_dir
+        ld a,(opCode)
+        jr .fail_code
+.wrote_ok
+        call call_write_close
+        ld (opCode),a
+        ; the output ran through the pages the directory copy lives in
+        call restore_central_dir
+        ld a,(opCode)
+        or a
+        jr nz,.fail_code
+
+.ok
+        xor a
+        ld (extractStatus),a
+        ld de,strExportOK
+        jr .report
+.fail_code
+        ld (extractStatus),a
+        ld a,(abortFlag)
+        or a
+        ld de,strAborted
+        jr nz,.report
+        ld a,(extractStatus)
+        call fail_code_char
+        ld (strExportFailCode),a
+        ld de,strExportFail
+        jr .report
+.unsupported
+        ld a,255
+        ld (extractStatus),a
+        call kind_text
+.report
+        ld hl,42*256+(CONTENT_ROW+5)
+        ld a,ATTR_PACKED
+        jp call_print
+
+
+; A = failure code -> A = the character shown after FAIL. Codes above 9
+; become letters, so an inflate failure stays apart from an extract one.
+fail_code_char
+        cp 10
+        jr c,.digit
+        add a,"A"-10
+        ret
+.digit
+        add a,"0"
+        ret
+
+
+; ================================================================
+; find_data_offset: work out where the member data starts. The local
+; header carries its own name and extra lengths, which need not match
+; the ones in the directory, so it has to be read.
+; Carry set on failure, with A = the failure code.
+; ================================================================
+find_data_offset
         ld hl,(entryLocalLo)
         ld (srcOffLo),hl
         ld hl,(entryLocalHi)
@@ -1424,7 +1556,7 @@ do_extract_entry
         ld hl,0
         ld de,LOCAL_HDR
         call read_source
-        jp c,.io_fail
+        jr c,.io_fail
         call map_scratch
 
         ld a,($E000)
@@ -1450,45 +1582,107 @@ do_extract_entry
         call add32_16
         ld (dataOffLo),hl
         ld (dataOffHi),de
-
-        ld ix,(ctxPtr)
-        ld a,$FF
-        ld (ix+VIEWCTX_P3DOS_TYPE),a    ; a ZIP member is a raw file
-        ld hl,(dataOffHi)
-        ld (ix+VIEWCTX_EXTRACT_OFHI),l
-        ld (ix+VIEWCTX_EXTRACT_OFHI+1),h
-        ld hl,extractName
-        ld de,(dataOffLo)
-        ld bc,(entryCompLo)
-        call call_extract_seek
-        jr c,.fail
-        xor a
-        ld (extractStatus),a
-        ld de,strExportOK
-        jr .report
-.fail
-        ld (extractStatus),a
-        jr .fail_code
+        or a
+        ret
 .io_fail
         ld a,7
-        ld (extractStatus),a
-        jr .fail_code
+        scf
+        ret
 .bad_local
         ld a,8
-        ld (extractStatus),a
-.fail_code
-        add a,"0"
-        ld (strExportFailCode),a
-        ld de,strExportFail
-        jr .report
-.unsupported
-        ld a,255
-        ld (extractStatus),a
-        call kind_text
-.report
-        ld hl,42*256+(CONTENT_ROW+4)
-        ld a,ATTR_PACKED
-        jp call_print
+        scf
+        ret
+
+
+; ================================================================
+; stream_stored: copy a stored member out a page at a time. Sending it
+; through the same write services the inflate path uses means a stored
+; member has no size limit either.
+; Carry set on failure with A = the service failure code.
+; ================================================================
+stream_stored
+        ld hl,0
+        ld (flushedLo),hl       ; the byte counter show_written reports
+        ld (flushedHi),hl
+        ld hl,(entryCompLo)
+        ld (srcRemLo),hl
+        ld hl,(entryCompHi)
+        ld (srcRemHi),hl
+        ld hl,(dataOffLo)
+        ld (srcOffLo),hl
+        ld hl,(dataOffHi)
+        ld (srcOffHi),hl
+        call show_written
+.loop
+        ld hl,(srcRemLo)
+        ld de,(srcRemHi)
+        ld a,h
+        or l
+        or d
+        or e
+        jr z,.done
+        ld a,d
+        or e
+        jr nz,.full
+        ld de,FLUSH_SIZE
+        or a
+        sbc hl,de
+        jr nc,.full
+        ld hl,(srcRemLo)        ; the tail is shorter than a page
+        jr .have
+.full
+        ld hl,FLUSH_SIZE
+.have
+        ld (inChunk),hl
+
+        xor a
+        call data_page_no       ; stage it through the first data page
+        ld hl,0
+        ld de,(inChunk)
+        call read_source
+        ret c
+        ld de,0
+        ld bc,(inChunk)
+        call call_write_chunk
+        ret c
+
+        ld hl,(srcOffLo)
+        ld de,(srcOffHi)
+        ld bc,(inChunk)
+        call add32_16
+        ld (srcOffLo),hl
+        ld (srcOffHi),de
+        ld hl,(srcRemLo)
+        ld de,(srcRemHi)
+        ld bc,(inChunk)
+        call sub32_16
+        ld (srcRemLo),hl
+        ld (srcRemHi),de
+        ld hl,(flushedLo)
+        ld de,(flushedHi)
+        ld bc,(inChunk)
+        call add32_16
+        ld (flushedLo),hl
+        ld (flushedHi),de
+        call show_written
+        call poll_abort
+        jp nc,.loop
+        ld a,IERR_ABORT
+        scf
+        ret
+.done
+        or a
+        ret
+
+
+; ================================================================
+; restore_central_dir: writing a member out runs through the pages the
+; directory copy lives in, so it has to be read back before the listing
+; or an export-all run can carry on.
+; ================================================================
+restore_central_dir
+        call read_central_dir
+        jp scan_entries
 
 
 ; ================================================================
@@ -1513,11 +1707,16 @@ do_extract_all
         ld a,(bulkIdx)
         call read_entry_fields
         ld a,(entryKind)
+        cp KIND_PACKED
+        jr z,.take
         or a
         jr nz,.skip
-
+.take
         ld a,(bulkIdx)
         call do_extract_entry
+        ld a,(abortFlag)
+        or a
+        jr nz,.stopped
         ld a,(extractStatus)
         or a
         jr nz,.failed
@@ -1562,8 +1761,14 @@ do_extract_all
         ld a,ATTR_PACKED
         jp call_print
 
+.stopped
+        ld de,strAborted
+        ld hl,42*256+CONTENT_ROW
+        ld a,ATTR_PACKED
+        jp call_print
+
 .failed
-        add a,"0"
+        call fail_code_char
         ld (strExportAllFailCode),a
         call clear_debug_area
         ld de,strExportAllFail
@@ -1762,7 +1967,7 @@ clear_debug_area
         pop bc
         inc b
         ld a,b
-        cp CONTENT_ROW+5
+        cp CONTENT_ROW+6
         jr c,.row
         ret
 
@@ -1878,6 +2083,1193 @@ write_num32
 
 
 ; ================================================================
+; INFLATE
+;
+; A canonical Huffman decoder in the shape of zlib's puff: for each code
+; length, count[] says how many codes have it and symbol[] lists them in
+; code order, so decoding walks the lengths one bit at a time instead of
+; needing a lookup table that would not fit here.
+;
+; Output goes straight into the data pages, and the same bytes serve as
+; the LZ77 window, so a back reference is just a read from earlier in
+; the output. Only one 8K slot can be mapped at a time, so both ends of
+; a match copy go through map_window, which skips the remap whenever
+; source and destination happen to share a page - which they usually do.
+; ================================================================
+
+; ================================================================
+; run_inflate: decompress the current member into the output window.
+; find_data_offset must have run first. Carry set on failure, with A
+; already turned into the code the export line shows.
+; ================================================================
+run_inflate
+        ld hl,(dataOffLo)
+        ld (srcOffLo),hl
+        ld hl,(dataOffHi)
+        ld (srcOffHi),hl
+        ld hl,(entryCompLo)
+        ld (srcRemLo),hl
+        ld hl,(entryCompHi)
+        ld (srcRemHi),hl
+
+        xor a
+        ld (inflErr),a
+        ld (bitCnt),a
+        ld a,255
+        ld (mappedPage),a       ; nothing mapped yet
+        ld hl,0
+        ld (inLeft),hl
+        ld (outTotalLo),hl
+        ld (outTotalHi),hl
+        ld (flushedLo),hl
+        ld (flushedHi),hl
+        ld hl,inBuf
+        ld (inPtr),hl
+        ld hl,$FFFF
+        ld (crcLo),hl
+        ld (crcHi),hl
+        ; the directory length is the budget: out_byte counts it down and
+        ; stops a corrupt stream producing for ever
+        ld hl,(entryUncLo)
+        ld (outLeftLo),hl
+        ld hl,(entryUncHi)
+        ld (outLeftHi),hl
+        call show_written       ; on screen from the outset, not only
+                                ; once the first page has been flushed
+
+        call inflate_blocks
+        ld a,(inflErr)
+        or a
+        jr nz,.failed
+        call flush_tail
+        ld a,(inflErr)
+        or a
+        jr nz,.failed
+
+        ; the budget has to come out exactly, and the CRC has to match:
+        ; together they turn "it produced something" into "it produced
+        ; the right thing"
+        ld hl,(outLeftLo)
+        ld de,(outLeftHi)
+        ld a,h
+        or l
+        or d
+        or e
+        ld a,IERR_OVER
+        jr nz,.failed
+
+        ld hl,(crcLo)
+        ld de,(entryCrcLo)
+        ld a,l
+        cpl
+        cp e
+        jr nz,.crc_bad
+        ld a,h
+        cpl
+        cp d
+        jr nz,.crc_bad
+        ld hl,(crcHi)
+        ld de,(entryCrcHi)
+        ld a,l
+        cpl
+        cp e
+        jr nz,.crc_bad
+        ld a,h
+        cpl
+        cp d
+        jr nz,.crc_bad
+        or a
+        ret
+.crc_bad
+        ld a,IERR_CRC
+.failed
+        add a,9                 ; reported as A onwards, apart from the
+        scf                     ; numeric codes the extract path uses
+        ret
+
+
+; ================================================================
+; inflate_blocks: walk the deflate stream one block at a time
+; ================================================================
+inflate_blocks
+.loop
+        call get_bit
+        ld a,0
+        adc a,a
+        ld (lastBlock),a
+        ld b,2
+        call get_bits
+        ld a,(inflErr)
+        or a
+        ret nz
+
+        ld a,l
+        or a
+        jr z,.stored
+        cp 1
+        jr z,.fixed
+        cp 2
+        jr z,.dynamic
+        ld a,IERR_BLOCK
+        ld (inflErr),a
+        ret
+
+.fixed
+        call build_fixed
+        jr .codes
+.dynamic
+        call build_dynamic
+.codes
+        ld a,(inflErr)
+        or a
+        ret nz
+        call inflate_codes
+        jr .block_done
+.stored
+        call stored_block
+.block_done
+        ld a,(inflErr)
+        or a
+        ret nz
+        ld a,(lastBlock)
+        or a
+        jr z,.loop
+        ret
+
+
+; ================================================================
+; stored_block: restarts at a byte boundary and carries its length
+; twice, the second time inverted.
+; ================================================================
+stored_block
+        xor a
+        ld (bitCnt),a           ; drop the rest of the current byte
+        ; each byte goes straight to memory: next_in_byte may refill the
+        ; input buffer, and nothing survives that in a register
+        call next_in_byte
+        ld (blockLen),a
+        call next_in_byte
+        ld (blockLen+1),a
+        call next_in_byte
+        ld (blockNLen),a
+        call next_in_byte
+        ld (blockNLen+1),a
+        ld a,(inflErr)
+        or a
+        ret nz
+        ld hl,blockNLen
+        ld a,(blockLen)
+        cpl
+        cp (hl)
+        jr nz,.bad
+        inc hl
+        ld a,(blockLen+1)
+        cpl
+        cp (hl)
+        jr nz,.bad
+.copy
+        ld hl,(blockLen)
+        ld a,h
+        or l
+        ret z
+        dec hl
+        ld (blockLen),hl
+        call next_in_byte
+        call out_byte
+        ld a,(inflErr)
+        or a
+        ret nz
+        jr .copy
+.bad
+        ld a,IERR_LEN
+        ld (inflErr),a
+        ret
+
+
+; ================================================================
+; inflate_codes: the literal/length and distance codes of one block
+; ================================================================
+inflate_codes
+.loop
+        ld hl,litCount
+        ld de,litSymbol
+        call decode
+        ld a,(inflErr)
+        or a
+        ret nz
+
+        ld a,h
+        or a
+        jr nz,.not_literal
+        ld a,l
+        call out_byte
+        ld a,(inflErr)
+        or a
+        ret nz
+        jr .loop
+
+.not_literal
+        ld de,256
+        or a
+        sbc hl,de
+        ret z                   ; symbol 256 ends the block
+        dec hl                  ; HL = symbol - 257
+        ld a,h
+        or a
+        jr nz,.bad_symbol
+        ld a,l
+        cp 29
+        jr nc,.bad_symbol
+        ld (lenIdx),a
+
+        ld l,a
+        ld h,0
+        ld de,lenExtra
+        add hl,de
+        ld b,(hl)
+        call get_bits
+        ld (extraVal),hl
+        ld a,(lenIdx)
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld de,lenBase
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld hl,(extraVal)
+        add hl,de
+        ld (matchLen),hl
+
+        ld hl,distCount
+        ld de,distSymbol
+        call decode
+        ld a,(inflErr)
+        or a
+        ret nz
+        ld a,h
+        or a
+        jr nz,.bad_dsym
+        ld a,l
+        cp NDIST
+        jr nc,.bad_dsym
+        ld (distIdx),a
+
+        ld l,a
+        ld h,0
+        ld de,distExtra
+        add hl,de
+        ld b,(hl)
+        call get_bits
+        ld (extraVal),hl
+        ld a,(distIdx)
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld de,distBase
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld hl,(extraVal)
+        add hl,de
+        ex de,hl                ; DE = distance
+        ld bc,(matchLen)
+        call copy_match
+        ld a,(inflErr)
+        or a
+        ret nz
+        jp .loop
+
+.bad_symbol
+        ld a,IERR_SYMBOL
+        ld (inflErr),a
+        ret
+.bad_dsym
+        ld a,IERR_DSYM
+        ld (inflErr),a
+        ret
+
+
+; ================================================================
+; build_fixed: the fixed tables are the same in every stream, so they
+; are built from their code lengths. The loop that fills them in costs
+; far less room than 318 entries of ready made table.
+; ================================================================
+build_fixed
+        ld hl,lengths
+        ld b,144
+        ld a,8
+        call fill_lengths
+        ld b,112
+        ld a,9
+        call fill_lengths
+        ld b,24
+        ld a,7
+        call fill_lengths
+        ld b,8
+        ld a,8
+        call fill_lengths
+        ld hl,litCount
+        ld de,litSymbol
+        ld bc,NSYMS
+        call construct
+
+        ld hl,lengths
+        ld b,NDIST
+        ld a,5
+        call fill_lengths
+        ld hl,distCount
+        ld de,distSymbol
+        ld bc,NDIST
+        jp construct
+
+
+; fill B bytes of A from HL onwards, leaving HL past them
+fill_lengths
+        ld (hl),a
+        inc hl
+        djnz fill_lengths
+        ret
+
+
+; ================================================================
+; build_dynamic: read the block's own code lengths and build both
+; tables from them.
+; ================================================================
+build_dynamic
+        ld b,5
+        call get_bits
+        ld de,257
+        add hl,de
+        ld (nLen),hl
+        ld b,5
+        call get_bits
+        inc hl
+        ld (nDist),hl
+        ld b,4
+        call get_bits
+        ld de,4
+        add hl,de
+        ld (nCLen),hl
+        ld a,(inflErr)
+        or a
+        ret nz
+
+        ld hl,(nLen)
+        ld de,NSYMS+1
+        or a
+        sbc hl,de
+        jp nc,.bad
+        ld hl,(nDist)
+        ld de,NDIST+1
+        or a
+        sbc hl,de
+        jp nc,.bad
+        ld hl,(nLen)
+        ld de,(nDist)
+        add hl,de
+        ld (nTotal),hl
+
+        ; the code length code lengths arrive in a scrambled fixed order
+        ld hl,lengths
+        ld b,19
+        xor a
+        call fill_lengths
+        ld a,(nCLen)
+        ld b,a
+        ld ix,clOrder
+.order
+        push bc
+        ld b,3
+        call get_bits
+        ld a,l
+        ld e,(ix+0)
+        inc ix
+        ld d,0
+        ld hl,lengths
+        add hl,de
+        ld (hl),a
+        pop bc
+        djnz .order
+
+        ; that code is only used to read the real lengths, so it can be
+        ; built over the literal table, which is rebuilt straight after
+        ld hl,litCount
+        ld de,litSymbol
+        ld bc,19
+        call construct
+        ld a,(inflErr)
+        or a
+        ret nz
+
+        ld hl,0
+        ld (lenIx),hl
+.read
+        ld hl,(lenIx)
+        ld de,(nTotal)
+        or a
+        sbc hl,de
+        jr nc,.built
+
+        ld hl,litCount
+        ld de,litSymbol
+        call decode
+        ld a,(inflErr)
+        or a
+        ret nz
+        ld a,h
+        or a
+        jp nz,.bad
+        ld a,l
+        cp 16
+        jr nc,.repeat
+        call store_length
+        jr .check
+
+.repeat
+        cp 16
+        jr nz,.zeros_short
+        ld hl,(lenIx)           ; 16: repeat the previous length 3-6 times
+        ld a,h
+        or l
+        jr z,.bad               ; nothing to repeat yet
+        dec hl
+        ld de,lengths
+        add hl,de
+        ld a,(hl)
+        ld (repVal),a
+        ld b,2
+        call get_bits
+        ld de,3
+        jr .do_repeat
+.zeros_short
+        cp 17
+        jr nz,.zeros_long
+        xor a                   ; 17: 3-10 zero lengths
+        ld (repVal),a
+        ld b,3
+        call get_bits
+        ld de,3
+        jr .do_repeat
+.zeros_long
+        cp 18
+        jr nz,.bad
+        xor a                   ; 18: 11-138 zero lengths
+        ld (repVal),a
+        ld b,7
+        call get_bits
+        ld de,11
+.do_repeat
+        add hl,de
+        ld b,l                  ; a repeat never runs past 138
+.rep_loop
+        push bc
+        ld a,(repVal)
+        call store_length
+        pop bc
+        ld a,(inflErr)
+        or a
+        ret nz
+        djnz .rep_loop
+.check
+        ld a,(inflErr)
+        or a
+        ret nz
+        jp .read
+
+.built
+        ld hl,litCount
+        ld de,litSymbol
+        ld bc,(nLen)
+        call construct
+        ld a,(inflErr)
+        or a
+        ret nz
+        ; move the distance lengths to the front so construct can always
+        ; read them from the start of the array
+        ld hl,lengths
+        ld de,(nLen)
+        add hl,de
+        ld de,lengths
+        ld bc,(nDist)
+        ldir
+        ld hl,distCount
+        ld de,distSymbol
+        ld bc,(nDist)
+        jp construct
+.bad
+        ld a,IERR_HDR
+        ld (inflErr),a
+        ret
+
+
+; store_length: A = code length, appended at lenIx
+store_length
+        ld c,a
+        ld hl,(lenIx)
+        ld de,(nTotal)
+        or a
+        sbc hl,de
+        jr c,.room
+        ld a,IERR_LENS
+        ld (inflErr),a
+        ret
+.room
+        ld hl,(lenIx)
+        ld de,lengths
+        add hl,de
+        ld (hl),c
+        ld hl,(lenIx)
+        inc hl
+        ld (lenIx),hl
+        ret
+
+
+; ================================================================
+; construct: HL = count table, DE = symbol table, BC = symbol count.
+; The code lengths come from `lengths`. An over-subscribed code is
+; rejected, because it would let decode index past the symbol table.
+; ================================================================
+construct
+        ld (conCount),hl
+        ld (conSym),de
+        ld (conN),bc
+
+        ld hl,(conCount)
+        ld b,(MAXBITS+1)*2
+.zero
+        ld (hl),0
+        inc hl
+        djnz .zero
+
+        ld hl,lengths
+        ld bc,(conN)
+.count
+        ld a,(hl)
+        push hl
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld de,(conCount)
+        add hl,de
+        inc (hl)
+        jr nz,.no_carry
+        inc hl
+        inc (hl)
+.no_carry
+        pop hl
+        inc hl
+        dec bc
+        ld a,b
+        or c
+        jr nz,.count
+
+        ld hl,1
+        ld c,1
+        ld b,MAXBITS
+.left
+        add hl,hl
+        push hl
+        ld l,c
+        ld h,0
+        add hl,hl
+        ld de,(conCount)
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        pop hl
+        or a
+        sbc hl,de
+        jr c,.over
+        inc c
+        djnz .left
+
+        ld hl,0
+        ld (offsArr+2),hl       ; offs[1] = 0
+        ld c,1
+        ld b,MAXBITS-1
+.offs
+        ld l,c
+        ld h,0
+        add hl,hl
+        ld de,offsArr
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)               ; DE = offs[len]
+        push de
+        ld l,c
+        ld h,0
+        add hl,hl
+        ld de,(conCount)
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)               ; DE = count[len]
+        pop hl
+        add hl,de
+        ex de,hl                ; DE = offs[len] + count[len]
+        ld a,c
+        inc a
+        ld l,a
+        ld h,0
+        add hl,hl
+        push de
+        ld de,offsArr
+        add hl,de
+        pop de
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc c
+        djnz .offs
+
+        ld hl,lengths
+        ld (conPtr),hl
+        ld bc,0
+.fill
+        ld hl,(conPtr)
+        ld a,(hl)
+        or a
+        jr z,.next
+        ld l,a
+        ld h,0
+        add hl,hl
+        ld de,offsArr
+        add hl,de               ; HL = &offs[len]
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        inc de
+        ld (hl),d
+        dec hl
+        ld (hl),e               ; offs[len]++
+        dec de                  ; DE = the slot just claimed
+        ex de,hl
+        add hl,hl
+        ld de,(conSym)
+        add hl,de
+        ld (hl),c
+        inc hl
+        ld (hl),b
+.next
+        ld hl,(conPtr)
+        inc hl
+        ld (conPtr),hl
+        inc bc
+        ld hl,(conN)
+        or a
+        sbc hl,bc
+        jr nz,.fill
+        ret
+.over
+        ld a,IERR_SPACE
+        ld (inflErr),a
+        ret
+
+
+; ================================================================
+; decode: HL = count table, DE = symbol table -> HL = symbol.
+; Walks the code lengths a bit at a time; at each length the codes of
+; that length occupy a contiguous run, so the symbol is a plain index.
+; ================================================================
+decode
+        ld (decCount),hl
+        ld (decSym),de
+        ld hl,0
+        ld (decCode),hl
+        ld (decFirst),hl
+        ld (decIndex),hl
+        ld c,1
+        ld b,MAXBITS
+.loop
+        call get_bit
+        ld hl,(decCode)
+        jr nc,.no_bit
+        inc l                   ; bit 0 is clear, so inc sets it
+.no_bit
+        ld (decCode),hl
+
+        ld l,c
+        ld h,0
+        add hl,hl
+        ld de,(decCount)
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld (decCnt),de          ; DE = count[len]
+
+        ld hl,(decCode)
+        or a
+        sbc hl,de
+        jr c,.hit               ; code < count: certainly this length
+        ld de,(decFirst)
+        or a
+        sbc hl,de
+        jr c,.hit
+
+        ld hl,(decIndex)
+        ld de,(decCnt)
+        add hl,de
+        ld (decIndex),hl
+        ld hl,(decFirst)
+        add hl,de
+        add hl,hl
+        ld (decFirst),hl
+        ld hl,(decCode)
+        add hl,hl
+        ld (decCode),hl
+        inc c
+        djnz .loop
+
+        ld a,IERR_CODE
+        ld (inflErr),a
+        ld hl,0
+        ret
+.hit
+        ld hl,(decCode)
+        ld de,(decFirst)
+        or a
+        sbc hl,de
+        ld de,(decIndex)
+        add hl,de
+        add hl,hl
+        ld de,(decSym)
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ex de,hl
+        ret
+
+
+; ================================================================
+; Bit and byte input
+; ================================================================
+
+; get_bit -> carry = the bit. Clobbers A only.
+get_bit
+        ld a,(bitCnt)
+        or a
+        jr nz,.have
+        push hl
+        call next_in_byte
+        pop hl
+        ld (bitBuf),a
+        ld a,8
+.have
+        dec a
+        ld (bitCnt),a
+        ld a,(bitBuf)
+        srl a
+        ld (bitBuf),a
+        ret
+
+
+; get_bits: B = how many bits (0-16), least significant first -> HL
+get_bits
+        ld hl,0
+        ld a,b
+        or a
+        ret z
+        ld c,b
+.loop
+        call get_bit
+        rr h
+        rr l                    ; the bits pile up at the top of HL
+        djnz .loop
+        ld a,16
+        sub c
+        ret z
+        ld b,a
+.norm
+        srl h
+        rr l
+        djnz .norm
+        ret
+
+
+; next_in_byte -> A. Clobbers HL only: a refill goes all the way out to
+; a host service, which is free with the registers, so BC, DE and IX are
+; saved here rather than at every call site.
+; Sets inflErr when the member runs out early.
+next_in_byte
+        ld hl,(inLeft)
+        ld a,h
+        or l
+        jr nz,.take
+        push bc
+        push de
+        push ix
+        call refill_input
+        pop ix
+        pop de
+        pop bc
+        ld hl,(inLeft)
+        ld a,h
+        or l
+        jr nz,.take
+        ld a,(inflErr)
+        or a
+        jr nz,.done             ; keep the first failure
+        ld a,IERR_EOF
+        ld (inflErr),a
+.done
+        xor a
+        ret
+.take
+        dec hl
+        ld (inLeft),hl
+        ld hl,(inPtr)
+        ld a,(hl)
+        inc hl
+        ld (inPtr),hl
+        ret
+
+
+; refill_input: pull the next chunk of compressed data into inBuf
+refill_input
+        ld hl,(srcRemLo)
+        ld de,(srcRemHi)
+        ld a,h
+        or l
+        or d
+        or e
+        ret z                   ; nothing left in this member
+
+        ld a,d
+        or e
+        jr nz,.full
+        ld de,IN_BUF_SIZE
+        or a
+        sbc hl,de
+        jr nc,.full
+        ld hl,(srcRemLo)        ; the tail is shorter than the buffer
+        jr .have
+.full
+        ld hl,IN_BUF_SIZE
+.have
+        ld (inChunk),hl
+
+        ; staged through a spare data page rather than read straight
+        ; into inBuf: DOS pages the destination bank in while it works,
+        ; and that bank is the one this code is executing from
+        ld a,IN_PAGE_IX
+        call data_page_no
+        ld hl,0
+        ld de,(inChunk)
+        call read_source
+        jr nc,.ok
+        ld a,IERR_READ
+        ld (inflErr),a
+        ret
+.ok
+        ld a,IN_PAGE_IX
+        call data_page_no
+        ld a,c
+        nextreg $57,a
+        ld hl,$E000
+        ld de,inBuf
+        ld bc,(inChunk)
+        ldir
+        ld hl,inBuf
+        ld (inPtr),hl
+        ld hl,(inChunk)
+        ld (inLeft),hl
+        ld hl,(srcOffLo)
+        ld de,(srcOffHi)
+        ld bc,(inChunk)
+        call add32_16
+        ld (srcOffLo),hl
+        ld (srcOffHi),de
+        ld hl,(srcRemLo)
+        ld de,(srcRemHi)
+        ld bc,(inChunk)
+        call sub32_16
+        ld (srcRemLo),hl
+        ld (srcRemHi),de
+        ld a,255
+        ld (mappedPage),a       ; the read paged our own bank in and out
+        ret
+
+
+; ================================================================
+; Output window
+; ================================================================
+
+; map_window: HL = window offset -> HL = address, with the page holding
+; it mapped at $E000. The remap is skipped when the page is already
+; there, which is what keeps a match copy cheap. Clobbers A, DE.
+map_window
+        ld a,h
+        rlca
+        rlca
+        rlca
+        and 7                   ; A = offset / 8192
+        ld e,a
+        ld a,(mappedPage)
+        cp e
+        jr z,.ready
+        ld a,e
+        ld (mappedPage),a
+        push hl
+        ld l,a
+        ld h,0
+        ld de,(dataPagesPtr)
+        add hl,de
+        ld a,(hl)
+        nextreg $57,a
+        pop hl
+.ready
+        ld a,h
+        and $1F
+        or $E0
+        ld h,a
+        ret
+
+
+; out_byte: append A to the output ring, flushing a page to the file
+; whenever one has filled. The directory says how long the file is, so
+; outLeft counts down and stops a runaway stream producing for ever.
+out_byte
+        ld c,a
+        ld hl,(outLeftLo)
+        ld de,(outLeftHi)
+        ld a,h
+        or l
+        or d
+        or e
+        jr nz,.room
+        ld a,IERR_OVER
+        ld (inflErr),a
+        ret
+.room
+        ld hl,(outTotalLo)
+        ld a,h
+        and WIN_MASK_HI
+        ld h,a
+        call map_window
+        ld (hl),c
+        ld a,c
+        call crc_byte           ; done here, while the byte is still in C
+
+        ld hl,(outLeftLo)
+        ld de,(outLeftHi)
+        ld bc,1
+        call sub32_16
+        ld (outLeftLo),hl
+        ld (outLeftHi),de
+        ld hl,(outTotalLo)
+        ld de,(outTotalHi)
+        ld bc,1
+        call add32_16
+        ld (outTotalLo),hl
+        ld (outTotalHi),de
+
+        ; a whole page of new output means one page can go to the file
+        ld hl,(outTotalLo)
+        ld de,(flushedLo)
+        or a
+        sbc hl,de               ; the gap never exceeds one page
+        ld de,FLUSH_SIZE
+        or a
+        sbc hl,de
+        ret c
+        ld hl,FLUSH_SIZE
+        jp flush_window
+
+
+; flush_window: hand HL bytes of the ring, starting at the flush point,
+; to the open output file. A big member takes long enough that this is
+; also where the byte counter is refreshed and BREAK is looked for.
+flush_window
+        ld (flushLen),hl
+        ld hl,(flushedLo)
+        ld a,h
+        and WIN_MASK_HI
+        ld h,a
+        ex de,hl                ; DE = offset inside the data pages
+        ld bc,(flushLen)
+        call call_write_chunk
+        jr c,.failed
+        ld hl,(flushedLo)
+        ld de,(flushedHi)
+        ld bc,(flushLen)
+        call add32_16
+        ld (flushedLo),hl
+        ld (flushedHi),de
+        call show_written
+        call poll_abort
+        ld a,255
+        ld (mappedPage),a       ; a host service may have moved MMU7
+        ret nc
+        ld a,IERR_ABORT
+        ld (inflErr),a
+        ret
+.failed
+        ld a,IERR_WRITE
+        ld (inflErr),a
+        ret
+
+
+; show_written: bytes handed to the file so far, and compressed bytes
+; still unread. On its own row, so a failure message cannot cover it up:
+; together the two numbers say how far a failed export actually got.
+show_written
+        ld de,strWroteLbl
+        ld hl,42*256+(CONTENT_ROW+4)
+        ld a,ATTR_PACKED
+        call call_print
+        ld hl,flushedLo
+        call num32_to_buf
+        ld de,numBuf
+        ld hl,44*256+(CONTENT_ROW+4)
+        ld a,ATTR_PACKED
+        call call_print
+        ld de,strLeftLbl
+        ld hl,53*256+(CONTENT_ROW+4)
+        ld a,ATTR_PACKED
+        call call_print
+        ld hl,srcRemLo
+        call num32_to_buf
+        ld de,numBuf
+        ld hl,55*256+(CONTENT_ROW+4)
+        ld a,ATTR_PACKED
+        jp call_print
+
+
+; poll_abort: carry set when BREAK has been pressed. Checked once per
+; flushed page, which is often enough to feel responsive and rare
+; enough to cost nothing.
+poll_abort
+        call call_input
+        cp 1
+        jr z,.stop
+        or a
+        ret
+.stop
+        ld (abortFlag),a        ; A is 1 here
+        scf
+        ret
+
+
+; flush_tail: push out whatever is left after the last full page
+flush_tail
+        ld hl,(outTotalLo)
+        ld de,(flushedLo)
+        or a
+        sbc hl,de
+        ld a,h
+        or l
+        ret z
+        jp flush_window
+
+
+; crc_byte: fold A into the running CRC32. The bitwise form needs no
+; table, and the time it costs is small next to the decoding itself.
+crc_byte
+        ld hl,(crcLo)
+        xor l
+        ld l,a
+        ld de,(crcHi)
+        ld b,8
+.loop
+        srl d
+        rr e
+        rr h
+        rr l
+        jr nc,.next
+        ld a,d
+        xor $ED
+        ld d,a
+        ld a,e
+        xor $B8
+        ld e,a
+        ld a,h
+        xor $83
+        ld h,a
+        ld a,l
+        xor $20
+        ld l,a
+.next
+        djnz .loop
+        ld (crcLo),hl
+        ld (crcHi),de
+        ret
+
+
+; copy_match: BC = length, DE = distance back into the window
+copy_match
+        ; the reference must not reach back before the start of the file
+        ld hl,(outTotalHi)
+        ld a,h
+        or l
+        jr nz,.in_range         ; past 64K of output it never can
+        ld hl,(outTotalLo)
+        or a
+        sbc hl,de
+        jr c,.bad_dist
+.in_range
+        ld hl,(outTotalLo)
+        or a
+        sbc hl,de
+        ld a,h
+        and WIN_MASK_HI
+        ld h,a
+        ld (matchSrc),hl        ; ring offset of the first byte
+.loop
+        ld a,b
+        or c
+        ret z
+        push bc
+        ld hl,(matchSrc)
+        call map_window
+        ld a,(hl)
+        push af
+        ld hl,(matchSrc)
+        inc hl
+        ld a,h
+        and WIN_MASK_HI
+        ld h,a
+        ld (matchSrc),hl
+        pop af
+        call out_byte
+        pop bc
+        ld a,(inflErr)
+        or a
+        ret nz
+        dec bc
+        jr .loop
+.bad_dist
+        ld a,IERR_DIST
+        ld (inflErr),a
+        ret
+
+
+; ================================================================
+; Deflate constants
+; ================================================================
+lenBase
+        defw 3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59
+        defw 67,83,99,115,131,163,195,227,258
+lenExtra
+        defb 0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3
+        defb 4,4,4,4,5,5,5,5,0
+distBase
+        defw 1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769
+        defw 1025,1537,2049,3073,4097,6145,8193,12289,16385,24577
+distExtra
+        defb 0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8
+        defb 9,9,10,10,11,11,12,12,13,13
+clOrder
+        defb 16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15
+
+
+; ================================================================
 ; Service call infrastructure (self-patched by patch_services)
 ; ================================================================
 patch_services
@@ -1891,12 +3283,18 @@ patch_services
         ld l,(ix+SERVICE_WINDOW)
         ld h,(ix+SERVICE_WINDOW+1)
         ld (call_window+1),hl
-        ld l,(ix+SERVICE_EXTRACT_SEEK)
-        ld h,(ix+SERVICE_EXTRACT_SEEK+1)
-        ld (call_extract_seek+1),hl
         ld l,(ix+SERVICE_READ_AT)
         ld h,(ix+SERVICE_READ_AT+1)
         ld (call_read_at+1),hl
+        ld l,(ix+SERVICE_WRITE_OPEN)
+        ld h,(ix+SERVICE_WRITE_OPEN+1)
+        ld (call_write_open+1),hl
+        ld l,(ix+SERVICE_WRITE_CHUNK)
+        ld h,(ix+SERVICE_WRITE_CHUNK+1)
+        ld (call_write_chunk+1),hl
+        ld l,(ix+SERVICE_WRITE_CLOSE)
+        ld h,(ix+SERVICE_WRITE_CLOSE+1)
+        ld (call_write_close+1),hl
         ret
 
 ; call_print: DE=string, HL=col*256+row, A=attr
@@ -1912,13 +3310,22 @@ call_window
         call 0
         ret
 
-; call_extract_seek: HL=name, DE=offset bits 0-15, BC=count
-call_extract_seek
+; call_read_at: C=page, HL=offset in page, DE=count
+call_read_at
         call 0
         ret
 
-; call_read_at: C=page, HL=offset in page, DE=count
-call_read_at
+; call_write_open: HL=output file name
+call_write_open
+        call 0
+        ret
+
+; call_write_chunk: DE=offset in the data pages, BC=count
+call_write_chunk
+        call 0
+        ret
+
+call_write_close
         call 0
         ret
 
@@ -1962,6 +3369,8 @@ screenPos       defw 0
 entryBase       defw 0
 entryFlags      defw 0
 entryMethod     defw 0
+entryCrcLo      defw 0
+entryCrcHi      defw 0
 entryCompLo     defw 0
 entryCompHi     defw 0
 entryUncLo      defw 0
@@ -1999,7 +3408,7 @@ strZip          defb "ZIP: ",0
 strFiles        defb "files",0
 strColHdr       defb " ## Name                Size   Packed M",0
 strTrunc        defb "LISTING INCOMPLETE",0
-strHelp         defb " BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all stored",0
+strHelp         defb " BREAK=exit / stop export  Up/Dn  PgUp/PgDn  e:export  CAPS+e:all",0
 strEmpty        defb "Archive is empty.",0
 strErrNoEocd    defb "Not a readable ZIP archive.",0
 strErrZip64     defb "ZIP64 archives are not supported.",0
@@ -2008,14 +3417,18 @@ strKindStored   defb "STORED  ",0
 strKindDir      defb "DIR     ",0
 strKindCrypt    defb "CRYPTED ",0
 strKindPacked   defb "DEFLATE ",0
-strKindBig      defb "TOO BIG ",0
+strKindMethod   defb "METHOD? ",0
 strNumName      defb "FILE000.BIN",0
-; result strings are padded so they cover the "WORKING..." they replace
-strExportOK     defb "OK        ",0
+; result strings are padded to cover the whole "WROTE: nnnnnnnn" line
+; they replace, otherwise stale digits stay behind
+strExportOK     defb "OK             ",0
 strExportFail   defb "FAIL "
-strExportFailCode defb "?    ",0
-strWorking      defb "WORKING...",0
-strBusyAll      defb "EXPORTING STORED FILES - PLEASE WAIT...",0
+strExportFailCode defb "?         ",0
+strWorking      defb "WORKING...     ",0
+strWroteLbl     defb "W:",0
+strLeftLbl      defb "R:",0
+strAborted      defb "STOPPED        ",0
+strBusyAll      defb "EXPORTING ALL FILES - PLEASE WAIT...",0
 strBusyOne      defb "EXPORTING - PLEASE WAIT...",0
 strFileLabel    defb "FILE:",0
 strExportName   defb "NAME:",0
@@ -2026,6 +3439,63 @@ strAllSkipped   defb "SKIPPED:",0
 strExportAllFail defb "ALL FAIL "
 strExportAllFailCode defb "?",0
 strDebugBlank   defb "                                ",0
+
+; ---- inflate state ----
+inflErr         defb 0
+lastBlock       defb 0
+blockLen        defw 0
+blockNLen       defw 0
+bitBuf          defb 0
+bitCnt          defb 0
+inPtr           defw 0
+inLeft          defw 0
+inChunk         defw 0
+srcRemLo        defw 0
+srcRemHi        defw 0
+outTotalLo      defw 0
+outTotalHi      defw 0
+outLeftLo       defw 0
+outLeftHi       defw 0
+flushedLo       defw 0
+flushedHi       defw 0
+flushLen        defw 0
+opCode          defb 0
+abortFlag       defb 0
+mappedPage      defb 255
+matchSrc        defw 0
+matchLen        defw 0
+extraVal        defw 0
+lenIdx          defb 0
+distIdx         defb 0
+crcLo           defw 0
+crcHi           defw 0
+nLen            defw 0
+nDist           defw 0
+nCLen           defw 0
+nTotal          defw 0
+lenIx           defw 0
+repVal          defb 0
+conCount        defw 0
+conSym          defw 0
+conN            defw 0
+conPtr          defw 0
+decCount        defw 0
+decSym          defw 0
+decCode         defw 0
+decFirst        defw 0
+decIndex        defw 0
+decCnt          defw 0
+
+; ---- inflate tables ----
+; count[] and symbol[] per alphabet, the code lengths they are built
+; from, and the running offsets construct needs while sorting symbols.
+litCount        defs (MAXBITS+1)*2
+litSymbol       defs NSYMS*2
+distCount       defs (MAXBITS+1)*2
+distSymbol      defs NDIST*2
+offsArr         defs (MAXBITS+1)*2
+lengths         defs NLENGTHS
+inBuf           defs IN_BUF_SIZE
 
 ; ================================================================
 ; Entry offset table: where each directory record starts inside the

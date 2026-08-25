@@ -35,6 +35,13 @@ SERVICE_LAYER0       equ 6
 SERVICE_INPUT_NOWAIT equ 8
 SERVICE_EXTRACT      equ 10   ; host extract helper (HL=name, DE=offset, BC=count)
 SERVICE_BEEP         equ 12
+SERVICE_WRITE_OPEN   equ 18   ; HL=name: create the output file and keep
+                              ; it open, so the next two can fill it
+SERVICE_WRITE_CHUNK  equ 20   ; DE=offset in the data pages, BC=count:
+                              ; append that to the open output file
+SERVICE_WRITE_CLOSE  equ 22   ; close it. Together these three lift the
+                              ; 64KB ceiling the one-shot extract
+                              ; services impose on a single file.
 SERVICE_READ_AT      equ 16   ; read part of the source file into RAM:
                               ; C=destination 8K page, HL=offset in that
                               ; page (0-8191), DE=byte count, source

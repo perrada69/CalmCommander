@@ -627,9 +627,11 @@ view_load_plugin
         ld (viewErrorStage),a
         ld b,0
         ld c,1
+        ld d,0                  ; create action 0: fail if it is not there
         ld e,2
         ld hl,(viewPluginName)
         call 0106h
+        jr nc,.openerr          ; DOS reports success with carry set
 
         ld a,6
         ld (viewErrorStage),a
@@ -649,6 +651,7 @@ view_load_plugin
         call view_restore_current_path
         call basicpage
         pop af
+        jr nc,.readerr          ; a short read means a truncated plugin
 
         xor a
         ret
@@ -926,34 +929,9 @@ svc_extract_to_file
         call view_extract_open_dest
         jr c,.open_fail
         call basicpage
+        call view_write_loop
+        jr c,.write_fail
 
-.write_loop
-        ld hl,(viewExtractCnt)
-        ld a,h
-        or l
-        jr z,.close_ok
-
-        call view_extract_copy_chunk
-        call dospage
-        ld b,1
-        ld c,PAGE_BUFF
-        ld de,(viewExtractChunk)
-        ld hl,49152
-        call $0115
-        jr nc,.write_fail
-        call basicpage
-
-        ld hl,(viewExtractOff)
-        ld de,(viewExtractChunk)
-        add hl,de
-        ld (viewExtractOff),hl
-        ld hl,(viewExtractCnt)
-        or a
-        sbc hl,de
-        ld (viewExtractCnt),hl
-        jr .write_loop
-
-.close_ok
         call dospage
         ld b,1
         call $0109
@@ -964,7 +942,6 @@ svc_extract_to_file
         jp view_extract_exit
 
 .write_fail
-        call basicpage
         call dospage
         ld b,1
         call $0109
@@ -975,6 +952,89 @@ svc_extract_to_file
         jp view_extract_exit
 .open_fail
         ld a,1
+        jp view_extract_exit
+
+
+; view_write_loop: write viewExtractCnt bytes, taken from viewExtractOff
+; in the data pages, to the already open file 1. Entered and left in
+; basicpage state; carry set on failure.
+view_write_loop
+        ld hl,(viewExtractCnt)
+        ld a,h
+        or l
+        ret z
+        call view_extract_copy_chunk
+        call dospage
+        ld b,1
+        ld c,PAGE_BUFF
+        ld de,(viewExtractChunk)
+        ld hl,49152
+        call $0115
+        jr nc,.fail
+        call basicpage
+        ld hl,(viewExtractOff)
+        ld de,(viewExtractChunk)
+        add hl,de
+        ld (viewExtractOff),hl
+        ld hl,(viewExtractCnt)
+        or a
+        sbc hl,de
+        ld (viewExtractCnt),hl
+        jr view_write_loop
+.fail
+        call basicpage
+        scf
+        ret
+
+
+; ================================================================
+; Streaming output. SERVICE_EXTRACT and SERVICE_EXTRACT_SEEK each
+; create, fill and close a file in a single call, so a member can never
+; be longer than the 16 bit count they take. These three split that
+; apart, letting a plugin hand over a file of any length a piece at a
+; time - the ZIP plugin inflates into a 32K window and flushes it as it
+; fills. File 1 stays open between the calls; the source file a plugin
+; reads with SERVICE_READ_AT uses file 0, so the two never collide.
+; ================================================================
+
+; svc_write_open: HL = plugin filename. Creates it and leaves it open.
+svc_write_open
+        ld de,0
+        ld bc,0
+        call view_extract_prepare
+        call dospage
+        call view_set_current_path
+        call view_extract_open_dest
+        ld a,1
+        jp c,view_extract_exit
+        xor a
+        jp view_extract_exit
+
+
+; svc_write_chunk: DE = offset in the data pages, BC = byte count.
+svc_write_chunk
+        ld (viewExtractOff),de
+        ld (viewExtractCnt),bc
+        call view_save_paging
+        call view_write_loop
+        ld a,2
+        jp c,view_extract_exit
+        xor a
+        jp view_extract_exit
+
+
+; svc_write_close: close the output file and mark the panel for reload.
+svc_write_close
+        call view_save_paging
+        call dospage
+        ld b,1
+        call $0109
+        ld a,3
+        jr nc,.failed
+        ld a,1
+        ld (viewPluginContext+VIEWCTX_DIRTY),a
+        xor a
+.failed
         jp view_extract_exit
 
 
@@ -1244,6 +1304,9 @@ viewServices
         defw beepk
         defw svc_extract_seek
         defw svc_read_at
+        defw svc_write_open
+        defw svc_write_chunk
+        defw svc_write_close
 
 
 view_init_plugin_input
@@ -1299,6 +1362,16 @@ view_music_apply_saved_setup
 
 
 view_plugin_input_nowait
+        ld a,(viewSavedMmu6)
+        nextreg $56,a
+        call view_plugin_input_body
+        push af
+        ld a,VIEW_PLUGIN_PAGE
+        nextreg $56,a
+        pop af
+        ret
+
+view_plugin_input_body
         call MOUSE
         push af
         ld hl,(COORD)
@@ -1306,11 +1379,7 @@ view_plugin_input_nowait
         or a
         sbc hl,de
         jr z,.no_mouse_move
-        ld a,(viewSavedMmu6)
-        nextreg $56,a
         call showSprite
-        ld a,VIEW_PLUGIN_PAGE
-        nextreg $56,a
 .no_mouse_move
         call MOUSE
         ld hl,(COORD)
