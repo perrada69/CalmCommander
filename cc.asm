@@ -306,7 +306,7 @@ neskenuj
             call LoadSprites                      ; externí
 
             call VSE_NASTAV                       ; externí: globální nastavení aplikace/GUI?
-;            call EXTRA_CHECK_PLUGINS              ; silent unless an installed plugin is missing
+            call EXTRA_CHECK_PLUGINS              ; silent unless an installed plugin is missing
             nextreg MMU7_E000_NR_57,1             ; obnov MMU7 na default po inicializaci
 
 

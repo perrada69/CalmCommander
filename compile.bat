@@ -120,7 +120,7 @@ echo   [PUT] plugins -^> %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\HelloWord.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\bas.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\tap.ccp %PLUG%/
-"%HDF%" put "%IMG%" build\plugin	rd.ccp %PLUG%/
+"%HDF%" put "%IMG%" build\plugin\trd.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\zip.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\edit.ccp %PLUG%/
 "%HDF%" put "%IMG%" build\plugin\syscopy.ccp %PLUG%/
