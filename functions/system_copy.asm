@@ -349,6 +349,7 @@ syscopy_call_plugin
 syscopy_show_error
         NEXTREG2A MMU7_E000_NR_57
         push af
+        call savescr                              ; musi byt tady: savescr prepisuje MMU7 a odstrankoval by extra banku
         nextreg MMU7_E000_NR_57, EXTRA_BANK_PAGE
         call EXTRA_SYSCOPY_SHOW_ERROR
         pop af

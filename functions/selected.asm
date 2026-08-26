@@ -72,7 +72,7 @@ selna   ld a,0
 
 ;Nastránkuje stránku se select daty od adresy $A000
 GETSELPAGE
-        nextreg $55,19
+        nextreg $55,78 ;19
         ret
 
 INITSEL 

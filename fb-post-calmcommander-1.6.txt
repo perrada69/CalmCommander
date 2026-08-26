@@ -1,0 +1,20 @@
+Calm Commander 1.6 is out now! 💾
+
+This one is all about archives — SCL support, and for the first time ZIP files unpacked directly on the Spectrum:
+
+🗜️ open .zip files straight from the panel and list what is inside — original size, packed size and how each entry is stored
+📤 extract one file with "e" or the whole archive with CAPS+e — no PC and no external tools involved
+⚙️ compressed entries are unpacked by a full deflate decoder running on the Next itself
+♾️ no size limit — a 640K disk image packed inside a ZIP extracts just as reliably as a small screen
+✅ every extracted file is verified against the CRC32 stored in the archive, so a damaged download is reported instead of quietly producing a broken file
+⏱️ a live byte counter while unpacking, and BREAK stops an export you do not feel like waiting for
+💿 .scl archives now open in the TR-DOS viewer — recognised by the SINCLAIR signature rather than the extension, so a renamed file still works
+
+A ZIP keeps its index at the very end of the file, which is awkward when only a small part of a file fits in memory, so the plugin reads it straight from the card at the position where it actually lies. Output is produced through a 32K window that doubles as the window deflate needs for its back references, and is handed to the card in 8K pieces as it fills — nothing is ever held in memory in one piece, which is why the size of an extracted file is not limited.
+
+One thing worth knowing before you start: the folder structure of an archive is NOT recreated. Files are written directly into the directory shown in the active panel, using only the file name shortened to 8.3 — so demos/1997/screen.scr lands as SCREEN.SCR in the current directory. Folder entries are listed but skipped, and two files with the same name in different folders will overwrite each other during CAPS+e, so extract those one at a time with "e". Rebuilding the tree is on the list for a future version.
+
+Read the full devlog here:
+https://shrek128.itch.io/calmcommander
+
+#CalmCommander #ZXSpectrumNext #ZXSpectrum #FileManager #RetroComputing #NextZXOS #TRDOS

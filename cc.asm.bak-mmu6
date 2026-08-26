@@ -9,7 +9,7 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "1.6b" : ENDM
+            MACRO VERSION : defb "1.6" : ENDM
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
@@ -3523,7 +3523,7 @@ sort_loaded_dir
         ld a,(sortEnd)
         ld (sortRangeEnd),a
         call sort_range
-        nextreg $56,0                             ; MMU6 zpet na stranku 0 = kod casti 2 na $C000
+        nextreg $56,1
         ret
 
 sort_skip_dot
@@ -3810,7 +3810,7 @@ sort_load_lfn
         pop de
         ld bc,maxlen
         ldir
-        nextreg $56,0                             ; MMU6 zpet na stranku 0 = kod casti 2 na $C000
+        nextreg $56,1
         ret
 
 ; A=index, HL=zdrojový buffer
@@ -3821,11 +3821,10 @@ sort_store_lfn
         pop hl                                   ; HL = zdroj
         ld bc,maxlen
         ldir
-        nextreg $56,0                             ; MMU6 zpet na stranku 0 = kod casti 2 na $C000
+        nextreg $56,1
         ret
 
-; A=index, vrací HL=adresa LFN bloku na $C000 a namapuje LFN stránku do MMU6.
-; MMU7 použít nelze – v něm běží tenhle kód (extra banka, stránka 90).
+; A=index, vrací HL=adresa LFN bloku a namapuje správnou stránku do MMU7.
 sort_lfn_ptr
         ld c,0                                   ; číslo stránky nad základem
 .divide30
@@ -7449,7 +7448,7 @@ rtcje
 info0
         xor a
         ld (TLACITKO),a
-        call extra_read_key                      ; INKEY nelze: gettime pise na $7FFD a odstrankuje extra banku
+        call INKEY
         cp 1
         ret z
         jp info0
@@ -9042,6 +9041,7 @@ EXTRA_NOTNOW:
 notimplemented defb "This feature is not yet implemented.",0
 
 EXTRA_SYSCOPY_SHOW_ERROR:
+        call savescr
         ld hl,10 * 256 + 10
         ld bc,60 * 256 + 5
         ld a,16
