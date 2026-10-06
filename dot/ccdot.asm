@@ -28,12 +28,6 @@
         ; S1, E2, dot_entry, dot_launch, dot_xb_page, EXTRA_BANK_END, DOT_EXIT_LAUNCH
         INCLUDE "../build/dot/ccd.exp"
 
-; DIAG: docasne barvy borderu na ceste zpet do BASICu, at je videt, kde se zasekne
-        MACRO DBG_BORDER col
-        ld a,col
-        out ($FE),a
-        ENDM
-
 M_DOSVERSION    equ $88
 M_GETHANDLE     equ $8D
 M_P3DOS         equ $94
@@ -94,32 +88,6 @@ dot_start
         call grab_pages                 ; M_P3DOS - jeste na zasobniku BASICu
         jp c,exit_error                 ; HL = zprava
 
-        ld a,(testMode)                 ; DIAG .cc 0: jen rezervace a uvolneni stranek
-        cp '0'
-        jr z,.t0
-        cp '4'                          ; DIAG .cc 4: jako 0 + restore_ula
-        jr z,.t4
-        cp '7'                          ; DIAG .cc 7: jako 0, restore_ula AZ PO uvolneni
-        jr z,.t7
-        cp '5'                          ; DIAG .cc 5: jako 0 + restore_nextregs
-        jr nz,.notT0
-        call restore_nextregs
-        jr .t0
-.t4
-        call restore_ula
-.t0
-        call free_pages
-        call restore_regs
-        xor a
-        ret
-.t7
-        call free_pages
-        call restore_ula
-        call restore_regs
-        xor a
-        ret
-.notT0
-
         ; Od ted pracujeme se zasobnikem v okne dot commandu: MMU6/MMU7
         ; poslouzi jako okna a zasobnik BASICu muze lezet prave v nich.
         di
@@ -127,15 +95,6 @@ dot_start
         ei
 
         call backup_memory
-        ld a,(testMode)                 ; DIAG .cc 3: zaloha a obnova, CC se nenahraje
-        cp '3'
-        jr z,.quit
-        cp '6'                          ; DIAG .cc 6: jako 3, ale bez registru a ULA
-        jr z,.quit
-        cp '8'                          ; DIAG .cc 8: jako 3, ale bez restore_ula
-        jr z,.quit
-        cp '9'                          ; DIAG .cc 9: jako 3, ale restore_ula bez $7FFD
-        jr z,.quit
         call load_cc
         jr nc,.loaded
         call restore_memory
@@ -145,28 +104,12 @@ dot_start
         jp exit_error
 
 .loaded
-        ld a,(testMode)                 ; DIAG .cc 1: CC se nahraje, ale nespusti
-        cp '1'
-        jr z,.quit
-        cp '2'                          ; DIAG .cc 2: RST $18 na pouhe RET v RAM
-        jr nz,.runCC
-        ld a,$C9
-        ld ($7000),a
-        di
-        ld sp,CALL_STACK
-        ei
-        rst $18
-        defw $7000
-        jr .quit
-
-.runCC
         di
         ld sp,CALL_STACK
         ei
         rst $18
         defw dot_entry                  ; CC se vraci az pri Quit nebo spusteni
 
-        DBG_BORDER 2                    ; DIAG: cerveny = zavadec dostal rizeni zpet
         ld a,(dot_exit_code)            ; v RAM CC, MMU6 je zpet na strance 0
         cp DOT_EXIT_LAUNCH
         jr z,.launch
@@ -186,21 +129,11 @@ dot_start
         di
         ld sp,dotStackTop
         ld iy,$5C3A
-        ld a,(testMode)
-        cp '6'
-        call nz,restore_nextregs
-        DBG_BORDER 3                    ; DIAG: fialovy = Next registry obnovene
+        call restore_nextregs
         call restore_memory
-        DBG_BORDER 4                    ; DIAG: zeleny = pamet BASICu obnovena
         ld sp,(entrySp)                 ; pamet je zpet, zasobnik BASICu taky
-        call free_pages
-        DBG_BORDER 5                    ; DIAG: azurovy = stranky uvolnene
-        ld a,(testMode)
-        cp '6'
-        jr z,.noUla
-        cp '8'
-        call nz,restore_ula             ; border zpet podle BORDCR
-.noUla
+        call free_pages                 ; posledni M_P3DOS srovna strankovani
+        call restore_ula                ; border a MMU6/7, $7FFD uz ne (viz tam)
         ld a,(injectPending)            ; spusteni BAS/TAP/snapshotu: vloz prikaz
         or a                            ; do radku za .cc, BASIC ho pak provede
         call nz,inject_cmd
@@ -368,14 +301,6 @@ check_args
         ret z
         cp ':'
         ret z
-        cp '0'                          ; DIAG: .cc 0 .. 9 = testovaci rezim
-        jr c,.usage
-        cp '9'+1
-        jr nc,.usage
-        ld (testMode),a
-        or a                            ; Fc=0
-        ret
-.usage
         scf
         ret
 
@@ -746,7 +671,6 @@ injectPending   db 0
 injectAt        dw 0
 injectLenAt     dw 0                    ; adresa delky radku programu, 0 = E_LINE
 injectBuf       ds INJECT_MAX
-testMode        db 0                    ; DIAG: 0 = normalni beh, jinak '0'..'3'
 dotHandle       db 0
 copyTurbo       db 0
 totalPages      db 0
