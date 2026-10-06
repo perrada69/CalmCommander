@@ -217,7 +217,11 @@ copy_dir
 
         ld a,(curDepth)
         cp MAX_DEPTH
-        jr nc,.next
+        jr c,.depth_ok
+        ld a,$7f                ; hloubeji uz nejsou cesty: chyba, ne tichy preskok
+        ld (failStage),a
+        jp .read_fail
+.depth_ok
         ld a,STAGE_CHILD_PATH
         ld (failStage),a
         call build_child_paths
@@ -739,8 +743,11 @@ delete_dir
         ld a,(curDepth)
         inc a
         call delete_dir
-        pop af
+        pop bc                  ; B = hloubka rodice; pop af by prepsal carry potomka
+        ld c,a                  ; C = chybovy kod potomka
+        ld a,b
         ld (curDepth),a
+        ld a,c
         jr c,.dir_fail
         ld a,(curDepth)
         call dec_dir_index
@@ -772,7 +779,7 @@ delete_dir
         jr c,.read_fail
         ld a,(curDepth)
         call dec_dir_index
-        jr .next
+        jp .next
 
 .done
         ld a,(delHandle)
@@ -1050,8 +1057,11 @@ count_dir
         ld a,(curDepth)
         inc a
         call count_dir
-        pop af
+        pop bc                  ; B = hloubka rodice; pop af by prepsal carry potomka
+        ld c,a                  ; C = chybovy kod potomka
+        ld a,b
         ld (curDepth),a
+        ld a,c
         jr c,.dir_fail
         call reopen_count_pos
         jr c,.dir_fail

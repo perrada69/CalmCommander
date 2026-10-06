@@ -126,8 +126,11 @@ count_dir
         ld a,(curDepth)
         inc a
         call count_dir
-        pop af
+        pop bc                  ; B = hloubka rodice; pop af by prepsal carry potomka
+        ld c,a                  ; C = chybovy kod potomka
+        ld a,b
         ld (curDepth),a
+        ld a,c
         jr c,.child_fail
         call reopen_dir_pos
         jr c,.child_fail

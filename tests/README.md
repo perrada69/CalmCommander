@@ -25,8 +25,6 @@ Testy si samy přeloží `cc.asm`, `dot/ccdot.asm` a pluginy stejným
 do `build/test/`. Binárky (`cc.bin`, `plugin/*.ccp`, `build/dot/ccd.bin` …)
 vzniknou stejné jako z `compile.bat`.
 
-Výsledek `OK (expected failures=5)` je v pořádku – viz *Známé chyby* níže.
-
 ## Co se testuje
 
 | Soubor | Co |
@@ -55,25 +53,27 @@ Výsledek `OK (expected failures=5)` je v pořádku – viz *Známé chyby* ní�
   `golden/` zkontrolovat v gitu.
 - `fixtures/` – vzorky pro testy (PT2, STC, STP, starý `bookmark.cfg`).
 
-## Známé chyby (expectedFailure)
+## Opravené chyby, které testy našly
 
-Tyto testy popisují chování, které je dnes špatně. Dokud chyba trvá, hlásí se
-jako *expected failure*. Až se opraví, ohlásí se jako *unexpected success* –
-pak stačí smazat `@unittest.expectedFailure`.
+Testy, které je hlídají, aby se nevrátily:
 
-1. **syscopy – mazání se zasekne, když v podadresáři něco nejde smazat**
-   (`test_delete_error_in_subdir_is_reported`). V `delete_dir` po
-   `call delete_dir` následuje `pop af`, který přepíše carry potomka; rodič
-   adresář znovu otevře a mazání zkouší dokola. Totéž u stromu hlubšího než
-   11 úrovní (`test_deep_tree_delete_reports_error`). `copy_dir` to řeší přes
-   `childCarry`.
-2. **syscopy – kopie stromu hlubšího než 11 úrovní hlásí úspěch, ale soubory
-   od 12. úrovně chybí** (`test_deep_tree_copy_is_complete_or_fails`).
-3. **dir_info – chyba v podadresáři se ztratí** (stejné `pop af`), výsledkem
-   je neúplný součet hlášený jako úspěch (`test_unreadable_subdir_is_reported`).
-4. **bookmarks – převod starého formátu vždy selže** „Cannot access
+1. **syscopy – mazání se zaseklo, když v podadresáři něco nešlo smazat**
+   nebo byl strom hlubší než 11 úrovní (`test_delete_error_in_subdir_is_reported`,
+   `test_deep_tree_delete_reports_error`). `pop af` po `call delete_dir`
+   přepsal carry potomka a rodič mazal tentýž adresář dokola. Stejná oprava
+   je i v `count_dir`.
+2. **syscopy – kopie stromu hlubšího než 11 úrovní hlásila úspěch, ale
+   soubory od 12. úrovně chyběly** (`test_deep_tree_copy_fails_instead_of_skipping`).
+   Teď skončí chybou $7F a přesun pak zdroj nesmaže (`test_deep_tree_move_keeps_source`).
+3. **dir_info – chyba v podadresáři se ztratila** (stejné `pop af`) a neúplný
+   součet se hlásil jako úspěch (`test_unreadable_subdir_is_reported`).
+4. **bookmarks – převod starého formátu vždy selhal** „Cannot access
    c:/sys/bookmark.cfg.“ (`test_old_format_is_migrated`): po `F_READ`/`F_WRITE`
-   se nenulové BC bere jako chyba, ale BC je počet přenesených bajtů.
+   se nenulové BC bralo jako chyba, ale BC je počet přenesených bajtů.
+
+Když najdeš chybu, kterou zatím neopravuješ, zapiš ji jako test s
+`@unittest.expectedFailure` – sada zůstane zelená, a až chybu opravíš, test se
+ohlásí jako *unexpected success*.
 
 ## Nový test
 

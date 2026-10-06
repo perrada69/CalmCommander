@@ -87,13 +87,10 @@ class Bookmarks(unittest.TestCase):
         host = self.run_plugin(ADD, list("x") + [13, 13], cfg=full)
         self.assertEqual(self.cfg(host), full)
 
-    @unittest.expectedFailure
     def test_old_format_is_migrated(self):
-        """ZNAMA CHYBA: migration_read_old_record a migration_write_new_record
-        po F_READ/F_WRITE delaji "ld a,b : or c : jr nz,migration_short_io",
-        ale BC je pocet prenesenych bajtu (na tom stoji i kopirovani v
-        syscopy). Prevod proto skonci hlaskou o chybe souboru a stary soubor
-        zustane beze zmeny - jako build/bookmark.cfg.after-failed-migration.
+        """Regrese: po F_READ/F_WRITE se nenulove BC bralo jako chyba, ale BC
+        je pocet prenesenych bajtu. Prevod proto vzdy skoncil hlaskou "Cannot
+        access c:/sys/bookmark.cfg." (build/bookmark.cfg.after-failed-migration).
         Soubor je skutecny stary bookmark.cfg (build/bookmark.cfg.pre-name24.bak).
         """
         old = (ROOT / "tests" / "fixtures" / "bookmark-old-format.cfg").read_bytes()

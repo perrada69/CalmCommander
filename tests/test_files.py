@@ -103,11 +103,9 @@ class DirInfo(unittest.TestCase):
         _, info = self.info({}, path="C:/" + "x" * 300)
         self.assertEqual((info["result"], info["error"], info["stage"]), (1, 0x7D, 0x10))
 
-    @unittest.expectedFailure
     def test_unreadable_subdir_is_reported(self):
-        """ZNAMA CHYBA: count_dir po "call count_dir" dela "pop af", ktery
-        prepise carry potomka - chyba v podadresari se ztrati a vysledek je
-        neuplny soucet hlaseny jako uspech."""
+        """Regrese: "pop af" po "call count_dir" prepisoval carry potomka,
+        chyba v podadresari se ztratila a neuplny soucet se hlasil jako uspech."""
         tree = {"games": {"target": {"a.txt": b"12345", "Locked": {"b.txt": b"x"}}}}
         _, info = self.info(tree, denied={"LOCKED"})
         self.assertEqual((info["result"], info["error"]), (1, EACCES))
@@ -230,30 +228,41 @@ class SysCopy(unittest.TestCase):
         _, info = self.run_copy({"from": {}, "to": {}}, COPY)
         self.assertEqual((info["result"], info["error"]), (1, ENOENT))
 
-    # --- znama chyba: delete_dir ignoruje chybu v podadresari -------------
-    # Po "call delete_dir" nasleduje "pop af", ktery prepise carry potomka.
-    # Rodic pak adresar znovu otevre, najde stale tentyz podadresar a zkousi
-    # ho mazat dokola - CC se zasekne (copy_dir to resi pres childCarry).
+    # --- regrese: chyba v podadresari a strom hlubsi nez MAX_DEPTH ---------
+    # Drive "pop af" po "call delete_dir" prepsal carry potomka. Rodic pak
+    # adresar znovu otevrel, nasel tentyz podadresar a mazal ho dokola - CC se
+    # zasekl. max_steps je male, aby se pripadne zacykleni projevilo hned.
 
-    @unittest.expectedFailure
     def test_delete_error_in_subdir_is_reported(self):
         tree = {"from": {"Docs": {"a.txt": b"1", "sub": {"locked.txt": b"x", "b.txt": b"2"}}}}
-        _, info = self.run_copy(tree, DELETE, denied={"LOCKED.TXT"}, max_steps=200_000)
+        host, info = self.run_copy(tree, DELETE, denied={"LOCKED.TXT"}, max_steps=200_000)
         self.assertEqual((info["result"], info["error"]), (1, EACCES))
+        self.assertIsNotNone(host.fs.lookup("C:/from/Docs/sub/locked.txt"))
 
-    @unittest.expectedFailure
     def test_deep_tree_delete_reports_error(self):
-        """Hlubsi nez MAX_DEPTH: mazani ma skoncit chybou $7F."""
-        _, info = self.run_copy({"from": {"Docs": nested(13)}}, DELETE, max_steps=200_000)
+        """Hlubsi nez MAX_DEPTH: mazani skonci chybou $7F."""
+        host, info = self.run_copy({"from": {"Docs": nested(13)}}, DELETE, max_steps=200_000)
+        self.assertEqual((info["result"], info["error"]), (1, 0x7F))
+        # maze se do hloubky, takze chyba prijde driv, nez se cokoli smaze
+        self.assertEqual(host.fs.tree()["from"], {"Docs": nested(13)})
+
+    def test_deep_tree_copy_fails_instead_of_skipping(self):
+        """Drive se polozky od hloubky MAX_DEPTH tise preskocily a kopie
+        hlasila uspech, prestoze soubory od 12. urovne v cili chybely."""
+        _, info = self.run_copy({"from": {"Docs": nested(13)}, "to": {}}, COPY)
         self.assertEqual((info["result"], info["error"]), (1, 0x7F))
 
-    @unittest.expectedFailure
-    def test_deep_tree_copy_is_complete_or_fails(self):
-        """ZNAMA CHYBA: od hloubky MAX_DEPTH copy_dir polozky tise preskoci
-        a hlasi uspech - soubory od 12. urovne v cili chybi."""
-        host, info = self.run_copy({"from": {"Docs": nested(13)}, "to": {}}, COPY)
-        if info["result"] == 0:
-            self.assertEqual(host.fs.tree()["to"], {"Docs": nested(13)})
+    def test_deep_tree_move_keeps_source(self):
+        """Kdyz kopie selze, presun nesmi nic smazat."""
+        host, info = self.run_copy({"from": {"Docs": nested(13)}, "to": {}}, MOVE, max_steps=200_000)
+        self.assertEqual((info["result"], info["error"]), (1, 0x7F))
+        self.assertEqual(host.fs.tree()["from"], {"Docs": nested(13)})
+
+    def test_tree_at_depth_limit_still_copies(self):
+        """Strom presne na hranici (obsah v hloubce 10) se zkopiruje cely."""
+        host, info = self.run_copy({"from": {"Docs": nested(10)}, "to": {}}, MOVE)
+        self.assertEqual(info["result"], 0, info)
+        self.assertEqual(host.fs.tree(), {"from": {}, "to": {"Docs": nested(10)}})
 
 
 if __name__ == "__main__":

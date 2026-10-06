@@ -303,8 +303,9 @@ migration_read_old_record
         rst $08
         db F_READ
         jp c,migration_close_error
-        ld a,b
-        or c
+        ld hl,BOOKMARK_OLD_RECORD_SIZE  ; BC = pocet skutecne prectenych bajtu
+        or a
+        sbc hl,bc
         jr nz,migration_short_io
         jp migration_close_ok
 
@@ -328,8 +329,9 @@ migration_write_new_record
         rst $08
         db F_WRITE
         jp c,migration_close_error
-        ld a,b
-        or c
+        ld hl,BOOKMARK_RECORD_SIZE      ; BC = pocet skutecne zapsanych bajtu
+        or a
+        sbc hl,bc
         jr nz,migration_short_io
         jp migration_close_ok
 

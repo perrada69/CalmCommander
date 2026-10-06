@@ -246,6 +246,7 @@ class FakeEsx:
             node.data += bytes(pos - len(node.data))
         node.data[pos:pos + len(data)] = data
         entry["pos"] += len(data)
+        cpu.bc = len(data)                  # BC = pocet skutecne zapsanych bajtu
         return 0
 
     def seek(self):
