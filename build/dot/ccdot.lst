@@ -31,13 +31,15 @@
 # file opened: dot\../build/dot/ccd.exp
   1+  0000              dot_xb_page: EQU 0x0000005A
   2+  0000              S1: EQU 0x00007100
-  3+  0000              E2: EQU 0x0000DFCF
+  3+  0000              E2: EQU 0x0000DFE6
   4+  0000              dot_entry: EQU 0x0000CC30
-  5+  0000              dot_launch: EQU 0x0000BFE2
+  5+  0000              dot_launch: EQU 0x0000BFE0
   6+  0000              DOT_EXIT_LAUNCH: EQU 0x00000001
-  7+  0000              dot_exit_code: EQU 0x0000CC69
-  8+  0000              EXTRA_BANK_END: EQU 0x0000F45A
-  9+  0000
+  7+  0000              DOT_EXIT_BASIC: EQU 0x00000002
+  8+  0000              dot_cmd_buf: EQU 0x00009CC5
+  9+  0000              dot_exit_code: EQU 0x0000CC80
+ 10+  0000              EXTRA_BANK_END: EQU 0x0000F555
+ 11+  0000
 # file closed: dot\../build/dot/ccd.exp
  30   0000
  31   0000              ; DIAG: docasne barvy borderu na ceste zpet do BASICu, at je videt, kde se zasekne
@@ -65,620 +67,710 @@
  53   0000              CALL_STACK      equ $0000               ; RST $18 se vola se zasobnikem na konci
  54   0000                                                      ; stranky 1 - tu CC nikdy nepise
  55   0000              BORDCR          equ $5C48
- 56   0000              BANKM           equ $5B5C
- 57   0000
- 58   0000                      org $2000
- 59   2000
- 60   2000              dot_start
- 61   2000 ED 73 98 23          ld (entrySp),sp
- 62   2004 DD 22 9A 23          ld (entryIx),ix
- 63   2008 D9                   exx
- 64   2009 22 9C 23             ld (entryHlAlt),hl              ; H'L' patri BASICu, vratime ho pri odchodu
- 65   200C D9                   exx
- 66   200D
- 67   200D 7C                   ld a,h                          ; HL = argumenty (0 = zadne)
- 68   200E B5                   or l
- 69   200F C4 14 21             call nz,check_args
- 70   2012 DA 33 21             jp c,show_usage
- 71   2015
- 72   2015 CF                   rst $08
- 73   2016 88                   db M_DOSVERSION
- 74   2017 38 08                jr c,.notNext
- 75   2019 B7                   or a                            ; A=0 jen v rezimu NextZXOS
- 76   201A 20 05                jr nz,.notNext
- 77   201C 78                   ld a,b
- 78   201D FE 4E                cp 'N'
- 79   201F 28 06                jr z,.isNext
- 80   2021              .notNext
- 81   2021 21 5A 23             ld hl,msgNotNext
- 82   2024 C3 00 21             jp exit_error
- 83   2027
- 84   2027              .isNext
- 85   2027 CD A0 21             call read_source_pages
- 86   202A CD 5E 21             call save_nextregs
- 87   202D
- 88   202D CD C6 21             call grab_pages                 ; M_P3DOS - jeste na zasobniku BASICu
- 89   2030 DA 00 21             jp c,exit_error                 ; HL = zprava
- 90   2033
- 91   2033 3A 9E 23             ld a,(testMode)                 ; DIAG .cc 0: jen rezervace a uvolneni stranek
- 92   2036 FE 30                cp '0'
- 93   2038 28 14                jr z,.t0
- 94   203A FE 34                cp '4'                          ; DIAG .cc 4: jako 0 + restore_ula
- 95   203C 28 0D                jr z,.t4
- 96   203E FE 37                cp '7'                          ; DIAG .cc 7: jako 0, restore_ula AZ PO uvolneni
- 97   2040 28 14                jr z,.t7
- 98   2042 FE 35                cp '5'                          ; DIAG .cc 5: jako 0 + restore_nextregs
- 99   2044 20 1B                jr nz,.notT0
-100   2046 CD 70 21             call restore_nextregs
-101   2049 18 03                jr .t0
-102   204B              .t4
-103   204B CD 89 21             call restore_ula
-104   204E              .t0
-105   204E CD 47 22             call free_pages
-106   2051 CD 0A 21             call restore_regs
-107   2054 AF                   xor a
-108   2055 C9                   ret
-109   2056              .t7
-110   2056 CD 47 22             call free_pages
-111   2059 CD 89 21             call restore_ula
-112   205C CD 0A 21             call restore_regs
-113   205F AF                   xor a
-114   2060 C9                   ret
-115   2061              .notT0
-116   2061
-117   2061                      ; Od ted pracujeme se zasobnikem v okne dot commandu: MMU6/MMU7
-118   2061                      ; poslouzi jako okna a zasobnik BASICu muze lezet prave v nich.
-119   2061 F3                   di
-120   2062 31 27 25             ld sp,dotStackTop
-121   2065 FB                   ei
-122   2066
-123   2066 CD 7B 22             call backup_memory
-124   2069 3A 9E 23             ld a,(testMode)                 ; DIAG .cc 3: zaloha a obnova, CC se nenahraje
-125   206C FE 33                cp '3'
-126   206E 28 4E                jr z,.quit
-127   2070 FE 36                cp '6'                          ; DIAG .cc 6: jako 3, ale bez registru a ULA
-128   2072 28 4A                jr z,.quit
-129   2074 FE 38                cp '8'                          ; DIAG .cc 8: jako 3, ale bez restore_ula
-130   2076 28 46                jr z,.quit
-131   2078 FE 39                cp '9'                          ; DIAG .cc 9: jako 3, ale restore_ula bez $7FFD
-132   207A 28 42                jr z,.quit
-133   207C CD C9 22             call load_cc
-134   207F 30 10                jr nc,.loaded
-135   2081 CD 83 22             call restore_memory
-136   2084 ED 7B 98 23          ld sp,(entrySp)
-137   2088 CD 47 22             call free_pages
-138   208B 21 7C 23             ld hl,msgLoadError
-139   208E C3 00 21             jp exit_error
-140   2091
-141   2091              .loaded
-142   2091 3A 9E 23             ld a,(testMode)                 ; DIAG .cc 1: CC se nahraje, ale nespusti
-143   2094 FE 31                cp '1'
-144   2096 28 26                jr z,.quit
-145   2098 FE 32                cp '2'                          ; DIAG .cc 2: RST $18 na pouhe RET v RAM
-146   209A 20 0F                jr nz,.runCC
-147   209C 3E C9                ld a,$C9
-148   209E 32 00 70             ld ($7000),a
-149   20A1 F3                   di
-150   20A2 31 00 00             ld sp,CALL_STACK
-151   20A5 FB                   ei
-152   20A6 DF                   rst $18
-153   20A7 00 70                defw $7000
-154   20A9 18 13                jr .quit
-155   20AB
-156   20AB              .runCC
-157   20AB F3                   di
-158   20AC 31 00 00             ld sp,CALL_STACK
-159   20AF FB                   ei
-160   20B0 DF                   rst $18
-161   20B1 30 CC                defw dot_entry                  ; CC se vraci az pri Quit nebo spusteni
-162   20B3
-163   20B3                      DBG_BORDER 2                    ; DIAG: cerveny = zavadec dostal rizeni zpet
-163   20B3 3E 02       >        ld a,2
-163   20B5 D3 FE       >        out ($FE),a
-164   20B7 3A 69 CC             ld a,(dot_exit_code)            ; v RAM CC, MMU6 je zpet na strance 0
-165   20BA FE 01                cp DOT_EXIT_LAUNCH
-166   20BC 28 38                jr z,.launch
-167   20BE
-168   20BE                      ; Quit: vsechno vratit, jak bylo
-169   20BE              .quit
-170   20BE F3                   di
-171   20BF 31 27 25             ld sp,dotStackTop
-172   20C2 FD 21 3A 5C          ld iy,$5C3A
-173   20C6 3A 9E 23             ld a,(testMode)
-174   20C9 FE 36                cp '6'
-175   20CB C4 70 21             call nz,restore_nextregs
-176   20CE                      DBG_BORDER 3                    ; DIAG: fialovy = Next registry obnovene
-176   20CE 3E 03       >        ld a,3
-176   20D0 D3 FE       >        out ($FE),a
-177   20D2 CD 83 22             call restore_memory
-178   20D5                      DBG_BORDER 4                    ; DIAG: zeleny = pamet BASICu obnovena
-178   20D5 3E 04       >        ld a,4
-178   20D7 D3 FE       >        out ($FE),a
-179   20D9 ED 7B 98 23          ld sp,(entrySp)                 ; pamet je zpet, zasobnik BASICu taky
-180   20DD CD 47 22             call free_pages
-181   20E0                      DBG_BORDER 5                    ; DIAG: azurovy = stranky uvolnene
-181   20E0 3E 05       >        ld a,5
-181   20E2 D3 FE       >        out ($FE),a
-182   20E4 3A 9E 23             ld a,(testMode)
-183   20E7 FE 36                cp '6'
-184   20E9 28 05                jr z,.noUla
-185   20EB FE 38                cp '8'
-186   20ED C4 89 21             call nz,restore_ula             ; border zpet podle BORDCR
-187   20F0              .noUla
-188   20F0 CD 0A 21             call restore_regs
-189   20F3 FB                   ei
-190   20F4 AF                   xor a                           ; Fc=0: dot command skoncil v poradku
-191   20F5 C9                   ret
-192   20F6
-193   20F6              .launch
-194   20F6                      ; Spousteny program dostane celou pamet; CC je porad v RAM.
-195   20F6 CD 47 22             call free_pages                 ; zasobnik je porad CALL_STACK
-196   20F9 31 00 71             ld sp,S1                        ; zasobnik CC, stejne jako po CLEAR 28927
-197   20FC 21 E2 BF             ld hl,dot_launch
-198   20FF E7                   rst $20                         ; ukonci dot command a skoc na HL
-199   2100
-200   2100              ; -----------------------------------------------------------------------------
-201   2100              ; Chybovy navrat: HL = zprava (posledni znak s bitem 7)
-202   2100              ; -----------------------------------------------------------------------------
-203   2100              exit_error
-204   2100 ED 7B 98 23          ld sp,(entrySp)
-205   2104 CD 0A 21             call restore_regs
-206   2107 AF                   xor a
-207   2108 37                   scf
-208   2109 C9                   ret
-209   210A
-210   210A              ; H'L' a IX tak, jak je dot command dostal (HL zustava)
-211   210A              restore_regs
-212   210A D9                   exx
-213   210B 2A 9C 23             ld hl,(entryHlAlt)
-214   210E D9                   exx
-215   210F DD 2A 9A 23          ld ix,(entryIx)
-216   2113 C9                   ret
-217   2114
-218   2114              ; -----------------------------------------------------------------------------
-219   2114              ; Argumenty: zadne nebo -h. Cokoli jineho vypise napovedu (Fc=1).
-220   2114              ; -----------------------------------------------------------------------------
-221   2114              check_args
-222   2114 7E                   ld a,(hl)
-223   2115 FE 20                cp ' '
-224   2117 20 03                jr nz,.first
-225   2119 23                   inc hl
-226   211A 18 F8                jr check_args
-227   211C              .first
-228   211C B7                   or a
-229   211D C8                   ret z
-230   211E FE 0D                cp $0D
-231   2120 C8                   ret z
-232   2121 FE 3A                cp ':'
-233   2123 C8                   ret z
-234   2124 FE 30                cp '0'                          ; DIAG: .cc 0 .. 9 = testovaci rezim
-235   2126 38 09                jr c,.usage
-236   2128 FE 3A                cp '9'+1
-237   212A 30 05                jr nc,.usage
-238   212C 32 9E 23             ld (testMode),a
-239   212F B7                   or a                            ; Fc=0
-240   2130 C9                   ret
-241   2131              .usage
-242   2131 37                   scf
-243   2132 C9                   ret
-244   2133
-245   2133              show_usage
-246   2133 21 03 23             ld hl,msgUsage
-247   2136              .loop
-248   2136 7E                   ld a,(hl)
-249   2137 B7                   or a
-250   2138 28 04                jr z,.done
-251   213A D7                   rst $10
-252   213B 23                   inc hl
-253   213C 18 F8                jr .loop
-254   213E              .done
-255   213E CD 0A 21             call restore_regs
-256   2141 AF                   xor a
-257   2142 C9                   ret
-258   2143
-259   2143              ; -----------------------------------------------------------------------------
-260   2143              ; Next registry, ktere CC meni (displej, vrstvy, tilemap, turbo)
-261   2143              ; -----------------------------------------------------------------------------
-262   2143              nextregList
-263   2143 07 14 15 2F          db $07, $14, $15, $2F, $30, $31, $4A, $4B, $4C
-263   2147 30 31 4A 4B
-263   214B 4C
-264   214C 68 69 6B 6C          db $68, $69, $6B, $6C, $6E, $6F, $43
-264   2150 6E 6F 43
-265   2153              NEXTREG_COUNT   equ $ - nextregList
-266   2153
-267   2153              read_nextreg                            ; A = registr -> A = hodnota
-268   2153 C5                   push bc
-269   2154 01 3B 24             ld bc,$243B
-270   2157 ED 79                out (c),a
-271   2159 04                   inc b
-272   215A ED 78                in a,(c)
-273   215C C1                   pop bc
-274   215D C9                   ret
-275   215E
-276   215E              save_nextregs
-277   215E 21 43 21             ld hl,nextregList
-278   2161 11 17 24             ld de,nextregValues
-279   2164 06 10                ld b,NEXTREG_COUNT
-280   2166              .loop
-281   2166 7E                   ld a,(hl)
-282   2167 CD 53 21             call read_nextreg
-283   216A 12                   ld (de),a
-284   216B 23                   inc hl
-285   216C 13                   inc de
-286   216D 10 F7                djnz .loop
-287   216F C9                   ret
-288   2170
-289   2170              restore_nextregs
-290   2170 21 43 21             ld hl,nextregList
-291   2173 11 17 24             ld de,nextregValues
-292   2176 06 10                ld b,NEXTREG_COUNT
-293   2178              .loop
-294   2178 C5                   push bc
-295   2179 7E                   ld a,(hl)
-296   217A 01 3B 24             ld bc,$243B
-297   217D ED 79                out (c),a
-298   217F 04                   inc b
-299   2180 1A                   ld a,(de)
-300   2181 ED 79                out (c),a
-301   2183 C1                   pop bc
-302   2184 23                   inc hl
-303   2185 13                   inc de
-304   2186 10 F0                djnz .loop
-305   2188 C9                   ret
-306   2189
-307   2189              ; Border podle obnovene BORDCR a MMU6/MMU7 jako pri startu.
-308   2189              ; Port $7FFD sem NEPATRI: kazde M_P3DOS na konci samo nastavi strankovani,
-309   2189              ; jak ho NextZXOS uvnitr dot commandu potrebuje, a BANKM mu neodpovida.
-310   2189              ; Zapis BANKM do $7FFD po M_P3DOS (free_pages) NextZXOS po navratu z dotu
-311   2189              ; zasekne - overeno testy .cc 4 / 7 / 9.
-312   2189              restore_ula
-313   2189 3A 48 5C             ld a,(BORDCR)
-314   218C 0F                   rrca
-315   218D 0F                   rrca
-316   218E 0F                   rrca
-317   218F E6 07                and 7
-318   2191 D3 FE                out ($FE),a
-319   2193 3A 0B 24             ld a,(sourcePages+4)
-320   2196 ED 92 56             nextreg $56,a
-321   2199 3A 0C 24             ld a,(sourcePages+5)
-322   219C ED 92 57             nextreg $57,a
-323   219F C9                   ret
-324   21A0
-325   21A0              ; -----------------------------------------------------------------------------
-326   21A0              ; Stranky, ktere zalohujeme: co je v MMU2..MMU7 a banka 3 (CC tam kopiruje)
-327   21A0              ; -----------------------------------------------------------------------------
-328   21A0              read_source_pages
-329   21A0 21 07 24             ld hl,sourcePages
-330   21A3 3E 52                ld a,$52
-331   21A5              .loop
-332   21A5 F5                   push af
-333   21A6 CD 53 21             call read_nextreg
-334   21A9 77                   ld (hl),a
-335   21AA 23                   inc hl
-336   21AB F1                   pop af
-337   21AC 3C                   inc a
-338   21AD FE 58                cp $58
-339   21AF 20 F4                jr nz,.loop
-340   21B1 36 06                ld (hl),6
-341   21B3 23                   inc hl
-342   21B4 36 07                ld (hl),7
-343   21B6 C9                   ret
-344   21B7
-345   21B7              ; -----------------------------------------------------------------------------
-346   21B7              ; IDE_BANK pres M_P3DOS. HL = typ/duvod, E = stranka -> Fc=0 ok, E = vysledek
-347   21B7              ; Vola se jen se zasobnikem mimo okno dot commandu.
-348   21B7              ; -----------------------------------------------------------------------------
-349   21B7              ide_bank
-350   21B7 D9                   exx
-351   21B8 11 BD 01             ld de,IDE_BANK
-352   21BB 0E 07                ld c,7
-353   21BD CF                   rst $08
-354   21BE 94                   db M_P3DOS
-355   21BF 3F                   ccf                             ; +3DOS hlasi uspech s Fc=1
-356   21C0 C9                   ret
-357   21C1
-358   21C1              ; -----------------------------------------------------------------------------
-359   21C1              ; Zarezervuje pevne stranky CC a alokuje BACKUP_COUNT stranek na zalohu.
-360   21C1              ; Fc=1 -> HL = zprava, nic nezustane zabrane.
-361   21C1              ; -----------------------------------------------------------------------------
-362   21C1              ; Pevne stranky CC: LFN levy panel od 24, pravy od 60; buffl/buffr/savescr
-363   21C1              ; 74/76/78; viewer 81-97 (plugin 82); extra banka 90; pracovni 98, 99;
-364   21C1              ; Layer 2 pluginu NXI/SCR v 16K bankach 49-51 = stranky 98-103.
-365   21C1              fixedRanges
-366   21C1 18 2C                db 24, 44
-367   21C3 3C 67                db 60, 103
-368   21C5 FF                   db $FF
-369   21C6
-370   21C6              grab_pages
-371   21C6 AF                   xor a
-372   21C7 32 A2 23             ld (ownedCount),a
-373   21CA 21 00 00             ld hl,BANK_TOTAL
-374   21CD CD B7 21             call ide_bank
-375   21D0 38 5F                jr c,.noMemory
-376   21D2 7B                   ld a,e
-377   21D3 32 A1 23             ld (totalPages),a
-378   21D6
-379   21D6 21 C1 21             ld hl,fixedRanges
-380   21D9              .range
-381   21D9 7E                   ld a,(hl)
-382   21DA FE FF                cp $FF
-383   21DC 28 35                jr z,.backups
-384   21DE 47                   ld b,a                          ; B = prvni stranka
-385   21DF 23                   inc hl
-386   21E0 4E                   ld c,(hl)                       ; C = posledni stranka
-387   21E1 23                   inc hl
-388   21E2 E5                   push hl
-389   21E3              .page
-390   21E3 3A A1 23             ld a,(totalPages)
-391   21E6 3D                   dec a
-392   21E7 B8                   cp b
-393   21E8 38 16                jr c,.rangeDone                 ; stranka uz v tomhle stroji neni
-394   21EA C5                   push bc
-395   21EB 58                   ld e,b
-396   21EC 21 02 00             ld hl,BANK_RESERVE
-397   21EF CD B7 21             call ide_bank
-398   21F2 C1                   pop bc
-399   21F3 38 0E                jr c,.inUse
-400   21F5 78                   ld a,b
-401   21F6 CD 36 22             call own_page
-402   21F9 78                   ld a,b
-403   21FA B9                   cp c
-404   21FB 28 03                jr z,.rangeDone
-405   21FD 04                   inc b
-406   21FE 18 E3                jr .page
-407   2200              .rangeDone
-408   2200 E1                   pop hl
-409   2201 18 D6                jr .range
-410   2203
-411   2203              .inUse
-412   2203 E1                   pop hl
-413   2204 78                   ld a,b
-414   2205 21 8E 23             ld hl,msgInUseNum
-415   2208 CD 63 22             call put_decimal
-416   220B CD 47 22             call free_pages
-417   220E 21 89 23             ld hl,msgInUse
-418   2211 37                   scf
-419   2212 C9                   ret
-420   2213
-421   2213              .backups
-422   2213 11 0F 24             ld de,backupPages
-423   2216 06 08                ld b,BACKUP_COUNT
-424   2218              .alloc
-425   2218 C5                   push bc
-426   2219 D5                   push de
-427   221A 21 01 00             ld hl,BANK_ALLOC
-428   221D CD B7 21             call ide_bank
-429   2220 7B                   ld a,e
-430   2221 D1                   pop de
-431   2222 C1                   pop bc
-432   2223 38 09                jr c,.noMemoryFree
-433   2225 12                   ld (de),a
-434   2226 13                   inc de
-435   2227 CD 36 22             call own_page
-436   222A 10 EC                djnz .alloc
-437   222C B7                   or a
-438   222D C9                   ret
-439   222E
-440   222E              .noMemoryFree
-441   222E CD 47 22             call free_pages
-442   2231              .noMemory
-443   2231 21 6B 23             ld hl,msgNoMemory
-444   2234 37                   scf
-445   2235 C9                   ret
-446   2236
-447   2236              own_page                                ; A = stranka do seznamu zabranych
-448   2236 D5                   push de
-449   2237 E5                   push hl
-450   2238 21 A2 23             ld hl,ownedCount
-451   223B 5E                   ld e,(hl)
-452   223C 34                   inc (hl)
-453   223D 16 00                ld d,0
-454   223F 21 A3 23             ld hl,ownedPages
-455   2242 19                   add hl,de
-456   2243 77                   ld (hl),a
-457   2244 E1                   pop hl
-458   2245 D1                   pop de
-459   2246 C9                   ret
-460   2247
-461   2247              free_pages
-462   2247 3A A2 23             ld a,(ownedCount)
-463   224A B7                   or a
-464   224B C8                   ret z
-465   224C 47                   ld b,a
-466   224D 21 A3 23             ld hl,ownedPages
-467   2250              .loop
-468   2250 C5                   push bc
-469   2251 E5                   push hl
-470   2252 5E                   ld e,(hl)
-471   2253 21 03 00             ld hl,BANK_FREE
-472   2256 CD B7 21             call ide_bank
-473   2259 E1                   pop hl
-474   225A C1                   pop bc
-475   225B 23                   inc hl
-476   225C 10 F2                djnz .loop
-477   225E AF                   xor a
-478   225F 32 A2 23             ld (ownedCount),a
-479   2262 C9                   ret
-480   2263
-481   2263              ; A = 0..255 -> tri cislice na (HL)
-482   2263              put_decimal
-483   2263 0E 64                ld c,100
-484   2265 CD 71 22             call .digit
-485   2268 0E 0A                ld c,10
-486   226A CD 71 22             call .digit
-487   226D C6 30                add a,'0'
-488   226F 77                   ld (hl),a
-489   2270 C9                   ret
-490   2271              .digit
-491   2271 06 2F                ld b,'0'-1
-492   2273              .sub
-493   2273 04                   inc b
-494   2274 91                   sub c
-495   2275 30 FC                jr nc,.sub
-496   2277 81                   add a,c
-497   2278 70                   ld (hl),b
-498   2279 23                   inc hl
-499   227A C9                   ret
-500   227B
-501   227B              ; -----------------------------------------------------------------------------
-502   227B              ; Zaloha / obnova pameti: HL = seznam zdrojovych stranek, DE = cilovych.
-503   227B              ; Kopiruje pres MMU6 (zdroj) a MMU7 (cil). Zasobnik musi byt v okne dotu.
-504   227B              ; -----------------------------------------------------------------------------
-505   227B              backup_memory
-506   227B 21 07 24             ld hl,sourcePages
-507   227E 11 0F 24             ld de,backupPages
-508   2281 18 06                jr copy_pages
-509   2283
-510   2283              restore_memory
-511   2283 21 0F 24             ld hl,backupPages
-512   2286 11 07 24             ld de,sourcePages
-513   2289
-514   2289              copy_pages
-515   2289 F3                   di
-516   228A 3E 07                ld a,$07
-517   228C CD 53 21             call read_nextreg
-518   228F 32 A0 23             ld (copyTurbo),a
-519   2292 ED 91 07 03          nextreg $07,3                   ; 28 MHz, at je to hned
-520   2296 06 08                ld b,BACKUP_COUNT
-521   2298              .loop
-522   2298 7E                   ld a,(hl)
-523   2299 ED 92 56             nextreg $56,a
-524   229C 1A                   ld a,(de)
-525   229D ED 92 57             nextreg $57,a
-526   22A0 C5                   push bc
-527   22A1 E5                   push hl
-528   22A2 D5                   push de
-529   22A3 21 00 C0             ld hl,$C000
-530   22A6 11 00 E0             ld de,$E000
-531   22A9 01 00 20             ld bc,$2000
-532   22AC ED B0                ldir
-533   22AE D1                   pop de
-534   22AF E1                   pop hl
-535   22B0 C1                   pop bc
-536   22B1 23                   inc hl
-537   22B2 13                   inc de
-538   22B3 10 E3                djnz .loop
-539   22B5 3A 0B 24             ld a,(sourcePages+4)
-540   22B8 ED 92 56             nextreg $56,a
-541   22BB 3A 0C 24             ld a,(sourcePages+5)
-542   22BE ED 92 57             nextreg $57,a
-543   22C1 3A A0 23             ld a,(copyTurbo)
-544   22C4 ED 92 07             nextreg $07,a
-545   22C7 FB                   ei
-546   22C8 C9                   ret
-547   22C9
-548   22C9              ; -----------------------------------------------------------------------------
-549   22C9              ; Docte CC z vlastniho souboru. Fc=1 pri chybe. Soubor vzdy zavre.
-550   22C9              ; -----------------------------------------------------------------------------
-551   22C9              load_cc
-552   22C9 CF                   rst $08
-553   22CA 8D                   db M_GETHANDLE
-554   22CB D8                   ret c
-555   22CC 32 9F 23             ld (dotHandle),a
-556   22CF
-557   22CF ED 91 57 5A          nextreg $57,dot_xb_page         ; extra banka rovnou do sve stranky
-558   22D3 21 00 E0             ld hl,$E000
-559   22D6 01 5A 14             ld bc,XB_LEN
-560   22D9 CD F5 22             call read_part
-561   22DC 3A 0C 24             ld a,(sourcePages+5)
-562   22DF ED 92 57             nextreg $57,a
-563   22E2 38 09                jr c,.close
-564   22E4
-565   22E4 21 00 71             ld hl,S1
-566   22E7 01 CF 6E             ld bc,MAIN_LEN
-567   22EA CD F5 22             call read_part
-568   22ED              .close
-569   22ED F5                   push af
-570   22EE 3A 9F 23             ld a,(dotHandle)
-571   22F1 CF                   rst $08
-572   22F2 9B                   db F_CLOSE
-573   22F3 F1                   pop af
-574   22F4 C9                   ret
-575   22F5
-576   22F5              read_part                               ; HL = kam, BC = kolik -> Fc=1 chyba
-577   22F5 C5                   push bc
-578   22F6 3A 9F 23             ld a,(dotHandle)
-579   22F9 CF                   rst $08
-580   22FA 9D                   db F_READ
-581   22FB E1                   pop hl
-582   22FC D8                   ret c
-583   22FD B7                   or a
-584   22FE ED 42                sbc hl,bc                       ; precteno vsechno?
-585   2300 C8                   ret z
-586   2301 37                   scf
-587   2302 C9                   ret
-588   2303
-589   2303              ; -----------------------------------------------------------------------------
-590   2303              ; Texty a promenne
-591   2303              ; -----------------------------------------------------------------------------
-592   2303              msgUsage
-593   2303 43 61 6C 6D          db "Calm Commander", 13
-593   2307 20 43 6F 6D
-593   230B 6D 61 6E 64
-593   230F 65 72 0D
-594   2312 46 69 6C 65          db "File manager for ZX Spectrum Next", 13, 13
-594   2316 20 6D 61 6E
-594   231A 61 67 65 72
-594   231E 20 66 6F 72
-594   2322 20 5A 58 20
-594   2326 53 70 65 63
-594   232A 74 72 75 6D
-594   232E 20 4E 65 78
-594   2332 74 0D 0D
-595   2335 55 73 61 67          db "Usage: .cc", 13
-595   2339 65 3A 20 2E
-595   233D 63 63 0D
-596   2340 50 6C 75 67          db "Plugins: c:/sys/cc/*.ccp", 13, 0
-596   2344 69 6E 73 3A
-596   2348 20 63 3A 2F
-596   234C 73 79 73 2F
-596   2350 63 63 2F 2A
-596   2354 2E 63 63 70
-596   2358 0D 00
-597   235A 52 65 71 75  msgNotNext      db "Requires NextZXO", 'S'|$80
-597   235E 69 72 65 73
-597   2362 20 4E 65 78
-597   2366 74 5A 58 4F
-597   236A D3
-598   236B 4E 6F 74 20  msgNoMemory     db "Not enough memor", 'y'|$80
-598   236F 65 6E 6F 75
-598   2373 67 68 20 6D
-598   2377 65 6D 6F 72
-598   237B F9
-599   237C 43 43 20 6C  msgLoadError    db "CC load erro", 'r'|$80
-599   2380 6F 61 64 20
-599   2384 65 72 72 6F
-599   2388 F2
-600   2389 50 61 67 65  msgInUse        db "Page "
-600   238D 20
-601   238E 30 30 30 20  msgInUseNum     db "000 in us", 'e'|$80
-601   2392 69 6E 20 75
-601   2396 73 E5
-602   2398
-603   2398 00 00        entrySp         dw 0
-604   239A 00 00        entryIx         dw 0
-605   239C 00 00        entryHlAlt      dw 0
-606   239E 00           testMode        db 0                    ; DIAG: 0 = normalni beh, jinak '0'..'3'
-607   239F 00           dotHandle       db 0
-608   23A0 00           copyTurbo       db 0
-609   23A1 00           totalPages      db 0
-610   23A2 00           ownedCount      db 0
-611   23A3 00 00 00...  ownedPages      ds 100
-612   2407 00 00 00...  sourcePages     ds BACKUP_COUNT
-613   240F 00 00 00...  backupPages     ds BACKUP_COUNT
-614   2417 00 00 00...  nextregValues   ds NEXTREG_COUNT
-615   2427
-616   2427 00 00 00...                  ds 256
-617   2527              dotStackTop
-618   2527
-619   2527                      ASSERT S1 = $7100
-620   2527                      ASSERT $ <= $4000
-621   2527                      DISPLAY "Zavadec .cc: ",/A,$ - $2000," z 8192 B"
-622   2527
-623   2527                      ; NextZXOS nahraje jen prvnich 8K, zbytek si dot cte sam
-624   2527 00 00 00...          BLOCK $4000 - $, 0
-625   4000                      INCBIN "../build/dot/ccd_xb.bin"
-626   545A                      INCBIN "../build/dot/ccd.bin"
-627   C329
+ 56   0000              E_LINE          equ $5C59
+ 57   0000              WORKSP          equ $5C61
+ 58   0000              MAKE_ROOM       equ $1655               ; ROM3: HL = misto, BC = pocet bajtu
+ 59   0000              INJECT_MAX      equ 160                 ; prikaz ke spusteni: [delka] + tokeny
+ 60   0000
+ 61   0000                      org $2000
+ 62   2000
+ 63   2000              dot_start
+ 64   2000 ED 73 2A 24          ld (entrySp),sp
+ 65   2004 DD 22 2C 24          ld (entryIx),ix
+ 66   2008 ED 43 2E 24          ld (entryBc),bc                 ; BC = prikazova radka (bez tecky)
+ 67   200C D9                   exx
+ 68   200D 22 30 24             ld (entryHlAlt),hl              ; H'L' patri BASICu, vratime ho pri odchodu
+ 69   2010 D9                   exx
+ 70   2011
+ 71   2011 7C                   ld a,h                          ; HL = argumenty (0 = zadne)
+ 72   2012 B5                   or l
+ 73   2013 C4 8F 21             call nz,check_args
+ 74   2016 DA AE 21             jp c,show_usage
+ 75   2019
+ 76   2019 CF                   rst $08
+ 77   201A 88                   db M_DOSVERSION
+ 78   201B 38 08                jr c,.notNext
+ 79   201D B7                   or a                            ; A=0 jen v rezimu NextZXOS
+ 80   201E 20 05                jr nz,.notNext
+ 81   2020 78                   ld a,b
+ 82   2021 FE 4E                cp 'N'
+ 83   2023 28 06                jr z,.isNext
+ 84   2025              .notNext
+ 85   2025 21 D5 23             ld hl,msgNotNext
+ 86   2028 C3 23 21             jp exit_error
+ 87   202B
+ 88   202B              .isNext
+ 89   202B CD 1B 22             call read_source_pages
+ 90   202E CD D9 21             call save_nextregs
+ 91   2031
+ 92   2031 CD 41 22             call grab_pages                 ; M_P3DOS - jeste na zasobniku BASICu
+ 93   2034 DA 23 21             jp c,exit_error                 ; HL = zprava
+ 94   2037
+ 95   2037 3A D5 24             ld a,(testMode)                 ; DIAG .cc 0: jen rezervace a uvolneni stranek
+ 96   203A FE 30                cp '0'
+ 97   203C 28 14                jr z,.t0
+ 98   203E FE 34                cp '4'                          ; DIAG .cc 4: jako 0 + restore_ula
+ 99   2040 28 0D                jr z,.t4
+100   2042 FE 37                cp '7'                          ; DIAG .cc 7: jako 0, restore_ula AZ PO uvolneni
+101   2044 28 14                jr z,.t7
+102   2046 FE 35                cp '5'                          ; DIAG .cc 5: jako 0 + restore_nextregs
+103   2048 20 1B                jr nz,.notT0
+104   204A CD EB 21             call restore_nextregs
+105   204D 18 03                jr .t0
+106   204F              .t4
+107   204F CD 04 22             call restore_ula
+108   2052              .t0
+109   2052 CD C2 22             call free_pages
+110   2055 CD 85 21             call restore_regs
+111   2058 AF                   xor a
+112   2059 C9                   ret
+113   205A              .t7
+114   205A CD C2 22             call free_pages
+115   205D CD 04 22             call restore_ula
+116   2060 CD 85 21             call restore_regs
+117   2063 AF                   xor a
+118   2064 C9                   ret
+119   2065              .notT0
+120   2065
+121   2065                      ; Od ted pracujeme se zasobnikem v okne dot commandu: MMU6/MMU7
+122   2065                      ; poslouzi jako okna a zasobnik BASICu muze lezet prave v nich.
+123   2065 F3                   di
+124   2066 31 5E 26             ld sp,dotStackTop
+125   2069 FB                   ei
+126   206A
+127   206A CD F6 22             call backup_memory
+128   206D 3A D5 24             ld a,(testMode)                 ; DIAG .cc 3: zaloha a obnova, CC se nenahraje
+129   2070 FE 33                cp '3'
+130   2072 28 62                jr z,.quit
+131   2074 FE 36                cp '6'                          ; DIAG .cc 6: jako 3, ale bez registru a ULA
+132   2076 28 5E                jr z,.quit
+133   2078 FE 38                cp '8'                          ; DIAG .cc 8: jako 3, ale bez restore_ula
+134   207A 28 5A                jr z,.quit
+135   207C FE 39                cp '9'                          ; DIAG .cc 9: jako 3, ale restore_ula bez $7FFD
+136   207E 28 56                jr z,.quit
+137   2080 CD 44 23             call load_cc
+138   2083 30 10                jr nc,.loaded
+139   2085 CD FE 22             call restore_memory
+140   2088 ED 7B 2A 24          ld sp,(entrySp)
+141   208C CD C2 22             call free_pages
+142   208F 21 F7 23             ld hl,msgLoadError
+143   2092 C3 23 21             jp exit_error
+144   2095
+145   2095              .loaded
+146   2095 3A D5 24             ld a,(testMode)                 ; DIAG .cc 1: CC se nahraje, ale nespusti
+147   2098 FE 31                cp '1'
+148   209A 28 3A                jr z,.quit
+149   209C FE 32                cp '2'                          ; DIAG .cc 2: RST $18 na pouhe RET v RAM
+150   209E 20 0F                jr nz,.runCC
+151   20A0 3E C9                ld a,$C9
+152   20A2 32 00 70             ld ($7000),a
+153   20A5 F3                   di
+154   20A6 31 00 00             ld sp,CALL_STACK
+155   20A9 FB                   ei
+156   20AA DF                   rst $18
+157   20AB 00 70                defw $7000
+158   20AD 18 27                jr .quit
+159   20AF
+160   20AF              .runCC
+161   20AF F3                   di
+162   20B0 31 00 00             ld sp,CALL_STACK
+163   20B3 FB                   ei
+164   20B4 DF                   rst $18
+165   20B5 30 CC                defw dot_entry                  ; CC se vraci az pri Quit nebo spusteni
+166   20B7
+167   20B7                      DBG_BORDER 2                    ; DIAG: cerveny = zavadec dostal rizeni zpet
+167   20B7 3E 02       >        ld a,2
+167   20B9 D3 FE       >        out ($FE),a
+168   20BB 3A 80 CC             ld a,(dot_exit_code)            ; v RAM CC, MMU6 je zpet na strance 0
+169   20BE FE 01                cp DOT_EXIT_LAUNCH
+170   20C0 28 56                jr z,.launch
+171   20C2 FE 02                cp DOT_EXIT_BASIC
+172   20C4 20 10                jr nz,.quit
+173   20C6                      ; Prikaz BASICu ke spusteni je v pameti CC - schovat ho, nez ji
+174   20C6                      ; prepise obnova pameti BASICu.
+175   20C6 21 C5 9C             ld hl,dot_cmd_buf
+176   20C9 11 35 24             ld de,injectBuf
+177   20CC 01 A0 00             ld bc,INJECT_MAX
+178   20CF ED B0                ldir
+179   20D1 3E 01                ld a,1
+180   20D3 32 32 24             ld (injectPending),a
+181   20D6
+182   20D6                      ; Quit: vsechno vratit, jak bylo
+183   20D6              .quit
+184   20D6 F3                   di
+185   20D7 31 5E 26             ld sp,dotStackTop
+186   20DA FD 21 3A 5C          ld iy,$5C3A
+187   20DE 3A D5 24             ld a,(testMode)
+188   20E1 FE 36                cp '6'
+189   20E3 C4 EB 21             call nz,restore_nextregs
+190   20E6                      DBG_BORDER 3                    ; DIAG: fialovy = Next registry obnovene
+190   20E6 3E 03       >        ld a,3
+190   20E8 D3 FE       >        out ($FE),a
+191   20EA CD FE 22             call restore_memory
+192   20ED                      DBG_BORDER 4                    ; DIAG: zeleny = pamet BASICu obnovena
+192   20ED 3E 04       >        ld a,4
+192   20EF D3 FE       >        out ($FE),a
+193   20F1 ED 7B 2A 24          ld sp,(entrySp)                 ; pamet je zpet, zasobnik BASICu taky
+194   20F5 CD C2 22             call free_pages
+195   20F8                      DBG_BORDER 5                    ; DIAG: azurovy = stranky uvolnene
+195   20F8 3E 05       >        ld a,5
+195   20FA D3 FE       >        out ($FE),a
+196   20FC 3A D5 24             ld a,(testMode)
+197   20FF FE 36                cp '6'
+198   2101 28 05                jr z,.noUla
+199   2103 FE 38                cp '8'
+200   2105 C4 04 22             call nz,restore_ula             ; border zpet podle BORDCR
+201   2108              .noUla
+202   2108 3A 32 24             ld a,(injectPending)            ; spusteni BAS/TAP/snapshotu: vloz prikaz
+203   210B B7                   or a                            ; do radku za .cc, BASIC ho pak provede
+204   210C C4 2D 21             call nz,inject_cmd
+205   210F DA 23 21             jp c,exit_error                 ; HL = zprava
+206   2112 CD 85 21             call restore_regs
+207   2115 FB                   ei
+208   2116 AF                   xor a                           ; Fc=0: dot command skoncil v poradku
+209   2117 C9                   ret
+210   2118
+211   2118              .launch
+212   2118                      ; Spousteny program dostane celou pamet; CC je porad v RAM.
+213   2118 CD C2 22             call free_pages                 ; zasobnik je porad CALL_STACK
+214   211B ED 7B 2A 24          ld sp,(entrySp)                 ; zasobnik BASICu jako pri zadani .cc - pod
+215   211F                                                      ; nim je volno pro .run a jeho LOAD
+216   211F 21 E0 BF             ld hl,dot_launch
+217   2122 E7                   rst $20                         ; ukonci dot command a skoc na HL
+218   2123
+219   2123              ; -----------------------------------------------------------------------------
+220   2123              ; Chybovy navrat: HL = zprava (posledni znak s bitem 7)
+221   2123              ; -----------------------------------------------------------------------------
+222   2123              exit_error
+223   2123 ED 7B 2A 24          ld sp,(entrySp)
+224   2127 CD 85 21             call restore_regs
+225   212A AF                   xor a
+226   212B 37                   scf
+227   212C C9                   ret
+228   212D
+229   212D              ; -----------------------------------------------------------------------------
+230   212D              ; Vlozi prikaz z injectBuf ([delka][tokeny]) do radku, ze ktereho byl .cc
+231   212D              ; zavolan, hned za prikaz .cc. BASIC po navratu z dot commandu pokracuje
+232   212D              ; zbytkem radku, takze ho provede, jako by ho napsal uzivatel.
+233   212D              ; Jde jen u radku napsaneho primo (lezi v E_LINE), program se neupravuje.
+234   212D              ; Vola ROM pres RST $18: zasobnik uz musi byt zasobnik BASICu.
+235   212D              ; Fc=1, HL = zprava pri chybe.
+236   212D              ; -----------------------------------------------------------------------------
+237   212D              inject_cmd
+238   212D 2A 2E 24             ld hl,(entryBc)
+239   2130 ED 5B 59 5C          ld de,(E_LINE)                  ; radek musi lezet v E_LINE..WORKSP
+240   2134 B7                   or a
+241   2135 ED 52                sbc hl,de
+242   2137 38 47                jr c,.notDirect
+243   2139 19                   add hl,de
+244   213A ED 5B 61 5C          ld de,(WORKSP)
+245   213E B7                   or a
+246   213F ED 52                sbc hl,de
+247   2141 30 3D                jr nc,.notDirect
+248   2143 19                   add hl,de
+249   2144 0E 00                ld c,0                          ; C bit 0 = uvnitr uvozovek
+250   2146              .scan                                   ; konec .cc: ':' mimo uvozovky, $0D, 0
+251   2146 7E                   ld a,(hl)
+252   2147 B7                   or a
+253   2148 28 19                jr z,.found
+254   214A FE 0D                cp $0D
+255   214C 28 15                jr z,.found
+256   214E FE 22                cp '"'
+257   2150 20 06                jr nz,.notQuote
+258   2152 79                   ld a,c
+259   2153 EE 01                xor 1
+260   2155 4F                   ld c,a
+261   2156 18 08                jr .next
+262   2158              .notQuote
+263   2158 FE 3A                cp ':'
+264   215A 20 04                jr nz,.next
+265   215C CB 41                bit 0,c
+266   215E 28 03                jr z,.found
+267   2160              .next
+268   2160 23                   inc hl
+269   2161 18 E3                jr .scan
+270   2163              .found
+271   2163 22 33 24             ld (injectAt),hl
+272   2166 3A 35 24             ld a,(injectBuf)
+273   2169 4F                   ld c,a
+274   216A 06 00                ld b,0
+275   216C DF                   rst $18                         ; MAKE-ROOM: misto o BC bajtech pred (HL),
+276   216D 55 16                defw MAKE_ROOM                  ; posune pamet BASICu a opravi ukazatele
+277   216F 21 36 24             ld hl,injectBuf+1
+278   2172 ED 5B 33 24          ld de,(injectAt)
+279   2176 3A 35 24             ld a,(injectBuf)
+280   2179 4F                   ld c,a
+281   217A 06 00                ld b,0
+282   217C ED B0                ldir
+283   217E B7                   or a
+284   217F C9                   ret
+285   2180              .notDirect
+286   2180 21 04 24             ld hl,msgNotDirect
+287   2183 37                   scf
+288   2184 C9                   ret
+289   2185
+290   2185              ; H'L' a IX tak, jak je dot command dostal (HL zustava)
+291   2185              restore_regs
+292   2185 D9                   exx
+293   2186 2A 30 24             ld hl,(entryHlAlt)
+294   2189 D9                   exx
+295   218A DD 2A 2C 24          ld ix,(entryIx)
+296   218E C9                   ret
+297   218F
+298   218F              ; -----------------------------------------------------------------------------
+299   218F              ; Argumenty: zadne nebo -h. Cokoli jineho vypise napovedu (Fc=1).
+300   218F              ; -----------------------------------------------------------------------------
+301   218F              check_args
+302   218F 7E                   ld a,(hl)
+303   2190 FE 20                cp ' '
+304   2192 20 03                jr nz,.first
+305   2194 23                   inc hl
+306   2195 18 F8                jr check_args
+307   2197              .first
+308   2197 B7                   or a
+309   2198 C8                   ret z
+310   2199 FE 0D                cp $0D
+311   219B C8                   ret z
+312   219C FE 3A                cp ':'
+313   219E C8                   ret z
+314   219F FE 30                cp '0'                          ; DIAG: .cc 0 .. 9 = testovaci rezim
+315   21A1 38 09                jr c,.usage
+316   21A3 FE 3A                cp '9'+1
+317   21A5 30 05                jr nc,.usage
+318   21A7 32 D5 24             ld (testMode),a
+319   21AA B7                   or a                            ; Fc=0
+320   21AB C9                   ret
+321   21AC              .usage
+322   21AC 37                   scf
+323   21AD C9                   ret
+324   21AE
+325   21AE              show_usage
+326   21AE 21 7E 23             ld hl,msgUsage
+327   21B1              .loop
+328   21B1 7E                   ld a,(hl)
+329   21B2 B7                   or a
+330   21B3 28 04                jr z,.done
+331   21B5 D7                   rst $10
+332   21B6 23                   inc hl
+333   21B7 18 F8                jr .loop
+334   21B9              .done
+335   21B9 CD 85 21             call restore_regs
+336   21BC AF                   xor a
+337   21BD C9                   ret
+338   21BE
+339   21BE              ; -----------------------------------------------------------------------------
+340   21BE              ; Next registry, ktere CC meni (displej, vrstvy, tilemap, turbo)
+341   21BE              ; -----------------------------------------------------------------------------
+342   21BE              nextregList
+343   21BE 07 14 15 2F          db $07, $14, $15, $2F, $30, $31, $4A, $4B, $4C
+343   21C2 30 31 4A 4B
+343   21C6 4C
+344   21C7 68 69 6B 6C          db $68, $69, $6B, $6C, $6E, $6F, $43
+344   21CB 6E 6F 43
+345   21CE              NEXTREG_COUNT   equ $ - nextregList
+346   21CE
+347   21CE              read_nextreg                            ; A = registr -> A = hodnota
+348   21CE C5                   push bc
+349   21CF 01 3B 24             ld bc,$243B
+350   21D2 ED 79                out (c),a
+351   21D4 04                   inc b
+352   21D5 ED 78                in a,(c)
+353   21D7 C1                   pop bc
+354   21D8 C9                   ret
+355   21D9
+356   21D9              save_nextregs
+357   21D9 21 BE 21             ld hl,nextregList
+358   21DC 11 4E 25             ld de,nextregValues
+359   21DF 06 10                ld b,NEXTREG_COUNT
+360   21E1              .loop
+361   21E1 7E                   ld a,(hl)
+362   21E2 CD CE 21             call read_nextreg
+363   21E5 12                   ld (de),a
+364   21E6 23                   inc hl
+365   21E7 13                   inc de
+366   21E8 10 F7                djnz .loop
+367   21EA C9                   ret
+368   21EB
+369   21EB              restore_nextregs
+370   21EB 21 BE 21             ld hl,nextregList
+371   21EE 11 4E 25             ld de,nextregValues
+372   21F1 06 10                ld b,NEXTREG_COUNT
+373   21F3              .loop
+374   21F3 C5                   push bc
+375   21F4 7E                   ld a,(hl)
+376   21F5 01 3B 24             ld bc,$243B
+377   21F8 ED 79                out (c),a
+378   21FA 04                   inc b
+379   21FB 1A                   ld a,(de)
+380   21FC ED 79                out (c),a
+381   21FE C1                   pop bc
+382   21FF 23                   inc hl
+383   2200 13                   inc de
+384   2201 10 F0                djnz .loop
+385   2203 C9                   ret
+386   2204
+387   2204              ; Border podle obnovene BORDCR a MMU6/MMU7 jako pri startu.
+388   2204              ; Port $7FFD sem NEPATRI: kazde M_P3DOS na konci samo nastavi strankovani,
+389   2204              ; jak ho NextZXOS uvnitr dot commandu potrebuje, a BANKM mu neodpovida.
+390   2204              ; Zapis BANKM do $7FFD po M_P3DOS (free_pages) NextZXOS po navratu z dotu
+391   2204              ; zasekne - overeno testy .cc 4 / 7 / 9.
+392   2204              restore_ula
+393   2204 3A 48 5C             ld a,(BORDCR)
+394   2207 0F                   rrca
+395   2208 0F                   rrca
+396   2209 0F                   rrca
+397   220A E6 07                and 7
+398   220C D3 FE                out ($FE),a
+399   220E 3A 42 25             ld a,(sourcePages+4)
+400   2211 ED 92 56             nextreg $56,a
+401   2214 3A 43 25             ld a,(sourcePages+5)
+402   2217 ED 92 57             nextreg $57,a
+403   221A C9                   ret
+404   221B
+405   221B              ; -----------------------------------------------------------------------------
+406   221B              ; Stranky, ktere zalohujeme: co je v MMU2..MMU7 a banka 3 (CC tam kopiruje)
+407   221B              ; -----------------------------------------------------------------------------
+408   221B              read_source_pages
+409   221B 21 3E 25             ld hl,sourcePages
+410   221E 3E 52                ld a,$52
+411   2220              .loop
+412   2220 F5                   push af
+413   2221 CD CE 21             call read_nextreg
+414   2224 77                   ld (hl),a
+415   2225 23                   inc hl
+416   2226 F1                   pop af
+417   2227 3C                   inc a
+418   2228 FE 58                cp $58
+419   222A 20 F4                jr nz,.loop
+420   222C 36 06                ld (hl),6
+421   222E 23                   inc hl
+422   222F 36 07                ld (hl),7
+423   2231 C9                   ret
+424   2232
+425   2232              ; -----------------------------------------------------------------------------
+426   2232              ; IDE_BANK pres M_P3DOS. HL = typ/duvod, E = stranka -> Fc=0 ok, E = vysledek
+427   2232              ; Vola se jen se zasobnikem mimo okno dot commandu.
+428   2232              ; -----------------------------------------------------------------------------
+429   2232              ide_bank
+430   2232 D9                   exx
+431   2233 11 BD 01             ld de,IDE_BANK
+432   2236 0E 07                ld c,7
+433   2238 CF                   rst $08
+434   2239 94                   db M_P3DOS
+435   223A 3F                   ccf                             ; +3DOS hlasi uspech s Fc=1
+436   223B C9                   ret
+437   223C
+438   223C              ; -----------------------------------------------------------------------------
+439   223C              ; Zarezervuje pevne stranky CC a alokuje BACKUP_COUNT stranek na zalohu.
+440   223C              ; Fc=1 -> HL = zprava, nic nezustane zabrane.
+441   223C              ; -----------------------------------------------------------------------------
+442   223C              ; Pevne stranky CC: LFN levy panel od 24, pravy od 60; buffl/buffr/savescr
+443   223C              ; 74/76/78; viewer 81-97 (plugin 82); extra banka 90; pracovni 98, 99;
+444   223C              ; Layer 2 pluginu NXI/SCR v 16K bankach 49-51 = stranky 98-103.
+445   223C              fixedRanges
+446   223C 18 2C                db 24, 44
+447   223E 3C 67                db 60, 103
+448   2240 FF                   db $FF
+449   2241
+450   2241              grab_pages
+451   2241 AF                   xor a
+452   2242 32 D9 24             ld (ownedCount),a
+453   2245 21 00 00             ld hl,BANK_TOTAL
+454   2248 CD 32 22             call ide_bank
+455   224B 38 5F                jr c,.noMemory
+456   224D 7B                   ld a,e
+457   224E 32 D8 24             ld (totalPages),a
+458   2251
+459   2251 21 3C 22             ld hl,fixedRanges
+460   2254              .range
+461   2254 7E                   ld a,(hl)
+462   2255 FE FF                cp $FF
+463   2257 28 35                jr z,.backups
+464   2259 47                   ld b,a                          ; B = prvni stranka
+465   225A 23                   inc hl
+466   225B 4E                   ld c,(hl)                       ; C = posledni stranka
+467   225C 23                   inc hl
+468   225D E5                   push hl
+469   225E              .page
+470   225E 3A D8 24             ld a,(totalPages)
+471   2261 3D                   dec a
+472   2262 B8                   cp b
+473   2263 38 16                jr c,.rangeDone                 ; stranka uz v tomhle stroji neni
+474   2265 C5                   push bc
+475   2266 58                   ld e,b
+476   2267 21 02 00             ld hl,BANK_RESERVE
+477   226A CD 32 22             call ide_bank
+478   226D C1                   pop bc
+479   226E 38 0E                jr c,.inUse
+480   2270 78                   ld a,b
+481   2271 CD B1 22             call own_page
+482   2274 78                   ld a,b
+483   2275 B9                   cp c
+484   2276 28 03                jr z,.rangeDone
+485   2278 04                   inc b
+486   2279 18 E3                jr .page
+487   227B              .rangeDone
+488   227B E1                   pop hl
+489   227C 18 D6                jr .range
+490   227E
+491   227E              .inUse
+492   227E E1                   pop hl
+493   227F 78                   ld a,b
+494   2280 21 20 24             ld hl,msgInUseNum
+495   2283 CD DE 22             call put_decimal
+496   2286 CD C2 22             call free_pages
+497   2289 21 1B 24             ld hl,msgInUse
+498   228C 37                   scf
+499   228D C9                   ret
+500   228E
+501   228E              .backups
+502   228E 11 46 25             ld de,backupPages
+503   2291 06 08                ld b,BACKUP_COUNT
+504   2293              .alloc
+505   2293 C5                   push bc
+506   2294 D5                   push de
+507   2295 21 01 00             ld hl,BANK_ALLOC
+508   2298 CD 32 22             call ide_bank
+509   229B 7B                   ld a,e
+510   229C D1                   pop de
+511   229D C1                   pop bc
+512   229E 38 09                jr c,.noMemoryFree
+513   22A0 12                   ld (de),a
+514   22A1 13                   inc de
+515   22A2 CD B1 22             call own_page
+516   22A5 10 EC                djnz .alloc
+517   22A7 B7                   or a
+518   22A8 C9                   ret
+519   22A9
+520   22A9              .noMemoryFree
+521   22A9 CD C2 22             call free_pages
+522   22AC              .noMemory
+523   22AC 21 E6 23             ld hl,msgNoMemory
+524   22AF 37                   scf
+525   22B0 C9                   ret
+526   22B1
+527   22B1              own_page                                ; A = stranka do seznamu zabranych
+528   22B1 D5                   push de
+529   22B2 E5                   push hl
+530   22B3 21 D9 24             ld hl,ownedCount
+531   22B6 5E                   ld e,(hl)
+532   22B7 34                   inc (hl)
+533   22B8 16 00                ld d,0
+534   22BA 21 DA 24             ld hl,ownedPages
+535   22BD 19                   add hl,de
+536   22BE 77                   ld (hl),a
+537   22BF E1                   pop hl
+538   22C0 D1                   pop de
+539   22C1 C9                   ret
+540   22C2
+541   22C2              free_pages
+542   22C2 3A D9 24             ld a,(ownedCount)
+543   22C5 B7                   or a
+544   22C6 C8                   ret z
+545   22C7 47                   ld b,a
+546   22C8 21 DA 24             ld hl,ownedPages
+547   22CB              .loop
+548   22CB C5                   push bc
+549   22CC E5                   push hl
+550   22CD 5E                   ld e,(hl)
+551   22CE 21 03 00             ld hl,BANK_FREE
+552   22D1 CD 32 22             call ide_bank
+553   22D4 E1                   pop hl
+554   22D5 C1                   pop bc
+555   22D6 23                   inc hl
+556   22D7 10 F2                djnz .loop
+557   22D9 AF                   xor a
+558   22DA 32 D9 24             ld (ownedCount),a
+559   22DD C9                   ret
+560   22DE
+561   22DE              ; A = 0..255 -> tri cislice na (HL)
+562   22DE              put_decimal
+563   22DE 0E 64                ld c,100
+564   22E0 CD EC 22             call .digit
+565   22E3 0E 0A                ld c,10
+566   22E5 CD EC 22             call .digit
+567   22E8 C6 30                add a,'0'
+568   22EA 77                   ld (hl),a
+569   22EB C9                   ret
+570   22EC              .digit
+571   22EC 06 2F                ld b,'0'-1
+572   22EE              .sub
+573   22EE 04                   inc b
+574   22EF 91                   sub c
+575   22F0 30 FC                jr nc,.sub
+576   22F2 81                   add a,c
+577   22F3 70                   ld (hl),b
+578   22F4 23                   inc hl
+579   22F5 C9                   ret
+580   22F6
+581   22F6              ; -----------------------------------------------------------------------------
+582   22F6              ; Zaloha / obnova pameti: HL = seznam zdrojovych stranek, DE = cilovych.
+583   22F6              ; Kopiruje pres MMU6 (zdroj) a MMU7 (cil). Zasobnik musi byt v okne dotu.
+584   22F6              ; -----------------------------------------------------------------------------
+585   22F6              backup_memory
+586   22F6 21 3E 25             ld hl,sourcePages
+587   22F9 11 46 25             ld de,backupPages
+588   22FC 18 06                jr copy_pages
+589   22FE
+590   22FE              restore_memory
+591   22FE 21 46 25             ld hl,backupPages
+592   2301 11 3E 25             ld de,sourcePages
+593   2304
+594   2304              copy_pages
+595   2304 F3                   di
+596   2305 3E 07                ld a,$07
+597   2307 CD CE 21             call read_nextreg
+598   230A 32 D7 24             ld (copyTurbo),a
+599   230D ED 91 07 03          nextreg $07,3                   ; 28 MHz, at je to hned
+600   2311 06 08                ld b,BACKUP_COUNT
+601   2313              .loop
+602   2313 7E                   ld a,(hl)
+603   2314 ED 92 56             nextreg $56,a
+604   2317 1A                   ld a,(de)
+605   2318 ED 92 57             nextreg $57,a
+606   231B C5                   push bc
+607   231C E5                   push hl
+608   231D D5                   push de
+609   231E 21 00 C0             ld hl,$C000
+610   2321 11 00 E0             ld de,$E000
+611   2324 01 00 20             ld bc,$2000
+612   2327 ED B0                ldir
+613   2329 D1                   pop de
+614   232A E1                   pop hl
+615   232B C1                   pop bc
+616   232C 23                   inc hl
+617   232D 13                   inc de
+618   232E 10 E3                djnz .loop
+619   2330 3A 42 25             ld a,(sourcePages+4)
+620   2333 ED 92 56             nextreg $56,a
+621   2336 3A 43 25             ld a,(sourcePages+5)
+622   2339 ED 92 57             nextreg $57,a
+623   233C 3A D7 24             ld a,(copyTurbo)
+624   233F ED 92 07             nextreg $07,a
+625   2342 FB                   ei
+626   2343 C9                   ret
+627   2344
+628   2344              ; -----------------------------------------------------------------------------
+629   2344              ; Docte CC z vlastniho souboru. Fc=1 pri chybe. Soubor vzdy zavre.
+630   2344              ; -----------------------------------------------------------------------------
+631   2344              load_cc
+632   2344 CF                   rst $08
+633   2345 8D                   db M_GETHANDLE
+634   2346 D8                   ret c
+635   2347 32 D6 24             ld (dotHandle),a
+636   234A
+637   234A ED 91 57 5A          nextreg $57,dot_xb_page         ; extra banka rovnou do sve stranky
+638   234E 21 00 E0             ld hl,$E000
+639   2351 01 55 15             ld bc,XB_LEN
+640   2354 CD 70 23             call read_part
+641   2357 3A 43 25             ld a,(sourcePages+5)
+642   235A ED 92 57             nextreg $57,a
+643   235D 38 09                jr c,.close
+644   235F
+645   235F 21 00 71             ld hl,S1
+646   2362 01 E6 6E             ld bc,MAIN_LEN
+647   2365 CD 70 23             call read_part
+648   2368              .close
+649   2368 F5                   push af
+650   2369 3A D6 24             ld a,(dotHandle)
+651   236C CF                   rst $08
+652   236D 9B                   db F_CLOSE
+653   236E F1                   pop af
+654   236F C9                   ret
+655   2370
+656   2370              read_part                               ; HL = kam, BC = kolik -> Fc=1 chyba
+657   2370 C5                   push bc
+658   2371 3A D6 24             ld a,(dotHandle)
+659   2374 CF                   rst $08
+660   2375 9D                   db F_READ
+661   2376 E1                   pop hl
+662   2377 D8                   ret c
+663   2378 B7                   or a
+664   2379 ED 42                sbc hl,bc                       ; precteno vsechno?
+665   237B C8                   ret z
+666   237C 37                   scf
+667   237D C9                   ret
+668   237E
+669   237E              ; -----------------------------------------------------------------------------
+670   237E              ; Texty a promenne
+671   237E              ; -----------------------------------------------------------------------------
+672   237E              msgUsage
+673   237E 43 61 6C 6D          db "Calm Commander", 13
+673   2382 20 43 6F 6D
+673   2386 6D 61 6E 64
+673   238A 65 72 0D
+674   238D 46 69 6C 65          db "File manager for ZX Spectrum Next", 13, 13
+674   2391 20 6D 61 6E
+674   2395 61 67 65 72
+674   2399 20 66 6F 72
+674   239D 20 5A 58 20
+674   23A1 53 70 65 63
+674   23A5 74 72 75 6D
+674   23A9 20 4E 65 78
+674   23AD 74 0D 0D
+675   23B0 55 73 61 67          db "Usage: .cc", 13
+675   23B4 65 3A 20 2E
+675   23B8 63 63 0D
+676   23BB 50 6C 75 67          db "Plugins: c:/sys/cc/*.ccp", 13, 0
+676   23BF 69 6E 73 3A
+676   23C3 20 63 3A 2F
+676   23C7 73 79 73 2F
+676   23CB 63 63 2F 2A
+676   23CF 2E 63 63 70
+676   23D3 0D 00
+677   23D5 52 65 71 75  msgNotNext      db "Requires NextZXO", 'S'|$80
+677   23D9 69 72 65 73
+677   23DD 20 4E 65 78
+677   23E1 74 5A 58 4F
+677   23E5 D3
+678   23E6 4E 6F 74 20  msgNoMemory     db "Not enough memor", 'y'|$80
+678   23EA 65 6E 6F 75
+678   23EE 67 68 20 6D
+678   23F2 65 6D 6F 72
+678   23F6 F9
+679   23F7 43 43 20 6C  msgLoadError    db "CC load erro", 'r'|$80
+679   23FB 6F 61 64 20
+679   23FF 65 72 72 6F
+679   2403 F2
+680   2404 53 74 61 72  msgNotDirect    db "Start from command lin", 'e'|$80
+680   2408 74 20 66 72
+680   240C 6F 6D 20 63
+680   2410 6F 6D 6D 61
+680   2414 6E 64 20 6C
+680   2418 69 6E E5
+681   241B 50 61 67 65  msgInUse        db "Page "
+681   241F 20
+682   2420 30 30 30 20  msgInUseNum     db "000 in us", 'e'|$80
+682   2424 69 6E 20 75
+682   2428 73 E5
+683   242A
+684   242A 00 00        entrySp         dw 0
+685   242C 00 00        entryIx         dw 0
+686   242E 00 00        entryBc         dw 0
+687   2430 00 00        entryHlAlt      dw 0
+688   2432 00           injectPending   db 0
+689   2433 00 00        injectAt        dw 0
+690   2435 00 00 00...  injectBuf       ds INJECT_MAX
+691   24D5 00           testMode        db 0                    ; DIAG: 0 = normalni beh, jinak '0'..'3'
+692   24D6 00           dotHandle       db 0
+693   24D7 00           copyTurbo       db 0
+694   24D8 00           totalPages      db 0
+695   24D9 00           ownedCount      db 0
+696   24DA 00 00 00...  ownedPages      ds 100
+697   253E 00 00 00...  sourcePages     ds BACKUP_COUNT
+698   2546 00 00 00...  backupPages     ds BACKUP_COUNT
+699   254E 00 00 00...  nextregValues   ds NEXTREG_COUNT
+700   255E
+701   255E 00 00 00...                  ds 256
+702   265E              dotStackTop
+703   265E
+704   265E                      ASSERT S1 = $7100
+705   265E                      ASSERT $ <= $4000
+706   265E                      DISPLAY "Zavadec .cc: ",/A,$ - $2000," z 8192 B"
+707   265E
+708   265E                      ; NextZXOS nahraje jen prvnich 8K, zbytek si dot cte sam
+709   265E 00 00 00...          BLOCK $4000 - $, 0
+710   4000                      INCBIN "../build/dot/ccd_xb.bin"
+711   5555                      INCBIN "../build/dot/ccd.bin"
+712   C43B
 # file closed: dot\ccdot.asm

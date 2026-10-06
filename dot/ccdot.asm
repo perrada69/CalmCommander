@@ -53,13 +53,17 @@ BACKUP_COUNT    equ 8                   ; stranky v MMU2..MMU7 + banka 3 (6,7)
 CALL_STACK      equ $0000               ; RST $18 se vola se zasobnikem na konci
                                         ; stranky 1 - tu CC nikdy nepise
 BORDCR          equ $5C48
-BANKM           equ $5B5C
+E_LINE          equ $5C59
+WORKSP          equ $5C61
+MAKE_ROOM       equ $1655               ; ROM3: HL = misto, BC = pocet bajtu
+INJECT_MAX      equ 160                 ; prikaz ke spusteni: [delka] + tokeny
 
         org $2000
 
 dot_start
         ld (entrySp),sp
         ld (entryIx),ix
+        ld (entryBc),bc                 ; BC = prikazova radka (bez tecky)
         exx
         ld (entryHlAlt),hl              ; H'L' patri BASICu, vratime ho pri odchodu
         exx
@@ -164,6 +168,16 @@ dot_start
         ld a,(dot_exit_code)            ; v RAM CC, MMU6 je zpet na strance 0
         cp DOT_EXIT_LAUNCH
         jr z,.launch
+        cp DOT_EXIT_BASIC
+        jr nz,.quit
+        ; Prikaz BASICu ke spusteni je v pameti CC - schovat ho, nez ji
+        ; prepise obnova pameti BASICu.
+        ld hl,dot_cmd_buf
+        ld de,injectBuf
+        ld bc,INJECT_MAX
+        ldir
+        ld a,1
+        ld (injectPending),a
 
         ; Quit: vsechno vratit, jak bylo
 .quit
@@ -185,6 +199,10 @@ dot_start
         cp '8'
         call nz,restore_ula             ; border zpet podle BORDCR
 .noUla
+        ld a,(injectPending)            ; spusteni BAS/TAP/snapshotu: vloz prikaz
+        or a                            ; do radku za .cc, BASIC ho pak provede
+        call nz,inject_cmd
+        jp c,exit_error                 ; HL = zprava
         call restore_regs
         ei
         xor a                           ; Fc=0: dot command skoncil v poradku
@@ -193,7 +211,8 @@ dot_start
 .launch
         ; Spousteny program dostane celou pamet; CC je porad v RAM.
         call free_pages                 ; zasobnik je porad CALL_STACK
-        ld sp,S1                        ; zasobnik CC, stejne jako po CLEAR 28927
+        ld sp,(entrySp)                 ; zasobnik BASICu jako pri zadani .cc - pod
+                                        ; nim je volno pro .run a jeho LOAD
         ld hl,dot_launch
         rst $20                         ; ukonci dot command a skoc na HL
 
@@ -204,6 +223,67 @@ exit_error
         ld sp,(entrySp)
         call restore_regs
         xor a
+        scf
+        ret
+
+; -----------------------------------------------------------------------------
+; Vlozi prikaz z injectBuf ([delka][tokeny]) do radku, ze ktereho byl .cc
+; zavolan, hned za prikaz .cc. BASIC po navratu z dot commandu pokracuje
+; zbytkem radku, takze ho provede, jako by ho napsal uzivatel.
+; Jde jen u radku napsaneho primo (lezi v E_LINE), program se neupravuje.
+; Vola ROM pres RST $18: zasobnik uz musi byt zasobnik BASICu.
+; Fc=1, HL = zprava pri chybe.
+; -----------------------------------------------------------------------------
+inject_cmd
+        ld hl,(entryBc)
+        ld de,(E_LINE)                  ; radek musi lezet v E_LINE..WORKSP
+        or a
+        sbc hl,de
+        jr c,.notDirect
+        add hl,de
+        ld de,(WORKSP)
+        or a
+        sbc hl,de
+        jr nc,.notDirect
+        add hl,de
+        ld c,0                          ; C bit 0 = uvnitr uvozovek
+.scan                                   ; konec .cc: ':' mimo uvozovky, $0D, 0
+        ld a,(hl)
+        or a
+        jr z,.found
+        cp $0D
+        jr z,.found
+        cp '"'
+        jr nz,.notQuote
+        ld a,c
+        xor 1
+        ld c,a
+        jr .next
+.notQuote
+        cp ':'
+        jr nz,.next
+        bit 0,c
+        jr z,.found
+.next
+        inc hl
+        jr .scan
+.found
+        ld (injectAt),hl
+        ld a,(injectBuf)
+        ld c,a
+        ld b,0
+        rst $18                         ; MAKE-ROOM: misto o BC bajtech pred (HL),
+        defw MAKE_ROOM                  ; posune pamet BASICu a opravi ukazatele
+        ld hl,injectBuf+1
+        ld de,(injectAt)
+        ld a,(injectBuf)
+        ld c,a
+        ld b,0
+        ldir
+        or a
+        ret
+.notDirect
+        ld hl,msgNotDirect
         scf
         ret
 
@@ -597,12 +677,17 @@ msgUsage
 msgNotNext      db "Requires NextZXO", 'S'|$80
 msgNoMemory     db "Not enough memor", 'y'|$80
 msgLoadError    db "CC load erro", 'r'|$80
+msgNotDirect    db "Start from command lin", 'e'|$80
 msgInUse        db "Page "
 msgInUseNum     db "000 in us", 'e'|$80
 
 entrySp         dw 0
 entryIx         dw 0
+entryBc         dw 0
 entryHlAlt      dw 0
+injectPending   db 0
+injectAt        dw 0
+injectBuf       ds INJECT_MAX
 testMode        db 0                    ; DIAG: 0 = normalni beh, jinak '0'..'3'
 dotHandle       db 0
 copyTurbo       db 0

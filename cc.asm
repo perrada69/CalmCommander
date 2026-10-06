@@ -4945,8 +4945,7 @@ dot_exec_cmd
         ld a,(dot_attached)
         or a
         jr z,.direct
-        ld a,DOT_EXIT_LAUNCH
-        jp dot_return
+        jp dot_attached_launch
 .direct
         call spravneStranky
         ld ix,cmd
@@ -4955,17 +4954,29 @@ dot_exec_cmd
         ret
 
 ; Sem skace zavadec pres RST $20, kdyz uz dot command skoncil.
-; Kdyz se spusteni nepovede, CC pokracuje odpojeny (Quit = reset).
+; SP uz nastavil zavadec na puvodni zasobnik BASICu (pod RAMTOP): .run
+; nahrava BASIC program od PROG nahoru a zasobnik CC na $7100 by mu lezel
+; v ceste ("R Loading error"). MMU6/7 zustava 0/1 jako pri prikazu
+; napsanem v BASICu - proto ne spravneStranky (banka 7 nahore by pri
+; zasobniku nahore nesla), jen vypnuti spritu.
+; Kdyz se spusteni nepovede, ukaz chybu jako hlaseni BASICu (M_GETERR,
+; B=0 se nevraci). Pri A=0 je text chyby v dot commandu, adresa v HL.
 dot_launch
-        ld sp,ORG_ADDRESS
         ei                                        ; jako v BASIC verzi pred M_EXECCMD
-        call spravneStranky
+        call ClearAllSprites
         ld ix,cmd
         rst $08
         defb $8f
-        nextreg MMU6_C000_NR_56,0
-        nextreg MMU7_E000_NR_57,1
-        jp dot_restart
+        jr c,.report                              ; chyba: A = kod, pri A=0 text v HL
+        ld hl,dotOkMsg                            ; uspech (.run jen vypsal navod):
+        xor a                                     ; zpet do BASICu s "0 OK"
+.report
+        push hl
+        pop ix
+        ld b,0
+        rst $08
+        defb $93                                  ; M_GETERR: hlaseni BASICu, nevraci se
+dotOkMsg        defb "0 O","K"|$80
         ENDIF
 
 E3
@@ -6721,8 +6732,24 @@ dot_restart
         ld sp,ORG_ADDRESS
         jp START
 
+; Spusteni souboru z pripojeneho CC. NEX jde dal pres nexload (RST $20),
+; ostatni (BAS/TAP/SNA/Z80/SNX) spusti az BASIC: zavadec obnovi pamet
+; a prikaz z dot_cmd_buf vlozi do radku za .cc.
+dot_attached_launch
+        call ClearAllSprites
+        nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE
+        call extra_dot_basic_cmd                  ; Z = NEX, NZ = prikaz pripraven
+        nextreg MMU7_E000_NR_57,1
+        ld a,DOT_EXIT_LAUNCH
+        jr z,.go
+        ld a,DOT_EXIT_BASIC
+.go
+        jp dot_return
+
 DOT_EXIT_QUIT   equ 0
 DOT_EXIT_LAUNCH equ 1
+DOT_EXIT_BASIC  equ 2
+dot_cmd_buf     equ LFNNAME                       ; [delka][tokeny], pri spousteni uz volne
 
 dot_basic_sp    defw 0
 dot_attached    defb 1                            ; 0 = zavadec uz skoncil (po RST $20)
@@ -8416,6 +8443,8 @@ dot_xb_page equ EXTRA_BANK_PAGE
             EXPORT dot_entry
             EXPORT dot_launch
             EXPORT DOT_EXIT_LAUNCH
+            EXPORT DOT_EXIT_BASIC
+            EXPORT dot_cmd_buf
             EXPORT dot_exit_code
             ELSE
              SAVEBIN "cc1.bin",S1,E1-S1
@@ -8442,6 +8471,135 @@ dot_xb_page equ EXTRA_BANK_PAGE
             emit_key_dispatch_code
             emit_sort_code
             emit_info_code
+
+            IFDEF CC_DOT
+; ------------------------------------------------------------
+; extra_dot_basic_cmd - prikaz BASICu pro spusteni souboru z cmd2
+; ------------------------------------------------------------
+; Dot command BASIC program spustit nemuze (.run jen vypise navod), ale
+; BASIC po navratu z .cc pokracuje zbytkem radku. Zavadec proto po
+; obnoveni pameti vlozi tenhle prikaz za .cc. Prikazy jsou stejne jako
+; v c:/nextzxos/browser.cfg; cisla nesou skryty 5bajtovy tvar ($0E ...),
+; ktery BASIC pri behu cte misto cislic.
+; Vystup: dot_cmd_buf = [delka][tokeny], NZ = pripraveno, Z = NEX.
+; ------------------------------------------------------------
+DOTC_NAME       equ $1F                           ; v sablone: sem jmeno souboru
+DOTC_END        equ $1E                           ; v sablone: konec
+
+extra_dot_basic_cmd:
+            ld hl,cmd2                            ; najdi konec jmena
+            ld bc,61
+            xor a
+            cpir
+            dec hl
+            dec hl
+            ld a,(hl)                             ; pripona malymi pismeny do C,D,E
+            or $20
+            ld e,a
+            dec hl
+            ld a,(hl)
+            or $20
+            ld d,a
+            dec hl
+            ld a,(hl)
+            or $20
+            ld c,a
+            ld hl,extraDotTypes
+.find
+            ld a,(hl)
+            or a
+            jr z,.found                           ; konec tabulky: SNA/Z80
+            cp c
+            jr nz,.skip
+            inc hl
+            ld a,(hl)
+            cp d
+            jr nz,.skip1
+            inc hl
+            ld a,(hl)
+            cp e
+            jr nz,.skip2
+            jr .found                             ; HL na 3. znaku, .found preskoci na adresu
+.skip
+            inc hl
+.skip1
+            inc hl
+.skip2
+            inc hl
+            inc hl
+            inc hl
+            jr .find
+.found
+            inc hl                                ; u konce tabulky preskoc nulu
+            ld a,(hl)
+            inc hl
+            ld h,(hl)
+            ld l,a
+            or h
+            ret z                                 ; NEX: zadna sablona
+            ld de,dot_cmd_buf+1
+.emit
+            ld a,(hl)
+            inc hl
+            cp DOTC_END
+            jr z,.done
+            cp DOTC_NAME
+            jr z,.name
+            ld (de),a
+            inc de
+            jr .emit
+.name
+            push hl
+            ld hl,cmd2
+.nameLoop
+            ld a,(hl)
+            or a
+            jr z,.nameEnd
+            ld (de),a
+            inc de
+            inc hl
+            jr .nameLoop
+.nameEnd
+            pop hl
+            jr .emit
+.done
+            ex de,hl
+            ld de,dot_cmd_buf+1
+            or a
+            sbc hl,de
+            ld a,l
+            ld (dot_cmd_buf),a
+            or 1                                  ; NZ
+            ret
+
+; tri znaky pripony, sablona (0 = NEX); na konci 0 a sablona pro SNA/Z80
+extraDotTypes:
+            defb "nex" : defw 0
+            defb "bas" : defw extraDotBas
+            defb "tap" : defw extraDotTap
+            defb "snx" : defw extraDotSnx
+            defb 0
+            defw extraDotSnap
+
+            ; :CLEAR 65367:LOAD "jmeno"
+extraDotBas:
+            defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
+            defb ":",$EF,'"',DOTC_NAME,'"',DOTC_END
+            ; :.tapein "jmeno":LOAD "t:":LOAD ""
+extraDotTap:
+            defb ":.tapein ",'"',DOTC_NAME,'"'
+            defb ":",$EF,'"t:"',":",$EF,'""',DOTC_END
+            ; :SPECTRUM "jmeno"
+extraDotSnx:
+            defb ":",$A3,'"',DOTC_NAME,'"',DOTC_END
+            ; :CLEAR 65367:LOAD "c:/nextzxos/snapload.bas":LET f$="jmeno":LET adj=0:GO TO 1
+extraDotSnap:
+            defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
+            defb ":",$EF,'"c:/nextzxos/snapload.bas"'
+            defb ":",$F1,'f$="',DOTC_NAME,'"'
+            defb ":",$F1,"adj=0",$0E,0,0,0,0,0
+            defb ":",$EC,"1",$0E,0,0,1,0,0,DOTC_END
+            ENDIF
 
 ; Blocking keyboard input for code running in MMU7.  The resident INKEY
 ; cannot be used here: its retry path calls gettime, and gettime changes the
