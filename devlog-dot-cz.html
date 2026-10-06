@@ -1,0 +1,122 @@
+
+<h1>Calm Commander jako dot command &mdash; stačí napsat .cc</h1>
+
+<p>
+Calm Commander jde nově spustit jako <strong>dot command</strong>. Napíšete
+<strong>.cc</strong> do příkazového řádku NextBASICu, postaráte se o soubory
+a dáte Quit &mdash; a jste zpátky v BASICu přesně tam, kde jste skončili,
+s nedotčeným programem, proměnnými i obrazovkou. Žádný loader, žádný reset.
+</p>
+
+<p>
+Klasická verze spouštěná přes <strong>cc.bas</strong> zůstává, jak byla. Obě
+verze sdílejí stejné nastavení i záložky, takže můžete používat tu, která vám
+vyhovuje.
+</p>
+
+<h2>Instalace</h2>
+
+<p>
+Ke stažení je složka <strong>build_dot</strong> uspořádaná přesně jako SD
+karta, takže její obsah stačí zkopírovat do kořene disku <strong>C:</strong>:
+</p>
+
+<ul>
+  <li><strong>dot/cc</strong> patří do <strong>C:/DOT/</strong> &mdash; to je
+      celý program v jediném souboru.</li>
+  <li><strong>sys/cc/*.ccp</strong> patří do <strong>C:/SYS/CC/</strong>
+      &mdash; pluginy prohlížečů a nástrojů.</li>
+</ul>
+
+<p>
+Nastavení (<strong>cc.cfg</strong>) a záložky (<strong>bookmark.cfg</strong>)
+zůstávají jako dřív v <strong>C:/SYS/</strong> a při prvním spuštění se samy
+založí. <strong>.cc -h</strong> vypíše krátkou nápovědu.
+</p>
+
+<h2>Zpět do BASICu se vším, co tam bylo</h2>
+
+<p>
+Calm Commander potřebuje pro sebe celou hlavní paměť Spectra, a proto klasická
+verze může skončit jen resetem. Dot command to řeší jinak:
+</p>
+
+<ul>
+  <li>Před spuštěním si zkopíruje celou paměť BASICu &mdash; obrazovku,
+      systémové proměnné, váš program i jeho proměnné &mdash; do volné rozšířené
+      paměti a při ukončení ji vrátí zpátky.</li>
+  <li>Obnoví se i nastavení zobrazení (vrstvy, tilemapa, výběr palety,
+      průhlednost) a rychlost procesoru, takže se vrátíte do stejného režimu,
+      ze kterého jste odešli.</li>
+  <li>Veškerá paměť, kterou si k tomu vypůjčí, se vrátí NextZXOS, takže do
+      příštího resetu nic nechybí.</li>
+</ul>
+
+<p>
+Rozšířenou paměť, kterou používá, si Calm Commander rezervuje přes správce paměti
+NextZXOS, a nikdy tak nepřepíše paměť, která patří někomu jinému. Pokud už část
+z ní drží jiný program nebo ovladač, <strong>.cc</strong> se odmítne spustit
+s hláškou <strong>Page NNN in use</strong>, místo aby riskoval pád.
+</p>
+
+<h2>Spouštění programů</h2>
+
+<p>
+Soubory NEX, BAS, TAP, SNA, Z80 a SNX se spouštějí přímo ze seznamu souborů,
+stejně jako v klasické verzi.
+</p>
+
+<ul>
+  <li>Dot command sám BASICový program spustit nemůže. Calm Commander proto
+      nejdřív uvede BASIC do původního stavu a pak do řádku, který jste napsali,
+      doplní spouštěcí příkaz &mdash; z <strong>.cc</strong> se třeba stane
+      <strong>.cc:LOAD "game.bas"</strong>. BASIC pak pokračuje zbytkem řádku
+      a program se spustí ve vašem vlastním, skutečném prostředí BASICu, jako
+      byste příkaz napsali sami.</li>
+  <li>Funguje to i tehdy, když <strong>.cc</strong> voláte z programu, třeba
+      z řádku <strong>10 .cc</strong> v autoexecu. Spouštěcí příkaz se pak doplní
+      do toho programového řádku v paměti; spouštěný program váš program stejně
+      nahradí.</li>
+  <li>U souborů TAP si vyberete počítač &mdash; <strong>128k</strong>,
+      <strong>48k</strong>, <strong>Pentagon</strong> nebo <strong>Next</strong>
+      &mdash; ve stejném dialogu jako v klasické verzi a podle toho se nastaví
+      časování.</li>
+  <li>Pásky a snapshoty se spouštějí na 3,5&nbsp;MHz, BASICové programy na
+      rychlosti, kterou jste měli nastavenou.</li>
+</ul>
+
+<h2>Opravy v přehrávačích hudby</h2>
+
+<p>
+Při práci na dot commandu jsem narazil na dvě chyby v hudebních pluginech
+a jejich opravy platí i pro klasickou verzi:
+</p>
+
+<ul>
+  <li>Přehrávače PT2, STC, STP a SQT nechávaly povolené přerušení ve chvíli, kdy
+      byla skladba namapovaná přes systémové proměnné, takže obsluha přerušení
+      v ROM mohla zapisovat do dat skladby. Data skladby se teď mapují jen se
+      zakázaným přerušením.</li>
+  <li><strong>ENTER</strong> (zastavit) a <strong>SPACE</strong> (další skladba)
+      se teď ve všech přehrávačích čtou přímo z klávesnice, takže reagují
+      spolehlivě.</li>
+  <li>Výběr počítače u souborů TAP zase ukazuje celé slovo
+      <strong>Pentagon</strong>.</li>
+</ul>
+
+<h2>Dobré vědět</h2>
+
+<ul>
+  <li>Calm Commander používá sprity pro kurzor myši, takže sprity definované
+      vaším programem se po návratu do BASICu vymažou.</li>
+  <li>Pokud se program spuštěný z řádku jako <strong>10 .cc</strong> nepodaří
+      nahrát, doplněný spouštěcí příkaz v tom řádku zůstane, dokud nenahrajete
+      jiný program.</li>
+  <li>Dot command vyžaduje NextZXOS; v režimu 48K ohlásí
+      <strong>Requires NextZXOS</strong>.</li>
+</ul>
+
+<p>
+Děkuji, že používáte <strong>Calm Commander</strong>, hlásíte chyby a navrhujete
+vylepšení!
+</p>

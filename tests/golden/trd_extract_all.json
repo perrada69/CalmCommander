@@ -1,0 +1,68 @@
+{
+ "files": [
+  {
+   "name": "HELLO.BAS",
+   "p3dos": {
+    "p1": 32768,
+    "p2": 90,
+    "type": 0
+   },
+   "size": 100
+  },
+  {
+   "name": "PICTURE.BIN",
+   "p3dos": {
+    "p1": 16384,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 6912
+  },
+  {
+   "name": "DATASET.BIN",
+   "p3dos": {
+    "p1": 0,
+    "p2": 32768,
+    "type": 1
+   },
+   "size": 512
+  },
+  {
+   "name": "FARFILE.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 300
+  }
+ ],
+ "screen": [
+  "",
+  "",
+  "",
+  "",
+  " TRD: test.trd                                                  40T/1S  5 fl",
+  "  ## Name     Type   Size   Trk/Sc Start TESTDISK   594 free  +3DOS:YES",
+  "   1 HELLO    BASIC    100b   1/ 0    90  ALL OK",
+  "   2 PICTURE  CODE    6912b   1/ 1 $4000",
+  "   3 DATASET  DATA     512b   2/12 $0000",
+  "   4 ?LDFILE  CODE     256b   2/14 DEL",
+  "   5 FARFILE  CODE     300b  20/ 0 $C000",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "   BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header"
+ ]
+}

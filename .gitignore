@@ -61,3 +61,5 @@ build/plugin/stptest.ccp
 build/plugin/text.ccp
 build/plugin/zxscreen.ccp
 build/CalmCommander_v0.9.zip
+build/test/
+tests/__pycache__/

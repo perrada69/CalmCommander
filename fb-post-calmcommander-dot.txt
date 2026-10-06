@@ -1,0 +1,22 @@
+Calm Commander now runs as a dot command — just type .cc! 💾
+
+No loader and no reset any more: start it from the NextBASIC prompt, sort out your files, press Quit and you are back in BASIC exactly where you left off.
+
+⌨️ type .cc anywhere at the NextBASIC prompt — the whole program is a single file in C:/DOT
+↩️ Quit returns to BASIC with your program, variables and screen untouched
+🖥️ display mode and CPU speed are restored too, so you come back to the same layer you left
+🧹 all borrowed memory is handed back to NextZXOS, and memory already used by other programs or drivers is never touched
+🚀 NEX, BAS, TAP, SNA, Z80 and SNX start straight from the file list — also when .cc is called from a program, e.g. 10 .cc in an autoexec
+📼 TAP files keep the machine choice — 128k, 48k, Pentagon or Next
+🎵 fixes in the PT2/STC/STP/SQT players that help the classic version too: ENTER and SPACE now react reliably, and the interrupt routine can no longer write into the song data
+
+How does a dot command start a BASIC program, when it cannot do that by itself? Calm Commander first puts BASIC back exactly as it was and then adds the start command to the line you typed — .cc becomes .cc:LOAD "game.bas". BASIC simply carries on with the rest of the line, so the program starts in your own BASIC environment, as if you had typed the command yourself.
+
+Installation is just two folders: dot/cc goes to C:/DOT/ and the plugins go to C:/SYS/CC/. The classic version started from cc.bas stays as it is, and both share the same settings and bookmarks.
+
+One thing worth knowing: Calm Commander uses sprites for the mouse pointer, so sprites defined by your own program are cleared after you return to BASIC.
+
+Read the full devlog here:
+https://shrek128.itch.io/calmcommander/devlog/1694353/calm-commander-as-a-dot-command-just-type-cc
+
+#CalmCommander #ZXSpectrumNext #ZXSpectrum #FileManager #RetroComputing #NextZXOS

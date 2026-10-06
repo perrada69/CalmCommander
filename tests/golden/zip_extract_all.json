@@ -1,0 +1,82 @@
+{
+ "files": [
+  {
+   "name": "README.TXT",
+   "p3dos": null,
+   "size": 120
+  },
+  {
+   "name": "BIG.BIN",
+   "p3dos": null,
+   "size": 90000
+  },
+  {
+   "name": "SCREEN.SCR",
+   "p3dos": null,
+   "size": 6912
+  },
+  {
+   "name": "A_Long_M.tap",
+   "p3dos": null,
+   "size": 700
+  },
+  {
+   "name": "manual.txt",
+   "p3dos": null,
+   "size": 22000
+  },
+  {
+   "name": "SCREEN.SCR",
+   "p3dos": null,
+   "size": 6912
+  },
+  {
+   "name": "BIG48K.BIN",
+   "p3dos": null,
+   "size": 48000
+  },
+  {
+   "name": "RANDOM.BIN",
+   "p3dos": null,
+   "size": 8000
+  },
+  {
+   "name": "DISK.TRD",
+   "p3dos": null,
+   "size": 81920
+  },
+  {
+   "name": "noext",
+   "p3dos": null,
+   "size": 25
+  }
+ ],
+ "screen": [
+  "",
+  "",
+  "",
+  "",
+  " ZIP: test.zip                                                       11 files",
+  "  ## Name                Size   Packed M",
+  "   1 README.TXT           120      120 S  EXPORTED:   10",
+  "   2 data/                  0        0 /  SKIPPED:     1",
+  "   3 BIG.BIN            90000    90000 S",
+  "   4 SCREEN.SCR          6912     6912 S",
+  "   5 A Long Mixed Ca      700      700 S",
+  "   6 manual.txt         22000       74 D",
+  "   7 SCREEN.SCR          6912     1114 D",
+  "   8 BIG48K.BIN         48000     1336 D",
+  "   9 RANDOM.BIN          8000     8005 D",
+  "  10 DISK.TRD           81920     1777 D",
+  "  11 noext                 25       25 S",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "   BREAK=exit / stop export  Up/Dn  PgUp/PgDn  e:export  CAPS+e:all"
+ ]
+}

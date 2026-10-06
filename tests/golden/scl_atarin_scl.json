@@ -1,0 +1,55 @@
+{
+ "files": [
+  {
+   "name": "boot.BAS",
+   "p3dos": {
+    "p1": 32768,
+    "p2": 29,
+    "type": 0
+   },
+   "size": 29
+  },
+  {
+   "name": "atarin.BAS",
+   "p3dos": {
+    "p1": 32768,
+    "p2": 336,
+    "type": 0
+   },
+   "size": 336
+  },
+  {
+   "name": "atarin.n",
+   "p3dos": null,
+   "size": 1130
+  }
+ ],
+ "screen": [
+  "",
+  "",
+  "",
+  "",
+  " SCL: atarin.scl                                                        3 fl",
+  "  ## Name     Type   Size   Sect   Start                      +3DOS:YES",
+  "   1 boot     BASIC     29b    1      29  ALL OK",
+  "   2 atarin   BASIC    336b  171     336",
+  "   3 atarin   n       1130b    5   $6F66",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "   BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header"
+ ]
+}

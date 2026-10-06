@@ -1,0 +1,95 @@
+{
+ "files": [
+  {
+   "name": "AEON.BAS",
+   "p3dos": {
+    "p1": 1,
+    "p2": 146,
+    "type": 0
+   },
+   "size": 171
+  },
+  {
+   "name": "d17.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 16120
+  },
+  {
+   "name": "d19.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 12925
+  },
+  {
+   "name": "d20.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 14721
+  },
+  {
+   "name": "d22.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 5374
+  },
+  {
+   "name": "d23.BIN",
+   "p3dos": {
+    "p1": 56064,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 6529
+  },
+  {
+   "name": "d16.BIN",
+   "p3dos": {
+    "p1": 24576,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 5358
+  }
+ ],
+ "screen": [
+  "",
+  "",
+  "",
+  "",
+  " TAP: Aeon.tap                                                      14 blk",
+  " ## Type    Name        Size   Info                    +3DOS:YES",
+  "  1 BASIC   AEON         171b LINE:    1  ALL OK",
+  "  2 DATA    ----------   173b",
+  "  3 CODE    d17        16120b $C000",
+  "  4 DATA    ---------- 16122b",
+  "  5 CODE    d19        12925b $C000",
+  "  6 DATA    ---------- 12927b",
+  "  7 CODE    d20        14721b $C000",
+  "  8 DATA    ---------- 14723b",
+  "  9 CODE    d22         5374b $C000",
+  " 10 DATA    ----------  5376b",
+  " 11 CODE    d23         6529b $DB00",
+  " 12 DATA    ----------  6531b",
+  " 13 CODE    d16         5358b $6000",
+  " 14 DATA    ----------  5360b",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "   BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header"
+ ]
+}

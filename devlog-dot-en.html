@@ -1,0 +1,125 @@
+
+<h1>Calm Commander as a dot command &mdash; just type .cc</h1>
+
+<p>
+Calm Commander can now be started as a <strong>dot command</strong>. Type
+<strong>.cc</strong> at the NextBASIC prompt, look after your files, and press
+Quit &mdash; you are back in BASIC exactly where you left off, with your program,
+your variables and your screen untouched. No loader, no reset.
+</p>
+
+<p>
+The classic version started from <strong>cc.bas</strong> stays as it is.
+Both versions share the same configuration and bookmarks, so you can use
+whichever suits you.
+</p>
+
+<h2>Installation</h2>
+
+<p>
+The download contains a <strong>build_dot</strong> folder laid out exactly like
+the SD card, so you only need to copy its contents to the root of
+<strong>C:</strong>:
+</p>
+
+<ul>
+  <li><strong>dot/cc</strong> goes to <strong>C:/DOT/</strong> &mdash; that is
+      the whole program in a single file.</li>
+  <li><strong>sys/cc/*.ccp</strong> go to <strong>C:/SYS/CC/</strong> &mdash;
+      the viewer and tool plugins.</li>
+</ul>
+
+<p>
+The configuration (<strong>cc.cfg</strong>) and the bookmarks
+(<strong>bookmark.cfg</strong>) stay in <strong>C:/SYS/</strong> as before and
+are created automatically on the first start. <strong>.cc -h</strong> prints a
+short help.
+</p>
+
+<h2>Back to BASIC with everything intact</h2>
+
+<p>
+Calm Commander needs the whole of the Spectrum's main memory for itself, which
+is why the classic version can only end with a reset. The dot command solves
+this differently:
+</p>
+
+<ul>
+  <li>Before it starts, it copies all of BASIC's memory &mdash; the screen, the
+      system variables, your program and its variables &mdash; into free
+      extended memory, and puts it back when you quit.</li>
+  <li>The display settings (layers, tilemap, palette selection, transparency)
+      and the CPU speed are restored as well, so you return to the same mode you
+      left.</li>
+  <li>All memory borrowed for this is returned to NextZXOS, so nothing is lost
+      until the next reset.</li>
+</ul>
+
+<p>
+Calm Commander reserves the extended memory it uses through the NextZXOS memory
+manager, so it never overwrites memory that belongs to someone else. If another
+program or driver already holds a part of it, <strong>.cc</strong> refuses to
+start with <strong>Page NNN in use</strong> instead of risking a crash.
+</p>
+
+<h2>Starting programs</h2>
+
+<p>
+NEX, BAS, TAP, SNA, Z80 and SNX files are started straight from the file list,
+just as in the classic version.
+</p>
+
+<ul>
+  <li>A dot command cannot start a BASIC program by itself. Calm Commander
+      therefore first puts BASIC back in order and then adds the start command to
+      the line you typed &mdash; for example <strong>.cc</strong> becomes
+      <strong>.cc:LOAD "game.bas"</strong>. BASIC then carries on with the rest
+      of the line and the program starts in your own, genuine BASIC environment,
+      as if you had typed the command yourself.</li>
+  <li>This also works when <strong>.cc</strong> is called from a program, for
+      example from line <strong>10 .cc</strong> in an autoexec. The start command
+      is then added to that program line in memory; the program being started
+      replaces your program anyway.</li>
+  <li>For TAP files you choose the machine &mdash; <strong>128k</strong>,
+      <strong>48k</strong>, <strong>Pentagon</strong> or <strong>Next</strong>
+      &mdash; in the same dialog as in the classic version, and the timing is set
+      accordingly.</li>
+  <li>Tapes and snapshots start at 3.5&nbsp;MHz, BASIC programs at the speed you
+      had set.</li>
+</ul>
+
+<h2>Fixes in the music players</h2>
+
+<p>
+While working on the dot command I found two problems in the music plugins,
+and the fixes apply to the classic version too:
+</p>
+
+<ul>
+  <li>The PT2, STC, STP and SQT players kept interrupts enabled while the song
+      was mapped over the system variables, so the ROM interrupt routine could
+      write into the song data. Song data is now mapped only with interrupts
+      disabled.</li>
+  <li><strong>ENTER</strong> (stop) and <strong>SPACE</strong> (next song) are
+      now read directly from the keyboard in all players, so they react
+      reliably.</li>
+  <li>The machine selection for TAP files shows <strong>Pentagon</strong> in full
+      again.</li>
+</ul>
+
+<h2>Good to know</h2>
+
+<ul>
+  <li>Calm Commander uses sprites for the mouse pointer, so sprites defined by
+      your own program are cleared after you return to BASIC.</li>
+  <li>If a program started from a line like <strong>10 .cc</strong> fails to
+      load, the added start command stays in that line until you load another
+      program.</li>
+  <li>The dot command needs NextZXOS; in 48K mode it reports
+      <strong>Requires NextZXOS</strong>.</li>
+</ul>
+
+<p>
+Thank you for using <strong>Calm Commander</strong> and for reporting bugs and
+suggesting improvements!
+</p>

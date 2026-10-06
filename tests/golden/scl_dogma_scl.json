@@ -1,0 +1,51 @@
+{
+ "files": [
+  {
+   "name": "DOGMA.BAS",
+   "p3dos": {
+    "p1": 32768,
+    "p2": 237,
+    "type": 0
+   },
+   "size": 237
+  },
+  {
+   "name": "dogma.1",
+   "p3dos": null,
+   "size": 65280
+  },
+  {
+   "name": "dogma.2",
+   "p3dos": null,
+   "size": 49920
+  }
+ ],
+ "screen": [
+  "",
+  "",
+  "",
+  "",
+  " SCL: dogma.scl                                                         3 fl",
+  "  ## Name     Type   Size   Sect   Start                      +3DOS:YES",
+  "   1 DOGMA    BASIC    237b  255     237  ALL OK",
+  "   2 dogma    1      65280b  255   $0000",
+  "   3 dogma    2      49920b  195   $0000",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "   BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header"
+ ]
+}

@@ -1,0 +1,104 @@
+{
+ "files": [
+  {
+   "name": "Bored.BAS",
+   "p3dos": {
+    "p1": 32768,
+    "p2": 103,
+    "type": 0
+   },
+   "size": 103
+  },
+  {
+   "name": "bored.BIN",
+   "p3dos": {
+    "p1": 25600,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 512
+  },
+  {
+   "name": "01.BIN",
+   "p3dos": {
+    "p1": 26112,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 39424
+  },
+  {
+   "name": "02.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 16384
+  },
+  {
+   "name": "03.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 16384
+  },
+  {
+   "name": "04.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 16384
+  },
+  {
+   "name": "2021.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 16384
+  },
+  {
+   "name": "-----.BIN",
+   "p3dos": {
+    "p1": 49152,
+    "p2": 32768,
+    "type": 3
+   },
+   "size": 16384
+  }
+ ],
+ "screen": [
+  "",
+  "",
+  "",
+  "",
+  " SCL: BORED.SCL                                                         8 fl",
+  "  ## Name     Type   Size   Sect   Start                      +3DOS:YES",
+  "   1 Bored    BASIC    103b    1     103  ALL OK",
+  "   2 bored    CODE     512b    2   $6400",
+  "   3 01       CODE   39424b  154   $6600",
+  "   4 02       CODE   16384b   64   $C000",
+  "   5 03       CODE   16384b   64   $C000",
+  "   6 04       CODE   16384b   64   $C000",
+  "   7 2021     CODE   16384b   64   $C000",
+  "   8 -----    CODE   16384b   64   $C000",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "   BREAK=exit  Up/Dn  PgUp/PgDn  e:export  CAPS+e:export all  d:+3DOS header"
+ ]
+}

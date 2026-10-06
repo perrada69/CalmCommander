@@ -443,7 +443,7 @@
  310+ 0000
 # file closed: constants.i.asm
  130  0000                          INCLUDE "plugin/settings_api.i.asm"
-# file opened: settings_api.i.asm
+# file opened: plugin/settings_api.i.asm
    1+ 0000              SETTINGS_PLUGIN_ADDRESS equ $C000
    2+ 0000              SETTINGS_PLUGIN_SIZE    equ 8192
    3+ 0000              SETTINGS_ABI            equ 5
@@ -533,7 +533,7 @@
   87+ 0000              ACT_QUIT                equ 32
   88+ 0000              ACT_SETTINGS            equ 33
   89+ 0000
-# file closed: settings_api.i.asm
+# file closed: plugin/settings_api.i.asm
  131  0000
  132  0000
  133  0000                          ; ------------------------------------------------------------
@@ -587,7 +587,7 @@
  181  0000                                                                ; Start programu a některé RAM oblasti
  182  0000                                                                ; ------------------------------------------------------------
  183  0000
- 184  0000                          org      $7000 + 128 + 128
+ 184  0000                          org $7000 + 128 + 128
  185  7100 C3 0E 71     S1          jp START
  186  7103
  187  7103              CHARS       equ  15616-256
@@ -712,7 +712,7 @@
  306  7177 CD AE 83                 call basicpage                        ; externí: přepnutí “basic” stránkování?
  307  717A
  308  717A                                                                ; načti sprite grafiku “sipka” do sprite systému (externí LoadSprites)
- 309  717A ED 91 57 5A              nextreg MMU7_E000_NR_57, 90   ; mapuj extra banku (sipka + specialchar tam jsou)
+ 309  717A ED 91 57 5A              nextreg MMU7_E000_NR_57,90       ; mapuj extra banku (sipka + specialchar tam jsou)
  310  717E CD 27 F2                 call EXTRA_CFG_PREPARE
  311  7181 21 A1 E9                 ld hl,sipka
  312  7184 01 00 01                 ld bc,16*16*1
@@ -1066,7 +1066,7 @@
  658  7364 3E 57       >            ld a,MMU7_E000_NR_57
  658  7366 CD 03 71    >            call ReadNextReg2A
  659  7369 F5                       push af
- 660  736A ED 91 57 5A              nextreg MMU7_E000_NR_57, 90
+ 660  736A ED 91 57 5A              nextreg MMU7_E000_NR_57,90
  661  736E 79                       ld a,c
  662  736F CD 4B E0                 call EXTRA_KEY_DISPATCH
  663  7372 47                       ld b,a
@@ -4877,7 +4877,7 @@
 4423  8774 00 00        dirNum   defw 0
 4424  8776
 4425  8776                      include "functions/texts.asm"
-# file opened: texts.asm
+# file opened: functions/texts.asm
    1+ 8776 00 00 00...  filename 	  ds   15
    2+ 8785              typ 		  equ $-4
    3+ 8785              pocetpolozek	equ 200
@@ -5221,9 +5221,9 @@
  133+ 8D98 63 74 6F 72
  133+ 8D9C 79 2E 00
  134+ 8D9F
-# file closed: texts.asm
+# file closed: functions/texts.asm
 4426  8D9F                      include "functions/rename.asm"
-# file opened: rename.asm
+# file opened: functions/rename.asm
    1+ 8D9F
    2+ 8D9F 52 65 6E 61  RENAMETXT	defb "Rename",0
    2+ 8DA3 6D 65 00
@@ -5477,9 +5477,9 @@
  248+ 8F61 CD CA 7E     		call loadscr
  249+ 8F64 C3 83 72     		jp loop0
  250+ 8F67
-# file closed: rename.asm
+# file closed: functions/rename.asm
 4427  8F67                      include "functions/getdir.asm"
-# file opened: getdir.asm
+# file opened: functions/getdir.asm
    1+ 8F67
    2+ 8F67              GETDIR
    3+ 8F67 21 8F 87     		ld hl,pathl
@@ -5738,9 +5738,9 @@
  250+ 9220 00
  251+ 9221 00 00 00...  NAZEVADRESARE	ds 20
  252+ 9235
-# file closed: getdir.asm
+# file closed: functions/getdir.asm
 4428  9235                      include "functions/delete.asm"
-# file opened: delete.asm
+# file opened: functions/delete.asm
    1+ 9235              moredelete
    2+ 9235
    3+ 9235
@@ -6427,9 +6427,9 @@
  670+ 9723 20 20 20 20
  670+ 9727 20 00
  671+ 9729
-# file closed: delete.asm
+# file closed: functions/delete.asm
 4429  9729                      include "functions/file.asm"
-# file opened: file.asm
+# file opened: functions/file.asm
    1+ 9729              ; ============================================================
    2+ 9729              ; Konstanty / nastavení bufferu pro kopírování
    3+ 9729              ; ============================================================
@@ -6786,9 +6786,9 @@
  354+ 98BA 00 00        copyProgressTotalKb  defw 0
  355+ 98BC 00 00 00...  copyProgressFrame defs 18
  356+ 98CE
-# file closed: file.asm
+# file closed: functions/file.asm
 4430  98CE                      include "functions/compare.asm"
-# file opened: compare.asm
+# file opened: functions/compare.asm
    1+ 98CE              ;==============================================================================
    2+ 98CE              ;  Porovnání adresářů (ZX Spectrum Next / Z80N)
    3+ 98CE              ;
@@ -7166,9 +7166,9 @@
  375+ 9A41
  376+ 9A41                      endmodule
  377+ 9A41
-# file closed: compare.asm
+# file closed: functions/compare.asm
 4431  9A41                      include "functions/system_copy.asm"
-# file opened: system_copy.asm
+# file opened: functions/system_copy.asm
    1+ 9A41              ; ============================================================
    2+ 9A41              ; System copy plugin host.
    3+ 9A41              ; Loads c:/CalmCommander/plugin/syscopy.ccp and calls it with a
@@ -7176,7 +7176,7 @@
    5+ 9A41              ; ============================================================
    6+ 9A41
    7+ 9A41                      include "plugin/syscopy_api.i.asm"
-# file opened: syscopy_api.i.asm
+# file opened: ./plugin/syscopy_api.i.asm
    1++9A41              SYSCOPY_PLUGIN_ADDRESS equ 49152
    2++9A41              SYSCOPY_WORK_ADDRESS   equ 57344
    3++9A41              SYSCOPY_PLUGIN_SIZE    equ 8192
@@ -7205,7 +7205,7 @@
   26++9A41              SYSCOPY_SERVICE_WINDOW equ 2
   27++9A41              SYSCOPY_SERVICE_OVERWRITE equ 4
   28++9A41
-# file closed: syscopy_api.i.asm
+# file closed: ./plugin/syscopy_api.i.asm
    8+ 9A41
    9+ 9A41              SYS_COPY_PLUGIN_BANK    equ 41
   10+ 9A41              SYS_COPY_PLUGIN_PAGE    equ SYS_COPY_PLUGIN_BANK*2
@@ -7554,7 +7554,7 @@
  350+ 9C44 CD 03 71    >            call ReadNextReg2A
  351+ 9C47 F5                   push af
  352+ 9C48 CD B6 7E             call savescr                              ; musi byt tady: savescr prepisuje MMU7 a odstrankoval by extra banku
- 353+ 9C4B ED 91 57 5A          nextreg MMU7_E000_NR_57,  90
+ 353+ 9C4B ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
  354+ 9C4F CD 6A F1             call EXTRA_SYSCOPY_SHOW_ERROR
  355+ 9C52 F1                   pop af
  356+ 9C53 ED 92 57             nextreg MMU7_E000_NR_57, a
@@ -7575,7 +7575,7 @@
  371+ 9C89 00           sysCopySavedMmu6 defb 0
  372+ 9C8A 00           sysCopySavedMmu7 defb 0
  373+ 9C8B
- 374+ 9C8B 63 3A 2F 73  sysCopyPluginDir  defb       "c:/sys/cc",255
+ 374+ 9C8B 63 3A 2F 73  sysCopyPluginDir  defb "c:/sys/cc",255
  374+ 9C8F 79 73 2F 63
  374+ 9C93 63 FF
  375+ 9C95 73 79 73 63  sysCopyPluginName defb "syscopy.ccp",255
@@ -7601,9 +7601,9 @@
  390+ 9CB7 C9                   ret
  391+ 9CB8                      assert settings_save_config < $C000
  392+ 9CB8
-# file closed: system_copy.asm
+# file closed: functions/system_copy.asm
 4432  9CB8                      include "functions/dir_info.asm"
-# file opened: dir_info.asm
+# file opened: functions/dir_info.asm
    1+ 9CB8              ; ============================================================
    2+ 9CB8              ; Directory info plugin host.
    3+ 9CB8              ; Loads c:/CalmCommander/plugin/dir_info.ccp and displays the
@@ -7611,7 +7611,7 @@
    5+ 9CB8              ; ============================================================
    6+ 9CB8
    7+ 9CB8                      include "plugin/dir_info_api.i.asm"
-# file opened: dir_info_api.i.asm
+# file opened: ./plugin/dir_info_api.i.asm
    1++9CB8              DIRINFO_PLUGIN_ADDRESS equ 49152
    2++9CB8              DIRINFO_WORK_ADDRESS   equ 57344
    3++9CB8              DIRINFO_PLUGIN_SIZE    equ 4096
@@ -7633,7 +7633,7 @@
   19++9CB8
   20++9CB8              DIRINFO_SERVICE_PRINT  equ 0
   21++9CB8
-# file closed: dir_info_api.i.asm
+# file closed: ./plugin/dir_info_api.i.asm
    8+ 9CB8
    9+ 9CB8              DIR_INFO_PLUGIN_BANK   equ 41
   10+ 9CB8              DIR_INFO_PLUGIN_PAGE   equ DIR_INFO_PLUGIN_BANK*2
@@ -7647,7 +7647,7 @@
   16+ 9CC0 2E 63 63 70
   16+ 9CC4 FF
   17+ 9CC5
-# file closed: dir_info.asm
+# file closed: functions/dir_info.asm
 4433  9CC5 00 00 00...  LFNNAME   defs 275                                ; buffer pro LFN + metadata (používá se i offset 261..)
 4434  9DD8 00 00 00...  LFNNAME2  defs 275                                ; pomocný buffer (porovnávání jinde)
 4435  9EEB              FILEBUFF
@@ -8008,7 +8008,7 @@
 4790  A000                      ENDM
 4791  A000
 4792  A000                      include "functions/copy.asm"
-# file opened: copy.asm
+# file opened: functions/copy.asm
    1+ A000              ; ------------------------------------------------------------
    2+ A000              ; no_copy_move
    3+ A000              ; Zobrazí hlášku, že kopírování/přesun není možný (typicky: cílová cesta neexistuje,
@@ -9108,7 +9108,7 @@
 1068+ A6D8 13                   inc de
 1069+ A6D9 C9                   ret
 1070+ A6DA
-# file closed: copy.asm
+# file closed: functions/copy.asm
 4793  A6DA              reload_panels_after_cancel
 4794  A6DA CD CC A1             call obnov_okna
 4795  A6DD CD 9E 83             call dospage
@@ -9125,7 +9125,7 @@
 4806  A6F4 C9                   ret
 4807  A6F5
 4808  A6F5                      include "kmouse/driver.a80"
-# file opened: driver.a80
+# file opened: kmouse/driver.a80
    1+ A6F5              ;   Nejprve zavolat KOREKCE s parametrama:
    2+ A6F5              ;           INPUT : L=new X-axis(0-255) / H=new Y-axis(0-191)
    3+ A6F5              ;           OUTPUT: none
@@ -9248,9 +9248,9 @@
  120+ A787 00 00        OLDCO    defb 0,0
  121+ A789              ;------------------------------
  122+ A789
-# file closed: driver.a80
+# file closed: kmouse/driver.a80
 4809  A789                      include "kmouse/akce.a80"
-# file opened: akce.a80
+# file opened: kmouse/akce.a80
    1+ A789              ; -----------------------------------------------------------------------------
    2+ A789              ; CONTROL / CONTROL_CLICK
    3+ A789              ;
@@ -9350,9 +9350,9 @@
   97+ A7BC A0 E6                        defb    160,230 ; maxX, maxY
   98+ A7BE
   99+ A7BE
-# file closed: akce.a80
+# file closed: kmouse/akce.a80
 4810  A7BE                      include "functions/menu.asm"
-# file opened: menu.asm
+# file opened: functions/menu.asm
    1+ A7BE
    2+ A7BE              ; -----------------------------------------------------------------------------
    3+ A7BE              ; Flag: informace, zda je zobrazené menu
@@ -10409,7 +10409,7 @@
  914+ AD81 3E 57       >            ld a,MMU7_E000_NR_57
  914+ AD83 CD 03 71    >            call ReadNextReg2A
  915+ AD86 F5                   push af
- 916+ AD87 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
+ 916+ AD87 ED 91 57 5A          nextreg MMU7_E000_NR_57,90
  917+ AD8B CD 00 E0             call EXTRA_MENU_SYNC_CONFIG_MARKS
  918+ AD8E F1                   pop af
  919+ AD8F ED 92 57             nextreg MMU7_E000_NR_57,a
@@ -10498,9 +10498,9 @@
  994+ ADF9 BF CB                defw quit
  995+ ADFB FF                   defb 255
  996+ ADFC
-# file closed: menu.asm
+# file closed: functions/menu.asm
 4811  ADFC                      include "functions/input.asm"
-# file opened: input.asm
+# file opened: functions/input.asm
    1+ ADFC              ;		hx = délka vstupu
    2+ ADFC              ;		hl = adresa na obrazovce
    3+ ADFC              ;       a = barva palety
@@ -10617,9 +10617,9 @@
  114+ AEA8 E1                   pop hl
  115+ AEA9 C9                   ret
  116+ AEAA
-# file closed: input.asm
+# file closed: functions/input.asm
 4812  AEAA                      include "functions/viewer.asm"
-# file opened: viewer.asm
+# file opened: functions/viewer.asm
    1+ AEAA              ; ============================================================
    2+ AEAA              ; Modular file viewer loader.
    3+ AEAA              ; CC only prepares a context, loads data and loads an external
@@ -11454,7 +11454,7 @@
  776+ B397              view_restore_saved_screen
  777+ B397                      ;xor a
  778+ B397                      ;ld (viewNextAfterDown),a
- 779+ B397 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90   ; mapuj extra banku (sipka + specialchar tam jsou)
+ 779+ B397 ED 91 57 5A          nextreg MMU7_E000_NR_57,90       ; mapuj extra banku (sipka + specialchar tam jsou)
  780+ B39B 21 A1 E9             ld hl,sipka
  781+ B39E 01 00 01             ld bc,16*16*1
  782+ B3A1 3E 00                ld a,0
@@ -11471,7 +11471,7 @@
  793+ B3B3                      ;xor a
  794+ B3B3                      ;ld (viewNextAfterDown),a
  795+ B3B3
- 796+ B3B3 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90   ; mapuj extra banku (sipka + specialchar tam jsou)
+ 796+ B3B3 ED 91 57 5A          nextreg MMU7_E000_NR_57,90       ; mapuj extra banku (sipka + specialchar tam jsou)
  797+ B3B7 21 A1 E9             ld hl,sipka
  798+ B3BA 01 00 01             ld bc,16*16*1
  799+ B3BD 3E 00                ld a,0
@@ -12669,7 +12669,7 @@
 1970+ BBB5 2A BC          defw viewBasPluginName
 1970+ BBB7 15 BD          defw viewPluginMenuBasTxt
 1971+ BBB9
-1972+ BBB9 63 3A 2F 73  viewPluginDir          defb       "c:/sys/cc",255
+1972+ BBB9 63 3A 2F 73  viewPluginDir          defb "c:/sys/cc",255
 1972+ BBBD 79 73 2F 63
 1972+ BBC1 63 FF
 1973+ BBC3 74 65 78 74  viewTextPluginName     defb "text.ccp",255
@@ -12812,9 +12812,9 @@
 2024+ BDD9 00 00        viewReadAtAddr          defw 0
 2025+ BDDB 00           viewReadAtBank          defb 0
 2026+ BDDC
-# file closed: viewer.asm
+# file closed: functions/viewer.asm
 4813  BDDC                      include "functions/createdir.asm"
-# file opened: createdir.asm
+# file opened: functions/createdir.asm
    1+ BDDC 43 72 65 61  CRDIRTXT	defb "Create directory.",0
    1+ BDE0 74 65 20 64
    1+ BDE4 69 72 65 63
@@ -12889,7 +12889,7 @@
   65+ BE72 CD CA 7E     		call loadscr
   66+ BE75 C3 83 72     		jp loop0
   67+ BE78
-# file closed: createdir.asm
+# file closed: functions/createdir.asm
 4814  BE78              delete_key_parent
 4815  BE78 21 8F 87             ld hl,pathl
 4816  BE7B CD 50 7F             call ROZHOD2
@@ -12993,12 +12993,12 @@
 4914  BF21 C9                   ret
 4915  BF22
 4916  BF22                      include "functions/bookmarks.asm"
-# file opened: bookmarks.asm
+# file opened: functions/bookmarks.asm
    1+ BF22              ; Thin resident host. Dialogs, keyboard handling and file I/O stay in
    2+ BF22              ; bookmarks.ccp; sysCopyContext and LFNNAME are safe scratch space here.
    3+ BF22
    4+ BF22                      include "plugin/bookmarks_api.i.asm"
-# file opened: bookmarks_api.i.asm
+# file opened: ./plugin/bookmarks_api.i.asm
    1++BF22              BOOKMARK_PLUGIN_ADDRESS equ 49152
    2++BF22              ; One complete MMU6 slot: $C000-$DFFF.
    3++BF22              BOOKMARK_PLUGIN_SIZE    equ 8192
@@ -13031,7 +13031,7 @@
   30++BF22              BOOKMARK_SERVICE_PRINT  equ 0
   31++BF22              BOOKMARK_SERVICE_WINDOW equ 2
   32++BF22
-# file closed: bookmarks_api.i.asm
+# file closed: ./plugin/bookmarks_api.i.asm
    5+ BF22
    6+ BF22              bookmarks_add
    7+ BF22 3E 01                ld a,BOOKMARK_MODE_ADD
@@ -13098,7 +13098,7 @@
   66+ BFAF 73 2E 63 63
   66+ BFB3 70 FF
   67+ BFB5
-# file closed: bookmarks.asm
+# file closed: functions/bookmarks.asm
 4917  BFB5
 4918  BFB5
 4919  BFB5              ; Zvuk klávesy je mimo těsnou residentní část; KEYSCAN tak může mít přímou
@@ -13409,8 +13409,8 @@
 5212  C384 3E 03                ld a,3
 5213  C386 32 88 87             ld (OKNO),a
 5214  C389 ED 91 53 0B          nextreg MMU3_6000_NR_53,5*2+1
-5215  C38D 21 00 60             ld      hl,    $6000
-5216  C390 11 01 60             ld      de,    $6000+1
+5215  C38D 21 00 60             ld      hl,$6000
+5216  C390 11 01 60             ld      de,$6000         +1
 5217  C393 01 FF 01             ld      bc,16*32-1
 5218  C396 36 00                ld      (hl),0
 5219  C398 ED B0                ldir
@@ -13442,8 +13442,8 @@
 5245  C3D2 ED 91 69 00          nextreg DISPLAY_CONTROL_NR_69,0           ; layer2 off, bank 5, timex=0
 5246  C3D6 ED 91 6B C3          nextreg TILEMAP_CONTROL_NR_6B,%1100'0011    ; 80x32x2, 4bpp, pal0, 512tile-mode, force tile-over-ULA
 5247  C3DA ED 91 6C 00          nextreg TILEMAP_DEFAULT_ATTR_NR_6C,$00    ; no pal offset, no mirror/rot, 0 bit8
-5248  C3DE ED 91 6E 40          nextreg TILEMAP_BASE_ADR_NR_6E,high     $4000
-5249  C3E2 ED 91 6F 60          nextreg TILEMAP_GFX_ADR_NR_6F,high     $6000
+5248  C3DE ED 91 6E 40          nextreg TILEMAP_BASE_ADR_NR_6E,high $4000
+5249  C3E2 ED 91 6F 60          nextreg TILEMAP_GFX_ADR_NR_6F,high $6000
 5250  C3E6
 5251  C3E6 ED 91 1B 00          nextreg CLIP_TILEMAP_NR_1B,0
 5252  C3EA ED 91 1B 9F          nextreg CLIP_TILEMAP_NR_1B,159
@@ -14908,7 +14908,7 @@
 6706  CC34              ; ------------------------------------------------------------
 6707  CC34              dot_entry
 6708  CC34 ED 73 86 CC          ld (dot_basic_sp),sp
-6709  CC38 31 00 71             ld sp,     $7000 + 128 + 128                         ; stejne misto jako po CLEAR 28927
+6709  CC38 31 00 71             ld sp,$7000 + 128 + 128                         ; stejne misto jako po CLEAR 28927
 6710  CC3B C3 0E 71             jp START
 6711  CC3E
 6712  CC3E              dot_quit
@@ -14930,7 +14930,7 @@
 6728  CC5C              dot_restart
 6729  CC5C AF                   xor a
 6730  CC5D 32 88 CC             ld (dot_attached),a
-6731  CC60 31 00 71             ld sp,     $7000 + 128 + 128
+6731  CC60 31 00 71             ld sp,$7000 + 128 + 128
 6732  CC63 C3 0E 71             jp START
 6733  CC66
 6734  CC66              ; TAP: stejne jako RUN_TAP v BASIC verzi potvrzeni a vyber pocitace
@@ -14946,7 +14946,7 @@
 6744  CC6F              ; a prikaz z dot_cmd_buf vlozi do radku za .cc.
 6745  CC6F              dot_attached_launch
 6746  CC6F CD 05 7A             call ClearAllSprites
-6747  CC72 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
+6747  CC72 ED 91 57 5A          nextreg MMU7_E000_NR_57,90
 6748  CC76 CD E7 E3             call extra_dot_basic_cmd                  ; Z = NEX, NZ = prikaz pripraven
 6749  CC79 ED 91 57 01          nextreg MMU7_E000_NR_57,1
 6750  CC7D 3E 01                ld a,DOT_EXIT_LAUNCH
@@ -15675,7 +15675,7 @@
 7465  D0FF 3E 57       >            ld a,MMU7_E000_NR_57
 7465  D101 CD 03 71    >            call ReadNextReg2A
 7466  D104 F5                   push af
-7467  D105 ED 91 57 5A          nextreg MMU7_E000_NR_57,  90
+7467  D105 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
 7468  D109 CD A1 EA             call EXTRA_HELP
 7469  D10C F1                   pop af
 7470  D10D ED 92 57             nextreg MMU7_E000_NR_57, a
@@ -15696,7 +15696,7 @@
 7483  D119 3E 57       >            ld a,MMU7_E000_NR_57
 7483  D11B CD 03 71    >            call ReadNextReg2A
 7484  D11E F5                   push af
-7485  D11F ED 91 57 5A          nextreg MMU7_E000_NR_57,  90
+7485  D11F ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
 7486  D123 CD 1C F1             call EXTRA_NOTNOW
 7487  D126 F1                   pop af
 7488  D127 ED 92 57             nextreg MMU7_E000_NR_57, a
@@ -15704,7 +15704,7 @@
 7490  D12D C3 83 72             jp loop0
 7491  D130
 7492  D130              sort_loaded_dir_trampoline
-7493  D130 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
+7493  D130 ED 91 57 5A          nextreg MMU7_E000_NR_57,90
 7494  D134 CD B7 E0             call sort_loaded_dir
 7495  D137 ED 91 57 01          nextreg MMU7_E000_NR_57,1
 7496  D13B C9                   ret
@@ -15722,7 +15722,7 @@
 7506  D145 3E 57       >            ld a,MMU7_E000_NR_57
 7506  D147 CD 03 71    >            call ReadNextReg2A
 7507  D14A F5                   push af
-7508  D14B ED 91 57 5A          nextreg MMU7_E000_NR_57,  90
+7508  D14B ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
 7509  D14F CD 41 E3             call EXTRA_INFO
 7510  D152 F1                   pop af
 7511  D153 ED 92 57             nextreg MMU7_E000_NR_57, a
@@ -15982,7 +15982,7 @@
 7763  D27A
 7764  D27A
 7765  D27A                      include "functions/search.asm"
-# file opened: search.asm
+# file opened: functions/search.asm
    1+ D27A
    2+ D27A              ; ------------------------------------------------------------
    3+ D27A              ; wildcard_match_ci
@@ -16823,9 +16823,9 @@
  834+ D726
  835+ D726
  836+ D726
-# file closed: search.asm
+# file closed: functions/search.asm
 7766  D726                      include "functions/selected.asm"
-# file opened: selected.asm
+# file opened: functions/selected.asm
    1+ D726
    2+ D726              SELDATA  equ  $A000
    3+ D726
@@ -16938,7 +16938,7 @@
  109+ D7A2              ; 		call GETSELN
  110+ D7A2              ; 		call GETSELN
  111+ D7A2
-# file closed: selected.asm
+# file closed: functions/selected.asm
 7767  D7A2
 7768  D7A2
 7769  D7A2
@@ -17521,7 +17521,7 @@
 8346  DA27
 8347  DA27
 8348  DA27                      include "functions/dir_info_late.asm"
-# file opened: dir_info_late.asm
+# file opened: functions/dir_info_late.asm
    1+ DA27              dir_info_trim_lfn_zero
    2+ DA27 21 C8 9D             ld hl,LFNNAME+259
    3+ DA2A              .scan
@@ -17697,9 +17697,9 @@
  152+ DBAF 61 69 6C 65
  152+ DBB3 64 2E 00
  153+ DBB6
-# file closed: dir_info_late.asm
+# file closed: functions/dir_info_late.asm
 8349  DBB6                      include "functions/viewer_late.asm"
-# file opened: viewer_late.asm
+# file opened: functions/viewer_late.asm
    1+ DBB6              ; ============================================================
    2+ DBB6              ; Viewer code that lives in the second part of the binary.
    3+ DBB6              ; The plugin chooser is pure UI: it never pages DOS in and is never
@@ -17880,7 +17880,7 @@
  178+ DCF9 2E 7A 69 70  ext_zip defb ".zip"
  179+ DCFD 2E 5A 49 50  ext_ZIP defb ".ZIP"
  180+ DD01
-# file closed: viewer_late.asm
+# file closed: functions/viewer_late.asm
 8350  DD01
 8351  DD01              overwrite_draw_options
 8352  DD01 21 14 2E             ld hl,46*256+20
@@ -17978,7 +17978,7 @@
 8436  DDA0 00
 8437  DDA1
 8438  DDA1                      include "functions/settings.asm"
-# file opened: settings.asm
+# file opened: functions/settings.asm
    1+ DDA1              ; Thin resident host for the 8KB Settings plugin. The live palette/key tables
    2+ DDA1              ; stay in Cfg so startup loading, Settings, dispatch and Help all see the same
    3+ DDA1              ; values; all editor UI and capture logic live outside resident RAM.
@@ -18020,7 +18020,7 @@
   39+ DDF5 CD 8E 73             call freespace
   40+ DDF8 C3 83 72             jp loop0
   41+ DDFB
-# file closed: settings.asm
+# file closed: functions/settings.asm
 8439  DDFB
 8440  DDFB 00 00 00...  sysvars 	defs 500
 8441  DFEF
@@ -18028,7 +18028,7 @@
 8443  DFEF              E2
 8444  DFEF                          IFDEF CC_DOT
 8445  DFEF                          SAVEBIN "build/dot/ccd.bin", S1, E2-S1
-8446  DFEF              dot_xb_page equ  90
+8446  DFEF              dot_xb_page equ 90
 8447  DFEF                          EXPORT dot_xb_page
 8448  DFEF                          EXPORT S1
 8449  DFEF                          EXPORT E2
@@ -18056,7 +18056,7 @@
 8471  DFEF              ; Obsahuje: specialchar (font), sipka (sprite), help (kod+texty)
 8472  DFEF              ; Nacita se z cc_xb.bin pri startu programu.
 8473  DFEF              ; ============================================================
-8474  DFEF                          MMU 7,  90
+8474  DFEF                          MMU 7, 90
 8475  DFEF                          ORG $E000
 8476  E000
 8477  E000                          emit_menu_settings_code
@@ -19016,93 +19016,93 @@
 8808  E644 89 E7                    defw extraPluginEdit
 8809  E646 00 00                    defw 0
 8810  E648
-8811  E648 63 3A 2F 73  extraPluginSyscopy   defb       "c:/sys/cc","/syscopy.ccp",0
+8811  E648 63 3A 2F 73  extraPluginSyscopy   defb "c:/sys/cc","/syscopy.ccp",0
 8811  E64C 79 73 2F 63
 8811  E650 63 2F 73 79
 8811  E654 73 63 6F 70
 8811  E658 79 2E 63 63
 8811  E65C 70 00
-8812  E65E 63 3A 2F 73  extraPluginDirInfo   defb       "c:/sys/cc","/dir_info.ccp",0
+8812  E65E 63 3A 2F 73  extraPluginDirInfo   defb "c:/sys/cc","/dir_info.ccp",0
 8812  E662 79 73 2F 63
 8812  E666 63 2F 64 69
 8812  E66A 72 5F 69 6E
 8812  E66E 66 6F 2E 63
 8812  E672 63 70 00
-8813  E675 63 3A 2F 73  extraPluginBookmarks defb       "c:/sys/cc","/bookmarks.ccp",0
+8813  E675 63 3A 2F 73  extraPluginBookmarks defb "c:/sys/cc","/bookmarks.ccp",0
 8813  E679 79 73 2F 63
 8813  E67D 63 2F 62 6F
 8813  E681 6F 6B 6D 61
 8813  E685 72 6B 73 2E
 8813  E689 63 63 70 00
-8814  E68D 63 3A 2F 73  extraPluginSettings  defb       "c:/sys/cc","/settings.ccp",0
+8814  E68D 63 3A 2F 73  extraPluginSettings  defb "c:/sys/cc","/settings.ccp",0
 8814  E691 79 73 2F 63
 8814  E695 63 2F 73 65
 8814  E699 74 74 69 6E
 8814  E69D 67 73 2E 63
 8814  E6A1 63 70 00
-8815  E6A4 63 3A 2F 73  extraPluginText      defb       "c:/sys/cc","/text.ccp",0
+8815  E6A4 63 3A 2F 73  extraPluginText      defb "c:/sys/cc","/text.ccp",0
 8815  E6A8 79 73 2F 63
 8815  E6AC 63 2F 74 65
 8815  E6B0 78 74 2E 63
 8815  E6B4 63 70 00
-8816  E6B7 63 3A 2F 73  extraPluginZxScreen  defb       "c:/sys/cc","/zxscreen.ccp",0
+8816  E6B7 63 3A 2F 73  extraPluginZxScreen  defb "c:/sys/cc","/zxscreen.ccp",0
 8816  E6BB 79 73 2F 63
 8816  E6BF 63 2F 7A 78
 8816  E6C3 73 63 72 65
 8816  E6C7 65 6E 2E 63
 8816  E6CB 63 70 00
-8817  E6CE 63 3A 2F 73  extraPluginNxi       defb       "c:/sys/cc","/nxi.ccp",0
+8817  E6CE 63 3A 2F 73  extraPluginNxi       defb "c:/sys/cc","/nxi.ccp",0
 8817  E6D2 79 73 2F 63
 8817  E6D6 63 2F 6E 78
 8817  E6DA 69 2E 63 63
 8817  E6DE 70 00
-8818  E6E0 63 3A 2F 73  extraPluginPt2       defb       "c:/sys/cc","/pt2test.ccp",0
+8818  E6E0 63 3A 2F 73  extraPluginPt2       defb "c:/sys/cc","/pt2test.ccp",0
 8818  E6E4 79 73 2F 63
 8818  E6E8 63 2F 70 74
 8818  E6EC 32 74 65 73
 8818  E6F0 74 2E 63 63
 8818  E6F4 70 00
-8819  E6F6 63 3A 2F 73  extraPluginPt3       defb       "c:/sys/cc","/pt3test.ccp",0
+8819  E6F6 63 3A 2F 73  extraPluginPt3       defb "c:/sys/cc","/pt3test.ccp",0
 8819  E6FA 79 73 2F 63
 8819  E6FE 63 2F 70 74
 8819  E702 33 74 65 73
 8819  E706 74 2E 63 63
 8819  E70A 70 00
-8820  E70C 63 3A 2F 73  extraPluginStc       defb       "c:/sys/cc","/stctest.ccp",0
+8820  E70C 63 3A 2F 73  extraPluginStc       defb "c:/sys/cc","/stctest.ccp",0
 8820  E710 79 73 2F 63
 8820  E714 63 2F 73 74
 8820  E718 63 74 65 73
 8820  E71C 74 2E 63 63
 8820  E720 70 00
-8821  E722 63 3A 2F 73  extraPluginStp       defb       "c:/sys/cc","/stptest.ccp",0
+8821  E722 63 3A 2F 73  extraPluginStp       defb "c:/sys/cc","/stptest.ccp",0
 8821  E726 79 73 2F 63
 8821  E72A 63 2F 73 74
 8821  E72E 70 74 65 73
 8821  E732 74 2E 63 63
 8821  E736 70 00
-8822  E738 63 3A 2F 73  extraPluginSqt       defb       "c:/sys/cc","/sqtest.ccp",0
+8822  E738 63 3A 2F 73  extraPluginSqt       defb "c:/sys/cc","/sqtest.ccp",0
 8822  E73C 79 73 2F 63
 8822  E740 63 2F 73 71
 8822  E744 74 65 73 74
 8822  E748 2E 63 63 70
 8822  E74C 00
-8823  E74D 63 3A 2F 73  extraPluginHello     defb       "c:/sys/cc","/HelloWord.ccp",0
+8823  E74D 63 3A 2F 73  extraPluginHello     defb "c:/sys/cc","/HelloWord.ccp",0
 8823  E751 79 73 2F 63
 8823  E755 63 2F 48 65
 8823  E759 6C 6C 6F 57
 8823  E75D 6F 72 64 2E
 8823  E761 63 63 70 00
-8824  E765 63 3A 2F 73  extraPluginBas       defb       "c:/sys/cc","/bas.ccp",0
+8824  E765 63 3A 2F 73  extraPluginBas       defb "c:/sys/cc","/bas.ccp",0
 8824  E769 79 73 2F 63
 8824  E76D 63 2F 62 61
 8824  E771 73 2E 63 63
 8824  E775 70 00
-8825  E777 63 3A 2F 73  extraPluginTap       defb       "c:/sys/cc","/tap.ccp",0
+8825  E777 63 3A 2F 73  extraPluginTap       defb "c:/sys/cc","/tap.ccp",0
 8825  E77B 79 73 2F 63
 8825  E77F 63 2F 74 61
 8825  E783 70 2E 63 63
 8825  E787 70 00
-8826  E789 63 3A 2F 73  extraPluginEdit      defb       "c:/sys/cc","/edit.ccp",0
+8826  E789 63 3A 2F 73  extraPluginEdit      defb "c:/sys/cc","/edit.ccp",0
 8826  E78D 79 73 2F 63
 8826  E791 63 2F 65 64
 8826  E795 69 74 2E 63

@@ -302,7 +302,9 @@ if exist plugin\settings.ccp ( copy /Y plugin\settings.ccp build\plugin\settings
 
 rem -- build_dot: soubory pro .cc ve stejnych adresarich jako na karte (C:/) --
 echo [BUILD] build_dot ...
-if exist build_dot\nul rmdir /S /Q build_dot
+rem maze jen to, co sam generuje - jine soubory v build_dot (napr. zip) zustanou
+if exist build_dot\dot\nul rmdir /S /Q build_dot\dot
+if exist build_dot\sys\cc\nul rmdir /S /Q build_dot\sys\cc
 mkdir build_dot\dot
 mkdir build_dot\sys\cc
 copy /Y build\dot\cc build_dot\dot\cc >nul
