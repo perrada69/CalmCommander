@@ -300,6 +300,18 @@ if exist plugin\bookmarks.ccp ( copy /Y plugin\bookmarks.ccp build\plugin\bookma
 if errorlevel 1 ( echo *** BUILD FAILED: settings.asm *** & exit /b 1 )
 if exist plugin\settings.ccp ( copy /Y plugin\settings.ccp build\plugin\settings.ccp >nul )
 
+rem -- build_dot: soubory pro .cc ve stejnych adresarich jako na karte (C:/) --
+echo [BUILD] build_dot ...
+if exist build_dot\nul rmdir /S /Q build_dot
+mkdir build_dot\dot
+mkdir build_dot\sys\cc
+copy /Y build\dot\cc build_dot\dot\cc >nul
+if errorlevel 1 ( echo *** build_dot: chybi build\dot\cc *** & exit /b 1 )
+for %%P in (%PLUGINS%) do (
+    copy /Y build\plugin\%%P.ccp build_dot\sys\cc\ >nul
+    if errorlevel 1 ( echo *** build_dot: chybi %%P.ccp *** & exit /b 1 )
+)
+
 echo.
 echo [OK] Build hotov.
 echo.
