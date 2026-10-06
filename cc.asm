@@ -8572,14 +8572,15 @@ extra_dot_basic_cmd:
             or 1                                  ; NZ
             ret
 
-; tri znaky pripony, sablona (0 = NEX); na konci 0 a sablona pro SNA/Z80
+; tri znaky pripony, sablona (0 = NEX); na konci 0 a sablona pro snapshoty
+; (SNA/Z80/SNX). browser.cfg pro SNA/Z80 vola snapload.bas, ale ten na konci
+; dela taky jen SPECTRUM f$ - a jeho "LOAD + LET f$" by z programu nesel.
 extraDotTypes:
             defb "nex" : defw 0
             defb "bas" : defw extraDotBas
             defb "tap" : defw extraDotTap
-            defb "snx" : defw extraDotSnx
             defb 0
-            defw extraDotSnap
+            defw extraDotSnx
 
             ; :CLEAR 65367:LOAD "jmeno"
 extraDotBas:
@@ -8592,13 +8593,6 @@ extraDotTap:
             ; :SPECTRUM "jmeno"
 extraDotSnx:
             defb ":",$A3,'"',DOTC_NAME,'"',DOTC_END
-            ; :CLEAR 65367:LOAD "c:/nextzxos/snapload.bas":LET f$="jmeno":LET adj=0:GO TO 1
-extraDotSnap:
-            defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
-            defb ":",$EF,'"c:/nextzxos/snapload.bas"'
-            defb ":",$F1,'f$="',DOTC_NAME,'"'
-            defb ":",$F1,"adj=0",$0E,0,0,0,0,0
-            defb ":",$EC,"1",$0E,0,0,1,0,0,DOTC_END
             ENDIF
 
 ; Blocking keyboard input for code running in MMU7.  The resident INKEY

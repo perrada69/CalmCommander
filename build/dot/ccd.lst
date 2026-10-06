@@ -713,14 +713,14 @@
  307  717A
  308  717A                                                                ; načti sprite grafiku “sipka” do sprite systému (externí LoadSprites)
  309  717A ED 91 57 5A              nextreg MMU7_E000_NR_57,90       ; mapuj extra banku (sipka + specialchar tam jsou)
- 310  717E CD 08 F2                 call EXTRA_CFG_PREPARE
- 311  7181 21 82 E9                 ld hl,sipka
+ 310  717E CD BB F1                 call EXTRA_CFG_PREPARE
+ 311  7181 21 35 E9                 ld hl,sipka
  312  7184 01 00 01                 ld bc,16*16*1
  313  7187 3E 00                    ld a,0
  314  7189 CD 99 D7                 call LoadSprites                      ; externí
  315  718C
  316  718C CD 80 C3                 call VSE_NASTAV                       ; externí: globální nastavení aplikace/GUI?
- 317  718F CD 1C E5                 call EXTRA_CHECK_PLUGINS              ; silent unless an installed plugin is missing
+ 317  718F CD CF E4                 call EXTRA_CHECK_PLUGINS              ; silent unless an installed plugin is missing
  318  7192 ED 91 57 01              nextreg MMU7_E000_NR_57,1             ; obnov MMU7 na default po inicializaci
  319  7196
  320  7196
@@ -7554,7 +7554,7 @@
  351+ 9C47 F5                   push af
  352+ 9C48 CD B6 7E             call savescr                              ; musi byt tady: savescr prepisuje MMU7 a odstrankoval by extra banku
  353+ 9C4B ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
- 354+ 9C4F CD 4B F1             call EXTRA_SYSCOPY_SHOW_ERROR
+ 354+ 9C4F CD FE F0             call EXTRA_SYSCOPY_SHOW_ERROR
  355+ 9C52 F1                   pop af
  356+ 9C53 ED 92 57             nextreg MMU7_E000_NR_57, a
  357+ 9C56 C9                   ret
@@ -11454,7 +11454,7 @@
  777+ B397                      ;xor a
  778+ B397                      ;ld (viewNextAfterDown),a
  779+ B397 ED 91 57 5A          nextreg MMU7_E000_NR_57,90       ; mapuj extra banku (sipka + specialchar tam jsou)
- 780+ B39B 21 82 E9             ld hl,sipka
+ 780+ B39B 21 35 E9             ld hl,sipka
  781+ B39E 01 00 01             ld bc,16*16*1
  782+ B3A1 3E 00                ld a,0
  783+ B3A3 CD 99 D7             call LoadSprites                      ; externí
@@ -11471,7 +11471,7 @@
  794+ B3B3                      ;ld (viewNextAfterDown),a
  795+ B3B3
  796+ B3B3 ED 91 57 5A          nextreg MMU7_E000_NR_57,90       ; mapuj extra banku (sipka + specialchar tam jsou)
- 797+ B3B7 21 82 E9             ld hl,sipka
+ 797+ B3B7 21 35 E9             ld hl,sipka
  798+ B3BA 01 00 01             ld bc,16*16*1
  799+ B3BD 3E 00                ld a,0
  800+ B3BF CD 99 D7             call LoadSprites                      ; externí
@@ -13426,7 +13426,7 @@
 5230  C3AA CD 59 C3             call    ConvertRomCharTo4bpp
 5231  C3AD 10 FB                djnz    .RomCharsLoop
 5232  C3AF
-5233  C3AF 21 82 E7             ld hl,specialchar
+5233  C3AF 21 35 E7             ld hl,specialchar
 5234  C3B2 11 00 62             ld de,$6000+32*16
 5235  C3B5 01 00 02             ld bc,specialchar2-specialchar
 5236  C3B8
@@ -13456,7 +13456,7 @@
 5260  C3FE ED 91 43 30          nextreg PALETTE_CONTROL_NR_43,%0'011'0000 ; tilemap pal0
 5261  C402 ED 91 40 00          nextreg PALETTE_INDEX_NR_40,0
 5262  C406
-5263  C406 21 55 F3             ld      hl,tilemapPalette
+5263  C406 21 08 F3             ld      hl,tilemapPalette
 5264  C409 01 00 02             ld      bc,tilemapPalette_SZ
 5265  C40C              .setPalLoop:
 5266  C40C 7E                   ld      a,(hl)
@@ -15668,7 +15668,7 @@
 7458  D0F8 CD 03 71    >            call ReadNextReg2A
 7459  D0FB F5                   push af
 7460  D0FC ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
-7461  D100 CD 82 EA             call EXTRA_HELP
+7461  D100 CD 35 EA             call EXTRA_HELP
 7462  D103 F1                   pop af
 7463  D104 ED 92 57             nextreg MMU7_E000_NR_57, a
 7464  D107 CD CA 7E             call loadscr
@@ -15689,7 +15689,7 @@
 7476  D112 CD 03 71    >            call ReadNextReg2A
 7477  D115 F5                   push af
 7478  D116 ED 91 57 5A          nextreg MMU7_E000_NR_57, 90
-7479  D11A CD FD F0             call EXTRA_NOTNOW
+7479  D11A CD B0 F0             call EXTRA_NOTNOW
 7480  D11D F1                   pop af
 7481  D11E ED 92 57             nextreg MMU7_E000_NR_57, a
 7482  D121 CD CA 7E             call loadscr
@@ -18634,7 +18634,7 @@
 8473  E3DA             >info0
 8473  E3DA AF          >        xor a
 8473  E3DB 32 4E 73    >        ld (TLACITKO),a
-8473  E3DE CD E2 E4    >        call extra_read_key                      ; INKEY nelze: gettime pise na $7FFD a odstrankuje extra banku
+8473  E3DE CD 95 E4    >        call extra_read_key                      ; INKEY nelze: gettime pise na $7FFD a odstrankuje extra banku
 8473  E3E1 FE 01       >        cp 1
 8473  E3E3 C8          >        ret z
 8473  E3E4 C3 DA E3    >        jp info0
@@ -18739,1855 +18739,1833 @@
 8572  E450 F6 01                    or 1                                  ; NZ
 8573  E452 C9                       ret
 8574  E453
-8575  E453              ; tri znaky pripony, sablona (0 = NEX); na konci 0 a sablona pro SNA/Z80
-8576  E453              extraDotTypes:
-8577  E453 6E 65 78                 defb "nex"
-8577  E456 00 00          defw 0
-8578  E458 62 61 73                 defb "bas"
-8578  E45B 6A E4          defw extraDotBas
-8579  E45D 74 61 70                 defb "tap"
-8579  E460 7D E4          defw extraDotTap
-8580  E462 73 6E 78                 defb "snx"
-8580  E465 94 E4          defw extraDotSnx
-8581  E467 00                       defb 0
-8582  E468 9A E4                    defw extraDotSnap
-8583  E46A
-8584  E46A                          ; :CLEAR 65367:LOAD "jmeno"
-8585  E46A              extraDotBas:
-8586  E46A 3A FD 36 35              defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
-8586  E46E 33 36 37 0E
-8586  E472 00 00 57 FF
-8586  E476 00
-8587  E477 3A EF 22 1F              defb ":",$EF,'"',DOTC_NAME,'"',DOTC_END
-8587  E47B 22 1E
-8588  E47D                          ; :.tapein "jmeno":LOAD "t:":LOAD ""
-8589  E47D              extraDotTap:
-8590  E47D 3A 2E 74 61              defb ":.tapein ",'"',DOTC_NAME,'"'
-8590  E481 70 65 69 6E
-8590  E485 20 22 1F 22
-8591  E489 3A EF 22 74              defb ":",$EF,'"t:"',":",$EF,'""',DOTC_END
-8591  E48D 3A 22 3A EF
-8591  E491 22 22 1E
-8592  E494                          ; :SPECTRUM "jmeno"
-8593  E494              extraDotSnx:
-8594  E494 3A A3 22 1F              defb ":",$A3,'"',DOTC_NAME,'"',DOTC_END
-8594  E498 22 1E
-8595  E49A                          ; :CLEAR 65367:LOAD "c:/nextzxos/snapload.bas":LET f$="jmeno":LET adj=0:GO TO 1
-8596  E49A              extraDotSnap:
-8597  E49A 3A FD 36 35              defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
-8597  E49E 33 36 37 0E
-8597  E4A2 00 00 57 FF
-8597  E4A6 00
-8598  E4A7 3A EF 22 63              defb ":",$EF,'"c:/nextzxos/snapload.bas"'
-8598  E4AB 3A 2F 6E 65
-8598  E4AF 78 74 7A 78
-8598  E4B3 6F 73 2F 73
-8598  E4B7 6E 61 70 6C
-8598  E4BB 6F 61 64 2E
-8598  E4BF 62 61 73 22
-8599  E4C3 3A F1 66 24              defb ":",$F1,'f$="',DOTC_NAME,'"'
-8599  E4C7 3D 22 1F 22
-8600  E4CB 3A F1 61 64              defb ":",$F1,"adj=0",$0E,0,0,0,0,0
-8600  E4CF 6A 3D 30 0E
-8600  E4D3 00 00 00 00
-8600  E4D7 00
-8601  E4D8 3A EC 31 0E              defb ":",$EC,"1",$0E,0,0,1,0,0,DOTC_END
-8601  E4DC 00 00 01 00
-8601  E4E0 00 1E
-8602  E4E2                          ENDIF
-8603  E4E2
-8604  E4E2              ; Blocking keyboard input for code running in MMU7.  The resident INKEY
-8605  E4E2              ; cannot be used here: its retry path calls gettime, and gettime changes the
-8606  E4E2              ; $C000-$FFFF mapping through $7FFD.  Require a full release both before and
-8607  E4E2              ; after the key so the H used to open Help is not consumed by the dialog.
-8608  E4E2              extra_read_key:
-8609  E4E2              .release_before
-8610  E4E2 FB                       ei
-8611  E4E3 76                       halt
-8612  E4E4 CD 4C 80                 call KEYSCAN
-8613  E4E7 7B                       ld a,e
-8614  E4E8 3C                       inc a
-8615  E4E9 20 F7                    jr nz,.release_before
-8616  E4EB              .press
-8617  E4EB 76                       halt
-8618  E4EC CD 4C 80                 call KEYSCAN
-8619  E4EF 7B                       ld a,e
-8620  E4F0 3C                       inc a
-8621  E4F1 28 F8                    jr z,.press
-8622  E4F3 7A                       ld a,d
-8623  E4F4 21 90 80                 ld hl,SYMTAB
-8624  E4F7 FE 18                    cp $18
-8625  E4F9 28 0A                    jr z,.decode
-8626  E4FB 21 B8 80                 ld hl,CAPSTAB
-8627  E4FE FE 27                    cp $27
-8628  E500 28 03                    jr z,.decode
-8629  E502 21 DF 80                 ld hl,NORMTAB
-8630  E505              .decode
-8631  E505 16 00                    ld d,0
-8632  E507 19                       add hl,de
-8633  E508 7E                       ld a,(hl)
-8634  E509 B7                       or a
-8635  E50A 28 D6                    jr z,.release_before
-8636  E50C F5                       push af
-8637  E50D              .release_after
-8638  E50D 76                       halt
-8639  E50E CD 4C 80                 call KEYSCAN
-8640  E511 7B                       ld a,e
-8641  E512 3C                       inc a
-8642  E513 20 F8                    jr nz,.release_after
-8643  E515 F1                       pop af
-8644  E516 F5                       push af
-8645  E517 CD B5 BF                 call beepk
-8646  E51A F1                       pop af
-8647  E51B C9                       ret
-8648  E51C
-8649  E51C              ; Verify the complete standard plugin set while the extra bank is already
-8650  E51C              ; mapped during startup. RST $08 file access does not disturb the resident
-8651  E51C              ; code banks. Preserve every caller register because VSE_NASTAV prepares
-8652  E51C              ; HL/DE/BC for the drawing loop that follows this call.
-8653  E51C              EXTRA_CHECK_PLUGINS:
-8654  E51C F5                       push af
-8655  E51D C5                       push bc
-8656  E51E D5                       push de
-8657  E51F E5                       push hl
-8658  E520 DD E5                    push ix
-8659  E522 FD E5                    push iy
-8660  E524 21 07 E6                 ld hl,extraPluginTable
-8661  E527 22 7D E7                 ld (extraPluginScanPtr),hl
-8662  E52A AF                       xor a
-8663  E52B 32 81 E7                 ld (extraPluginMissingCount),a
-8664  E52E              .next
-8665  E52E 2A 7D E7                 ld hl,(extraPluginScanPtr)
-8666  E531 5E                       ld e,(hl)
-8667  E532 23                       inc hl
-8668  E533 56                       ld d,(hl)
-8669  E534 23                       inc hl
-8670  E535 22 7D E7                 ld (extraPluginScanPtr),hl
-8671  E538 7A                       ld a,d
-8672  E539 B3                       or e
-8673  E53A 28 2F                    jr z,.complete
-8674  E53C ED 53 7F E7              ld (extraPluginCurrentPath),de
-8675  E540 D5                       push de
-8676  E541 DD E1                    pop ix
-8677  E543                          IFDEF CC_DOT
-8678  E543 EB                       ex de,hl                              ; uvnitr dot commandu bere esxDOS jmeno z HL
-8679  E544                          ENDIF
-8680  E544 AF                       xor a
-8681  E545 06 01                    ld b,FA_READ
-8682  E547 CF                       rst $08
-8683  E548 9A                       db F_OPEN
-8684  E549 38 04                    jr c,.missing
-8685  E54B CF                       rst $08
-8686  E54C 9B                       db F_CLOSE
-8687  E54D 18 DF                    jr .next
-8688  E54F              .missing
-8689  E54F 3A 81 E7                 ld a,(extraPluginMissingCount)
-8690  E552 3C                       inc a
-8691  E553 32 81 E7                 ld (extraPluginMissingCount),a
-8692  E556 FE 01                    cp 1
-8693  E558 CC 97 E5                 call z,extra_plugin_check_draw_box
-8694  E55B C6 05                    add a,5
-8695  E55D 6F                       ld l,a
-8696  E55E 26 04                    ld h,4
-8697  E560 ED 5B 7F E7              ld de,(extraPluginCurrentPath)
-8698  E564 3E 10                    ld a,16
-8699  E566 CD 09 81                 call print
-8700  E569 18 C3                    jr .next
-8701  E56B              .complete
-8702  E56B 3A 81 E7                 ld a,(extraPluginMissingCount)
-8703  E56E B7                       or a
-8704  E56F 28 1D                    jr z,.done
-8705  E571 21 1A 04                 ld hl,4*256+26
-8706  E574 11 ED E5                 ld de,extraPluginContinueTxt
-8707  E577 3E 10                    ld a,16
-8708  E579 CD 09 81                 call print
-8709  E57C AF                       xor a
-8710  E57D 32 4E 73                 ld (TLACITKO),a
-8711  E580 CD E2 E4                 call extra_read_key
-8712  E583              .release
-8713  E583 CD 4C 80                 call KEYSCAN
-8714  E586 7B                       ld a,e
-8715  E587 3C                       inc a
-8716  E588 20 F9                    jr nz,.release
-8717  E58A AF                       xor a
-8718  E58B 32 4E 73                 ld (TLACITKO),a
-8719  E58E              .done
-8720  E58E FD E1                    pop iy
-8721  E590 DD E1                    pop ix
-8722  E592 E1                       pop hl
-8723  E593 D1                       pop de
-8724  E594 C1                       pop bc
-8725  E595 F1                       pop af
-8726  E596 C9                       ret
-8727  E597
-8728  E597              extra_plugin_check_draw_box:
-8729  E597 F5                       push af
-8730  E598 21 01 02                 ld hl,2*256+1
-8731  E59B 01 1C 4A                 ld bc,74*256+28
-8732  E59E 3E 10                    ld a,16
-8733  E5A0 CD 2C 81                 call window
-8734  E5A3 21 02 04                 ld hl,4*256+2
-8735  E5A6 11 BB E5                 ld de,extraPluginTitleTxt
-8736  E5A9 3E 10                    ld a,16
-8737  E5AB CD 09 81                 call print
-8738  E5AE 21 04 04                 ld hl,4*256+4
-8739  E5B1 11 D7 E5                 ld de,extraPluginMissingTxt
-8740  E5B4 3E 10                    ld a,16
-8741  E5B6 CD 09 81                 call print
-8742  E5B9 F1                       pop af
-8743  E5BA C9                       ret
-8744  E5BB
-8745  E5BB 43 61 6C 6D  extraPluginTitleTxt    defb "Calm Commander plugin check",0
-8745  E5BF 20 43 6F 6D
-8745  E5C3 6D 61 6E 64
-8745  E5C7 65 72 20 70
-8745  E5CB 6C 75 67 69
-8745  E5CF 6E 20 63 68
-8745  E5D3 65 63 6B 00
-8746  E5D7 4D 69 73 73  extraPluginMissingTxt  defb "Missing plugin files:",0
-8746  E5DB 69 6E 67 20
-8746  E5DF 70 6C 75 67
-8746  E5E3 69 6E 20 66
-8746  E5E7 69 6C 65 73
-8746  E5EB 3A 00
-8747  E5ED 50 72 65 73  extraPluginContinueTxt defb "Press any key to continue",0
-8747  E5F1 73 20 61 6E
-8747  E5F5 79 20 6B 65
-8747  E5F9 79 20 74 6F
-8747  E5FD 20 63 6F 6E
-8747  E601 74 69 6E 75
-8747  E605 65 00
-8748  E607
-8749  E607              extraPluginTable:
-8750  E607 29 E6                    defw extraPluginSyscopy
-8751  E609 3F E6                    defw extraPluginDirInfo
-8752  E60B 56 E6                    defw extraPluginBookmarks
-8753  E60D 6E E6                    defw extraPluginSettings
-8754  E60F 85 E6                    defw extraPluginText
-8755  E611 98 E6                    defw extraPluginZxScreen
-8756  E613 AF E6                    defw extraPluginNxi
-8757  E615 C1 E6                    defw extraPluginPt2
-8758  E617 D7 E6                    defw extraPluginPt3
-8759  E619 ED E6                    defw extraPluginStc
-8760  E61B 03 E7                    defw extraPluginStp
-8761  E61D 19 E7                    defw extraPluginSqt
-8762  E61F 2E E7                    defw extraPluginHello
-8763  E621 46 E7                    defw extraPluginBas
-8764  E623 58 E7                    defw extraPluginTap
-8765  E625 6A E7                    defw extraPluginEdit
-8766  E627 00 00                    defw 0
-8767  E629
-8768  E629 63 3A 2F 73  extraPluginSyscopy   defb "c:/sys/cc","/syscopy.ccp",0
-8768  E62D 79 73 2F 63
-8768  E631 63 2F 73 79
-8768  E635 73 63 6F 70
-8768  E639 79 2E 63 63
-8768  E63D 70 00
-8769  E63F 63 3A 2F 73  extraPluginDirInfo   defb "c:/sys/cc","/dir_info.ccp",0
-8769  E643 79 73 2F 63
-8769  E647 63 2F 64 69
-8769  E64B 72 5F 69 6E
-8769  E64F 66 6F 2E 63
-8769  E653 63 70 00
-8770  E656 63 3A 2F 73  extraPluginBookmarks defb "c:/sys/cc","/bookmarks.ccp",0
-8770  E65A 79 73 2F 63
-8770  E65E 63 2F 62 6F
-8770  E662 6F 6B 6D 61
-8770  E666 72 6B 73 2E
-8770  E66A 63 63 70 00
-8771  E66E 63 3A 2F 73  extraPluginSettings  defb "c:/sys/cc","/settings.ccp",0
-8771  E672 79 73 2F 63
-8771  E676 63 2F 73 65
-8771  E67A 74 74 69 6E
-8771  E67E 67 73 2E 63
-8771  E682 63 70 00
-8772  E685 63 3A 2F 73  extraPluginText      defb "c:/sys/cc","/text.ccp",0
-8772  E689 79 73 2F 63
-8772  E68D 63 2F 74 65
-8772  E691 78 74 2E 63
-8772  E695 63 70 00
-8773  E698 63 3A 2F 73  extraPluginZxScreen  defb "c:/sys/cc","/zxscreen.ccp",0
-8773  E69C 79 73 2F 63
-8773  E6A0 63 2F 7A 78
-8773  E6A4 73 63 72 65
-8773  E6A8 65 6E 2E 63
-8773  E6AC 63 70 00
-8774  E6AF 63 3A 2F 73  extraPluginNxi       defb "c:/sys/cc","/nxi.ccp",0
-8774  E6B3 79 73 2F 63
-8774  E6B7 63 2F 6E 78
-8774  E6BB 69 2E 63 63
-8774  E6BF 70 00
-8775  E6C1 63 3A 2F 73  extraPluginPt2       defb "c:/sys/cc","/pt2test.ccp",0
-8775  E6C5 79 73 2F 63
-8775  E6C9 63 2F 70 74
-8775  E6CD 32 74 65 73
-8775  E6D1 74 2E 63 63
-8775  E6D5 70 00
-8776  E6D7 63 3A 2F 73  extraPluginPt3       defb "c:/sys/cc","/pt3test.ccp",0
-8776  E6DB 79 73 2F 63
-8776  E6DF 63 2F 70 74
-8776  E6E3 33 74 65 73
-8776  E6E7 74 2E 63 63
-8776  E6EB 70 00
-8777  E6ED 63 3A 2F 73  extraPluginStc       defb "c:/sys/cc","/stctest.ccp",0
-8777  E6F1 79 73 2F 63
-8777  E6F5 63 2F 73 74
-8777  E6F9 63 74 65 73
-8777  E6FD 74 2E 63 63
-8777  E701 70 00
-8778  E703 63 3A 2F 73  extraPluginStp       defb "c:/sys/cc","/stptest.ccp",0
-8778  E707 79 73 2F 63
-8778  E70B 63 2F 73 74
-8778  E70F 70 74 65 73
-8778  E713 74 2E 63 63
-8778  E717 70 00
-8779  E719 63 3A 2F 73  extraPluginSqt       defb "c:/sys/cc","/sqtest.ccp",0
-8779  E71D 79 73 2F 63
-8779  E721 63 2F 73 71
-8779  E725 74 65 73 74
-8779  E729 2E 63 63 70
-8779  E72D 00
-8780  E72E 63 3A 2F 73  extraPluginHello     defb "c:/sys/cc","/HelloWord.ccp",0
-8780  E732 79 73 2F 63
-8780  E736 63 2F 48 65
-8780  E73A 6C 6C 6F 57
-8780  E73E 6F 72 64 2E
-8780  E742 63 63 70 00
-8781  E746 63 3A 2F 73  extraPluginBas       defb "c:/sys/cc","/bas.ccp",0
-8781  E74A 79 73 2F 63
-8781  E74E 63 2F 62 61
-8781  E752 73 2E 63 63
-8781  E756 70 00
-8782  E758 63 3A 2F 73  extraPluginTap       defb "c:/sys/cc","/tap.ccp",0
-8782  E75C 79 73 2F 63
-8782  E760 63 2F 74 61
-8782  E764 70 2E 63 63
-8782  E768 70 00
-8783  E76A 63 3A 2F 73  extraPluginEdit      defb "c:/sys/cc","/edit.ccp",0
-8783  E76E 79 73 2F 63
-8783  E772 63 2F 65 64
-8783  E776 69 74 2E 63
-8783  E77A 63 70 00
-8784  E77D
-8785  E77D 00 00        extraPluginScanPtr      defw 0
-8786  E77F 00 00        extraPluginCurrentPath  defw 0
-8787  E781 00           extraPluginMissingCount defb 0
-8788  E782
-8789  E782              ; --- Font data (specialchar) - label je definovan uvnitr include na radku 1 ---
-8790  E782                          include "tilemap_font_8x6.i.asm"
+8575  E453              ; tri znaky pripony, sablona (0 = NEX); na konci 0 a sablona pro snapshoty
+8576  E453              ; (SNA/Z80/SNX). browser.cfg pro SNA/Z80 vola snapload.bas, ale ten na konci
+8577  E453              ; dela taky jen SPECTRUM f$ - a jeho "LOAD + LET f$" by z programu nesel.
+8578  E453              extraDotTypes:
+8579  E453 6E 65 78                 defb "nex"
+8579  E456 00 00          defw 0
+8580  E458 62 61 73                 defb "bas"
+8580  E45B 65 E4          defw extraDotBas
+8581  E45D 74 61 70                 defb "tap"
+8581  E460 78 E4          defw extraDotTap
+8582  E462 00                       defb 0
+8583  E463 8F E4                    defw extraDotSnx
+8584  E465
+8585  E465                          ; :CLEAR 65367:LOAD "jmeno"
+8586  E465              extraDotBas:
+8587  E465 3A FD 36 35              defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
+8587  E469 33 36 37 0E
+8587  E46D 00 00 57 FF
+8587  E471 00
+8588  E472 3A EF 22 1F              defb ":",$EF,'"',DOTC_NAME,'"',DOTC_END
+8588  E476 22 1E
+8589  E478                          ; :.tapein "jmeno":LOAD "t:":LOAD ""
+8590  E478              extraDotTap:
+8591  E478 3A 2E 74 61              defb ":.tapein ",'"',DOTC_NAME,'"'
+8591  E47C 70 65 69 6E
+8591  E480 20 22 1F 22
+8592  E484 3A EF 22 74              defb ":",$EF,'"t:"',":",$EF,'""',DOTC_END
+8592  E488 3A 22 3A EF
+8592  E48C 22 22 1E
+8593  E48F                          ; :SPECTRUM "jmeno"
+8594  E48F              extraDotSnx:
+8595  E48F 3A A3 22 1F              defb ":",$A3,'"',DOTC_NAME,'"',DOTC_END
+8595  E493 22 1E
+8596  E495                          ENDIF
+8597  E495
+8598  E495              ; Blocking keyboard input for code running in MMU7.  The resident INKEY
+8599  E495              ; cannot be used here: its retry path calls gettime, and gettime changes the
+8600  E495              ; $C000-$FFFF mapping through $7FFD.  Require a full release both before and
+8601  E495              ; after the key so the H used to open Help is not consumed by the dialog.
+8602  E495              extra_read_key:
+8603  E495              .release_before
+8604  E495 FB                       ei
+8605  E496 76                       halt
+8606  E497 CD 4C 80                 call KEYSCAN
+8607  E49A 7B                       ld a,e
+8608  E49B 3C                       inc a
+8609  E49C 20 F7                    jr nz,.release_before
+8610  E49E              .press
+8611  E49E 76                       halt
+8612  E49F CD 4C 80                 call KEYSCAN
+8613  E4A2 7B                       ld a,e
+8614  E4A3 3C                       inc a
+8615  E4A4 28 F8                    jr z,.press
+8616  E4A6 7A                       ld a,d
+8617  E4A7 21 90 80                 ld hl,SYMTAB
+8618  E4AA FE 18                    cp $18
+8619  E4AC 28 0A                    jr z,.decode
+8620  E4AE 21 B8 80                 ld hl,CAPSTAB
+8621  E4B1 FE 27                    cp $27
+8622  E4B3 28 03                    jr z,.decode
+8623  E4B5 21 DF 80                 ld hl,NORMTAB
+8624  E4B8              .decode
+8625  E4B8 16 00                    ld d,0
+8626  E4BA 19                       add hl,de
+8627  E4BB 7E                       ld a,(hl)
+8628  E4BC B7                       or a
+8629  E4BD 28 D6                    jr z,.release_before
+8630  E4BF F5                       push af
+8631  E4C0              .release_after
+8632  E4C0 76                       halt
+8633  E4C1 CD 4C 80                 call KEYSCAN
+8634  E4C4 7B                       ld a,e
+8635  E4C5 3C                       inc a
+8636  E4C6 20 F8                    jr nz,.release_after
+8637  E4C8 F1                       pop af
+8638  E4C9 F5                       push af
+8639  E4CA CD B5 BF                 call beepk
+8640  E4CD F1                       pop af
+8641  E4CE C9                       ret
+8642  E4CF
+8643  E4CF              ; Verify the complete standard plugin set while the extra bank is already
+8644  E4CF              ; mapped during startup. RST $08 file access does not disturb the resident
+8645  E4CF              ; code banks. Preserve every caller register because VSE_NASTAV prepares
+8646  E4CF              ; HL/DE/BC for the drawing loop that follows this call.
+8647  E4CF              EXTRA_CHECK_PLUGINS:
+8648  E4CF F5                       push af
+8649  E4D0 C5                       push bc
+8650  E4D1 D5                       push de
+8651  E4D2 E5                       push hl
+8652  E4D3 DD E5                    push ix
+8653  E4D5 FD E5                    push iy
+8654  E4D7 21 BA E5                 ld hl,extraPluginTable
+8655  E4DA 22 30 E7                 ld (extraPluginScanPtr),hl
+8656  E4DD AF                       xor a
+8657  E4DE 32 34 E7                 ld (extraPluginMissingCount),a
+8658  E4E1              .next
+8659  E4E1 2A 30 E7                 ld hl,(extraPluginScanPtr)
+8660  E4E4 5E                       ld e,(hl)
+8661  E4E5 23                       inc hl
+8662  E4E6 56                       ld d,(hl)
+8663  E4E7 23                       inc hl
+8664  E4E8 22 30 E7                 ld (extraPluginScanPtr),hl
+8665  E4EB 7A                       ld a,d
+8666  E4EC B3                       or e
+8667  E4ED 28 2F                    jr z,.complete
+8668  E4EF ED 53 32 E7              ld (extraPluginCurrentPath),de
+8669  E4F3 D5                       push de
+8670  E4F4 DD E1                    pop ix
+8671  E4F6                          IFDEF CC_DOT
+8672  E4F6 EB                       ex de,hl                              ; uvnitr dot commandu bere esxDOS jmeno z HL
+8673  E4F7                          ENDIF
+8674  E4F7 AF                       xor a
+8675  E4F8 06 01                    ld b,FA_READ
+8676  E4FA CF                       rst $08
+8677  E4FB 9A                       db F_OPEN
+8678  E4FC 38 04                    jr c,.missing
+8679  E4FE CF                       rst $08
+8680  E4FF 9B                       db F_CLOSE
+8681  E500 18 DF                    jr .next
+8682  E502              .missing
+8683  E502 3A 34 E7                 ld a,(extraPluginMissingCount)
+8684  E505 3C                       inc a
+8685  E506 32 34 E7                 ld (extraPluginMissingCount),a
+8686  E509 FE 01                    cp 1
+8687  E50B CC 4A E5                 call z,extra_plugin_check_draw_box
+8688  E50E C6 05                    add a,5
+8689  E510 6F                       ld l,a
+8690  E511 26 04                    ld h,4
+8691  E513 ED 5B 32 E7              ld de,(extraPluginCurrentPath)
+8692  E517 3E 10                    ld a,16
+8693  E519 CD 09 81                 call print
+8694  E51C 18 C3                    jr .next
+8695  E51E              .complete
+8696  E51E 3A 34 E7                 ld a,(extraPluginMissingCount)
+8697  E521 B7                       or a
+8698  E522 28 1D                    jr z,.done
+8699  E524 21 1A 04                 ld hl,4*256+26
+8700  E527 11 A0 E5                 ld de,extraPluginContinueTxt
+8701  E52A 3E 10                    ld a,16
+8702  E52C CD 09 81                 call print
+8703  E52F AF                       xor a
+8704  E530 32 4E 73                 ld (TLACITKO),a
+8705  E533 CD 95 E4                 call extra_read_key
+8706  E536              .release
+8707  E536 CD 4C 80                 call KEYSCAN
+8708  E539 7B                       ld a,e
+8709  E53A 3C                       inc a
+8710  E53B 20 F9                    jr nz,.release
+8711  E53D AF                       xor a
+8712  E53E 32 4E 73                 ld (TLACITKO),a
+8713  E541              .done
+8714  E541 FD E1                    pop iy
+8715  E543 DD E1                    pop ix
+8716  E545 E1                       pop hl
+8717  E546 D1                       pop de
+8718  E547 C1                       pop bc
+8719  E548 F1                       pop af
+8720  E549 C9                       ret
+8721  E54A
+8722  E54A              extra_plugin_check_draw_box:
+8723  E54A F5                       push af
+8724  E54B 21 01 02                 ld hl,2*256+1
+8725  E54E 01 1C 4A                 ld bc,74*256+28
+8726  E551 3E 10                    ld a,16
+8727  E553 CD 2C 81                 call window
+8728  E556 21 02 04                 ld hl,4*256+2
+8729  E559 11 6E E5                 ld de,extraPluginTitleTxt
+8730  E55C 3E 10                    ld a,16
+8731  E55E CD 09 81                 call print
+8732  E561 21 04 04                 ld hl,4*256+4
+8733  E564 11 8A E5                 ld de,extraPluginMissingTxt
+8734  E567 3E 10                    ld a,16
+8735  E569 CD 09 81                 call print
+8736  E56C F1                       pop af
+8737  E56D C9                       ret
+8738  E56E
+8739  E56E 43 61 6C 6D  extraPluginTitleTxt    defb "Calm Commander plugin check",0
+8739  E572 20 43 6F 6D
+8739  E576 6D 61 6E 64
+8739  E57A 65 72 20 70
+8739  E57E 6C 75 67 69
+8739  E582 6E 20 63 68
+8739  E586 65 63 6B 00
+8740  E58A 4D 69 73 73  extraPluginMissingTxt  defb "Missing plugin files:",0
+8740  E58E 69 6E 67 20
+8740  E592 70 6C 75 67
+8740  E596 69 6E 20 66
+8740  E59A 69 6C 65 73
+8740  E59E 3A 00
+8741  E5A0 50 72 65 73  extraPluginContinueTxt defb "Press any key to continue",0
+8741  E5A4 73 20 61 6E
+8741  E5A8 79 20 6B 65
+8741  E5AC 79 20 74 6F
+8741  E5B0 20 63 6F 6E
+8741  E5B4 74 69 6E 75
+8741  E5B8 65 00
+8742  E5BA
+8743  E5BA              extraPluginTable:
+8744  E5BA DC E5                    defw extraPluginSyscopy
+8745  E5BC F2 E5                    defw extraPluginDirInfo
+8746  E5BE 09 E6                    defw extraPluginBookmarks
+8747  E5C0 21 E6                    defw extraPluginSettings
+8748  E5C2 38 E6                    defw extraPluginText
+8749  E5C4 4B E6                    defw extraPluginZxScreen
+8750  E5C6 62 E6                    defw extraPluginNxi
+8751  E5C8 74 E6                    defw extraPluginPt2
+8752  E5CA 8A E6                    defw extraPluginPt3
+8753  E5CC A0 E6                    defw extraPluginStc
+8754  E5CE B6 E6                    defw extraPluginStp
+8755  E5D0 CC E6                    defw extraPluginSqt
+8756  E5D2 E1 E6                    defw extraPluginHello
+8757  E5D4 F9 E6                    defw extraPluginBas
+8758  E5D6 0B E7                    defw extraPluginTap
+8759  E5D8 1D E7                    defw extraPluginEdit
+8760  E5DA 00 00                    defw 0
+8761  E5DC
+8762  E5DC 63 3A 2F 73  extraPluginSyscopy   defb "c:/sys/cc","/syscopy.ccp",0
+8762  E5E0 79 73 2F 63
+8762  E5E4 63 2F 73 79
+8762  E5E8 73 63 6F 70
+8762  E5EC 79 2E 63 63
+8762  E5F0 70 00
+8763  E5F2 63 3A 2F 73  extraPluginDirInfo   defb "c:/sys/cc","/dir_info.ccp",0
+8763  E5F6 79 73 2F 63
+8763  E5FA 63 2F 64 69
+8763  E5FE 72 5F 69 6E
+8763  E602 66 6F 2E 63
+8763  E606 63 70 00
+8764  E609 63 3A 2F 73  extraPluginBookmarks defb "c:/sys/cc","/bookmarks.ccp",0
+8764  E60D 79 73 2F 63
+8764  E611 63 2F 62 6F
+8764  E615 6F 6B 6D 61
+8764  E619 72 6B 73 2E
+8764  E61D 63 63 70 00
+8765  E621 63 3A 2F 73  extraPluginSettings  defb "c:/sys/cc","/settings.ccp",0
+8765  E625 79 73 2F 63
+8765  E629 63 2F 73 65
+8765  E62D 74 74 69 6E
+8765  E631 67 73 2E 63
+8765  E635 63 70 00
+8766  E638 63 3A 2F 73  extraPluginText      defb "c:/sys/cc","/text.ccp",0
+8766  E63C 79 73 2F 63
+8766  E640 63 2F 74 65
+8766  E644 78 74 2E 63
+8766  E648 63 70 00
+8767  E64B 63 3A 2F 73  extraPluginZxScreen  defb "c:/sys/cc","/zxscreen.ccp",0
+8767  E64F 79 73 2F 63
+8767  E653 63 2F 7A 78
+8767  E657 73 63 72 65
+8767  E65B 65 6E 2E 63
+8767  E65F 63 70 00
+8768  E662 63 3A 2F 73  extraPluginNxi       defb "c:/sys/cc","/nxi.ccp",0
+8768  E666 79 73 2F 63
+8768  E66A 63 2F 6E 78
+8768  E66E 69 2E 63 63
+8768  E672 70 00
+8769  E674 63 3A 2F 73  extraPluginPt2       defb "c:/sys/cc","/pt2test.ccp",0
+8769  E678 79 73 2F 63
+8769  E67C 63 2F 70 74
+8769  E680 32 74 65 73
+8769  E684 74 2E 63 63
+8769  E688 70 00
+8770  E68A 63 3A 2F 73  extraPluginPt3       defb "c:/sys/cc","/pt3test.ccp",0
+8770  E68E 79 73 2F 63
+8770  E692 63 2F 70 74
+8770  E696 33 74 65 73
+8770  E69A 74 2E 63 63
+8770  E69E 70 00
+8771  E6A0 63 3A 2F 73  extraPluginStc       defb "c:/sys/cc","/stctest.ccp",0
+8771  E6A4 79 73 2F 63
+8771  E6A8 63 2F 73 74
+8771  E6AC 63 74 65 73
+8771  E6B0 74 2E 63 63
+8771  E6B4 70 00
+8772  E6B6 63 3A 2F 73  extraPluginStp       defb "c:/sys/cc","/stptest.ccp",0
+8772  E6BA 79 73 2F 63
+8772  E6BE 63 2F 73 74
+8772  E6C2 70 74 65 73
+8772  E6C6 74 2E 63 63
+8772  E6CA 70 00
+8773  E6CC 63 3A 2F 73  extraPluginSqt       defb "c:/sys/cc","/sqtest.ccp",0
+8773  E6D0 79 73 2F 63
+8773  E6D4 63 2F 73 71
+8773  E6D8 74 65 73 74
+8773  E6DC 2E 63 63 70
+8773  E6E0 00
+8774  E6E1 63 3A 2F 73  extraPluginHello     defb "c:/sys/cc","/HelloWord.ccp",0
+8774  E6E5 79 73 2F 63
+8774  E6E9 63 2F 48 65
+8774  E6ED 6C 6C 6F 57
+8774  E6F1 6F 72 64 2E
+8774  E6F5 63 63 70 00
+8775  E6F9 63 3A 2F 73  extraPluginBas       defb "c:/sys/cc","/bas.ccp",0
+8775  E6FD 79 73 2F 63
+8775  E701 63 2F 62 61
+8775  E705 73 2E 63 63
+8775  E709 70 00
+8776  E70B 63 3A 2F 73  extraPluginTap       defb "c:/sys/cc","/tap.ccp",0
+8776  E70F 79 73 2F 63
+8776  E713 63 2F 74 61
+8776  E717 70 2E 63 63
+8776  E71B 70 00
+8777  E71D 63 3A 2F 73  extraPluginEdit      defb "c:/sys/cc","/edit.ccp",0
+8777  E721 79 73 2F 63
+8777  E725 63 2F 65 64
+8777  E729 69 74 2E 63
+8777  E72D 63 70 00
+8778  E730
+8779  E730 00 00        extraPluginScanPtr      defw 0
+8780  E732 00 00        extraPluginCurrentPath  defw 0
+8781  E734 00           extraPluginMissingCount defb 0
+8782  E735
+8783  E735              ; --- Font data (specialchar) - label je definovan uvnitr include na radku 1 ---
+8784  E735                          include "tilemap_font_8x6.i.asm"
 # file opened: tilemap_font_8x6.i.asm
-   1+ E782              specialchar
-   2+ E782              ;rovna horni cara
-   3+ E782 00 00 00 00  	HEX 00000000
-   4+ E786 33 33 33 33  	HEX 33333333
-   5+ E78A 00 00 00 00  	HEX 00000000
-   6+ E78E 33 33 33 33  	HEX 33333333
-   7+ E792 00 00 00 00  	HEX 00000000
-   8+ E796 00 00 00 00  	HEX 00000000
-   9+ E79A 00 00 00 00  	HEX 00000000
-  10+ E79E 00 00 00 00  	HEX 00000000
-  11+ E7A2              ;rovna spodni cara
-  12+ E7A2 00 00 00 00  	HEX 00000000
-  13+ E7A6 00 00 00 00  	HEX 00000000
-  14+ E7AA 00 00 00 00  	HEX 00000000
-  15+ E7AE 00 00 00 00  	HEX 00000000
-  16+ E7B2 33 33 33 33  	HEX 33333333
-  17+ E7B6 00 00 00 00  	HEX 00000000
-  18+ E7BA 33 33 33 33  	HEX 33333333
-  19+ E7BE 00 00 00 00  	HEX 00000000
-  20+ E7C2
-  21+ E7C2              ;levy horni roh
-  22+ E7C2 00 00 00 00  	HEX 00000000
-  23+ E7C6 03 33 33 33  	HEX 03333333
-  24+ E7CA 03 00 00 00  	HEX 03000000
-  25+ E7CE 03 03 33 33  	HEX 03033333
-  26+ E7D2 03 03 00 00  	HEX 03030000
-  27+ E7D6 03 03 00 00  	HEX 03030000
-  28+ E7DA 03 03 00 00  	HEX 03030000
-  29+ E7DE 03 03 00 00  	HEX 03030000
-  30+ E7E2              ;pravy horni roh
-  31+ E7E2 00 00 00 00  	HEX 00000000
-  32+ E7E6 33 33 33 30  	HEX 33333330
-  33+ E7EA 00 00 00 30  	HEX 00000030
-  34+ E7EE 33 33 30 30  	HEX 33333030
-  35+ E7F2 00 00 30 30  	HEX 00003030
-  36+ E7F6 00 00 30 30  	HEX 00003030
-  37+ E7FA 00 00 30 30  	HEX 00003030
-  38+ E7FE 00 00 30 30  	HEX 00003030
-  39+ E802
-  40+ E802              ;20 - pravy spodni roh
-  41+ E802 00 00 30 30  	HEX 00003030
-  42+ E806 00 00 30 30  	HEX 00003030
-  43+ E80A 00 00 30 30  	HEX 00003030
-  44+ E80E 00 00 30 30  	HEX 00003030
-  45+ E812 33 33 30 30  	HEX 33333030
-  46+ E816 00 00 00 30  	HEX 00000030
-  47+ E81A 33 33 33 30  	HEX 33333330
-  48+ E81E 00 00 00 00  	HEX 00000000
-  49+ E822              ;21 - levy spodni roh
-  50+ E822 03 03 00 00  	HEX 03030000
-  51+ E826 03 03 00 00  	HEX 03030000
-  52+ E82A 03 03 00 00  	HEX 03030000
-  53+ E82E 03 03 00 00  	HEX 03030000
-  54+ E832 03 03 33 33  	HEX 03033333
-  55+ E836 03 00 00 00  	HEX 03000000
-  56+ E83A 03 33 33 33  	HEX 03333333
-  57+ E83E 00 00 00 00  	HEX 00000000
-  58+ E842
-  59+ E842              ;22 - rovna leva cara
-  60+ E842 03 03 00 00  	HEX 03030000
-  61+ E846 03 03 00 00  	HEX 03030000
-  62+ E84A 03 03 00 00  	HEX 03030000
-  63+ E84E 03 03 00 00  	HEX 03030000
-  64+ E852 03 03 00 00  	HEX 03030000
-  65+ E856 03 03 00 00  	HEX 03030000
-  66+ E85A 03 03 00 00  	HEX 03030000
-  67+ E85E 03 03 00 00  	HEX 03030000
-  68+ E862              ;23 - rovna prava cara
-  69+ E862 00 00 30 30  	HEX 00003030
-  70+ E866 00 00 30 30  	HEX 00003030
-  71+ E86A 00 00 30 30  	HEX 00003030
-  72+ E86E 00 00 30 30  	HEX 00003030
-  73+ E872 00 00 30 30  	HEX 00003030
-  74+ E876 00 00 30 30  	HEX 00003030
-  75+ E87A 00 00 30 30  	HEX 00003030
-  76+ E87E 00 00 30 30  	HEX 00003030
-  77+ E882
-  78+ E882
-  79+ E882              ; 24 - full invisible (all red/yellow stripes)
-  80+ E882 55 55 44 44  	HEX	55554444
-  81+ E886 55 44 44 55  	HEX	55444455
-  82+ E88A 44 44 55 55  	HEX	44445555
-  83+ E88E 44 55 55 44  	HEX	44555544
-  84+ E892 55 55 44 44  	HEX	55554444
-  85+ E896 55 44 44 55  	HEX	55444455
-  86+ E89A 44 44 55 55  	HEX	44445555
-  87+ E89E 44 55 55 44  	HEX	44555544
-  88+ E8A2              ; 25 - red cross
-  89+ E8A2 00 00 00 00  	HEX	00000000
-  90+ E8A6 00 00 00 00  	HEX 00000000
-  91+ E8AA 04 00 00 40  	HEX 04000040
-  92+ E8AE 00 40 04 00  	HEX	00400400
-  93+ E8B2 00 04 40 00  	HEX 00044000
-  94+ E8B6 00 40 40 00  	HEX 00404000
-  95+ E8BA 04 00 04 00  	HEX	04000400
-  96+ E8BE 00 00 00 00  	HEX 00000000
-  97+ E8C2              ; 26 - yellow dot
-  98+ E8C2 00 00 00 00  	HEX	00000000 00555000 05555500
-  98+ E8C6 00 55 50 00
-  98+ E8CA 05 55 55 00
-  99+ E8CE 05 55 55 00  	HEX	05555500 00555000 00000000
-  99+ E8D2 00 55 50 00
-  99+ E8D6 00 00 00 00
- 100+ E8DA 00 00 00 00  	HEX	00000000 00000000
- 100+ E8DE 00 00 00 00
- 101+ E8E2              ; 27 - green OK
- 102+ E8E2 00 00 00 00  	HEX	00000000
- 103+ E8E6 00 00 00 60  	HEX 00000060
- 104+ E8EA 00 00 00 60  	HEX 00000060
- 105+ E8EE 00 00 06 00  	HEX	00000600
- 106+ E8F2 06 00 06 00  	HEX 06000600
- 107+ E8F6 00 60 60 00  	HEX 00606000
- 108+ E8FA 00 06 00 00  	HEX	00060000
- 109+ E8FE 00 00 00 00  	HEX 00000000
- 110+ E902              ; 28 - mrizka (VU meter bar, checkerboard index 3 / 0)
- 111+ E902 30 30 30 30  	HEX	30303030
- 112+ E906 03 03 03 03  	HEX	03030303
- 113+ E90A 30 30 30 30  	HEX	30303030
- 114+ E90E 03 03 03 03  	HEX	03030303
- 115+ E912 30 30 30 30  	HEX	30303030
- 116+ E916 03 03 03 03  	HEX	03030303
- 117+ E91A 30 30 30 30  	HEX	30303030
- 118+ E91E 03 03 03 03  	HEX	03030303
- 119+ E922              ; 29 - top arrow
- 120+ E922 00 00 00 00  	HEX	00000000
- 121+ E926 00 00 00 00  	HEX	00000000
- 122+ E92A 00 00 00 00  	HEX	00000000
- 123+ E92E 00 00 00 00  	HEX	00000000
- 124+ E932 00 00 00 00  	HEX	00000000
- 125+ E936 00 00 00 00  	HEX	00000000
- 126+ E93A 00 00 00 00  	HEX	00000000
- 127+ E93E 00 00 00 00  	HEX	00000000
- 128+ E942              ; 30 - right arrow
- 129+ E942 00 00 00 00  	HEX	00000000
- 130+ E946 00 00 00 00  	HEX	00000000
- 131+ E94A 00 00 00 00  	HEX	00000000
- 132+ E94E 00 00 00 00  	HEX	00000000
- 133+ E952 00 00 00 00  	HEX	00000000
- 134+ E956 00 00 00 00  	HEX	00000000
- 135+ E95A 00 00 00 00  	HEX	00000000
- 136+ E95E 00 00 00 00  	HEX	00000000
- 137+ E962              ; 31 - bottom arrow
- 138+ E962 00 00 00 00  	HEX	00000000
- 139+ E966 00 00 00 00  	HEX	00000000
- 140+ E96A 00 00 00 00  	HEX	00000000
- 141+ E96E 00 00 00 00  	HEX	00000000
- 142+ E972 00 00 00 00  	HEX	00000000
- 143+ E976 00 00 00 00  	HEX	00000000
- 144+ E97A 00 00 00 00  	HEX	00000000
- 145+ E97E 00 00 00 00  	HEX	00000000
- 146+ E982              specialchar2
- 147+ E982              ; 32 - space (regular ZX charset onward)
- 148+ E982              	; HEX	00000000 00000000 00000000
- 149+ E982              	; HEX	00000000 00000000 00000000
- 150+ E982              	; HEX	00000000 00000000
- 151+ E982              	; HEX	00320000 00320000 00320000
- 152+ E982              	; HEX	00000000 00320000 00000000
- 153+ E982              	; HEX	00000000 00000000
- 154+ E982              	; HEX	02302300 01301300 03003000
- 155+ E982              	; HEX	00000000 00000000 00000000
- 156+ E982              	; HEX	00000000 00000000
- 157+ E982              	; HEX	00303000 03333300 00303000
- 158+ E982              	; HEX	03333300 00303000 00000000
- 159+ E982              	; HEX	00000000 00000000
- 160+ E982              	; HEX	00333300 03030000 00333000
- 161+ E982              	; HEX	00030300 03333000 00030000
- 162+ E982              	; HEX	00000000 00000000
- 163+ E982              	; HEX	03300300 03203000 00030000
- 164+ E982              	; HEX	00303300 03003200 00000000
- 165+ E982              	; HEX	00000000 00000000
- 166+ E982              	; HEX	00300000 03020000 00330300
- 167+ E982              	; HEX	03003000 00330300 00000000
- 168+ E982              	; HEX	00000000 00000000
- 169+ E982              	; HEX	00230000 00130000 00300000
- 170+ E982              	; HEX	00000000 00000000 00000000
- 171+ E982              	; HEX	00000000 00000000
- 172+ E982              	; HEX	00000300 00003000 00003000
- 173+ E982              	; HEX	00003000 00000300 00000000
- 174+ E982              	; HEX	00000000 00000000
- 175+ E982              	; HEX	03000000 00300000 00300000
- 176+ E982              	; HEX	00300000 03000000 00000000
- 177+ E982              	; HEX	00000000 00000000
- 178+ E982              	; HEX	01303100 00232000 03333300
- 179+ E982              	; HEX	00232000 01303100 00000000
- 180+ E982              	; HEX	00000000 00000000
- 181+ E982              	; HEX	00030000 00030000 03333300
- 182+ E982              	; HEX	00030000 00030000 00000000
- 183+ E982              	; HEX	00000000 00000000
- 184+ E982              	; HEX	00000000 00000000 00000000
- 185+ E982              	; HEX	01300000 03000000 00000000
- 186+ E982              	; HEX	00000000 00000000
- 187+ E982              	; HEX	00000000 00000000 03333300
- 188+ E982              	; HEX	00000000 00000000 00000000
- 189+ E982              	; HEX	00000000 00000000
- 190+ E982              	; HEX	00000000 00000000 00000000
- 191+ E982              	; HEX	00000000 03200000 00000000
- 192+ E982              	; HEX	00000000 00000000
- 193+ E982              	; HEX	00000300 00003000 00030000
- 194+ E982              	; HEX	00300000 03000000 00000000
- 195+ E982              	; HEX	00000000 00000000
- 196+ E982              	; HEX	00333000 03102300 03020300
- 197+ E982              	; HEX	03201300 00333000 00000000
- 198+ E982              	; HEX	00000000 00000000
- 199+ E982              	; HEX	00023000 00233000 00013000
- 200+ E982              	; HEX	00013000 00133300 00000000
- 201+ E982              	; HEX	00000000 00000000
- 202+ E982              	; HEX	02333000 01001300 00333000
- 203+ E982              	; HEX	03100000 03333300 00000000
- 204+ E982              	; HEX	00000000 00000000
- 205+ E982              	; HEX	02333000 00001300 00333000
- 206+ E982              	; HEX	00001300 02333000 00000000
- 207+ E982              	; HEX	00000000 00000000
- 208+ E982              	; HEX	00033000 00313000 03013000
- 209+ E982              	; HEX	03333300 00013000 00000000
- 210+ E982              	; HEX	00000000 00000000
- 211+ E982              	; HEX	03333300 03000000 03333000
- 212+ E982              	; HEX	00001300 02333000 00000000
- 213+ E982              	; HEX	00000000 00000000
- 214+ E982              	; HEX	00333000 03100000 03333000
- 215+ E982              	; HEX	03101300 00333000 00000000
- 216+ E982              	; HEX	00000000 00000000
- 217+ E982              	; HEX	03333200 00003200 00032000
- 218+ E982              	; HEX	00320000 00320000 00000000
- 219+ E982              	; HEX	00000000 00000000
- 220+ E982              	; HEX	00333000 03101300 00333000
- 221+ E982              	; HEX	03101300 00333000 00000000
- 222+ E982              	; HEX	00000000 00000000
- 223+ E982              	; HEX	00333000 03101300 00333300
- 224+ E982              	; HEX	00001300 00333000 00000000
- 225+ E982              	; HEX	00000000 00000000
- 226+ E982              	; HEX	00000000 00320000 00000000
- 227+ E982              	; HEX	00320000 00000000 00000000
- 228+ E982              	; HEX	00000000 00000000
- 229+ E982              	; HEX	00000000 00230000 00000000
- 230+ E982              	; HEX	00130000 00300000 00000000
- 231+ E982              	; HEX	00000000 00000000
- 232+ E982              	; HEX	00031000 00310000 03100000
- 233+ E982              	; HEX	00310000 00031000 00000000
- 234+ E982              	; HEX	00000000 00000000
- 235+ E982              	; HEX	00000000 03333300 00000000
- 236+ E982              	; HEX	03333300 00000000 00000000
- 237+ E982              	; HEX	00000000 00000000
- 238+ E982              	; HEX	01300000 00130000 00013000
- 239+ E982              	; HEX	00130000 01300000 00000000
- 240+ E982              	; HEX	00000000 00000000
- 241+ E982              	; HEX	02330000 00013000 00330000
- 242+ E982              	; HEX	00000000 00310000 00000000
- 243+ E982              	; HEX	00000000 00000000
- 244+ E982              	; HEX	00333000 03130300 03023200
- 245+ E982              	; HEX	03100000 00333000 00000000
- 246+ E982              	; HEX	00000000 00000000
- 247+ E982              	; HEX	00333000 03101300 03333300
- 248+ E982              	; HEX	03000300 03000300 00000000
- 249+ E982              	; HEX	00000000 00000000
- 250+ E982              	; HEX	03333000 03001300 03333000
- 251+ E982              	; HEX	03001300 03333000 00000000
- 252+ E982              	; HEX	00000000 00000000
- 253+ E982              	; HEX	00333200 03100100 03000000
- 254+ E982              	; HEX	03100100 00333200 00000000
- 255+ E982              	; HEX	00000000 00000000
- 256+ E982              	; HEX	03333000 03001300 03000300
- 257+ E982              	; HEX	03001300 03333000 00000000
- 258+ E982              	; HEX	00000000 00000000
- 259+ E982              	; HEX	03333300 03000000 03330000
- 260+ E982              	; HEX	03000000 03333300 00000000
- 261+ E982              	; HEX	00000000 00000000
- 262+ E982              	; HEX	03333300 03000000 03330000
- 263+ E982              	; HEX	03000000 03000000 00000000
- 264+ E982              	; HEX	00000000 00000000
- 265+ E982              	; HEX	00333200 03100000 03003300
- 266+ E982              	; HEX	03100300 00333100 00000000
- 267+ E982              	; HEX	00000000 00000000
- 268+ E982              	; HEX	03000300 03000300 03333300
- 269+ E982              	; HEX	03000300 03000300 00000000
- 270+ E982              	; HEX	00000000 00000000
- 271+ E982              	; HEX	00333000 00030000 00030000
- 272+ E982              	; HEX	00030000 00333000 00000000
- 273+ E982              	; HEX	00000000 00000000
- 274+ E982              	; HEX	00033300 00003000 00003000
- 275+ E982              	; HEX	03103000 00331000 00000000
- 276+ E982              	; HEX	00000000 00000000
- 277+ E982              	; HEX	03000300 03003000 03330000
- 278+ E982              	; HEX	03003000 03000300 00000000
- 279+ E982              	; HEX	00000000 00000000
- 280+ E982              	; HEX	03000000 03000000 03000000
- 281+ E982              	; HEX	03000000 03333300 00000000
- 282+ E982              	; HEX	00000000 00000000
- 283+ E982              	; HEX	03000300 03303300 03030300
- 284+ E982              	; HEX	03000300 03000300 00000000
- 285+ E982              	; HEX	00000000 00000000
- 286+ E982              	; HEX	03000300 03300300 03030300
- 287+ E982              	; HEX	03003300 03000300 00000000
- 288+ E982              	; HEX	00000000 00000000
- 289+ E982              	; HEX	00333000 03101300 03000300
- 290+ E982              	; HEX	03101300 00333000 00000000
- 291+ E982              	; HEX	00000000 00000000
- 292+ E982              	; HEX	03333000 03001300 03333000
- 293+ E982              	; HEX	03000000 03000000 00000000
- 294+ E982              	; HEX	00000000 00000000
- 295+ E982              	; HEX	00333000 03101300 03000300
- 296+ E982              	; HEX	03102300 00333200 00000020
- 297+ E982              	; HEX	00000000 00000000
- 298+ E982              	; HEX	03333000 03001300 03333000
- 299+ E982              	; HEX	03003000 03000300 00000000
- 300+ E982              	; HEX	00000000 00000000
- 301+ E982              	; HEX	00333200 03100100 00333000
- 302+ E982              	; HEX	01001300 02333000 00000000
- 303+ E982              	; HEX	00000000 00000000
- 304+ E982              	; HEX	03333300 00030000 00030000
- 305+ E982              	; HEX	00030000 00030000 00000000
- 306+ E982              	; HEX	00000000 00000000
- 307+ E982              	; HEX	03000300 03000300 03000300
- 308+ E982              	; HEX	03101300 00333000 00000000
- 309+ E982              	; HEX	00000000 00000000
- 310+ E982              	; HEX	03000300 03000300 03000300
- 311+ E982              	; HEX	00303000 00030000 00000000
- 312+ E982              	; HEX	00000000 00000000
- 313+ E982              	; HEX	03000300 03000300 03030300
- 314+ E982              	; HEX	03030300 00303000 00000000
- 315+ E982              	; HEX	00000000 00000000
- 316+ E982              	; HEX	03000300 00303000 00030000
- 317+ E982              	; HEX	00303000 03000300 00000000
- 318+ E982              	; HEX	00000000 00000000
- 319+ E982              	; HEX	03000300 00303000 00030000
- 320+ E982              	; HEX	00030000 00030000 00000000
- 321+ E982              	; HEX	00000000 00000000
- 322+ E982              	; HEX	03333300 00003000 00030000
- 323+ E982              	; HEX	00300000 03333300 00000000
- 324+ E982              	; HEX	00000000 00000000
- 325+ E982              	; HEX	00003300 00003000 00003000
- 326+ E982              	; HEX	00003000 00003300 00000000
- 327+ E982              	; HEX	00000000 00000000
- 328+ E982              	; HEX	03000000 00300000 00030000
- 329+ E982              	; HEX	00003000 00000300 00000000
- 330+ E982              	; HEX	00000000 00000000
- 331+ E982              	; HEX	03300000 00300000 00300000
- 332+ E982              	; HEX	00300000 03300000 00000000
- 333+ E982              	; HEX	00000000 00000000
- 334+ E982              	; HEX	00030000 00333000 02131200
- 335+ E982              	; HEX	00030000 00030000 00000000
- 336+ E982              	; HEX	00000000 00000000
- 337+ E982              	; HEX	00000000 00000000 00000000
- 338+ E982              	; HEX	00000000 33333330 00000000
- 339+ E982              	; HEX	00000000 00000000
- 340+ E982              	; HEX	00033000 00300300 03330000
- 341+ E982              	; HEX	00300000 03333300 00000000
- 342+ E982              	; HEX	00000000 00000000
- 343+ E982              	; HEX	00000000 00330000 00113000
- 344+ E982              	; HEX	03223000 00333000 00000000
- 345+ E982              	; HEX	00000000 00000000
- 346+ E982              	; HEX	03000000 03000000 03330000
- 347+ E982              	; HEX	03013000 03330000 00000000
- 348+ E982              	; HEX	00000000 00000000
- 349+ E982              	; HEX	00000000 00333000 03100000
- 350+ E982              	; HEX	03100000 00333000 00000000
- 351+ E982              	; HEX	00000000 00000000
- 352+ E982              	; HEX	00003000 00003000 00333000
- 353+ E982              	; HEX	03103000 00333000 00000000
- 354+ E982              	; HEX	00000000 00000000
- 355+ E982              	; HEX	00000000 00330000 03223000
- 356+ E982              	; HEX	03110000 00333000 00000000
- 357+ E982              	; HEX	00000000 00000000
- 358+ E982              	; HEX	00331000 03100000 03310000
- 359+ E982              	; HEX	03000000 03000000 00000000
- 360+ E982              	; HEX	00000000 00000000
- 361+ E982              	; HEX	00000000 00333000 03103000
- 362+ E982              	; HEX	00333000 00013000 00330000
- 363+ E982              	; HEX	00000000 00000000
- 364+ E982              	; HEX	03000000 03000000 03331000
- 365+ E982              	; HEX	03003000 03003000 00000000
- 366+ E982              	; HEX	00000000 00000000
- 367+ E982              	; HEX	00030000 00000000 00230000
- 368+ E982              	; HEX	00030000 00232000 00000000
- 369+ E982              	; HEX	00000000 00000000
- 370+ E982              	; HEX	00030000 00000000 00030000
- 371+ E982              	; HEX	00030000 03030000 00300000
- 372+ E982              	; HEX	00000000 00000000
- 373+ E982              	; HEX	03000000 03003000 03330000
- 374+ E982              	; HEX	03003000 03003000 00000000
- 375+ E982              	; HEX	00000000 00000000
- 376+ E982              	; HEX	00300000 00300000 00300000
- 377+ E982              	; HEX	00300000 00030000 00000000
- 378+ E982              	; HEX	00000000 00000000
- 379+ E982              	; HEX	00000000 03303000 03131300
- 380+ E982              	; HEX	03030300 03030300 00000000
- 381+ E982              	; HEX	00000000 00000000
- 382+ E982              	; HEX	00000000 03330000 03013000
- 383+ E982              	; HEX	03003000 03003000 00000000
- 384+ E982              	; HEX	00000000 00000000
- 385+ E982              	; HEX	00000000 00330000 03003000
- 386+ E982              	; HEX	03003000 00330000 00000000
- 387+ E982              	; HEX	00000000 00000000
- 388+ E982              	; HEX	00000000 03330000 03013000
- 389+ E982              	; HEX	03013000 03330000 03000000
- 390+ E982              	; HEX	00000000 00000000
- 391+ E982              	; HEX	00000000 00333000 03103000
- 392+ E982              	; HEX	03103000 00333000 00002300
- 393+ E982              	; HEX	00000000 00000000
- 394+ E982              	; HEX	00000000 03033000 03300000
- 395+ E982              	; HEX	03000000 03000000 00000000
- 396+ E982              	; HEX	00000000 00000000
- 397+ E982              	; HEX	00000000 00333000 03220000
- 398+ E982              	; HEX	00113000 03330000 00000000
- 399+ E982              	; HEX	00000000 00000000
- 400+ E982              	; HEX	00300000 01331000 00300000
- 401+ E982              	; HEX	00310000 00031000 00000000
- 402+ E982              	; HEX	00000000 00000000
- 403+ E982              	; HEX	00000000 03003000 03003000
- 404+ E982              	; HEX	03103000 02333000 00000000
- 405+ E982              	; HEX	00000000 00000000
- 406+ E982              	; HEX	00000000 03000300 03000300
- 407+ E982              	; HEX	00303000 00030000 00000000
- 408+ E982              	; HEX	00000000 00000000
- 409+ E982              	; HEX	00000000 03030300 03030300
- 410+ E982              	; HEX	03131300 03303000 00000000
- 411+ E982              	; HEX	00000000 00000000
- 412+ E982              	; HEX	00000000 03003000 03103000
- 413+ E982              	; HEX	00330000 03013000 00000000
- 414+ E982              	; HEX	00000000 00000000
- 415+ E982              	; HEX	00000000 03003000 03103000
- 416+ E982              	; HEX	02333000 00013000 03330000
- 417+ E982              	; HEX	00000000 00000000
- 418+ E982              	; HEX	00000000 03333000 00030000
- 419+ E982              	; HEX	00300000 03333000 00000000
- 420+ E982              	; HEX	00000000 00000000
- 421+ E982              	; HEX	00002300 00003000 00032000
- 422+ E982              	; HEX	00003000 00002300 00000000
- 423+ E982              	; HEX	00000000 00000000
- 424+ E982              	; HEX	00032000 00032000 00000000
- 425+ E982              	; HEX	00032000 00032000 00000000
- 426+ E982              	; HEX	00000000 00000000
- 427+ E982              	; HEX	03200000 00300000 00230000
- 428+ E982              	; HEX	00300000 03200000 00000000
- 429+ E982              	; HEX	00000000 00000000
- 430+ E982              	; HEX	01331030 03013310 00000000
- 431+ E982              	; HEX	00000000 00000000 00000000
- 432+ E982              	; HEX	00000000 00000000
- 433+ E982              	; HEX	00333300 03122130 03210030
- 434+ E982              	; HEX	03210030 03122130 00333300
- 435+ E982              	; HEX	00000000 00000000
- 436+ E982
+   1+ E735              specialchar
+   2+ E735              ;rovna horni cara
+   3+ E735 00 00 00 00  	HEX 00000000
+   4+ E739 33 33 33 33  	HEX 33333333
+   5+ E73D 00 00 00 00  	HEX 00000000
+   6+ E741 33 33 33 33  	HEX 33333333
+   7+ E745 00 00 00 00  	HEX 00000000
+   8+ E749 00 00 00 00  	HEX 00000000
+   9+ E74D 00 00 00 00  	HEX 00000000
+  10+ E751 00 00 00 00  	HEX 00000000
+  11+ E755              ;rovna spodni cara
+  12+ E755 00 00 00 00  	HEX 00000000
+  13+ E759 00 00 00 00  	HEX 00000000
+  14+ E75D 00 00 00 00  	HEX 00000000
+  15+ E761 00 00 00 00  	HEX 00000000
+  16+ E765 33 33 33 33  	HEX 33333333
+  17+ E769 00 00 00 00  	HEX 00000000
+  18+ E76D 33 33 33 33  	HEX 33333333
+  19+ E771 00 00 00 00  	HEX 00000000
+  20+ E775
+  21+ E775              ;levy horni roh
+  22+ E775 00 00 00 00  	HEX 00000000
+  23+ E779 03 33 33 33  	HEX 03333333
+  24+ E77D 03 00 00 00  	HEX 03000000
+  25+ E781 03 03 33 33  	HEX 03033333
+  26+ E785 03 03 00 00  	HEX 03030000
+  27+ E789 03 03 00 00  	HEX 03030000
+  28+ E78D 03 03 00 00  	HEX 03030000
+  29+ E791 03 03 00 00  	HEX 03030000
+  30+ E795              ;pravy horni roh
+  31+ E795 00 00 00 00  	HEX 00000000
+  32+ E799 33 33 33 30  	HEX 33333330
+  33+ E79D 00 00 00 30  	HEX 00000030
+  34+ E7A1 33 33 30 30  	HEX 33333030
+  35+ E7A5 00 00 30 30  	HEX 00003030
+  36+ E7A9 00 00 30 30  	HEX 00003030
+  37+ E7AD 00 00 30 30  	HEX 00003030
+  38+ E7B1 00 00 30 30  	HEX 00003030
+  39+ E7B5
+  40+ E7B5              ;20 - pravy spodni roh
+  41+ E7B5 00 00 30 30  	HEX 00003030
+  42+ E7B9 00 00 30 30  	HEX 00003030
+  43+ E7BD 00 00 30 30  	HEX 00003030
+  44+ E7C1 00 00 30 30  	HEX 00003030
+  45+ E7C5 33 33 30 30  	HEX 33333030
+  46+ E7C9 00 00 00 30  	HEX 00000030
+  47+ E7CD 33 33 33 30  	HEX 33333330
+  48+ E7D1 00 00 00 00  	HEX 00000000
+  49+ E7D5              ;21 - levy spodni roh
+  50+ E7D5 03 03 00 00  	HEX 03030000
+  51+ E7D9 03 03 00 00  	HEX 03030000
+  52+ E7DD 03 03 00 00  	HEX 03030000
+  53+ E7E1 03 03 00 00  	HEX 03030000
+  54+ E7E5 03 03 33 33  	HEX 03033333
+  55+ E7E9 03 00 00 00  	HEX 03000000
+  56+ E7ED 03 33 33 33  	HEX 03333333
+  57+ E7F1 00 00 00 00  	HEX 00000000
+  58+ E7F5
+  59+ E7F5              ;22 - rovna leva cara
+  60+ E7F5 03 03 00 00  	HEX 03030000
+  61+ E7F9 03 03 00 00  	HEX 03030000
+  62+ E7FD 03 03 00 00  	HEX 03030000
+  63+ E801 03 03 00 00  	HEX 03030000
+  64+ E805 03 03 00 00  	HEX 03030000
+  65+ E809 03 03 00 00  	HEX 03030000
+  66+ E80D 03 03 00 00  	HEX 03030000
+  67+ E811 03 03 00 00  	HEX 03030000
+  68+ E815              ;23 - rovna prava cara
+  69+ E815 00 00 30 30  	HEX 00003030
+  70+ E819 00 00 30 30  	HEX 00003030
+  71+ E81D 00 00 30 30  	HEX 00003030
+  72+ E821 00 00 30 30  	HEX 00003030
+  73+ E825 00 00 30 30  	HEX 00003030
+  74+ E829 00 00 30 30  	HEX 00003030
+  75+ E82D 00 00 30 30  	HEX 00003030
+  76+ E831 00 00 30 30  	HEX 00003030
+  77+ E835
+  78+ E835
+  79+ E835              ; 24 - full invisible (all red/yellow stripes)
+  80+ E835 55 55 44 44  	HEX	55554444
+  81+ E839 55 44 44 55  	HEX	55444455
+  82+ E83D 44 44 55 55  	HEX	44445555
+  83+ E841 44 55 55 44  	HEX	44555544
+  84+ E845 55 55 44 44  	HEX	55554444
+  85+ E849 55 44 44 55  	HEX	55444455
+  86+ E84D 44 44 55 55  	HEX	44445555
+  87+ E851 44 55 55 44  	HEX	44555544
+  88+ E855              ; 25 - red cross
+  89+ E855 00 00 00 00  	HEX	00000000
+  90+ E859 00 00 00 00  	HEX 00000000
+  91+ E85D 04 00 00 40  	HEX 04000040
+  92+ E861 00 40 04 00  	HEX	00400400
+  93+ E865 00 04 40 00  	HEX 00044000
+  94+ E869 00 40 40 00  	HEX 00404000
+  95+ E86D 04 00 04 00  	HEX	04000400
+  96+ E871 00 00 00 00  	HEX 00000000
+  97+ E875              ; 26 - yellow dot
+  98+ E875 00 00 00 00  	HEX	00000000 00555000 05555500
+  98+ E879 00 55 50 00
+  98+ E87D 05 55 55 00
+  99+ E881 05 55 55 00  	HEX	05555500 00555000 00000000
+  99+ E885 00 55 50 00
+  99+ E889 00 00 00 00
+ 100+ E88D 00 00 00 00  	HEX	00000000 00000000
+ 100+ E891 00 00 00 00
+ 101+ E895              ; 27 - green OK
+ 102+ E895 00 00 00 00  	HEX	00000000
+ 103+ E899 00 00 00 60  	HEX 00000060
+ 104+ E89D 00 00 00 60  	HEX 00000060
+ 105+ E8A1 00 00 06 00  	HEX	00000600
+ 106+ E8A5 06 00 06 00  	HEX 06000600
+ 107+ E8A9 00 60 60 00  	HEX 00606000
+ 108+ E8AD 00 06 00 00  	HEX	00060000
+ 109+ E8B1 00 00 00 00  	HEX 00000000
+ 110+ E8B5              ; 28 - mrizka (VU meter bar, checkerboard index 3 / 0)
+ 111+ E8B5 30 30 30 30  	HEX	30303030
+ 112+ E8B9 03 03 03 03  	HEX	03030303
+ 113+ E8BD 30 30 30 30  	HEX	30303030
+ 114+ E8C1 03 03 03 03  	HEX	03030303
+ 115+ E8C5 30 30 30 30  	HEX	30303030
+ 116+ E8C9 03 03 03 03  	HEX	03030303
+ 117+ E8CD 30 30 30 30  	HEX	30303030
+ 118+ E8D1 03 03 03 03  	HEX	03030303
+ 119+ E8D5              ; 29 - top arrow
+ 120+ E8D5 00 00 00 00  	HEX	00000000
+ 121+ E8D9 00 00 00 00  	HEX	00000000
+ 122+ E8DD 00 00 00 00  	HEX	00000000
+ 123+ E8E1 00 00 00 00  	HEX	00000000
+ 124+ E8E5 00 00 00 00  	HEX	00000000
+ 125+ E8E9 00 00 00 00  	HEX	00000000
+ 126+ E8ED 00 00 00 00  	HEX	00000000
+ 127+ E8F1 00 00 00 00  	HEX	00000000
+ 128+ E8F5              ; 30 - right arrow
+ 129+ E8F5 00 00 00 00  	HEX	00000000
+ 130+ E8F9 00 00 00 00  	HEX	00000000
+ 131+ E8FD 00 00 00 00  	HEX	00000000
+ 132+ E901 00 00 00 00  	HEX	00000000
+ 133+ E905 00 00 00 00  	HEX	00000000
+ 134+ E909 00 00 00 00  	HEX	00000000
+ 135+ E90D 00 00 00 00  	HEX	00000000
+ 136+ E911 00 00 00 00  	HEX	00000000
+ 137+ E915              ; 31 - bottom arrow
+ 138+ E915 00 00 00 00  	HEX	00000000
+ 139+ E919 00 00 00 00  	HEX	00000000
+ 140+ E91D 00 00 00 00  	HEX	00000000
+ 141+ E921 00 00 00 00  	HEX	00000000
+ 142+ E925 00 00 00 00  	HEX	00000000
+ 143+ E929 00 00 00 00  	HEX	00000000
+ 144+ E92D 00 00 00 00  	HEX	00000000
+ 145+ E931 00 00 00 00  	HEX	00000000
+ 146+ E935              specialchar2
+ 147+ E935              ; 32 - space (regular ZX charset onward)
+ 148+ E935              	; HEX	00000000 00000000 00000000
+ 149+ E935              	; HEX	00000000 00000000 00000000
+ 150+ E935              	; HEX	00000000 00000000
+ 151+ E935              	; HEX	00320000 00320000 00320000
+ 152+ E935              	; HEX	00000000 00320000 00000000
+ 153+ E935              	; HEX	00000000 00000000
+ 154+ E935              	; HEX	02302300 01301300 03003000
+ 155+ E935              	; HEX	00000000 00000000 00000000
+ 156+ E935              	; HEX	00000000 00000000
+ 157+ E935              	; HEX	00303000 03333300 00303000
+ 158+ E935              	; HEX	03333300 00303000 00000000
+ 159+ E935              	; HEX	00000000 00000000
+ 160+ E935              	; HEX	00333300 03030000 00333000
+ 161+ E935              	; HEX	00030300 03333000 00030000
+ 162+ E935              	; HEX	00000000 00000000
+ 163+ E935              	; HEX	03300300 03203000 00030000
+ 164+ E935              	; HEX	00303300 03003200 00000000
+ 165+ E935              	; HEX	00000000 00000000
+ 166+ E935              	; HEX	00300000 03020000 00330300
+ 167+ E935              	; HEX	03003000 00330300 00000000
+ 168+ E935              	; HEX	00000000 00000000
+ 169+ E935              	; HEX	00230000 00130000 00300000
+ 170+ E935              	; HEX	00000000 00000000 00000000
+ 171+ E935              	; HEX	00000000 00000000
+ 172+ E935              	; HEX	00000300 00003000 00003000
+ 173+ E935              	; HEX	00003000 00000300 00000000
+ 174+ E935              	; HEX	00000000 00000000
+ 175+ E935              	; HEX	03000000 00300000 00300000
+ 176+ E935              	; HEX	00300000 03000000 00000000
+ 177+ E935              	; HEX	00000000 00000000
+ 178+ E935              	; HEX	01303100 00232000 03333300
+ 179+ E935              	; HEX	00232000 01303100 00000000
+ 180+ E935              	; HEX	00000000 00000000
+ 181+ E935              	; HEX	00030000 00030000 03333300
+ 182+ E935              	; HEX	00030000 00030000 00000000
+ 183+ E935              	; HEX	00000000 00000000
+ 184+ E935              	; HEX	00000000 00000000 00000000
+ 185+ E935              	; HEX	01300000 03000000 00000000
+ 186+ E935              	; HEX	00000000 00000000
+ 187+ E935              	; HEX	00000000 00000000 03333300
+ 188+ E935              	; HEX	00000000 00000000 00000000
+ 189+ E935              	; HEX	00000000 00000000
+ 190+ E935              	; HEX	00000000 00000000 00000000
+ 191+ E935              	; HEX	00000000 03200000 00000000
+ 192+ E935              	; HEX	00000000 00000000
+ 193+ E935              	; HEX	00000300 00003000 00030000
+ 194+ E935              	; HEX	00300000 03000000 00000000
+ 195+ E935              	; HEX	00000000 00000000
+ 196+ E935              	; HEX	00333000 03102300 03020300
+ 197+ E935              	; HEX	03201300 00333000 00000000
+ 198+ E935              	; HEX	00000000 00000000
+ 199+ E935              	; HEX	00023000 00233000 00013000
+ 200+ E935              	; HEX	00013000 00133300 00000000
+ 201+ E935              	; HEX	00000000 00000000
+ 202+ E935              	; HEX	02333000 01001300 00333000
+ 203+ E935              	; HEX	03100000 03333300 00000000
+ 204+ E935              	; HEX	00000000 00000000
+ 205+ E935              	; HEX	02333000 00001300 00333000
+ 206+ E935              	; HEX	00001300 02333000 00000000
+ 207+ E935              	; HEX	00000000 00000000
+ 208+ E935              	; HEX	00033000 00313000 03013000
+ 209+ E935              	; HEX	03333300 00013000 00000000
+ 210+ E935              	; HEX	00000000 00000000
+ 211+ E935              	; HEX	03333300 03000000 03333000
+ 212+ E935              	; HEX	00001300 02333000 00000000
+ 213+ E935              	; HEX	00000000 00000000
+ 214+ E935              	; HEX	00333000 03100000 03333000
+ 215+ E935              	; HEX	03101300 00333000 00000000
+ 216+ E935              	; HEX	00000000 00000000
+ 217+ E935              	; HEX	03333200 00003200 00032000
+ 218+ E935              	; HEX	00320000 00320000 00000000
+ 219+ E935              	; HEX	00000000 00000000
+ 220+ E935              	; HEX	00333000 03101300 00333000
+ 221+ E935              	; HEX	03101300 00333000 00000000
+ 222+ E935              	; HEX	00000000 00000000
+ 223+ E935              	; HEX	00333000 03101300 00333300
+ 224+ E935              	; HEX	00001300 00333000 00000000
+ 225+ E935              	; HEX	00000000 00000000
+ 226+ E935              	; HEX	00000000 00320000 00000000
+ 227+ E935              	; HEX	00320000 00000000 00000000
+ 228+ E935              	; HEX	00000000 00000000
+ 229+ E935              	; HEX	00000000 00230000 00000000
+ 230+ E935              	; HEX	00130000 00300000 00000000
+ 231+ E935              	; HEX	00000000 00000000
+ 232+ E935              	; HEX	00031000 00310000 03100000
+ 233+ E935              	; HEX	00310000 00031000 00000000
+ 234+ E935              	; HEX	00000000 00000000
+ 235+ E935              	; HEX	00000000 03333300 00000000
+ 236+ E935              	; HEX	03333300 00000000 00000000
+ 237+ E935              	; HEX	00000000 00000000
+ 238+ E935              	; HEX	01300000 00130000 00013000
+ 239+ E935              	; HEX	00130000 01300000 00000000
+ 240+ E935              	; HEX	00000000 00000000
+ 241+ E935              	; HEX	02330000 00013000 00330000
+ 242+ E935              	; HEX	00000000 00310000 00000000
+ 243+ E935              	; HEX	00000000 00000000
+ 244+ E935              	; HEX	00333000 03130300 03023200
+ 245+ E935              	; HEX	03100000 00333000 00000000
+ 246+ E935              	; HEX	00000000 00000000
+ 247+ E935              	; HEX	00333000 03101300 03333300
+ 248+ E935              	; HEX	03000300 03000300 00000000
+ 249+ E935              	; HEX	00000000 00000000
+ 250+ E935              	; HEX	03333000 03001300 03333000
+ 251+ E935              	; HEX	03001300 03333000 00000000
+ 252+ E935              	; HEX	00000000 00000000
+ 253+ E935              	; HEX	00333200 03100100 03000000
+ 254+ E935              	; HEX	03100100 00333200 00000000
+ 255+ E935              	; HEX	00000000 00000000
+ 256+ E935              	; HEX	03333000 03001300 03000300
+ 257+ E935              	; HEX	03001300 03333000 00000000
+ 258+ E935              	; HEX	00000000 00000000
+ 259+ E935              	; HEX	03333300 03000000 03330000
+ 260+ E935              	; HEX	03000000 03333300 00000000
+ 261+ E935              	; HEX	00000000 00000000
+ 262+ E935              	; HEX	03333300 03000000 03330000
+ 263+ E935              	; HEX	03000000 03000000 00000000
+ 264+ E935              	; HEX	00000000 00000000
+ 265+ E935              	; HEX	00333200 03100000 03003300
+ 266+ E935              	; HEX	03100300 00333100 00000000
+ 267+ E935              	; HEX	00000000 00000000
+ 268+ E935              	; HEX	03000300 03000300 03333300
+ 269+ E935              	; HEX	03000300 03000300 00000000
+ 270+ E935              	; HEX	00000000 00000000
+ 271+ E935              	; HEX	00333000 00030000 00030000
+ 272+ E935              	; HEX	00030000 00333000 00000000
+ 273+ E935              	; HEX	00000000 00000000
+ 274+ E935              	; HEX	00033300 00003000 00003000
+ 275+ E935              	; HEX	03103000 00331000 00000000
+ 276+ E935              	; HEX	00000000 00000000
+ 277+ E935              	; HEX	03000300 03003000 03330000
+ 278+ E935              	; HEX	03003000 03000300 00000000
+ 279+ E935              	; HEX	00000000 00000000
+ 280+ E935              	; HEX	03000000 03000000 03000000
+ 281+ E935              	; HEX	03000000 03333300 00000000
+ 282+ E935              	; HEX	00000000 00000000
+ 283+ E935              	; HEX	03000300 03303300 03030300
+ 284+ E935              	; HEX	03000300 03000300 00000000
+ 285+ E935              	; HEX	00000000 00000000
+ 286+ E935              	; HEX	03000300 03300300 03030300
+ 287+ E935              	; HEX	03003300 03000300 00000000
+ 288+ E935              	; HEX	00000000 00000000
+ 289+ E935              	; HEX	00333000 03101300 03000300
+ 290+ E935              	; HEX	03101300 00333000 00000000
+ 291+ E935              	; HEX	00000000 00000000
+ 292+ E935              	; HEX	03333000 03001300 03333000
+ 293+ E935              	; HEX	03000000 03000000 00000000
+ 294+ E935              	; HEX	00000000 00000000
+ 295+ E935              	; HEX	00333000 03101300 03000300
+ 296+ E935              	; HEX	03102300 00333200 00000020
+ 297+ E935              	; HEX	00000000 00000000
+ 298+ E935              	; HEX	03333000 03001300 03333000
+ 299+ E935              	; HEX	03003000 03000300 00000000
+ 300+ E935              	; HEX	00000000 00000000
+ 301+ E935              	; HEX	00333200 03100100 00333000
+ 302+ E935              	; HEX	01001300 02333000 00000000
+ 303+ E935              	; HEX	00000000 00000000
+ 304+ E935              	; HEX	03333300 00030000 00030000
+ 305+ E935              	; HEX	00030000 00030000 00000000
+ 306+ E935              	; HEX	00000000 00000000
+ 307+ E935              	; HEX	03000300 03000300 03000300
+ 308+ E935              	; HEX	03101300 00333000 00000000
+ 309+ E935              	; HEX	00000000 00000000
+ 310+ E935              	; HEX	03000300 03000300 03000300
+ 311+ E935              	; HEX	00303000 00030000 00000000
+ 312+ E935              	; HEX	00000000 00000000
+ 313+ E935              	; HEX	03000300 03000300 03030300
+ 314+ E935              	; HEX	03030300 00303000 00000000
+ 315+ E935              	; HEX	00000000 00000000
+ 316+ E935              	; HEX	03000300 00303000 00030000
+ 317+ E935              	; HEX	00303000 03000300 00000000
+ 318+ E935              	; HEX	00000000 00000000
+ 319+ E935              	; HEX	03000300 00303000 00030000
+ 320+ E935              	; HEX	00030000 00030000 00000000
+ 321+ E935              	; HEX	00000000 00000000
+ 322+ E935              	; HEX	03333300 00003000 00030000
+ 323+ E935              	; HEX	00300000 03333300 00000000
+ 324+ E935              	; HEX	00000000 00000000
+ 325+ E935              	; HEX	00003300 00003000 00003000
+ 326+ E935              	; HEX	00003000 00003300 00000000
+ 327+ E935              	; HEX	00000000 00000000
+ 328+ E935              	; HEX	03000000 00300000 00030000
+ 329+ E935              	; HEX	00003000 00000300 00000000
+ 330+ E935              	; HEX	00000000 00000000
+ 331+ E935              	; HEX	03300000 00300000 00300000
+ 332+ E935              	; HEX	00300000 03300000 00000000
+ 333+ E935              	; HEX	00000000 00000000
+ 334+ E935              	; HEX	00030000 00333000 02131200
+ 335+ E935              	; HEX	00030000 00030000 00000000
+ 336+ E935              	; HEX	00000000 00000000
+ 337+ E935              	; HEX	00000000 00000000 00000000
+ 338+ E935              	; HEX	00000000 33333330 00000000
+ 339+ E935              	; HEX	00000000 00000000
+ 340+ E935              	; HEX	00033000 00300300 03330000
+ 341+ E935              	; HEX	00300000 03333300 00000000
+ 342+ E935              	; HEX	00000000 00000000
+ 343+ E935              	; HEX	00000000 00330000 00113000
+ 344+ E935              	; HEX	03223000 00333000 00000000
+ 345+ E935              	; HEX	00000000 00000000
+ 346+ E935              	; HEX	03000000 03000000 03330000
+ 347+ E935              	; HEX	03013000 03330000 00000000
+ 348+ E935              	; HEX	00000000 00000000
+ 349+ E935              	; HEX	00000000 00333000 03100000
+ 350+ E935              	; HEX	03100000 00333000 00000000
+ 351+ E935              	; HEX	00000000 00000000
+ 352+ E935              	; HEX	00003000 00003000 00333000
+ 353+ E935              	; HEX	03103000 00333000 00000000
+ 354+ E935              	; HEX	00000000 00000000
+ 355+ E935              	; HEX	00000000 00330000 03223000
+ 356+ E935              	; HEX	03110000 00333000 00000000
+ 357+ E935              	; HEX	00000000 00000000
+ 358+ E935              	; HEX	00331000 03100000 03310000
+ 359+ E935              	; HEX	03000000 03000000 00000000
+ 360+ E935              	; HEX	00000000 00000000
+ 361+ E935              	; HEX	00000000 00333000 03103000
+ 362+ E935              	; HEX	00333000 00013000 00330000
+ 363+ E935              	; HEX	00000000 00000000
+ 364+ E935              	; HEX	03000000 03000000 03331000
+ 365+ E935              	; HEX	03003000 03003000 00000000
+ 366+ E935              	; HEX	00000000 00000000
+ 367+ E935              	; HEX	00030000 00000000 00230000
+ 368+ E935              	; HEX	00030000 00232000 00000000
+ 369+ E935              	; HEX	00000000 00000000
+ 370+ E935              	; HEX	00030000 00000000 00030000
+ 371+ E935              	; HEX	00030000 03030000 00300000
+ 372+ E935              	; HEX	00000000 00000000
+ 373+ E935              	; HEX	03000000 03003000 03330000
+ 374+ E935              	; HEX	03003000 03003000 00000000
+ 375+ E935              	; HEX	00000000 00000000
+ 376+ E935              	; HEX	00300000 00300000 00300000
+ 377+ E935              	; HEX	00300000 00030000 00000000
+ 378+ E935              	; HEX	00000000 00000000
+ 379+ E935              	; HEX	00000000 03303000 03131300
+ 380+ E935              	; HEX	03030300 03030300 00000000
+ 381+ E935              	; HEX	00000000 00000000
+ 382+ E935              	; HEX	00000000 03330000 03013000
+ 383+ E935              	; HEX	03003000 03003000 00000000
+ 384+ E935              	; HEX	00000000 00000000
+ 385+ E935              	; HEX	00000000 00330000 03003000
+ 386+ E935              	; HEX	03003000 00330000 00000000
+ 387+ E935              	; HEX	00000000 00000000
+ 388+ E935              	; HEX	00000000 03330000 03013000
+ 389+ E935              	; HEX	03013000 03330000 03000000
+ 390+ E935              	; HEX	00000000 00000000
+ 391+ E935              	; HEX	00000000 00333000 03103000
+ 392+ E935              	; HEX	03103000 00333000 00002300
+ 393+ E935              	; HEX	00000000 00000000
+ 394+ E935              	; HEX	00000000 03033000 03300000
+ 395+ E935              	; HEX	03000000 03000000 00000000
+ 396+ E935              	; HEX	00000000 00000000
+ 397+ E935              	; HEX	00000000 00333000 03220000
+ 398+ E935              	; HEX	00113000 03330000 00000000
+ 399+ E935              	; HEX	00000000 00000000
+ 400+ E935              	; HEX	00300000 01331000 00300000
+ 401+ E935              	; HEX	00310000 00031000 00000000
+ 402+ E935              	; HEX	00000000 00000000
+ 403+ E935              	; HEX	00000000 03003000 03003000
+ 404+ E935              	; HEX	03103000 02333000 00000000
+ 405+ E935              	; HEX	00000000 00000000
+ 406+ E935              	; HEX	00000000 03000300 03000300
+ 407+ E935              	; HEX	00303000 00030000 00000000
+ 408+ E935              	; HEX	00000000 00000000
+ 409+ E935              	; HEX	00000000 03030300 03030300
+ 410+ E935              	; HEX	03131300 03303000 00000000
+ 411+ E935              	; HEX	00000000 00000000
+ 412+ E935              	; HEX	00000000 03003000 03103000
+ 413+ E935              	; HEX	00330000 03013000 00000000
+ 414+ E935              	; HEX	00000000 00000000
+ 415+ E935              	; HEX	00000000 03003000 03103000
+ 416+ E935              	; HEX	02333000 00013000 03330000
+ 417+ E935              	; HEX	00000000 00000000
+ 418+ E935              	; HEX	00000000 03333000 00030000
+ 419+ E935              	; HEX	00300000 03333000 00000000
+ 420+ E935              	; HEX	00000000 00000000
+ 421+ E935              	; HEX	00002300 00003000 00032000
+ 422+ E935              	; HEX	00003000 00002300 00000000
+ 423+ E935              	; HEX	00000000 00000000
+ 424+ E935              	; HEX	00032000 00032000 00000000
+ 425+ E935              	; HEX	00032000 00032000 00000000
+ 426+ E935              	; HEX	00000000 00000000
+ 427+ E935              	; HEX	03200000 00300000 00230000
+ 428+ E935              	; HEX	00300000 03200000 00000000
+ 429+ E935              	; HEX	00000000 00000000
+ 430+ E935              	; HEX	01331030 03013310 00000000
+ 431+ E935              	; HEX	00000000 00000000 00000000
+ 432+ E935              	; HEX	00000000 00000000
+ 433+ E935              	; HEX	00333300 03122130 03210030
+ 434+ E935              	; HEX	03210030 03122130 00333300
+ 435+ E935              	; HEX	00000000 00000000
+ 436+ E935
 # file closed: tilemap_font_8x6.i.asm
-8791  E982              ; specialchar2 je definovana uvnitr include
-8792  E982
-8793  E982              ; --- Sprite data (sipka) - nacita se pri startu ---
-8794  E982              sipka:
-8795  E982                          incbin "sipka.spr"
-8796  EA82
-8797  EA82              ; --- Help dialog ---
-8798  EA82              EXTRA_HELP:
-8799  EA82 AF                       xor a
-8800  EA83 32 FD ED                 ld (extraHelpTop),a
-8801  EA86 32 03 EE                 ld (extraHelpSearchPos),a
-8802  EA89 32 53 EE                 ld (extraHelpSearch),a
-8803  EA8C CD 2C EB                 call extra_help_rebuild_filter
-8804  EA8F CD 9C EB                 call extra_help_draw
-8805  EA92              .input
-8806  EA92 AF                       xor a
-8807  EA93 32 4E 73                 ld (TLACITKO),a
-8808  EA96 CD E2 E4                 call extra_read_key
-8809  EA99 FE 01                    cp 1
-8810  EA9B C8                       ret z
-8811  EA9C FE 0C                    cp 12
-8812  EA9E 28 0D                    jr z,.backspace
-8813  EAA0 FE 20                    cp 32
-8814  EAA2 38 25                    jr c,.action
-8815  EAA4 FE 7F                    cp 127
-8816  EAA6 30 EA                    jr nc,.input
-8817  EAA8 CD 15 EB                 call extra_help_add_search_char
-8818  EAAB 18 13                    jr .filter_changed
-8819  EAAD              .backspace
-8820  EAAD 3A 03 EE                 ld a,(extraHelpSearchPos)
-8821  EAB0 B7                       or a
-8822  EAB1 28 DF                    jr z,.input
-8823  EAB3 3D                       dec a
-8824  EAB4 32 03 EE                 ld (extraHelpSearchPos),a
-8825  EAB7 5F                       ld e,a
-8826  EAB8 16 00                    ld d,0
-8827  EABA 21 53 EE                 ld hl,extraHelpSearch
-8828  EABD 19                       add hl,de
-8829  EABE 36 00                    ld (hl),0
-8830  EAC0              .filter_changed
-8831  EAC0 AF                       xor a
-8832  EAC1 32 FD ED                 ld (extraHelpTop),a
-8833  EAC4 CD 2C EB                 call extra_help_rebuild_filter
-8834  EAC7 18 3B                    jr .redraw
-8835  EAC9              .action
-8836  EAC9 CD 63 73                 call key_dispatch_action
-8837  EACC FE 03                    cp ACT_UP
-8838  EACE 28 1A                    jr z,.up
-8839  EAD0 FE 02                    cp ACT_DOWN
-8840  EAD2 28 20                    jr z,.down
-8841  EAD4 FE 05                    cp ACT_PAGE_UP
-8842  EAD6 28 0C                    jr z,.page_up
-8843  EAD8 FE 04                    cp ACT_PAGE_DOWN
-8844  EADA 20 B6                    jr nz,.input
-8845  EADC CD 09 EB                 call extra_help_max_top
-8846  EADF 32 FD ED                 ld (extraHelpTop),a
-8847  EAE2 18 20                    jr .redraw
-8848  EAE4              .page_up
-8849  EAE4 AF                       xor a
-8850  EAE5 32 FD ED                 ld (extraHelpTop),a
-8851  EAE8 18 1A                    jr .redraw
-8852  EAEA              .up
-8853  EAEA 21 FD ED                 ld hl,extraHelpTop
-8854  EAED 7E                       ld a,(hl)
-8855  EAEE B7                       or a
-8856  EAEF 28 A1                    jr z,.input
-8857  EAF1 35                       dec (hl)
-8858  EAF2 18 10                    jr .redraw
-8859  EAF4              .down
-8860  EAF4 CD 09 EB                 call extra_help_max_top
-8861  EAF7 47                       ld b,a
-8862  EAF8 3A FD ED                 ld a,(extraHelpTop)
-8863  EAFB B8                       cp b
-8864  EAFC 28 94                    jr z,.input
-8865  EAFE 3C                       inc a
-8866  EAFF 32 FD ED                 ld (extraHelpTop),a
-8867  EB02 18 00                    jr .redraw
-8868  EB04              .redraw
-8869  EB04 CD 9C EB                 call extra_help_draw
-8870  EB07 18 89                    jr .input
-8871  EB09
-8872  EB09              extra_help_max_top
-8873  EB09 3A 01 EE                 ld a,(extraHelpMatchCount)
-8874  EB0C FE 13                    cp 19
-8875  EB0E 30 02                    jr nc,.scrollable
-8876  EB10 AF                       xor a
-8877  EB11 C9                       ret
-8878  EB12              .scrollable
-8879  EB12 D6 12                    sub 18
-8880  EB14 C9                       ret
-8881  EB15
-8882  EB15              extra_help_add_search_char
-8883  EB15 47                       ld b,a
-8884  EB16 3A 03 EE                 ld a,(extraHelpSearchPos)
-8885  EB19 FE 20                    cp EXTRA_HELP_SEARCH_MAX
-8886  EB1B D0                       ret nc
-8887  EB1C 5F                       ld e,a
-8888  EB1D 16 00                    ld d,0
-8889  EB1F 21 53 EE                 ld hl,extraHelpSearch
-8890  EB22 19                       add hl,de
-8891  EB23 70                       ld (hl),b
-8892  EB24 23                       inc hl
-8893  EB25 36 00                    ld (hl),0
-8894  EB27 3C                       inc a
-8895  EB28 32 03 EE                 ld (extraHelpSearchPos),a
-8896  EB2B C9                       ret
-8897  EB2C
-8898  EB2C              extra_help_rebuild_filter
-8899  EB2C AF                       xor a
-8900  EB2D 32 01 EE                 ld (extraHelpMatchCount),a
-8901  EB30 32 02 EE                 ld (extraHelpScanAction),a
-8902  EB33              .scan
-8903  EB33 3A 02 EE                 ld a,(extraHelpScanAction)
-8904  EB36 FE 21                    cp SETTINGS_ACTION_COUNT
-8905  EB38 C8                       ret z
-8906  EB39 CD 59 EB                 call extra_help_action_name
-8907  EB3C CD 66 EB                 call extra_help_name_matches
-8908  EB3F 30 12                    jr nc,.next
-8909  EB41 3A 01 EE                 ld a,(extraHelpMatchCount)
-8910  EB44 5F                       ld e,a
-8911  EB45 16 00                    ld d,0
-8912  EB47 21 A5 EE                 ld hl,extraHelpMatches
-8913  EB4A 19                       add hl,de
-8914  EB4B 3A 02 EE                 ld a,(extraHelpScanAction)
-8915  EB4E 77                       ld (hl),a
-8916  EB4F 21 01 EE                 ld hl,extraHelpMatchCount
-8917  EB52 34                       inc (hl)
-8918  EB53              .next
-8919  EB53 21 02 EE                 ld hl,extraHelpScanAction
-8920  EB56 34                       inc (hl)
-8921  EB57 18 DA                    jr .scan
-8922  EB59
-8923  EB59              ; IN: A=action index. OUT: HL=zero-terminated action description.
-8924  EB59              extra_help_action_name
-8925  EB59 87                       add a,a
-8926  EB5A 5F                       ld e,a
-8927  EB5B 16 00                    ld d,0
-8928  EB5D 21 C6 EE                 ld hl,extraHelpActionNames
-8929  EB60 19                       add hl,de
-8930  EB61 5E                       ld e,(hl)
-8931  EB62 23                       inc hl
-8932  EB63 56                       ld d,(hl)
-8933  EB64 EB                       ex de,hl
-8934  EB65 C9                       ret
-8935  EB66
-8936  EB66              ; Case-insensitive substring test.
-8937  EB66              ; IN: HL=description. OUT: carry set when extraHelpSearch is contained in it.
-8938  EB66              extra_help_name_matches
-8939  EB66 3A 53 EE                 ld a,(extraHelpSearch)
-8940  EB69 B7                       or a
-8941  EB6A 28 23                    jr z,.match
-8942  EB6C              .candidate
-8943  EB6C 7E                       ld a,(hl)
-8944  EB6D B7                       or a
-8945  EB6E 28 21                    jr z,.miss
-8946  EB70 E5                       push hl
-8947  EB71 11 53 EE                 ld de,extraHelpSearch
-8948  EB74              .compare
-8949  EB74 1A                       ld a,(de)
-8950  EB75 B7                       or a
-8951  EB76 28 16                    jr z,.match_pop
-8952  EB78 CD 93 EB                 call extra_help_upper_ascii
-8953  EB7B 47                       ld b,a
-8954  EB7C 7E                       ld a,(hl)
-8955  EB7D B7                       or a
-8956  EB7E 28 0A                    jr z,.candidate_failed
-8957  EB80 CD 93 EB                 call extra_help_upper_ascii
-8958  EB83 B8                       cp b
-8959  EB84 20 04                    jr nz,.candidate_failed
-8960  EB86 23                       inc hl
-8961  EB87 13                       inc de
-8962  EB88 18 EA                    jr .compare
-8963  EB8A              .candidate_failed
-8964  EB8A E1                       pop hl
-8965  EB8B 23                       inc hl
-8966  EB8C 18 DE                    jr .candidate
-8967  EB8E              .match_pop
-8968  EB8E E1                       pop hl
-8969  EB8F              .match
-8970  EB8F 37                       scf
-8971  EB90 C9                       ret
-8972  EB91              .miss
-8973  EB91 B7                       or a
-8974  EB92 C9                       ret
-8975  EB93
-8976  EB93              extra_help_upper_ascii
-8977  EB93 FE 61                    cp 'a'
-8978  EB95 D8                       ret c
-8979  EB96 FE 7B                    cp 'z'+1
-8980  EB98 D0                       ret nc
-8981  EB99 D6 20                    sub 32
-8982  EB9B C9                       ret
-8983  EB9C
-8984  EB9C              extra_help_draw
-8985  EB9C 21 03 08                 ld hl,8*256+3
-8986  EB9F 01 1B 40                 ld bc,64*256+27
-8987  EBA2 3E 10                    ld a,16
-8988  EBA4 CD 2C 81                 call window
-8989  EBA7 21 04 0B                 ld hl,11*256+4
-8990  EBAA 11 75 ED                 ld de,extraHelpTitle
-8991  EBAD 3E 10                    ld a,16
-8992  EBAF CD 09 81                 call print
-8993  EBB2 21 06 0B                 ld hl,11*256+6
-8994  EBB5 11 91 ED                 ld de,extraHelpHeader
-8995  EBB8 3E 10                    ld a,16
-8996  EBBA CD 09 81                 call print
-8997  EBBD 21 1A 0B                 ld hl,11*256+26
-8998  EBC0 11 BE ED                 ld de,extraHelpSearchLabel
-8999  EBC3 3E 10                    ld a,16
-9000  EBC5 CD 09 81                 call print
-9001  EBC8 CD 38 ED                 call extra_help_draw_search
-9002  EBCB 21 1C 0B                 ld hl,11*256+28
-9003  EBCE 11 C6 ED                 ld de,extraHelpHint
-9004  EBD1 3E 10                    ld a,16
-9005  EBD3 CD 09 81                 call print
-9006  EBD6 AF                       xor a
-9007  EBD7 32 FE ED                 ld (extraHelpRow),a
-9008  EBDA              .row
-9009  EBDA CD F9 EB                 call extra_help_prepare_row
-9010  EBDD 3A FE ED                 ld a,(extraHelpRow)
-9011  EBE0 C6 07                    add a,7
-9012  EBE2 6F                       ld l,a
-9013  EBE3 26 0B                    ld h,11
-9014  EBE5 11 04 EE                 ld de,extraHelpLine
-9015  EBE8 3E 10                    ld a,16
-9016  EBEA CD 09 81                 call print
-9017  EBED 3A FE ED                 ld a,(extraHelpRow)
-9018  EBF0 3C                       inc a
-9019  EBF1 32 FE ED                 ld (extraHelpRow),a
-9020  EBF4 FE 12                    cp 18
-9021  EBF6 20 E2                    jr nz,.row
-9022  EBF8 C9                       ret
-9023  EBF9
-9024  EBF9              extra_help_prepare_row
-9025  EBF9 21 04 EE                 ld hl,extraHelpLine
-9026  EBFC 11 05 EE                 ld de,extraHelpLine+1
-9027  EBFF 01 39 00                 ld bc,57
-9028  EC02 36 20                    ld (hl),' '
-9029  EC04 ED B0                    ldir
-9030  EC06 AF                       xor a
-9031  EC07 32 3E EE                 ld (extraHelpLine+58),a
-9032  EC0A 3A FD ED                 ld a,(extraHelpTop)
-9033  EC0D 21 FE ED                 ld hl,extraHelpRow
-9034  EC10 86                       add a,(hl)
-9035  EC11 21 01 EE                 ld hl,extraHelpMatchCount
-9036  EC14 BE                       cp (hl)
-9037  EC15 D0                       ret nc
-9038  EC16 5F                       ld e,a
-9039  EC17 16 00                    ld d,0
-9040  EC19 21 A5 EE                 ld hl,extraHelpMatches
-9041  EC1C 19                       add hl,de
-9042  EC1D 7E                       ld a,(hl)
-9043  EC1E 32 FF ED                 ld (extraHelpAction),a
-9044  EC21 CD 59 EB                 call extra_help_action_name
-9045  EC24 11 04 EE                 ld de,extraHelpLine
-9046  EC27 06 20                    ld b,32
-9047  EC29 CD 25 ED                 call extra_help_copy_field
-9048  EC2C 3A FF ED                 ld a,(extraHelpAction)
-9049  EC2F 5F                       ld e,a
-9050  EC30 16 00                    ld d,0
-9051  EC32 21 D5 89                 ld hl,cfgKeyBindings
-9052  EC35 19                       add hl,de
-9053  EC36 7E                       ld a,(hl)
-9054  EC37 CD 45 EC                 call extra_help_format_key
-9055  EC3A 21 3F EE                 ld hl,extraHelpKeyBuf
-9056  EC3D 11 28 EE                 ld de,extraHelpLine+36
-9057  EC40 06 14                    ld b,20
-9058  EC42 C3 25 ED                 jp extra_help_copy_field
-9059  EC45
-9060  EC45              extra_help_format_key
-9061  EC45 32 00 EE                 ld (extraHelpKeyCode),a
-9062  EC48 11 3F EE                 ld de,extraHelpKeyBuf
-9063  EC4B FE 01                    cp 1
-9064  EC4D 21 8B F0                 ld hl,extraKeyBreak
-9065  EC50 CA 1D ED                 jp z,extra_help_copy_zero
-9066  EC53 FE 04                    cp 4
-9067  EC55 21 9F F0                 ld hl,extraKeyCs3
-9068  EC58 CA 1A ED                 jp z,.known
-9069  EC5B FE 05                    cp 5
-9070  EC5D 21 A6 F0                 ld hl,extraKeyCs4
-9071  EC60 CA 1A ED                 jp z,.known
-9072  EC63 FE 06                    cp 6
-9073  EC65 21 98 F0                 ld hl,extraKeyCs2
-9074  EC68 CA 1A ED                 jp z,.known
-9075  EC6B FE 07                    cp 7
-9076  EC6D 21 91 F0                 ld hl,extraKeyCs1
-9077  EC70 CA 1A ED                 jp z,.known
-9078  EC73 FE 08                    cp 8
-9079  EC75 21 AD F0                 ld hl,extraKeyCs5
-9080  EC78 CA 1A ED                 jp z,.known
-9081  EC7B FE 09                    cp 9
-9082  EC7D 21 C2 F0                 ld hl,extraKeyCs8
-9083  EC80 CA 1A ED                 jp z,.known
-9084  EC83 FE 0A                    cp 10
-9085  EC85 21 B4 F0                 ld hl,extraKeyCs6
-9086  EC88 CA 1A ED                 jp z,.known
-9087  EC8B FE 0B                    cp 11
-9088  EC8D 21 BB F0                 ld hl,extraKeyCs7
-9089  EC90 CA 1A ED                 jp z,.known
-9090  EC93 FE 0C                    cp 12
-9091  EC95 21 D0 F0                 ld hl,extraKeyDelete
-9092  EC98 CA 1A ED                 jp z,.known
-9093  EC9B FE 0D                    cp 13
-9094  EC9D 21 D7 F0                 ld hl,extraKeyEnter
-9095  ECA0 CA 1A ED                 jp z,.known
-9096  ECA3 FE 0F                    cp 15
-9097  ECA5 21 C9 F0                 ld hl,extraKeyCs9
-9098  ECA8 CA 1A ED                 jp z,.known
-9099  ECAB FE 20                    cp 32
-9100  ECAD 21 DD F0                 ld hl,extraKeySpace
-9101  ECB0 CA 1A ED                 jp z,.known
-9102  ECB3 FE 7F                    cp 127
-9103  ECB5 21 E3 F0                 ld hl,extraKeySsI
-9104  ECB8 CA 1A ED                 jp z,.known
-9105  ECBB FE C7                    cp 199
-9106  ECBD 21 E8 F0                 ld hl,extraKeySsQ
-9107  ECC0 CA 1A ED                 jp z,.known
-9108  ECC3 FE C8                    cp 200
-9109  ECC5 21 ED F0                 ld hl,extraKeySsE
-9110  ECC8 CA 1A ED                 jp z,.known
-9111  ECCB FE C9                    cp 201
-9112  ECCD 21 F2 F0                 ld hl,extraKeySsW
-9113  ECD0 CA 1A ED                 jp z,.known
-9114  ECD3 FE 41                    cp 'A'
-9115  ECD5 38 13                    jr c,.plain
-9116  ECD7 FE 5B                    cp 'Z'+1
-9117  ECD9 30 0F                    jr nc,.plain
-9118  ECDB 21 F7 F0                 ld hl,extraKeyCaps
-9119  ECDE CD 1D ED                 call extra_help_copy_zero
-9120  ECE1 1B                       dec de
-9121  ECE2 3A 00 EE                 ld a,(extraHelpKeyCode)
-9122  ECE5 12                       ld (de),a
-9123  ECE6 13                       inc de
-9124  ECE7 AF                       xor a
-9125  ECE8 12                       ld (de),a
-9126  ECE9 C9                       ret
-9127  ECEA              .plain
-9128  ECEA FE 20                    cp 32
-9129  ECEC 38 13                    jr c,.hex
-9130  ECEE FE 7F                    cp 127
-9131  ECF0 30 0F                    jr nc,.hex
-9132  ECF2 FE 61                    cp 'a'
-9133  ECF4 38 06                    jr c,.one
-9134  ECF6 FE 7B                    cp 'z'+1
-9135  ECF8 30 02                    jr nc,.one
-9136  ECFA D6 20                    sub 32
-9137  ECFC              .one
-9138  ECFC 12                       ld (de),a
-9139  ECFD 13                       inc de
-9140  ECFE AF                       xor a
-9141  ECFF 12                       ld (de),a
-9142  ED00 C9                       ret
-9143  ED01              .hex
-9144  ED01 F5                       push af
-9145  ED02 3E 24                    ld a,'$'
-9146  ED04 12                       ld (de),a
-9147  ED05 13                       inc de
-9148  ED06 F1                       pop af
-9149  ED07 F5                       push af
-9150  ED08 0F                       rrca
-9151  ED09 0F                       rrca
-9152  ED0A 0F                       rrca
-9153  ED0B 0F                       rrca
-9154  ED0C CD 2E ED                 call extra_help_hex_digit
-9155  ED0F 12                       ld (de),a
-9156  ED10 13                       inc de
-9157  ED11 F1                       pop af
-9158  ED12 CD 2E ED                 call extra_help_hex_digit
-9159  ED15 12                       ld (de),a
-9160  ED16 13                       inc de
-9161  ED17 AF                       xor a
-9162  ED18 12                       ld (de),a
-9163  ED19 C9                       ret
-9164  ED1A              .known
-9165  ED1A C3 1D ED                 jp extra_help_copy_zero
-9166  ED1D
-9167  ED1D              extra_help_copy_zero
-9168  ED1D 7E                       ld a,(hl)
-9169  ED1E 12                       ld (de),a
-9170  ED1F 23                       inc hl
-9171  ED20 13                       inc de
-9172  ED21 B7                       or a
-9173  ED22 20 F9                    jr nz,extra_help_copy_zero
-9174  ED24 C9                       ret
-9175  ED25
-9176  ED25              extra_help_copy_field
-9177  ED25 7E                       ld a,(hl)
-9178  ED26 B7                       or a
-9179  ED27 C8                       ret z
-9180  ED28 12                       ld (de),a
-9181  ED29 23                       inc hl
-9182  ED2A 13                       inc de
-9183  ED2B 10 F8                    djnz extra_help_copy_field
-9184  ED2D C9                       ret
-9185  ED2E
-9186  ED2E              extra_help_hex_digit
-9187  ED2E E6 0F                    and $0f
-9188  ED30 C6 30                    add a,'0'
-9189  ED32 FE 3A                    cp '9'+1
-9190  ED34 D8                       ret c
-9191  ED35 C6 07                    add a,'A'-'9'-1
-9192  ED37 C9                       ret
-9193  ED38
-9194  ED38              extra_help_draw_search
-9195  ED38 21 74 EE                 ld hl,extraHelpSearchLine
-9196  ED3B 11 75 EE                 ld de,extraHelpSearchLine+1
-9197  ED3E 01 2F 00                 ld bc,EXTRA_HELP_SEARCH_FIELD_WIDTH-1
-9198  ED41 36 20                    ld (hl),' '
-9199  ED43 ED B0                    ldir
-9200  ED45 AF                       xor a
-9201  ED46 32 A4 EE                 ld (extraHelpSearchLine+EXTRA_HELP_SEARCH_FIELD_WIDTH),a
-9202  ED49 3A 03 EE                 ld a,(extraHelpSearchPos)
-9203  ED4C B7                       or a
-9204  ED4D 28 0B                    jr z,.cursor
-9205  ED4F 4F                       ld c,a
-9206  ED50 06 00                    ld b,0
-9207  ED52 21 53 EE                 ld hl,extraHelpSearch
-9208  ED55 11 74 EE                 ld de,extraHelpSearchLine
-9209  ED58 ED B0                    ldir
-9210  ED5A              .cursor
-9211  ED5A 3A 03 EE                 ld a,(extraHelpSearchPos)
-9212  ED5D FE 30                    cp EXTRA_HELP_SEARCH_FIELD_WIDTH
-9213  ED5F 30 09                    jr nc,.plot
-9214  ED61 5F                       ld e,a
-9215  ED62 16 00                    ld d,0
-9216  ED64 21 74 EE                 ld hl,extraHelpSearchLine
-9217  ED67 19                       add hl,de
-9218  ED68 36 5F                    ld (hl),'_'
-9219  ED6A              .plot
-9220  ED6A 21 1A 13                 ld hl,19*256+26
-9221  ED6D 11 74 EE                 ld de,extraHelpSearchLine
-9222  ED70 3E 50                    ld a,80
-9223  ED72 C3 09 81                 jp print
-9224  ED75
-9225  ED75 48 65 6C 70  extraHelpTitle  defb "Help - current key bindings",0
-9225  ED79 20 2D 20 63
-9225  ED7D 75 72 72 65
-9225  ED81 6E 74 20 6B
-9225  ED85 65 79 20 62
-9225  ED89 69 6E 64 69
-9225  ED8D 6E 67 73 00
-9226  ED91 41 63 74 69  extraHelpHeader defb "Action                              Shortcut",0
-9226  ED95 6F 6E 20 20
-9226  ED99 20 20 20 20
-9226  ED9D 20 20 20 20
-9226  EDA1 20 20 20 20
-9226  EDA5 20 20 20 20
-9226  EDA9 20 20 20 20
-9226  EDAD 20 20 20 20
-9226  EDB1 20 20 20 20
-9226  EDB5 53 68 6F 72
-9226  EDB9 74 63 75 74
-9226  EDBD 00
-9227  EDBE 53 65 61 72  extraHelpSearchLabel defb "Search:",0
-9227  EDC2 63 68 3A 00
-9228  EDC6 54 59 50 45  extraHelpHint   defb "TYPE filter  DELETE erase  UP/DOWN scroll  BREAK close",0
-9228  EDCA 20 66 69 6C
-9228  EDCE 74 65 72 20
-9228  EDD2 20 44 45 4C
-9228  EDD6 45 54 45 20
-9228  EDDA 65 72 61 73
-9228  EDDE 65 20 20 55
-9228  EDE2 50 2F 44 4F
-9228  EDE6 57 4E 20 73
-9228  EDEA 63 72 6F 6C
-9228  EDEE 6C 20 20 42
-9228  EDF2 52 45 41 4B
-9228  EDF6 20 63 6C 6F
-9228  EDFA 73 65 00
-9229  EDFD              EXTRA_HELP_SEARCH_MAX equ 32
-9230  EDFD              EXTRA_HELP_SEARCH_FIELD_WIDTH equ 48
-9231  EDFD 00           extraHelpTop    defb 0
-9232  EDFE 00           extraHelpRow    defb 0
-9233  EDFF 00           extraHelpAction defb 0
-9234  EE00 00           extraHelpKeyCode defb 0
-9235  EE01 00           extraHelpMatchCount defb 0
-9236  EE02 00           extraHelpScanAction defb 0
-9237  EE03 00           extraHelpSearchPos defb 0
-9238  EE04 00 00 00...  extraHelpLine   defs 59
-9239  EE3F 00 00 00...  extraHelpKeyBuf defs 20
-9240  EE53 00 00 00...  extraHelpSearch defs EXTRA_HELP_SEARCH_MAX+1
-9241  EE74 00 00 00...  extraHelpSearchLine defs EXTRA_HELP_SEARCH_FIELD_WIDTH+1
-9242  EEA5 00 00 00...  extraHelpMatches defs SETTINGS_ACTION_COUNT
-9243  EEC6
-9244  EEC6              extraHelpActionNames
-9245  EEC6 08 EF 1D EF              defw ehaSysInfo,ehaDown,ehaUp,ehaPageDown,ehaPageUp,ehaSwitch,ehaEnter,ehaDelete
-9245  EECA 29 EF 33 EF
-9245  EECE 3D EF 45 EF
-9245  EED2 52 EF 5F EF
-9246  EED6 66 EF 77 EF              defw ehaParent,ehaRename,ehaMenu,ehaCopy,ehaMove,ehaMark,ehaMkdir,ehaDriveL
-9246  EEDA 7E EF 83 EF
-9246  EEDE 88 EF 8D EF
-9246  EEE2 97 EF A8 EF
-9247  EEE6 B3 EF BF EF              defw ehaDriveR,ehaSelect,ehaInvert,ehaDeselect,ehaSearch,ehaLeft,ehaRight,ehaView
-9247  EEEA CE EF DF EF
-9247  EEEE F0 EF F7 EF
-9247  EEF2 0B F0 20 F0
-9248  EEF6 2A F0 34 F0              defw ehaEdit,ehaPlugins,ehaBookmarkAdd,ehaBookmarkList,ehaHelp,ehaAttr,ehaFileInfo,ehaQuit
-9248  EEFA 40 F0 4D F0
-9248  EEFE 5C F0 61 F0
-9248  EF02 73 F0 7D F0
-9249  EF06 82 F0                    defw ehaSettings
-9250  EF08              extraHelpActionNamesEnd
-9251  EF08                          assert extraHelpActionNamesEnd-extraHelpActionNames = SETTINGS_ACTION_COUNT*2
-9252  EF08 41 62 6F 75  ehaSysInfo      defb "About Calm Commander",0
-9252  EF0C 74 20 43 61
-9252  EF10 6C 6D 20 43
-9252  EF14 6F 6D 6D 61
-9252  EF18 6E 64 65 72
-9252  EF1C 00
-9253  EF1D 43 75 72 73  ehaDown         defb "Cursor down",0
-9253  EF21 6F 72 20 64
-9253  EF25 6F 77 6E 00
-9254  EF29 43 75 72 73  ehaUp           defb "Cursor up",0
-9254  EF2D 6F 72 20 75
-9254  EF31 70 00
-9255  EF33 50 61 67 65  ehaPageDown     defb "Page down",0
-9255  EF37 20 64 6F 77
-9255  EF3B 6E 00
-9256  EF3D 50 61 67 65  ehaPageUp       defb "Page up",0
-9256  EF41 20 75 70 00
-9257  EF45 53 77 69 74  ehaSwitch       defb "Switch panel",0
-9257  EF49 63 68 20 70
-9257  EF4D 61 6E 65 6C
-9257  EF51 00
-9258  EF52 4F 70 65 6E  ehaEnter        defb "Open / Enter",0
-9258  EF56 20 2F 20 45
-9258  EF5A 6E 74 65 72
-9258  EF5E 00
-9259  EF5F 44 65 6C 65  ehaDelete       defb "Delete",0
-9259  EF63 74 65 00
-9260  EF66 50 61 72 65  ehaParent       defb "Parent directory",0
-9260  EF6A 6E 74 20 64
-9260  EF6E 69 72 65 63
-9260  EF72 74 6F 72 79
-9260  EF76 00
-9261  EF77 52 65 6E 61  ehaRename       defb "Rename",0
-9261  EF7B 6D 65 00
-9262  EF7E 4D 65 6E 75  ehaMenu         defb "Menu",0
-9262  EF82 00
-9263  EF83 43 6F 70 79  ehaCopy         defb "Copy",0
-9263  EF87 00
-9264  EF88 4D 6F 76 65  ehaMove         defb "Move",0
-9264  EF8C 00
-9265  EF8D 4D 61 72 6B  ehaMark         defb "Mark file",0
-9265  EF91 20 66 69 6C
-9265  EF95 65 00
-9266  EF97 43 72 65 61  ehaMkdir        defb "Create directory",0
-9266  EF9B 74 65 20 64
-9266  EF9F 69 72 65 63
-9266  EFA3 74 6F 72 79
-9266  EFA7 00
-9267  EFA8 4C 65 66 74  ehaDriveL       defb "Left drive",0
-9267  EFAC 20 64 72 69
-9267  EFB0 76 65 00
-9268  EFB3 52 69 67 68  ehaDriveR       defb "Right drive",0
-9268  EFB7 74 20 64 72
-9268  EFBB 69 76 65 00
-9269  EFBF 53 65 6C 65  ehaSelect       defb "Select by mask",0
-9269  EFC3 63 74 20 62
-9269  EFC7 79 20 6D 61
-9269  EFCB 73 6B 00
-9270  EFCE 49 6E 76 65  ehaInvert       defb "Invert selection",0
-9270  EFD2 72 74 20 73
-9270  EFD6 65 6C 65 63
-9270  EFDA 74 69 6F 6E
-9270  EFDE 00
-9271  EFDF 44 65 73 65  ehaDeselect     defb "Deselect by mask",0
-9271  EFE3 6C 65 63 74
-9271  EFE7 20 62 79 20
-9271  EFEB 6D 61 73 6B
-9271  EFEF 00
-9272  EFF0 53 65 61 72  ehaSearch       defb "Search",0
-9272  EFF4 63 68 00
-9273  EFF7 41 63 74 69  ehaLeft         defb "Activate left panel",0
-9273  EFFB 76 61 74 65
-9273  EFFF 20 6C 65 66
-9273  F003 74 20 70 61
-9273  F007 6E 65 6C 00
-9274  F00B 41 63 74 69  ehaRight        defb "Activate right panel",0
-9274  F00F 76 61 74 65
-9274  F013 20 72 69 67
-9274  F017 68 74 20 70
-9274  F01B 61 6E 65 6C
-9274  F01F 00
-9275  F020 56 69 65 77  ehaView         defb "View file",0
-9275  F024 20 66 69 6C
-9275  F028 65 00
-9276  F02A 45 64 69 74  ehaEdit         defb "Edit file",0
-9276  F02E 20 66 69 6C
-9276  F032 65 00
-9277  F034 50 6C 75 67  ehaPlugins      defb "Plugin menu",0
-9277  F038 69 6E 20 6D
-9277  F03C 65 6E 75 00
-9278  F040 41 64 64 20  ehaBookmarkAdd  defb "Add bookmark",0
-9278  F044 62 6F 6F 6B
-9278  F048 6D 61 72 6B
-9278  F04C 00
-9279  F04D 53 68 6F 77  ehaBookmarkList defb "Show bookmarks",0
-9279  F051 20 62 6F 6F
-9279  F055 6B 6D 61 72
-9279  F059 6B 73 00
-9280  F05C 48 65 6C 70  ehaHelp         defb "Help",0
-9280  F060 00
-9281  F061 43 68 61 6E  ehaAttr         defb "Change attributes",0
-9281  F065 67 65 20 61
-9281  F069 74 74 72 69
-9281  F06D 62 75 74 65
-9281  F071 73 00
-9282  F073 46 69 6C 65  ehaFileInfo     defb "File info",0
-9282  F077 20 69 6E 66
-9282  F07B 6F 00
-9283  F07D 51 75 69 74  ehaQuit         defb "Quit",0
-9283  F081 00
-9284  F082 53 65 74 74  ehaSettings     defb "Settings",0
-9284  F086 69 6E 67 73
-9284  F08A 00
-9285  F08B
-9286  F08B 42 52 45 41  extraKeyBreak  defb "BREAK",0
-9286  F08F 4B 00
-9287  F091 43 41 50 53  extraKeyCs1    defb "CAPS+1",0
-9287  F095 2B 31 00
-9288  F098 43 41 50 53  extraKeyCs2    defb "CAPS+2",0
-9288  F09C 2B 32 00
-9289  F09F 43 41 50 53  extraKeyCs3    defb "CAPS+3",0
-9289  F0A3 2B 33 00
-9290  F0A6 43 41 50 53  extraKeyCs4    defb "CAPS+4",0
-9290  F0AA 2B 34 00
-9291  F0AD 43 41 50 53  extraKeyCs5    defb "CAPS+5",0
-9291  F0B1 2B 35 00
-9292  F0B4 43 41 50 53  extraKeyCs6    defb "CAPS+6",0
-9292  F0B8 2B 36 00
-9293  F0BB 43 41 50 53  extraKeyCs7    defb "CAPS+7",0
-9293  F0BF 2B 37 00
-9294  F0C2 43 41 50 53  extraKeyCs8    defb "CAPS+8",0
-9294  F0C6 2B 38 00
-9295  F0C9 43 41 50 53  extraKeyCs9    defb "CAPS+9",0
-9295  F0CD 2B 39 00
-9296  F0D0 44 45 4C 45  extraKeyDelete defb "DELETE",0
-9296  F0D4 54 45 00
-9297  F0D7 45 4E 54 45  extraKeyEnter  defb "ENTER",0
-9297  F0DB 52 00
-9298  F0DD 53 50 41 43  extraKeySpace  defb "SPACE",0
-9298  F0E1 45 00
-9299  F0E3 53 53 2B 49  extraKeySsI    defb "SS+I",0
-9299  F0E7 00
-9300  F0E8 53 53 2B 51  extraKeySsQ    defb "SS+Q",0
-9300  F0EC 00
-9301  F0ED 53 53 2B 45  extraKeySsE    defb "SS+E",0
-9301  F0F1 00
-9302  F0F2 53 53 2B 57  extraKeySsW    defb "SS+W",0
-9302  F0F6 00
-9303  F0F7 43 41 50 53  extraKeyCaps   defb "CAPS+",0
-9303  F0FB 2B 00
-9304  F0FD
-9305  F0FD              EXTRA_NOTNOW:
-9306  F0FD 21 0A 08             ld hl,8 * 256 + 10
-9307  F100 01 03 3C             ld bc,60 * 256 + 3
-9308  F103 3E 10                ld a,16
-9309  F105 CD 2C 81             call window
-9310  F108
-9311  F108 21 0B 0B             ld hl,11*256+11
-9312  F10B 3E 10                ld a,16
-9313  F10D 11 26 F1             ld de,notimplemented
-9314  F110 CD 09 81             call print
-9315  F113
-9316  F113 21 0D 2A             ld hl,42*256+13
-9317  F116 3E 20                ld a,32
-9318  F118 11 7F A2             ld de,pressanykeytxt
-9319  F11B CD 09 81             call print
-9320  F11E
-9321  F11E AF                   xor a
-9322  F11F 32 4E 73             ld (TLACITKO),a
-9323  F122 CD E2 E4             call extra_read_key
-9324  F125 C9                   ret
-9325  F126
-9326  F126 54 68 69 73  notimplemented defb "This feature is not yet implemented.",0
-9326  F12A 20 66 65 61
-9326  F12E 74 75 72 65
-9326  F132 20 69 73 20
-9326  F136 6E 6F 74 20
-9326  F13A 79 65 74 20
-9326  F13E 69 6D 70 6C
-9326  F142 65 6D 65 6E
-9326  F146 74 65 64 2E
-9326  F14A 00
-9327  F14B
-9328  F14B              EXTRA_SYSCOPY_SHOW_ERROR:
-9329  F14B 21 0A 0A             ld hl,10 * 256 + 10
-9330  F14E 01 05 3C             ld bc,60 * 256 + 5
-9331  F151 3E 10                ld a,16
-9332  F153 CD 2C 81             call window
-9333  F156
-9334  F156 21 0B 0B             ld hl,11*256+11
-9335  F159 3E 10                ld a,16
-9336  F15B 11 BA F1             ld de,sysCopyErrorTxt
-9337  F15E CD 09 81             call print
-9338  F161 21 0D 0B             ld hl,11*256+13
-9339  F164 3E 10                ld a,16
-9340  F166 11 D1 F1             ld de,sysCopyErrorHintTxt
-9341  F169 CD 09 81             call print
-9342  F16C
-9343  F16C CD 8D F1             call extra_syscopy_prepare_error_diag
-9344  F16F 21 0E 0B             ld hl,11*256+14
-9345  F172 3E 10                ld a,16
-9346  F174 11 F3 F1             ld de,sysCopyErrorDiagTxt
-9347  F177 CD 09 81             call print
-9348  F17A 21 0F 0B             ld hl,11*256+15
-9349  F17D 3E 30                ld a,48
-9350  F17F 11 7F A2             ld de,pressanykeytxt
-9351  F182 CD 09 81             call print
-9352  F185
-9353  F185 AF                   xor a
-9354  F186 32 4E 73             ld (TLACITKO),a
-9355  F189 CD E2 E4             call extra_read_key
-9356  F18C C9                   ret
-9357  F18D
-9358  F18D
-9359  F18D              extra_syscopy_prepare_error_diag
-9360  F18D 3A 7B 9C             ld a,(sysCopyContext+SYSCOPYCTX_STAGE)
-9361  F190 11 FA F1             ld de,sysCopyErrorDiagTxt+7
-9362  F193 CD A0 F1             call extra_write_hex_byte
-9363  F196 3A 6E 9C             ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
-9364  F199 11 05 F2             ld de,sysCopyErrorDiagTxt+18
-9365  F19C CD A0 F1             call extra_write_hex_byte
-9366  F19F C9                   ret
-9367  F1A0
-9368  F1A0
-9369  F1A0              extra_write_hex_byte
-9370  F1A0 F5                   push af
-9371  F1A1 0F                   rrca
-9372  F1A2 0F                   rrca
-9373  F1A3 0F                   rrca
-9374  F1A4 0F                   rrca
-9375  F1A5 CD AE F1             call extra_write_hex_nibble
-9376  F1A8 F1                   pop af
-9377  F1A9 13                   inc de
-9378  F1AA CD AE F1             call extra_write_hex_nibble
-9379  F1AD C9                   ret
-9380  F1AE
-9381  F1AE
-9382  F1AE              extra_write_hex_nibble
-9383  F1AE E6 0F                and $0f
-9384  F1B0 C6 30                add a,"0"
-9385  F1B2 FE 3A                cp "9"+1
-9386  F1B4 38 02                jr c,.store
-9387  F1B6 C6 07                add a,"A"-"9"-1
-9388  F1B8              .store
-9389  F1B8 12                   ld (de),a
-9390  F1B9 C9                   ret
-9391  F1BA
-9392  F1BA 44 69 72 65  sysCopyErrorTxt     defb "Directory copy failed.",0
-9392  F1BE 63 74 6F 72
-9392  F1C2 79 20 63 6F
-9392  F1C6 70 79 20 66
-9392  F1CA 61 69 6C 65
-9392  F1CE 64 2E 00
-9393  F1D1 43 68 65 63  sysCopyErrorHintTxt defb "Check syscopy.ccp and free space.",0
-9393  F1D5 6B 20 73 79
-9393  F1D9 73 63 6F 70
-9393  F1DD 79 2E 63 63
-9393  F1E1 70 20 61 6E
-9393  F1E5 64 20 66 72
-9393  F1E9 65 65 20 73
-9393  F1ED 70 61 63 65
-9393  F1F1 2E 00
-9394  F1F3 53 74 61 67  sysCopyErrorDiagTxt defb "Stage $00  Error $00",0
-9394  F1F7 65 20 24 30
-9394  F1FB 30 20 20 45
-9394  F1FF 72 72 6F 72
-9394  F203 20 24 30 30
-9394  F207 00
-9395  F208
-9396  F208              ; Upgrade the legacy 16-byte palette map + 33-byte key table after cc.cfg has
-9397  F208              ; been read. This code lives in the extra bank to keep scarce resident RAM
-9398  F208              ; available for the persistent packed theme itself.
-9399  F208              EXTRA_CFG_PREPARE:
-9400  F208 3A F6 89             ld a,(cfgColourVersion)
-9401  F20B FE 01                cp SETTINGS_COLOUR_VERSION
-9402  F20D C8                   ret z
-9403  F20E
-9404  F20E 21 B1 89             ld hl,cfgLegacyThemeArea
-9405  F211 11 38 F3             ld de,extraLegacyPaletteMap
-9406  F214 01 10 00             ld bc,SETTINGS_PALETTE_COUNT
-9407  F217 ED B0                ldir
-9408  F219
-9409  F219                      ; Old keys begin 16 bytes into the legacy area. Copy backwards because
-9410  F219                      ; their new destination overlaps the old source range.
-9411  F219 21 E1 89             ld hl,cfgLegacyThemeArea+SETTINGS_PALETTE_COUNT+SETTINGS_ACTION_COUNT-1
-9412  F21C 11 F5 89             ld de,cfgKeyBindings+SETTINGS_ACTION_COUNT-1
-9413  F21F 01 21 00             ld bc,SETTINGS_ACTION_COUNT
-9414  F222 ED B8                lddr
-9415  F224
-9416  F224 21 F0 F2             ld hl,extraDefaultColours
-9417  F227 11 14 F3             ld de,extraMigratedColours
-9418  F22A 01 24 00             ld bc,SETTINGS_COLOUR_BYTES
-9419  F22D ED B0                ldir
-9420  F22F AF                   xor a
-9421  F230 32 34 F3             ld (extraMigratedColours+32),a
-9422  F233 32 35 F3             ld (extraMigratedColours+33),a
-9423  F236 32 36 F3             ld (extraMigratedColours+34),a
-9424  F239 32 37 F3             ld (extraMigratedColours+35),a
-9425  F23C 32 50 F3             ld (extraMigStyle),a
-9426  F23F              .style
-9427  F23F 3A 50 F3             ld a,(extraMigStyle)
-9428  F242 5F                   ld e,a
-9429  F243 16 00                ld d,0
-9430  F245 21 38 F3             ld hl,extraLegacyPaletteMap
-9431  F248 19                   add hl,de
-9432  F249 7E                   ld a,(hl)
-9433  F24A E6 F0                and $f0
-9434  F24C 0F                   rrca
-9435  F24D 0F                   rrca
-9436  F24E 0F                   rrca                              ; physical group * two
-9437  F24F 32 52 F3             ld (extraMigSourceColour),a
-9438  F252 5F                   ld e,a
-9439  F253 16 00                ld d,0
-9440  F255 21 F0 F2             ld hl,extraDefaultColours
-9441  F258 19                   add hl,de
-9442  F259 E5                   push hl
-9443  F25A 3A 50 F3             ld a,(extraMigStyle)
-9444  F25D 87                   add a,a
-9445  F25E 32 53 F3             ld (extraMigDestColour),a
-9446  F261 5F                   ld e,a
-9447  F262 16 00                ld d,0
-9448  F264 21 14 F3             ld hl,extraMigratedColours
-9449  F267 19                   add hl,de
-9450  F268 EB                   ex de,hl
-9451  F269 E1                   pop hl
-9452  F26A ED A0                ldi
-9453  F26C ED A0                ldi
-9454  F26E AF                   xor a
-9455  F26F 32 51 F3             ld (extraMigChannel),a
-9456  F272              .bit
-9457  F272 3A 52 F3             ld a,(extraMigSourceColour)
-9458  F275 47                   ld b,a
-9459  F276 3A 51 F3             ld a,(extraMigChannel)
-9460  F279 80                   add a,b
-9461  F27A 47                   ld b,a
-9462  F27B E6 07                and 7
-9463  F27D 5F                   ld e,a
-9464  F27E 16 00                ld d,0
-9465  F280 21 48 F3             ld hl,extraBitMasks
-9466  F283 19                   add hl,de
-9467  F284 7E                   ld a,(hl)
-9468  F285 32 54 F3             ld (extraMigMask),a
-9469  F288 78                   ld a,b
-9470  F289 0F                   rrca
-9471  F28A 0F                   rrca
-9472  F28B 0F                   rrca
-9473  F28C E6 03                and 3
-9474  F28E 5F                   ld e,a
-9475  F28F 16 00                ld d,0
-9476  F291 21 10 F3             ld hl,extraDefaultColours+SETTINGS_COLOUR_PRIMARY_BYTES
-9477  F294 19                   add hl,de
-9478  F295 3A 54 F3             ld a,(extraMigMask)
-9479  F298 A6                   and (hl)
-9480  F299 28 28                jr z,.next_bit
-9481  F29B 3A 53 F3             ld a,(extraMigDestColour)
-9482  F29E 47                   ld b,a
-9483  F29F 3A 51 F3             ld a,(extraMigChannel)
-9484  F2A2 80                   add a,b
-9485  F2A3 47                   ld b,a
-9486  F2A4 E6 07                and 7
-9487  F2A6 5F                   ld e,a
-9488  F2A7 16 00                ld d,0
-9489  F2A9 21 48 F3             ld hl,extraBitMasks
-9490  F2AC 19                   add hl,de
-9491  F2AD 7E                   ld a,(hl)
-9492  F2AE 32 54 F3             ld (extraMigMask),a
-9493  F2B1 78                   ld a,b
-9494  F2B2 0F                   rrca
-9495  F2B3 0F                   rrca
-9496  F2B4 0F                   rrca
-9497  F2B5 E6 03                and 3
-9498  F2B7 5F                   ld e,a
-9499  F2B8 16 00                ld d,0
-9500  F2BA 21 34 F3             ld hl,extraMigratedColours+SETTINGS_COLOUR_PRIMARY_BYTES
-9501  F2BD 19                   add hl,de
-9502  F2BE 3A 54 F3             ld a,(extraMigMask)
-9503  F2C1 B6                   or (hl)
-9504  F2C2 77                   ld (hl),a
-9505  F2C3              .next_bit
-9506  F2C3 3A 51 F3             ld a,(extraMigChannel)
-9507  F2C6 3C                   inc a
-9508  F2C7 32 51 F3             ld (extraMigChannel),a
-9509  F2CA FE 02                cp 2
-9510  F2CC 20 A4                jr nz,.bit
-9511  F2CE 3A 50 F3             ld a,(extraMigStyle)
-9512  F2D1 3C                   inc a
-9513  F2D2 32 50 F3             ld (extraMigStyle),a
-9514  F2D5 FE 10                cp SETTINGS_STYLE_COUNT
-9515  F2D7 C2 3F F2             jp nz,.style
-9516  F2DA
-9517  F2DA 21 14 F3             ld hl,extraMigratedColours
-9518  F2DD 11 B1 89             ld de,cfgStyleColours
-9519  F2E0 01 24 00             ld bc,SETTINGS_COLOUR_BYTES
-9520  F2E3 ED B0                ldir
-9521  F2E5 3E 03                ld a,SETTINGS_SCHEME_CUSTOM
-9522  F2E7 32 F7 89             ld (cfgColourScheme),a
-9523  F2EA 3E 01                ld a,SETTINGS_COLOUR_VERSION
-9524  F2EC 32 F6 89             ld (cfgColourVersion),a
-9525  F2EF C9                   ret
-9526  F2F0
-9527  F2F0              extraDefaultColours
-9528  F2F0                      EMIT_SETTINGS_DEFAULT_COLOURS
-9528  F2F0 02 DB       >        db %000'000'10,%110'110'11
-9528  F2F2 01 FF       >        db %000'000'01,%111'111'11
-9528  F2F4 13 FF       >        db %000'100'11,%111'111'11
-9528  F2F6 FF 00       >        db %111'111'11,%000'000'00
-9528  F2F8 74 00       >        db %011'101'00,%000'000'00
-9528  F2FA D0 00       >        db %110'100'00,%000'000'00
-9528  F2FC 8C 00       >        db %100'011'00,%000'000'00
-9528  F2FE 02 1F       >        db %000'000'10,%000'111'11
-9528  F300 02 5C       >        db %000'000'10,%010'111'00
-9528  F302 60 B7       >        db %011'000'00,%101'101'11
-9528  F304 01 FC       >        db %000'000'01,%111'111'00
-9528  F306 01 1C       >        db %000'000'01,%000'111'00
-9528  F308 01 1F       >        db %000'000'01,%000'111'11
-9528  F30A 01 1C       >        db %000'000'01,%000'111'00
-9528  F30C 01 FC       >        db %000'000'01,%111'111'00
-9528  F30E 01 E0       >        db %000'000'01,%111'000'00
-9528  F310 7A 81 00 02 >        db $7a,$81,$00,$02
-9529  F314 00 00 00...  extraMigratedColours defs SETTINGS_COLOUR_BYTES
-9530  F338 00 00 00...  extraLegacyPaletteMap defs SETTINGS_PALETTE_COUNT
-9531  F348 01 02 04 08  extraBitMasks defb 1,2,4,8,16,32,64,128
-9531  F34C 10 20 40 80
-9532  F350 00           extraMigStyle defb 0
-9533  F351 00           extraMigChannel defb 0
-9534  F352 00           extraMigSourceColour defb 0
-9535  F353 00           extraMigDestColour defb 0
-9536  F354 00           extraMigMask defb 0
-9537  F355
-9538  F355                      emit_tilemap_palette
-9538  F355             >tilemapPalette:
-9538  F355 02 00       >                db  %000'000'10,0                 ; 0 tmavá navy R=0,G=0,B=4 (paper)				0
-9538  F357 27 00       >                db  %001'001'11,0                 ; 1 (nepoužito)
-9538  F359 01 00       >                db  %000'000'01,0                 ; 2 (nepoužito)
-9538  F35B DB 01       >                db  %110'110'11,1                 ; 3 stříbrná bílá R=6,G=6,B=7 (ink)
-9538  F35D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F35F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F361 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F363 00 00 00... >                ds 18
-9538  F375 01 00       >                db  %000'000'01,0                 ; 0 velmi tmavá navy R=0,G=0,B=2 (paper)			16 - menu lišta, hodiny
-9538  F377 25 00       >                db  %001'001'01,0                 ; 1 (nepoužito)
-9538  F379 00 01       >                db  %000'000'00,1                 ; 2 (nepoužito)
-9538  F37B FF 01       >                db  %111'111'11,1                 ; 3 čistá bílá R=7,G=7,B=7 (ink)
-9538  F37D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F37F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F381 18 00       >                db  %000'110'00,0                 ; 6 green
-9538  F383 00 00 00... >                ds 18
-9538  F395 13 01       >                db  %000'100'11,1                 ; 0 azure modrá R=0,G=4,B=7 (paper)				32 - kurzor, F-klávesy
-9538  F397 2F 00       >                db  %001'011'11,0                 ; 1 (nepoužito)
-9538  F399 0B 00       >                db  %000'010'11,0                 ; 2 (nepoužito)
-9538  F39B FF 01       >                db  %111'111'11,1                 ; 3 čistá bílá R=7,G=7,B=7 (ink)
-9538  F39D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F39F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F3A1 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F3A3 00 00 00... >                ds 18
-9538  F3B5 FF 01       >                db  %111'111'11,1                 ; 0 bílá R=7,G=7,B=7 (paper)					48 - menu popup kurzor
-9538  F3B7 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
-9538  F3B9 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
-9538  F3BB 00 00       >                db  %000'000'00,0                 ; 3 černá (ink)
-9538  F3BD C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F3BF F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F3C1 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F3C3 00 00 00... >                ds 18
-9538  F3D5 74 01       >                db  %011'101'00,1                 ; 0 (paper)						64 - výběr disku kurzor
-9538  F3D7 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
-9538  F3D9 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
-9538  F3DB 00 00       >                db  %000'000'00,0                 ; 3 (ink)
-9538  F3DD C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F3DF F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F3E1 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F3E3 00 00 00... >                ds 18
-9538  F3F5 D0 00       >                db  %110'100'00,0                 ; 0 amber R=6,G=4,B=0 (paper)					80 - označený+kurzor
-9538  F3F7 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
-9538  F3F9 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
-9538  F3FB 00 00       >                db  %000'000'00,0                 ; 3 černá (ink)
-9538  F3FD C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F3FF F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F401 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F403 00 00 00... >                ds 18
-9538  F415 8C 00       >                db  %100'011'00,0                 ; 0 tmavý amber R=4,G=3,B=0 (paper)				96 - označený
-9538  F417 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
-9538  F419 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
-9538  F41B 00 00       >                db  %000'000'00,0                 ; 3 černá (ink)
-9538  F41D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F41F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F421 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F423 00 00 00... >                ds 18
-9538  F435             >
-9538  F435 02 00       >                db  %000'000'10,0                 ; 0 tmavá navy (paper)					112 - barva adresáře
-9538  F437 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
-9538  F439 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
-9538  F43B 1F 01       >                db  %000'111'11,1                 ; 3 jasný cyan R=0,G=7,B=7 (ink)
-9538  F43D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F43F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F441 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F443 00 00 00... >                ds 18
-9538  F455             >
-9538  F455 02 00       >                db  %000'000'10,0                 ; 0 tmavá navy (paper)					128 - spustitelné soubory
-9538  F457 9C 01       >                db  %100'111'00,1                 ; 1 (nepoužito)
-9538  F459 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
-9538  F45B 5C 00       >                db  %010'111'00,0                 ; 3 lime zelená R=2,G=7,B=0 (ink)
-9538  F45D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F45F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F461 10 00       >                db  %000'100'00,0                 ; 6 green
-9538  F463 00 00 00... >                ds 18
-9538  F475             >
-9538  F475 60 00       >                db  %011'000'00,0                 ; 0 modra (paper)					144 -
-9538  F477 9C 01       >                db  %100'111'00,1                 ; 1 light grey (25% ink)
-9538  F479 49 01       >                db  %010'010'01,1                 ; 2 dark grey (75% ink)
-9538  F47B B7 00       >                db  %101'101'11,0                 ; 0 white-blueish (ink)
-9538  F47D C4 01       >                db  %110'001'00,1                 ; 4 red
-9538  F47F F8 01       >                db  %111'110'00,1                 ; 5 yellow
-9538  F481 18 00       >                db  %000'110'00,0                 ; 6 green
-9538  F483 00 00 00... >                ds 18
-9538  F495             >
-9538  F495 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy R=0,G=0,B=2 (shodné s group1)	160 - BAS plugin: barva klicovych slov
-9538  F497 00 00 00 00 >                ds 4                              ; 1-2 (nezajima)
-9538  F49B FC 00       >                db  %111'111'00,0                 ; 3 zluta ink (R=7,G=7,B=0)
-9538  F49D 00 00 00... >                ds 24                             ; 4-15 (nezajima)
-9538  F4B5             >
-9538  F4B5 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			176 - BAS plugin: barva cisel radku
-9538  F4B7 00 00 00 00 >                ds 4
-9538  F4BB 1C 00       >                db  %000'111'00,0                 ; 3 zelena ink (R=0,G=7,B=0)
-9538  F4BD 00 00 00... >                ds 24
-9538  F4D5             >
-9538  F4D5 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			192 - BAS plugin: barva REM komentaru
-9538  F4D7 00 00 00 00 >                ds 4
-9538  F4DB 1F 01       >                db  %000'111'11,1                 ; 3 cyan ink (R=0,G=7,B=7)
-9538  F4DD 00 00 00... >                ds 24
-9538  F4F5             >
-9538  F4F5 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			208 - TAP title, VU metr: zelena
-9538  F4F7 00 00 00 00 >                ds 4
-9538  F4FB 1C 00       >                db  %000'111'00,0                 ; 3 green ink (R=0,G=7,B=0)
-9538  F4FD 00 00 00... >                ds 24
-9538  F515             >
-9538  F515 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			224 - VU metr: zluta
-9538  F517 00 00 00 00 >                ds 4
-9538  F51B FC 00       >                db  %111'111'00,0                 ; 3 yellow ink (R=7,G=7,B=0)
-9538  F51D 00 00 00... >                ds 24
-9538  F535             >
-9538  F535 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			240 - VU metr: cervena
-9538  F537 00 00 00 00 >                ds 4
-9538  F53B E0 00       >                db  %111'000'00,0                 ; 3 red ink (R=7,G=0,B=0)
-9538  F53D 00 00 00... >                ds 24
-9538  F555             >
-9538  F555             >
-9538  F555             >
-9538  F555             >tilemapPalette_SZ:  EQU $ - tilemapPalette
-9539  F555
-9540  F555              EXTRA_BANK_END:
-9541  F555                          IFDEF CC_DOT
-9542  F555                          SAVEBIN "build/dot/ccd_xb.bin", $E000, EXTRA_BANK_END - $E000
-9543  F555                          EXPORT EXTRA_BANK_END
-9544  F555                          ELSE
-9545  F555 ~                        SAVEBIN "cc_xb.bin", $E000, EXTRA_BANK_END - $E000
-9546  F555                          ENDIF
-9547  F555                          DISPLAY "Velikost extra banky:",/A,EXTRA_BANK_END - $E000
-9548  F555
-9549  F555                          IFDEF CC_DOT
-9550  F555                            CSPECTMAP build/dot/ccd.map
-9551  F555                          ELSE
-9552  F555 ~                          CSPECTMAP player.map
-9553  F555                          ENDIF
-9554  F555                            ; savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
-9555  F555                            ; savenex core 2,0,0
-9556  F555                            ; savenex auto
-9557  F555                            ; savenex close
-9558  F555
+8785  E935              ; specialchar2 je definovana uvnitr include
+8786  E935
+8787  E935              ; --- Sprite data (sipka) - nacita se pri startu ---
+8788  E935              sipka:
+8789  E935                          incbin "sipka.spr"
+8790  EA35
+8791  EA35              ; --- Help dialog ---
+8792  EA35              EXTRA_HELP:
+8793  EA35 AF                       xor a
+8794  EA36 32 B0 ED                 ld (extraHelpTop),a
+8795  EA39 32 B6 ED                 ld (extraHelpSearchPos),a
+8796  EA3C 32 06 EE                 ld (extraHelpSearch),a
+8797  EA3F CD DF EA                 call extra_help_rebuild_filter
+8798  EA42 CD 4F EB                 call extra_help_draw
+8799  EA45              .input
+8800  EA45 AF                       xor a
+8801  EA46 32 4E 73                 ld (TLACITKO),a
+8802  EA49 CD 95 E4                 call extra_read_key
+8803  EA4C FE 01                    cp 1
+8804  EA4E C8                       ret z
+8805  EA4F FE 0C                    cp 12
+8806  EA51 28 0D                    jr z,.backspace
+8807  EA53 FE 20                    cp 32
+8808  EA55 38 25                    jr c,.action
+8809  EA57 FE 7F                    cp 127
+8810  EA59 30 EA                    jr nc,.input
+8811  EA5B CD C8 EA                 call extra_help_add_search_char
+8812  EA5E 18 13                    jr .filter_changed
+8813  EA60              .backspace
+8814  EA60 3A B6 ED                 ld a,(extraHelpSearchPos)
+8815  EA63 B7                       or a
+8816  EA64 28 DF                    jr z,.input
+8817  EA66 3D                       dec a
+8818  EA67 32 B6 ED                 ld (extraHelpSearchPos),a
+8819  EA6A 5F                       ld e,a
+8820  EA6B 16 00                    ld d,0
+8821  EA6D 21 06 EE                 ld hl,extraHelpSearch
+8822  EA70 19                       add hl,de
+8823  EA71 36 00                    ld (hl),0
+8824  EA73              .filter_changed
+8825  EA73 AF                       xor a
+8826  EA74 32 B0 ED                 ld (extraHelpTop),a
+8827  EA77 CD DF EA                 call extra_help_rebuild_filter
+8828  EA7A 18 3B                    jr .redraw
+8829  EA7C              .action
+8830  EA7C CD 63 73                 call key_dispatch_action
+8831  EA7F FE 03                    cp ACT_UP
+8832  EA81 28 1A                    jr z,.up
+8833  EA83 FE 02                    cp ACT_DOWN
+8834  EA85 28 20                    jr z,.down
+8835  EA87 FE 05                    cp ACT_PAGE_UP
+8836  EA89 28 0C                    jr z,.page_up
+8837  EA8B FE 04                    cp ACT_PAGE_DOWN
+8838  EA8D 20 B6                    jr nz,.input
+8839  EA8F CD BC EA                 call extra_help_max_top
+8840  EA92 32 B0 ED                 ld (extraHelpTop),a
+8841  EA95 18 20                    jr .redraw
+8842  EA97              .page_up
+8843  EA97 AF                       xor a
+8844  EA98 32 B0 ED                 ld (extraHelpTop),a
+8845  EA9B 18 1A                    jr .redraw
+8846  EA9D              .up
+8847  EA9D 21 B0 ED                 ld hl,extraHelpTop
+8848  EAA0 7E                       ld a,(hl)
+8849  EAA1 B7                       or a
+8850  EAA2 28 A1                    jr z,.input
+8851  EAA4 35                       dec (hl)
+8852  EAA5 18 10                    jr .redraw
+8853  EAA7              .down
+8854  EAA7 CD BC EA                 call extra_help_max_top
+8855  EAAA 47                       ld b,a
+8856  EAAB 3A B0 ED                 ld a,(extraHelpTop)
+8857  EAAE B8                       cp b
+8858  EAAF 28 94                    jr z,.input
+8859  EAB1 3C                       inc a
+8860  EAB2 32 B0 ED                 ld (extraHelpTop),a
+8861  EAB5 18 00                    jr .redraw
+8862  EAB7              .redraw
+8863  EAB7 CD 4F EB                 call extra_help_draw
+8864  EABA 18 89                    jr .input
+8865  EABC
+8866  EABC              extra_help_max_top
+8867  EABC 3A B4 ED                 ld a,(extraHelpMatchCount)
+8868  EABF FE 13                    cp 19
+8869  EAC1 30 02                    jr nc,.scrollable
+8870  EAC3 AF                       xor a
+8871  EAC4 C9                       ret
+8872  EAC5              .scrollable
+8873  EAC5 D6 12                    sub 18
+8874  EAC7 C9                       ret
+8875  EAC8
+8876  EAC8              extra_help_add_search_char
+8877  EAC8 47                       ld b,a
+8878  EAC9 3A B6 ED                 ld a,(extraHelpSearchPos)
+8879  EACC FE 20                    cp EXTRA_HELP_SEARCH_MAX
+8880  EACE D0                       ret nc
+8881  EACF 5F                       ld e,a
+8882  EAD0 16 00                    ld d,0
+8883  EAD2 21 06 EE                 ld hl,extraHelpSearch
+8884  EAD5 19                       add hl,de
+8885  EAD6 70                       ld (hl),b
+8886  EAD7 23                       inc hl
+8887  EAD8 36 00                    ld (hl),0
+8888  EADA 3C                       inc a
+8889  EADB 32 B6 ED                 ld (extraHelpSearchPos),a
+8890  EADE C9                       ret
+8891  EADF
+8892  EADF              extra_help_rebuild_filter
+8893  EADF AF                       xor a
+8894  EAE0 32 B4 ED                 ld (extraHelpMatchCount),a
+8895  EAE3 32 B5 ED                 ld (extraHelpScanAction),a
+8896  EAE6              .scan
+8897  EAE6 3A B5 ED                 ld a,(extraHelpScanAction)
+8898  EAE9 FE 21                    cp SETTINGS_ACTION_COUNT
+8899  EAEB C8                       ret z
+8900  EAEC CD 0C EB                 call extra_help_action_name
+8901  EAEF CD 19 EB                 call extra_help_name_matches
+8902  EAF2 30 12                    jr nc,.next
+8903  EAF4 3A B4 ED                 ld a,(extraHelpMatchCount)
+8904  EAF7 5F                       ld e,a
+8905  EAF8 16 00                    ld d,0
+8906  EAFA 21 58 EE                 ld hl,extraHelpMatches
+8907  EAFD 19                       add hl,de
+8908  EAFE 3A B5 ED                 ld a,(extraHelpScanAction)
+8909  EB01 77                       ld (hl),a
+8910  EB02 21 B4 ED                 ld hl,extraHelpMatchCount
+8911  EB05 34                       inc (hl)
+8912  EB06              .next
+8913  EB06 21 B5 ED                 ld hl,extraHelpScanAction
+8914  EB09 34                       inc (hl)
+8915  EB0A 18 DA                    jr .scan
+8916  EB0C
+8917  EB0C              ; IN: A=action index. OUT: HL=zero-terminated action description.
+8918  EB0C              extra_help_action_name
+8919  EB0C 87                       add a,a
+8920  EB0D 5F                       ld e,a
+8921  EB0E 16 00                    ld d,0
+8922  EB10 21 79 EE                 ld hl,extraHelpActionNames
+8923  EB13 19                       add hl,de
+8924  EB14 5E                       ld e,(hl)
+8925  EB15 23                       inc hl
+8926  EB16 56                       ld d,(hl)
+8927  EB17 EB                       ex de,hl
+8928  EB18 C9                       ret
+8929  EB19
+8930  EB19              ; Case-insensitive substring test.
+8931  EB19              ; IN: HL=description. OUT: carry set when extraHelpSearch is contained in it.
+8932  EB19              extra_help_name_matches
+8933  EB19 3A 06 EE                 ld a,(extraHelpSearch)
+8934  EB1C B7                       or a
+8935  EB1D 28 23                    jr z,.match
+8936  EB1F              .candidate
+8937  EB1F 7E                       ld a,(hl)
+8938  EB20 B7                       or a
+8939  EB21 28 21                    jr z,.miss
+8940  EB23 E5                       push hl
+8941  EB24 11 06 EE                 ld de,extraHelpSearch
+8942  EB27              .compare
+8943  EB27 1A                       ld a,(de)
+8944  EB28 B7                       or a
+8945  EB29 28 16                    jr z,.match_pop
+8946  EB2B CD 46 EB                 call extra_help_upper_ascii
+8947  EB2E 47                       ld b,a
+8948  EB2F 7E                       ld a,(hl)
+8949  EB30 B7                       or a
+8950  EB31 28 0A                    jr z,.candidate_failed
+8951  EB33 CD 46 EB                 call extra_help_upper_ascii
+8952  EB36 B8                       cp b
+8953  EB37 20 04                    jr nz,.candidate_failed
+8954  EB39 23                       inc hl
+8955  EB3A 13                       inc de
+8956  EB3B 18 EA                    jr .compare
+8957  EB3D              .candidate_failed
+8958  EB3D E1                       pop hl
+8959  EB3E 23                       inc hl
+8960  EB3F 18 DE                    jr .candidate
+8961  EB41              .match_pop
+8962  EB41 E1                       pop hl
+8963  EB42              .match
+8964  EB42 37                       scf
+8965  EB43 C9                       ret
+8966  EB44              .miss
+8967  EB44 B7                       or a
+8968  EB45 C9                       ret
+8969  EB46
+8970  EB46              extra_help_upper_ascii
+8971  EB46 FE 61                    cp 'a'
+8972  EB48 D8                       ret c
+8973  EB49 FE 7B                    cp 'z'+1
+8974  EB4B D0                       ret nc
+8975  EB4C D6 20                    sub 32
+8976  EB4E C9                       ret
+8977  EB4F
+8978  EB4F              extra_help_draw
+8979  EB4F 21 03 08                 ld hl,8*256+3
+8980  EB52 01 1B 40                 ld bc,64*256+27
+8981  EB55 3E 10                    ld a,16
+8982  EB57 CD 2C 81                 call window
+8983  EB5A 21 04 0B                 ld hl,11*256+4
+8984  EB5D 11 28 ED                 ld de,extraHelpTitle
+8985  EB60 3E 10                    ld a,16
+8986  EB62 CD 09 81                 call print
+8987  EB65 21 06 0B                 ld hl,11*256+6
+8988  EB68 11 44 ED                 ld de,extraHelpHeader
+8989  EB6B 3E 10                    ld a,16
+8990  EB6D CD 09 81                 call print
+8991  EB70 21 1A 0B                 ld hl,11*256+26
+8992  EB73 11 71 ED                 ld de,extraHelpSearchLabel
+8993  EB76 3E 10                    ld a,16
+8994  EB78 CD 09 81                 call print
+8995  EB7B CD EB EC                 call extra_help_draw_search
+8996  EB7E 21 1C 0B                 ld hl,11*256+28
+8997  EB81 11 79 ED                 ld de,extraHelpHint
+8998  EB84 3E 10                    ld a,16
+8999  EB86 CD 09 81                 call print
+9000  EB89 AF                       xor a
+9001  EB8A 32 B1 ED                 ld (extraHelpRow),a
+9002  EB8D              .row
+9003  EB8D CD AC EB                 call extra_help_prepare_row
+9004  EB90 3A B1 ED                 ld a,(extraHelpRow)
+9005  EB93 C6 07                    add a,7
+9006  EB95 6F                       ld l,a
+9007  EB96 26 0B                    ld h,11
+9008  EB98 11 B7 ED                 ld de,extraHelpLine
+9009  EB9B 3E 10                    ld a,16
+9010  EB9D CD 09 81                 call print
+9011  EBA0 3A B1 ED                 ld a,(extraHelpRow)
+9012  EBA3 3C                       inc a
+9013  EBA4 32 B1 ED                 ld (extraHelpRow),a
+9014  EBA7 FE 12                    cp 18
+9015  EBA9 20 E2                    jr nz,.row
+9016  EBAB C9                       ret
+9017  EBAC
+9018  EBAC              extra_help_prepare_row
+9019  EBAC 21 B7 ED                 ld hl,extraHelpLine
+9020  EBAF 11 B8 ED                 ld de,extraHelpLine+1
+9021  EBB2 01 39 00                 ld bc,57
+9022  EBB5 36 20                    ld (hl),' '
+9023  EBB7 ED B0                    ldir
+9024  EBB9 AF                       xor a
+9025  EBBA 32 F1 ED                 ld (extraHelpLine+58),a
+9026  EBBD 3A B0 ED                 ld a,(extraHelpTop)
+9027  EBC0 21 B1 ED                 ld hl,extraHelpRow
+9028  EBC3 86                       add a,(hl)
+9029  EBC4 21 B4 ED                 ld hl,extraHelpMatchCount
+9030  EBC7 BE                       cp (hl)
+9031  EBC8 D0                       ret nc
+9032  EBC9 5F                       ld e,a
+9033  EBCA 16 00                    ld d,0
+9034  EBCC 21 58 EE                 ld hl,extraHelpMatches
+9035  EBCF 19                       add hl,de
+9036  EBD0 7E                       ld a,(hl)
+9037  EBD1 32 B2 ED                 ld (extraHelpAction),a
+9038  EBD4 CD 0C EB                 call extra_help_action_name
+9039  EBD7 11 B7 ED                 ld de,extraHelpLine
+9040  EBDA 06 20                    ld b,32
+9041  EBDC CD D8 EC                 call extra_help_copy_field
+9042  EBDF 3A B2 ED                 ld a,(extraHelpAction)
+9043  EBE2 5F                       ld e,a
+9044  EBE3 16 00                    ld d,0
+9045  EBE5 21 D5 89                 ld hl,cfgKeyBindings
+9046  EBE8 19                       add hl,de
+9047  EBE9 7E                       ld a,(hl)
+9048  EBEA CD F8 EB                 call extra_help_format_key
+9049  EBED 21 F2 ED                 ld hl,extraHelpKeyBuf
+9050  EBF0 11 DB ED                 ld de,extraHelpLine+36
+9051  EBF3 06 14                    ld b,20
+9052  EBF5 C3 D8 EC                 jp extra_help_copy_field
+9053  EBF8
+9054  EBF8              extra_help_format_key
+9055  EBF8 32 B3 ED                 ld (extraHelpKeyCode),a
+9056  EBFB 11 F2 ED                 ld de,extraHelpKeyBuf
+9057  EBFE FE 01                    cp 1
+9058  EC00 21 3E F0                 ld hl,extraKeyBreak
+9059  EC03 CA D0 EC                 jp z,extra_help_copy_zero
+9060  EC06 FE 04                    cp 4
+9061  EC08 21 52 F0                 ld hl,extraKeyCs3
+9062  EC0B CA CD EC                 jp z,.known
+9063  EC0E FE 05                    cp 5
+9064  EC10 21 59 F0                 ld hl,extraKeyCs4
+9065  EC13 CA CD EC                 jp z,.known
+9066  EC16 FE 06                    cp 6
+9067  EC18 21 4B F0                 ld hl,extraKeyCs2
+9068  EC1B CA CD EC                 jp z,.known
+9069  EC1E FE 07                    cp 7
+9070  EC20 21 44 F0                 ld hl,extraKeyCs1
+9071  EC23 CA CD EC                 jp z,.known
+9072  EC26 FE 08                    cp 8
+9073  EC28 21 60 F0                 ld hl,extraKeyCs5
+9074  EC2B CA CD EC                 jp z,.known
+9075  EC2E FE 09                    cp 9
+9076  EC30 21 75 F0                 ld hl,extraKeyCs8
+9077  EC33 CA CD EC                 jp z,.known
+9078  EC36 FE 0A                    cp 10
+9079  EC38 21 67 F0                 ld hl,extraKeyCs6
+9080  EC3B CA CD EC                 jp z,.known
+9081  EC3E FE 0B                    cp 11
+9082  EC40 21 6E F0                 ld hl,extraKeyCs7
+9083  EC43 CA CD EC                 jp z,.known
+9084  EC46 FE 0C                    cp 12
+9085  EC48 21 83 F0                 ld hl,extraKeyDelete
+9086  EC4B CA CD EC                 jp z,.known
+9087  EC4E FE 0D                    cp 13
+9088  EC50 21 8A F0                 ld hl,extraKeyEnter
+9089  EC53 CA CD EC                 jp z,.known
+9090  EC56 FE 0F                    cp 15
+9091  EC58 21 7C F0                 ld hl,extraKeyCs9
+9092  EC5B CA CD EC                 jp z,.known
+9093  EC5E FE 20                    cp 32
+9094  EC60 21 90 F0                 ld hl,extraKeySpace
+9095  EC63 CA CD EC                 jp z,.known
+9096  EC66 FE 7F                    cp 127
+9097  EC68 21 96 F0                 ld hl,extraKeySsI
+9098  EC6B CA CD EC                 jp z,.known
+9099  EC6E FE C7                    cp 199
+9100  EC70 21 9B F0                 ld hl,extraKeySsQ
+9101  EC73 CA CD EC                 jp z,.known
+9102  EC76 FE C8                    cp 200
+9103  EC78 21 A0 F0                 ld hl,extraKeySsE
+9104  EC7B CA CD EC                 jp z,.known
+9105  EC7E FE C9                    cp 201
+9106  EC80 21 A5 F0                 ld hl,extraKeySsW
+9107  EC83 CA CD EC                 jp z,.known
+9108  EC86 FE 41                    cp 'A'
+9109  EC88 38 13                    jr c,.plain
+9110  EC8A FE 5B                    cp 'Z'+1
+9111  EC8C 30 0F                    jr nc,.plain
+9112  EC8E 21 AA F0                 ld hl,extraKeyCaps
+9113  EC91 CD D0 EC                 call extra_help_copy_zero
+9114  EC94 1B                       dec de
+9115  EC95 3A B3 ED                 ld a,(extraHelpKeyCode)
+9116  EC98 12                       ld (de),a
+9117  EC99 13                       inc de
+9118  EC9A AF                       xor a
+9119  EC9B 12                       ld (de),a
+9120  EC9C C9                       ret
+9121  EC9D              .plain
+9122  EC9D FE 20                    cp 32
+9123  EC9F 38 13                    jr c,.hex
+9124  ECA1 FE 7F                    cp 127
+9125  ECA3 30 0F                    jr nc,.hex
+9126  ECA5 FE 61                    cp 'a'
+9127  ECA7 38 06                    jr c,.one
+9128  ECA9 FE 7B                    cp 'z'+1
+9129  ECAB 30 02                    jr nc,.one
+9130  ECAD D6 20                    sub 32
+9131  ECAF              .one
+9132  ECAF 12                       ld (de),a
+9133  ECB0 13                       inc de
+9134  ECB1 AF                       xor a
+9135  ECB2 12                       ld (de),a
+9136  ECB3 C9                       ret
+9137  ECB4              .hex
+9138  ECB4 F5                       push af
+9139  ECB5 3E 24                    ld a,'$'
+9140  ECB7 12                       ld (de),a
+9141  ECB8 13                       inc de
+9142  ECB9 F1                       pop af
+9143  ECBA F5                       push af
+9144  ECBB 0F                       rrca
+9145  ECBC 0F                       rrca
+9146  ECBD 0F                       rrca
+9147  ECBE 0F                       rrca
+9148  ECBF CD E1 EC                 call extra_help_hex_digit
+9149  ECC2 12                       ld (de),a
+9150  ECC3 13                       inc de
+9151  ECC4 F1                       pop af
+9152  ECC5 CD E1 EC                 call extra_help_hex_digit
+9153  ECC8 12                       ld (de),a
+9154  ECC9 13                       inc de
+9155  ECCA AF                       xor a
+9156  ECCB 12                       ld (de),a
+9157  ECCC C9                       ret
+9158  ECCD              .known
+9159  ECCD C3 D0 EC                 jp extra_help_copy_zero
+9160  ECD0
+9161  ECD0              extra_help_copy_zero
+9162  ECD0 7E                       ld a,(hl)
+9163  ECD1 12                       ld (de),a
+9164  ECD2 23                       inc hl
+9165  ECD3 13                       inc de
+9166  ECD4 B7                       or a
+9167  ECD5 20 F9                    jr nz,extra_help_copy_zero
+9168  ECD7 C9                       ret
+9169  ECD8
+9170  ECD8              extra_help_copy_field
+9171  ECD8 7E                       ld a,(hl)
+9172  ECD9 B7                       or a
+9173  ECDA C8                       ret z
+9174  ECDB 12                       ld (de),a
+9175  ECDC 23                       inc hl
+9176  ECDD 13                       inc de
+9177  ECDE 10 F8                    djnz extra_help_copy_field
+9178  ECE0 C9                       ret
+9179  ECE1
+9180  ECE1              extra_help_hex_digit
+9181  ECE1 E6 0F                    and $0f
+9182  ECE3 C6 30                    add a,'0'
+9183  ECE5 FE 3A                    cp '9'+1
+9184  ECE7 D8                       ret c
+9185  ECE8 C6 07                    add a,'A'-'9'-1
+9186  ECEA C9                       ret
+9187  ECEB
+9188  ECEB              extra_help_draw_search
+9189  ECEB 21 27 EE                 ld hl,extraHelpSearchLine
+9190  ECEE 11 28 EE                 ld de,extraHelpSearchLine+1
+9191  ECF1 01 2F 00                 ld bc,EXTRA_HELP_SEARCH_FIELD_WIDTH-1
+9192  ECF4 36 20                    ld (hl),' '
+9193  ECF6 ED B0                    ldir
+9194  ECF8 AF                       xor a
+9195  ECF9 32 57 EE                 ld (extraHelpSearchLine+EXTRA_HELP_SEARCH_FIELD_WIDTH),a
+9196  ECFC 3A B6 ED                 ld a,(extraHelpSearchPos)
+9197  ECFF B7                       or a
+9198  ED00 28 0B                    jr z,.cursor
+9199  ED02 4F                       ld c,a
+9200  ED03 06 00                    ld b,0
+9201  ED05 21 06 EE                 ld hl,extraHelpSearch
+9202  ED08 11 27 EE                 ld de,extraHelpSearchLine
+9203  ED0B ED B0                    ldir
+9204  ED0D              .cursor
+9205  ED0D 3A B6 ED                 ld a,(extraHelpSearchPos)
+9206  ED10 FE 30                    cp EXTRA_HELP_SEARCH_FIELD_WIDTH
+9207  ED12 30 09                    jr nc,.plot
+9208  ED14 5F                       ld e,a
+9209  ED15 16 00                    ld d,0
+9210  ED17 21 27 EE                 ld hl,extraHelpSearchLine
+9211  ED1A 19                       add hl,de
+9212  ED1B 36 5F                    ld (hl),'_'
+9213  ED1D              .plot
+9214  ED1D 21 1A 13                 ld hl,19*256+26
+9215  ED20 11 27 EE                 ld de,extraHelpSearchLine
+9216  ED23 3E 50                    ld a,80
+9217  ED25 C3 09 81                 jp print
+9218  ED28
+9219  ED28 48 65 6C 70  extraHelpTitle  defb "Help - current key bindings",0
+9219  ED2C 20 2D 20 63
+9219  ED30 75 72 72 65
+9219  ED34 6E 74 20 6B
+9219  ED38 65 79 20 62
+9219  ED3C 69 6E 64 69
+9219  ED40 6E 67 73 00
+9220  ED44 41 63 74 69  extraHelpHeader defb "Action                              Shortcut",0
+9220  ED48 6F 6E 20 20
+9220  ED4C 20 20 20 20
+9220  ED50 20 20 20 20
+9220  ED54 20 20 20 20
+9220  ED58 20 20 20 20
+9220  ED5C 20 20 20 20
+9220  ED60 20 20 20 20
+9220  ED64 20 20 20 20
+9220  ED68 53 68 6F 72
+9220  ED6C 74 63 75 74
+9220  ED70 00
+9221  ED71 53 65 61 72  extraHelpSearchLabel defb "Search:",0
+9221  ED75 63 68 3A 00
+9222  ED79 54 59 50 45  extraHelpHint   defb "TYPE filter  DELETE erase  UP/DOWN scroll  BREAK close",0
+9222  ED7D 20 66 69 6C
+9222  ED81 74 65 72 20
+9222  ED85 20 44 45 4C
+9222  ED89 45 54 45 20
+9222  ED8D 65 72 61 73
+9222  ED91 65 20 20 55
+9222  ED95 50 2F 44 4F
+9222  ED99 57 4E 20 73
+9222  ED9D 63 72 6F 6C
+9222  EDA1 6C 20 20 42
+9222  EDA5 52 45 41 4B
+9222  EDA9 20 63 6C 6F
+9222  EDAD 73 65 00
+9223  EDB0              EXTRA_HELP_SEARCH_MAX equ 32
+9224  EDB0              EXTRA_HELP_SEARCH_FIELD_WIDTH equ 48
+9225  EDB0 00           extraHelpTop    defb 0
+9226  EDB1 00           extraHelpRow    defb 0
+9227  EDB2 00           extraHelpAction defb 0
+9228  EDB3 00           extraHelpKeyCode defb 0
+9229  EDB4 00           extraHelpMatchCount defb 0
+9230  EDB5 00           extraHelpScanAction defb 0
+9231  EDB6 00           extraHelpSearchPos defb 0
+9232  EDB7 00 00 00...  extraHelpLine   defs 59
+9233  EDF2 00 00 00...  extraHelpKeyBuf defs 20
+9234  EE06 00 00 00...  extraHelpSearch defs EXTRA_HELP_SEARCH_MAX+1
+9235  EE27 00 00 00...  extraHelpSearchLine defs EXTRA_HELP_SEARCH_FIELD_WIDTH+1
+9236  EE58 00 00 00...  extraHelpMatches defs SETTINGS_ACTION_COUNT
+9237  EE79
+9238  EE79              extraHelpActionNames
+9239  EE79 BB EE D0 EE              defw ehaSysInfo,ehaDown,ehaUp,ehaPageDown,ehaPageUp,ehaSwitch,ehaEnter,ehaDelete
+9239  EE7D DC EE E6 EE
+9239  EE81 F0 EE F8 EE
+9239  EE85 05 EF 12 EF
+9240  EE89 19 EF 2A EF              defw ehaParent,ehaRename,ehaMenu,ehaCopy,ehaMove,ehaMark,ehaMkdir,ehaDriveL
+9240  EE8D 31 EF 36 EF
+9240  EE91 3B EF 40 EF
+9240  EE95 4A EF 5B EF
+9241  EE99 66 EF 72 EF              defw ehaDriveR,ehaSelect,ehaInvert,ehaDeselect,ehaSearch,ehaLeft,ehaRight,ehaView
+9241  EE9D 81 EF 92 EF
+9241  EEA1 A3 EF AA EF
+9241  EEA5 BE EF D3 EF
+9242  EEA9 DD EF E7 EF              defw ehaEdit,ehaPlugins,ehaBookmarkAdd,ehaBookmarkList,ehaHelp,ehaAttr,ehaFileInfo,ehaQuit
+9242  EEAD F3 EF 00 F0
+9242  EEB1 0F F0 14 F0
+9242  EEB5 26 F0 30 F0
+9243  EEB9 35 F0                    defw ehaSettings
+9244  EEBB              extraHelpActionNamesEnd
+9245  EEBB                          assert extraHelpActionNamesEnd-extraHelpActionNames = SETTINGS_ACTION_COUNT*2
+9246  EEBB 41 62 6F 75  ehaSysInfo      defb "About Calm Commander",0
+9246  EEBF 74 20 43 61
+9246  EEC3 6C 6D 20 43
+9246  EEC7 6F 6D 6D 61
+9246  EECB 6E 64 65 72
+9246  EECF 00
+9247  EED0 43 75 72 73  ehaDown         defb "Cursor down",0
+9247  EED4 6F 72 20 64
+9247  EED8 6F 77 6E 00
+9248  EEDC 43 75 72 73  ehaUp           defb "Cursor up",0
+9248  EEE0 6F 72 20 75
+9248  EEE4 70 00
+9249  EEE6 50 61 67 65  ehaPageDown     defb "Page down",0
+9249  EEEA 20 64 6F 77
+9249  EEEE 6E 00
+9250  EEF0 50 61 67 65  ehaPageUp       defb "Page up",0
+9250  EEF4 20 75 70 00
+9251  EEF8 53 77 69 74  ehaSwitch       defb "Switch panel",0
+9251  EEFC 63 68 20 70
+9251  EF00 61 6E 65 6C
+9251  EF04 00
+9252  EF05 4F 70 65 6E  ehaEnter        defb "Open / Enter",0
+9252  EF09 20 2F 20 45
+9252  EF0D 6E 74 65 72
+9252  EF11 00
+9253  EF12 44 65 6C 65  ehaDelete       defb "Delete",0
+9253  EF16 74 65 00
+9254  EF19 50 61 72 65  ehaParent       defb "Parent directory",0
+9254  EF1D 6E 74 20 64
+9254  EF21 69 72 65 63
+9254  EF25 74 6F 72 79
+9254  EF29 00
+9255  EF2A 52 65 6E 61  ehaRename       defb "Rename",0
+9255  EF2E 6D 65 00
+9256  EF31 4D 65 6E 75  ehaMenu         defb "Menu",0
+9256  EF35 00
+9257  EF36 43 6F 70 79  ehaCopy         defb "Copy",0
+9257  EF3A 00
+9258  EF3B 4D 6F 76 65  ehaMove         defb "Move",0
+9258  EF3F 00
+9259  EF40 4D 61 72 6B  ehaMark         defb "Mark file",0
+9259  EF44 20 66 69 6C
+9259  EF48 65 00
+9260  EF4A 43 72 65 61  ehaMkdir        defb "Create directory",0
+9260  EF4E 74 65 20 64
+9260  EF52 69 72 65 63
+9260  EF56 74 6F 72 79
+9260  EF5A 00
+9261  EF5B 4C 65 66 74  ehaDriveL       defb "Left drive",0
+9261  EF5F 20 64 72 69
+9261  EF63 76 65 00
+9262  EF66 52 69 67 68  ehaDriveR       defb "Right drive",0
+9262  EF6A 74 20 64 72
+9262  EF6E 69 76 65 00
+9263  EF72 53 65 6C 65  ehaSelect       defb "Select by mask",0
+9263  EF76 63 74 20 62
+9263  EF7A 79 20 6D 61
+9263  EF7E 73 6B 00
+9264  EF81 49 6E 76 65  ehaInvert       defb "Invert selection",0
+9264  EF85 72 74 20 73
+9264  EF89 65 6C 65 63
+9264  EF8D 74 69 6F 6E
+9264  EF91 00
+9265  EF92 44 65 73 65  ehaDeselect     defb "Deselect by mask",0
+9265  EF96 6C 65 63 74
+9265  EF9A 20 62 79 20
+9265  EF9E 6D 61 73 6B
+9265  EFA2 00
+9266  EFA3 53 65 61 72  ehaSearch       defb "Search",0
+9266  EFA7 63 68 00
+9267  EFAA 41 63 74 69  ehaLeft         defb "Activate left panel",0
+9267  EFAE 76 61 74 65
+9267  EFB2 20 6C 65 66
+9267  EFB6 74 20 70 61
+9267  EFBA 6E 65 6C 00
+9268  EFBE 41 63 74 69  ehaRight        defb "Activate right panel",0
+9268  EFC2 76 61 74 65
+9268  EFC6 20 72 69 67
+9268  EFCA 68 74 20 70
+9268  EFCE 61 6E 65 6C
+9268  EFD2 00
+9269  EFD3 56 69 65 77  ehaView         defb "View file",0
+9269  EFD7 20 66 69 6C
+9269  EFDB 65 00
+9270  EFDD 45 64 69 74  ehaEdit         defb "Edit file",0
+9270  EFE1 20 66 69 6C
+9270  EFE5 65 00
+9271  EFE7 50 6C 75 67  ehaPlugins      defb "Plugin menu",0
+9271  EFEB 69 6E 20 6D
+9271  EFEF 65 6E 75 00
+9272  EFF3 41 64 64 20  ehaBookmarkAdd  defb "Add bookmark",0
+9272  EFF7 62 6F 6F 6B
+9272  EFFB 6D 61 72 6B
+9272  EFFF 00
+9273  F000 53 68 6F 77  ehaBookmarkList defb "Show bookmarks",0
+9273  F004 20 62 6F 6F
+9273  F008 6B 6D 61 72
+9273  F00C 6B 73 00
+9274  F00F 48 65 6C 70  ehaHelp         defb "Help",0
+9274  F013 00
+9275  F014 43 68 61 6E  ehaAttr         defb "Change attributes",0
+9275  F018 67 65 20 61
+9275  F01C 74 74 72 69
+9275  F020 62 75 74 65
+9275  F024 73 00
+9276  F026 46 69 6C 65  ehaFileInfo     defb "File info",0
+9276  F02A 20 69 6E 66
+9276  F02E 6F 00
+9277  F030 51 75 69 74  ehaQuit         defb "Quit",0
+9277  F034 00
+9278  F035 53 65 74 74  ehaSettings     defb "Settings",0
+9278  F039 69 6E 67 73
+9278  F03D 00
+9279  F03E
+9280  F03E 42 52 45 41  extraKeyBreak  defb "BREAK",0
+9280  F042 4B 00
+9281  F044 43 41 50 53  extraKeyCs1    defb "CAPS+1",0
+9281  F048 2B 31 00
+9282  F04B 43 41 50 53  extraKeyCs2    defb "CAPS+2",0
+9282  F04F 2B 32 00
+9283  F052 43 41 50 53  extraKeyCs3    defb "CAPS+3",0
+9283  F056 2B 33 00
+9284  F059 43 41 50 53  extraKeyCs4    defb "CAPS+4",0
+9284  F05D 2B 34 00
+9285  F060 43 41 50 53  extraKeyCs5    defb "CAPS+5",0
+9285  F064 2B 35 00
+9286  F067 43 41 50 53  extraKeyCs6    defb "CAPS+6",0
+9286  F06B 2B 36 00
+9287  F06E 43 41 50 53  extraKeyCs7    defb "CAPS+7",0
+9287  F072 2B 37 00
+9288  F075 43 41 50 53  extraKeyCs8    defb "CAPS+8",0
+9288  F079 2B 38 00
+9289  F07C 43 41 50 53  extraKeyCs9    defb "CAPS+9",0
+9289  F080 2B 39 00
+9290  F083 44 45 4C 45  extraKeyDelete defb "DELETE",0
+9290  F087 54 45 00
+9291  F08A 45 4E 54 45  extraKeyEnter  defb "ENTER",0
+9291  F08E 52 00
+9292  F090 53 50 41 43  extraKeySpace  defb "SPACE",0
+9292  F094 45 00
+9293  F096 53 53 2B 49  extraKeySsI    defb "SS+I",0
+9293  F09A 00
+9294  F09B 53 53 2B 51  extraKeySsQ    defb "SS+Q",0
+9294  F09F 00
+9295  F0A0 53 53 2B 45  extraKeySsE    defb "SS+E",0
+9295  F0A4 00
+9296  F0A5 53 53 2B 57  extraKeySsW    defb "SS+W",0
+9296  F0A9 00
+9297  F0AA 43 41 50 53  extraKeyCaps   defb "CAPS+",0
+9297  F0AE 2B 00
+9298  F0B0
+9299  F0B0              EXTRA_NOTNOW:
+9300  F0B0 21 0A 08             ld hl,8 * 256 + 10
+9301  F0B3 01 03 3C             ld bc,60 * 256 + 3
+9302  F0B6 3E 10                ld a,16
+9303  F0B8 CD 2C 81             call window
+9304  F0BB
+9305  F0BB 21 0B 0B             ld hl,11*256+11
+9306  F0BE 3E 10                ld a,16
+9307  F0C0 11 D9 F0             ld de,notimplemented
+9308  F0C3 CD 09 81             call print
+9309  F0C6
+9310  F0C6 21 0D 2A             ld hl,42*256+13
+9311  F0C9 3E 20                ld a,32
+9312  F0CB 11 7F A2             ld de,pressanykeytxt
+9313  F0CE CD 09 81             call print
+9314  F0D1
+9315  F0D1 AF                   xor a
+9316  F0D2 32 4E 73             ld (TLACITKO),a
+9317  F0D5 CD 95 E4             call extra_read_key
+9318  F0D8 C9                   ret
+9319  F0D9
+9320  F0D9 54 68 69 73  notimplemented defb "This feature is not yet implemented.",0
+9320  F0DD 20 66 65 61
+9320  F0E1 74 75 72 65
+9320  F0E5 20 69 73 20
+9320  F0E9 6E 6F 74 20
+9320  F0ED 79 65 74 20
+9320  F0F1 69 6D 70 6C
+9320  F0F5 65 6D 65 6E
+9320  F0F9 74 65 64 2E
+9320  F0FD 00
+9321  F0FE
+9322  F0FE              EXTRA_SYSCOPY_SHOW_ERROR:
+9323  F0FE 21 0A 0A             ld hl,10 * 256 + 10
+9324  F101 01 05 3C             ld bc,60 * 256 + 5
+9325  F104 3E 10                ld a,16
+9326  F106 CD 2C 81             call window
+9327  F109
+9328  F109 21 0B 0B             ld hl,11*256+11
+9329  F10C 3E 10                ld a,16
+9330  F10E 11 6D F1             ld de,sysCopyErrorTxt
+9331  F111 CD 09 81             call print
+9332  F114 21 0D 0B             ld hl,11*256+13
+9333  F117 3E 10                ld a,16
+9334  F119 11 84 F1             ld de,sysCopyErrorHintTxt
+9335  F11C CD 09 81             call print
+9336  F11F
+9337  F11F CD 40 F1             call extra_syscopy_prepare_error_diag
+9338  F122 21 0E 0B             ld hl,11*256+14
+9339  F125 3E 10                ld a,16
+9340  F127 11 A6 F1             ld de,sysCopyErrorDiagTxt
+9341  F12A CD 09 81             call print
+9342  F12D 21 0F 0B             ld hl,11*256+15
+9343  F130 3E 30                ld a,48
+9344  F132 11 7F A2             ld de,pressanykeytxt
+9345  F135 CD 09 81             call print
+9346  F138
+9347  F138 AF                   xor a
+9348  F139 32 4E 73             ld (TLACITKO),a
+9349  F13C CD 95 E4             call extra_read_key
+9350  F13F C9                   ret
+9351  F140
+9352  F140
+9353  F140              extra_syscopy_prepare_error_diag
+9354  F140 3A 7B 9C             ld a,(sysCopyContext+SYSCOPYCTX_STAGE)
+9355  F143 11 AD F1             ld de,sysCopyErrorDiagTxt+7
+9356  F146 CD 53 F1             call extra_write_hex_byte
+9357  F149 3A 6E 9C             ld a,(sysCopyContext+SYSCOPYCTX_ERROR)
+9358  F14C 11 B8 F1             ld de,sysCopyErrorDiagTxt+18
+9359  F14F CD 53 F1             call extra_write_hex_byte
+9360  F152 C9                   ret
+9361  F153
+9362  F153
+9363  F153              extra_write_hex_byte
+9364  F153 F5                   push af
+9365  F154 0F                   rrca
+9366  F155 0F                   rrca
+9367  F156 0F                   rrca
+9368  F157 0F                   rrca
+9369  F158 CD 61 F1             call extra_write_hex_nibble
+9370  F15B F1                   pop af
+9371  F15C 13                   inc de
+9372  F15D CD 61 F1             call extra_write_hex_nibble
+9373  F160 C9                   ret
+9374  F161
+9375  F161
+9376  F161              extra_write_hex_nibble
+9377  F161 E6 0F                and $0f
+9378  F163 C6 30                add a,"0"
+9379  F165 FE 3A                cp "9"+1
+9380  F167 38 02                jr c,.store
+9381  F169 C6 07                add a,"A"-"9"-1
+9382  F16B              .store
+9383  F16B 12                   ld (de),a
+9384  F16C C9                   ret
+9385  F16D
+9386  F16D 44 69 72 65  sysCopyErrorTxt     defb "Directory copy failed.",0
+9386  F171 63 74 6F 72
+9386  F175 79 20 63 6F
+9386  F179 70 79 20 66
+9386  F17D 61 69 6C 65
+9386  F181 64 2E 00
+9387  F184 43 68 65 63  sysCopyErrorHintTxt defb "Check syscopy.ccp and free space.",0
+9387  F188 6B 20 73 79
+9387  F18C 73 63 6F 70
+9387  F190 79 2E 63 63
+9387  F194 70 20 61 6E
+9387  F198 64 20 66 72
+9387  F19C 65 65 20 73
+9387  F1A0 70 61 63 65
+9387  F1A4 2E 00
+9388  F1A6 53 74 61 67  sysCopyErrorDiagTxt defb "Stage $00  Error $00",0
+9388  F1AA 65 20 24 30
+9388  F1AE 30 20 20 45
+9388  F1B2 72 72 6F 72
+9388  F1B6 20 24 30 30
+9388  F1BA 00
+9389  F1BB
+9390  F1BB              ; Upgrade the legacy 16-byte palette map + 33-byte key table after cc.cfg has
+9391  F1BB              ; been read. This code lives in the extra bank to keep scarce resident RAM
+9392  F1BB              ; available for the persistent packed theme itself.
+9393  F1BB              EXTRA_CFG_PREPARE:
+9394  F1BB 3A F6 89             ld a,(cfgColourVersion)
+9395  F1BE FE 01                cp SETTINGS_COLOUR_VERSION
+9396  F1C0 C8                   ret z
+9397  F1C1
+9398  F1C1 21 B1 89             ld hl,cfgLegacyThemeArea
+9399  F1C4 11 EB F2             ld de,extraLegacyPaletteMap
+9400  F1C7 01 10 00             ld bc,SETTINGS_PALETTE_COUNT
+9401  F1CA ED B0                ldir
+9402  F1CC
+9403  F1CC                      ; Old keys begin 16 bytes into the legacy area. Copy backwards because
+9404  F1CC                      ; their new destination overlaps the old source range.
+9405  F1CC 21 E1 89             ld hl,cfgLegacyThemeArea+SETTINGS_PALETTE_COUNT+SETTINGS_ACTION_COUNT-1
+9406  F1CF 11 F5 89             ld de,cfgKeyBindings+SETTINGS_ACTION_COUNT-1
+9407  F1D2 01 21 00             ld bc,SETTINGS_ACTION_COUNT
+9408  F1D5 ED B8                lddr
+9409  F1D7
+9410  F1D7 21 A3 F2             ld hl,extraDefaultColours
+9411  F1DA 11 C7 F2             ld de,extraMigratedColours
+9412  F1DD 01 24 00             ld bc,SETTINGS_COLOUR_BYTES
+9413  F1E0 ED B0                ldir
+9414  F1E2 AF                   xor a
+9415  F1E3 32 E7 F2             ld (extraMigratedColours+32),a
+9416  F1E6 32 E8 F2             ld (extraMigratedColours+33),a
+9417  F1E9 32 E9 F2             ld (extraMigratedColours+34),a
+9418  F1EC 32 EA F2             ld (extraMigratedColours+35),a
+9419  F1EF 32 03 F3             ld (extraMigStyle),a
+9420  F1F2              .style
+9421  F1F2 3A 03 F3             ld a,(extraMigStyle)
+9422  F1F5 5F                   ld e,a
+9423  F1F6 16 00                ld d,0
+9424  F1F8 21 EB F2             ld hl,extraLegacyPaletteMap
+9425  F1FB 19                   add hl,de
+9426  F1FC 7E                   ld a,(hl)
+9427  F1FD E6 F0                and $f0
+9428  F1FF 0F                   rrca
+9429  F200 0F                   rrca
+9430  F201 0F                   rrca                              ; physical group * two
+9431  F202 32 05 F3             ld (extraMigSourceColour),a
+9432  F205 5F                   ld e,a
+9433  F206 16 00                ld d,0
+9434  F208 21 A3 F2             ld hl,extraDefaultColours
+9435  F20B 19                   add hl,de
+9436  F20C E5                   push hl
+9437  F20D 3A 03 F3             ld a,(extraMigStyle)
+9438  F210 87                   add a,a
+9439  F211 32 06 F3             ld (extraMigDestColour),a
+9440  F214 5F                   ld e,a
+9441  F215 16 00                ld d,0
+9442  F217 21 C7 F2             ld hl,extraMigratedColours
+9443  F21A 19                   add hl,de
+9444  F21B EB                   ex de,hl
+9445  F21C E1                   pop hl
+9446  F21D ED A0                ldi
+9447  F21F ED A0                ldi
+9448  F221 AF                   xor a
+9449  F222 32 04 F3             ld (extraMigChannel),a
+9450  F225              .bit
+9451  F225 3A 05 F3             ld a,(extraMigSourceColour)
+9452  F228 47                   ld b,a
+9453  F229 3A 04 F3             ld a,(extraMigChannel)
+9454  F22C 80                   add a,b
+9455  F22D 47                   ld b,a
+9456  F22E E6 07                and 7
+9457  F230 5F                   ld e,a
+9458  F231 16 00                ld d,0
+9459  F233 21 FB F2             ld hl,extraBitMasks
+9460  F236 19                   add hl,de
+9461  F237 7E                   ld a,(hl)
+9462  F238 32 07 F3             ld (extraMigMask),a
+9463  F23B 78                   ld a,b
+9464  F23C 0F                   rrca
+9465  F23D 0F                   rrca
+9466  F23E 0F                   rrca
+9467  F23F E6 03                and 3
+9468  F241 5F                   ld e,a
+9469  F242 16 00                ld d,0
+9470  F244 21 C3 F2             ld hl,extraDefaultColours+SETTINGS_COLOUR_PRIMARY_BYTES
+9471  F247 19                   add hl,de
+9472  F248 3A 07 F3             ld a,(extraMigMask)
+9473  F24B A6                   and (hl)
+9474  F24C 28 28                jr z,.next_bit
+9475  F24E 3A 06 F3             ld a,(extraMigDestColour)
+9476  F251 47                   ld b,a
+9477  F252 3A 04 F3             ld a,(extraMigChannel)
+9478  F255 80                   add a,b
+9479  F256 47                   ld b,a
+9480  F257 E6 07                and 7
+9481  F259 5F                   ld e,a
+9482  F25A 16 00                ld d,0
+9483  F25C 21 FB F2             ld hl,extraBitMasks
+9484  F25F 19                   add hl,de
+9485  F260 7E                   ld a,(hl)
+9486  F261 32 07 F3             ld (extraMigMask),a
+9487  F264 78                   ld a,b
+9488  F265 0F                   rrca
+9489  F266 0F                   rrca
+9490  F267 0F                   rrca
+9491  F268 E6 03                and 3
+9492  F26A 5F                   ld e,a
+9493  F26B 16 00                ld d,0
+9494  F26D 21 E7 F2             ld hl,extraMigratedColours+SETTINGS_COLOUR_PRIMARY_BYTES
+9495  F270 19                   add hl,de
+9496  F271 3A 07 F3             ld a,(extraMigMask)
+9497  F274 B6                   or (hl)
+9498  F275 77                   ld (hl),a
+9499  F276              .next_bit
+9500  F276 3A 04 F3             ld a,(extraMigChannel)
+9501  F279 3C                   inc a
+9502  F27A 32 04 F3             ld (extraMigChannel),a
+9503  F27D FE 02                cp 2
+9504  F27F 20 A4                jr nz,.bit
+9505  F281 3A 03 F3             ld a,(extraMigStyle)
+9506  F284 3C                   inc a
+9507  F285 32 03 F3             ld (extraMigStyle),a
+9508  F288 FE 10                cp SETTINGS_STYLE_COUNT
+9509  F28A C2 F2 F1             jp nz,.style
+9510  F28D
+9511  F28D 21 C7 F2             ld hl,extraMigratedColours
+9512  F290 11 B1 89             ld de,cfgStyleColours
+9513  F293 01 24 00             ld bc,SETTINGS_COLOUR_BYTES
+9514  F296 ED B0                ldir
+9515  F298 3E 03                ld a,SETTINGS_SCHEME_CUSTOM
+9516  F29A 32 F7 89             ld (cfgColourScheme),a
+9517  F29D 3E 01                ld a,SETTINGS_COLOUR_VERSION
+9518  F29F 32 F6 89             ld (cfgColourVersion),a
+9519  F2A2 C9                   ret
+9520  F2A3
+9521  F2A3              extraDefaultColours
+9522  F2A3                      EMIT_SETTINGS_DEFAULT_COLOURS
+9522  F2A3 02 DB       >        db %000'000'10,%110'110'11
+9522  F2A5 01 FF       >        db %000'000'01,%111'111'11
+9522  F2A7 13 FF       >        db %000'100'11,%111'111'11
+9522  F2A9 FF 00       >        db %111'111'11,%000'000'00
+9522  F2AB 74 00       >        db %011'101'00,%000'000'00
+9522  F2AD D0 00       >        db %110'100'00,%000'000'00
+9522  F2AF 8C 00       >        db %100'011'00,%000'000'00
+9522  F2B1 02 1F       >        db %000'000'10,%000'111'11
+9522  F2B3 02 5C       >        db %000'000'10,%010'111'00
+9522  F2B5 60 B7       >        db %011'000'00,%101'101'11
+9522  F2B7 01 FC       >        db %000'000'01,%111'111'00
+9522  F2B9 01 1C       >        db %000'000'01,%000'111'00
+9522  F2BB 01 1F       >        db %000'000'01,%000'111'11
+9522  F2BD 01 1C       >        db %000'000'01,%000'111'00
+9522  F2BF 01 FC       >        db %000'000'01,%111'111'00
+9522  F2C1 01 E0       >        db %000'000'01,%111'000'00
+9522  F2C3 7A 81 00 02 >        db $7a,$81,$00,$02
+9523  F2C7 00 00 00...  extraMigratedColours defs SETTINGS_COLOUR_BYTES
+9524  F2EB 00 00 00...  extraLegacyPaletteMap defs SETTINGS_PALETTE_COUNT
+9525  F2FB 01 02 04 08  extraBitMasks defb 1,2,4,8,16,32,64,128
+9525  F2FF 10 20 40 80
+9526  F303 00           extraMigStyle defb 0
+9527  F304 00           extraMigChannel defb 0
+9528  F305 00           extraMigSourceColour defb 0
+9529  F306 00           extraMigDestColour defb 0
+9530  F307 00           extraMigMask defb 0
+9531  F308
+9532  F308                      emit_tilemap_palette
+9532  F308             >tilemapPalette:
+9532  F308 02 00       >                db  %000'000'10,0                 ; 0 tmavá navy R=0,G=0,B=4 (paper)				0
+9532  F30A 27 00       >                db  %001'001'11,0                 ; 1 (nepoužito)
+9532  F30C 01 00       >                db  %000'000'01,0                 ; 2 (nepoužito)
+9532  F30E DB 01       >                db  %110'110'11,1                 ; 3 stříbrná bílá R=6,G=6,B=7 (ink)
+9532  F310 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F312 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F314 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F316 00 00 00... >                ds 18
+9532  F328 01 00       >                db  %000'000'01,0                 ; 0 velmi tmavá navy R=0,G=0,B=2 (paper)			16 - menu lišta, hodiny
+9532  F32A 25 00       >                db  %001'001'01,0                 ; 1 (nepoužito)
+9532  F32C 00 01       >                db  %000'000'00,1                 ; 2 (nepoužito)
+9532  F32E FF 01       >                db  %111'111'11,1                 ; 3 čistá bílá R=7,G=7,B=7 (ink)
+9532  F330 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F332 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F334 18 00       >                db  %000'110'00,0                 ; 6 green
+9532  F336 00 00 00... >                ds 18
+9532  F348 13 01       >                db  %000'100'11,1                 ; 0 azure modrá R=0,G=4,B=7 (paper)				32 - kurzor, F-klávesy
+9532  F34A 2F 00       >                db  %001'011'11,0                 ; 1 (nepoužito)
+9532  F34C 0B 00       >                db  %000'010'11,0                 ; 2 (nepoužito)
+9532  F34E FF 01       >                db  %111'111'11,1                 ; 3 čistá bílá R=7,G=7,B=7 (ink)
+9532  F350 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F352 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F354 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F356 00 00 00... >                ds 18
+9532  F368 FF 01       >                db  %111'111'11,1                 ; 0 bílá R=7,G=7,B=7 (paper)					48 - menu popup kurzor
+9532  F36A 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
+9532  F36C 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
+9532  F36E 00 00       >                db  %000'000'00,0                 ; 3 černá (ink)
+9532  F370 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F372 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F374 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F376 00 00 00... >                ds 18
+9532  F388 74 01       >                db  %011'101'00,1                 ; 0 (paper)						64 - výběr disku kurzor
+9532  F38A 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
+9532  F38C 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
+9532  F38E 00 00       >                db  %000'000'00,0                 ; 3 (ink)
+9532  F390 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F392 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F394 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F396 00 00 00... >                ds 18
+9532  F3A8 D0 00       >                db  %110'100'00,0                 ; 0 amber R=6,G=4,B=0 (paper)					80 - označený+kurzor
+9532  F3AA 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
+9532  F3AC 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
+9532  F3AE 00 00       >                db  %000'000'00,0                 ; 3 černá (ink)
+9532  F3B0 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F3B2 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F3B4 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F3B6 00 00 00... >                ds 18
+9532  F3C8 8C 00       >                db  %100'011'00,0                 ; 0 tmavý amber R=4,G=3,B=0 (paper)				96 - označený
+9532  F3CA 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
+9532  F3CC 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
+9532  F3CE 00 00       >                db  %000'000'00,0                 ; 3 černá (ink)
+9532  F3D0 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F3D2 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F3D4 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F3D6 00 00 00... >                ds 18
+9532  F3E8             >
+9532  F3E8 02 00       >                db  %000'000'10,0                 ; 0 tmavá navy (paper)					112 - barva adresáře
+9532  F3EA 92 01       >                db  %100'100'10,1                 ; 1 (nepoužito)
+9532  F3EC 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
+9532  F3EE 1F 01       >                db  %000'111'11,1                 ; 3 jasný cyan R=0,G=7,B=7 (ink)
+9532  F3F0 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F3F2 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F3F4 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F3F6 00 00 00... >                ds 18
+9532  F408             >
+9532  F408 02 00       >                db  %000'000'10,0                 ; 0 tmavá navy (paper)					128 - spustitelné soubory
+9532  F40A 9C 01       >                db  %100'111'00,1                 ; 1 (nepoužito)
+9532  F40C 49 01       >                db  %010'010'01,1                 ; 2 (nepoužito)
+9532  F40E 5C 00       >                db  %010'111'00,0                 ; 3 lime zelená R=2,G=7,B=0 (ink)
+9532  F410 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F412 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F414 10 00       >                db  %000'100'00,0                 ; 6 green
+9532  F416 00 00 00... >                ds 18
+9532  F428             >
+9532  F428 60 00       >                db  %011'000'00,0                 ; 0 modra (paper)					144 -
+9532  F42A 9C 01       >                db  %100'111'00,1                 ; 1 light grey (25% ink)
+9532  F42C 49 01       >                db  %010'010'01,1                 ; 2 dark grey (75% ink)
+9532  F42E B7 00       >                db  %101'101'11,0                 ; 0 white-blueish (ink)
+9532  F430 C4 01       >                db  %110'001'00,1                 ; 4 red
+9532  F432 F8 01       >                db  %111'110'00,1                 ; 5 yellow
+9532  F434 18 00       >                db  %000'110'00,0                 ; 6 green
+9532  F436 00 00 00... >                ds 18
+9532  F448             >
+9532  F448 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy R=0,G=0,B=2 (shodné s group1)	160 - BAS plugin: barva klicovych slov
+9532  F44A 00 00 00 00 >                ds 4                              ; 1-2 (nezajima)
+9532  F44E FC 00       >                db  %111'111'00,0                 ; 3 zluta ink (R=7,G=7,B=0)
+9532  F450 00 00 00... >                ds 24                             ; 4-15 (nezajima)
+9532  F468             >
+9532  F468 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			176 - BAS plugin: barva cisel radku
+9532  F46A 00 00 00 00 >                ds 4
+9532  F46E 1C 00       >                db  %000'111'00,0                 ; 3 zelena ink (R=0,G=7,B=0)
+9532  F470 00 00 00... >                ds 24
+9532  F488             >
+9532  F488 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			192 - BAS plugin: barva REM komentaru
+9532  F48A 00 00 00 00 >                ds 4
+9532  F48E 1F 01       >                db  %000'111'11,1                 ; 3 cyan ink (R=0,G=7,B=7)
+9532  F490 00 00 00... >                ds 24
+9532  F4A8             >
+9532  F4A8 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			208 - TAP title, VU metr: zelena
+9532  F4AA 00 00 00 00 >                ds 4
+9532  F4AE 1C 00       >                db  %000'111'00,0                 ; 3 green ink (R=0,G=7,B=0)
+9532  F4B0 00 00 00... >                ds 24
+9532  F4C8             >
+9532  F4C8 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			224 - VU metr: zluta
+9532  F4CA 00 00 00 00 >                ds 4
+9532  F4CE FC 00       >                db  %111'111'00,0                 ; 3 yellow ink (R=7,G=7,B=0)
+9532  F4D0 00 00 00... >                ds 24
+9532  F4E8             >
+9532  F4E8 01 00       >                db  %000'000'01,0                 ; 0 tmavá navy (shodné s group1)			240 - VU metr: cervena
+9532  F4EA 00 00 00 00 >                ds 4
+9532  F4EE E0 00       >                db  %111'000'00,0                 ; 3 red ink (R=7,G=0,B=0)
+9532  F4F0 00 00 00... >                ds 24
+9532  F508             >
+9532  F508             >
+9532  F508             >
+9532  F508             >tilemapPalette_SZ:  EQU $ - tilemapPalette
+9533  F508
+9534  F508              EXTRA_BANK_END:
+9535  F508                          IFDEF CC_DOT
+9536  F508                          SAVEBIN "build/dot/ccd_xb.bin", $E000, EXTRA_BANK_END - $E000
+9537  F508                          EXPORT EXTRA_BANK_END
+9538  F508                          ELSE
+9539  F508 ~                        SAVEBIN "cc_xb.bin", $E000, EXTRA_BANK_END - $E000
+9540  F508                          ENDIF
+9541  F508                          DISPLAY "Velikost extra banky:",/A,EXTRA_BANK_END - $E000
+9542  F508
+9543  F508                          IFDEF CC_DOT
+9544  F508                            CSPECTMAP build/dot/ccd.map
+9545  F508                          ELSE
+9546  F508 ~                          CSPECTMAP player.map
+9547  F508                          ENDIF
+9548  F508                            ; savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
+9549  F508                            ; savenex core 2,0,0
+9550  F508                            ; savenex auto
+9551  F508                            ; savenex close
+9552  F508
 # file closed: cc.asm

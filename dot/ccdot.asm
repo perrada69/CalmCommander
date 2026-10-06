@@ -53,6 +53,8 @@ BACKUP_COUNT    equ 8                   ; stranky v MMU2..MMU7 + banka 3 (6,7)
 CALL_STACK      equ $0000               ; RST $18 se vola se zasobnikem na konci
                                         ; stranky 1 - tu CC nikdy nepise
 BORDCR          equ $5C48
+VARS            equ $5C4B
+PROG            equ $5C53
 E_LINE          equ $5C59
 WORKSP          equ $5C61
 MAKE_ROOM       equ $1655               ; ROM3: HL = misto, BC = pocet bajtu
@@ -230,22 +232,59 @@ exit_error
 ; Vlozi prikaz z injectBuf ([delka][tokeny]) do radku, ze ktereho byl .cc
 ; zavolan, hned za prikaz .cc. BASIC po navratu z dot commandu pokracuje
 ; zbytkem radku, takze ho provede, jako by ho napsal uzivatel.
-; Jde jen u radku napsaneho primo (lezi v E_LINE), program se neupravuje.
+; Radek napsany primo lezi v E_LINE. Z bezuciho programu se vklada do jeho
+; radku a opravi se delka v hlavicce radku - spousteny program ten stavajici
+; stejne nahradi.
 ; Vola ROM pres RST $18: zasobnik uz musi byt zasobnik BASICu.
 ; Fc=1, HL = zprava pri chybe.
 ; -----------------------------------------------------------------------------
 inject_cmd
+        ld hl,0
+        ld (injectLenAt),hl             ; 0 = E_LINE, jinak adresa delky radku
         ld hl,(entryBc)
-        ld de,(E_LINE)                  ; radek musi lezet v E_LINE..WORKSP
+        ld de,(E_LINE)
         or a
         sbc hl,de
-        jr c,.notDirect
-        add hl,de
+        jr c,.tryProg                   ; pred E_LINE
+        ld hl,(entryBc)
         ld de,(WORKSP)
         or a
         sbc hl,de
-        jr nc,.notDirect
-        add hl,de
+        jr c,.scanStart                 ; E_LINE <= radek < WORKSP: zadany primo
+.tryProg
+        ld hl,(entryBc)
+        ld de,(PROG)
+        or a
+        sbc hl,de
+        jr c,.notFound                  ; ani v programu
+        ld hl,(PROG)                    ; najdi radek programu, ve kterem .cc lezi
+.line
+        ex de,hl                        ; DE = zacatek radku
+        ld hl,(VARS)
+        or a
+        sbc hl,de
+        jr c,.notFound                  ; za koncem programu
+        jr z,.notFound
+        ld h,d
+        ld l,e
+        inc hl
+        inc hl                          ; HL -> delka radku
+        push hl
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        inc hl
+        add hl,bc                       ; HL = dalsi radek
+        ex de,hl
+        ld hl,(entryBc)
+        or a
+        sbc hl,de                       ; radek .cc - dalsi radek
+        pop bc                          ; BC = adresa delky
+        ex de,hl                        ; HL = dalsi radek (priznaky zustavaji)
+        jr nc,.line
+        ld (injectLenAt),bc
+.scanStart
+        ld hl,(entryBc)
         ld c,0                          ; C bit 0 = uvnitr uvozovek
 .scan                                   ; konec .cc: ':' mimo uvozovky, $0D, 0
         ld a,(hl)
@@ -260,10 +299,17 @@ inject_cmd
         ld c,a
         jr .next
 .notQuote
-        cp ':'
-        jr nz,.next
         bit 0,c
+        jr nz,.next
+        cp ':'
         jr z,.found
+        cp $0E                          ; skryte cislo: 5 bajtu, muze v nich byt
+        jr nz,.next                     ; cokoli vcetne ':' a $0D
+        inc hl
+        inc hl
+        inc hl
+        inc hl
+        inc hl
 .next
         inc hl
         jr .scan
@@ -280,9 +326,20 @@ inject_cmd
         ld c,a
         ld b,0
         ldir
+        ld hl,(injectLenAt)             ; radek programu: delka += vlozeno
+        ld a,h
+        or l
+        ret z                           ; E_LINE (Fc=0 po "or l")
+        ld a,(injectBuf)
+        add a,(hl)
+        ld (hl),a
+        inc hl
+        ld a,0
+        adc a,(hl)
+        ld (hl),a
         or a
         ret
-.notDirect
+.notFound
         ld hl,msgNotDirect
         scf
         ret
@@ -687,6 +744,7 @@ entryBc         dw 0
 entryHlAlt      dw 0
 injectPending   db 0
 injectAt        dw 0
+injectLenAt     dw 0                    ; adresa delky radku programu, 0 = E_LINE
 injectBuf       ds INJECT_MAX
 testMode        db 0                    ; DIAG: 0 = normalni beh, jinak '0'..'3'
 dotHandle       db 0
