@@ -1524,7 +1524,7 @@ rrrun_nex
 rrrun_tap
         call basicpage
         IFDEF CC_DOT
-        jp RUN_SNAP                               ; dot: loader cc.bas neni, TAP spusti .run
+        jp dot_run_tap                            ; dot: vyber pocitace, spusti BASIC za .cc
         ELSE
         jp RUN_TAP
         ENDIF
@@ -1638,6 +1638,7 @@ delkaRadku  equ $5d3b
 ; ------------------------------------------------------------
 RUN_SNAP
         call potvrd
+RUN_SNAP_CONFIRMED                                ; dot: TAP sem jde po potvrd a vyberu pocitace
         call dospage
         call zapisCfg
         call basicpage
@@ -5173,7 +5174,7 @@ adr_cur defw $4002+160*8 + 63                     ; adresa prvni polozky ve vybe
 vyberTxt defb "Computer:",0
 txt128	defb "128k",0
 txt48	defb	"48k",0
-Pentagontxt	defb	"Pent",0
+Pentagontxt	defb	"Pentagon",0
 NextTxt		defb "Next",0
 
 tilemapFont:    ds   16*32
@@ -6729,6 +6730,14 @@ dot_restart
         ld (dot_attached),a
         ld sp,ORG_ADDRESS
         jp START
+
+; TAP: stejne jako RUN_TAP v BASIC verzi potvrzeni a vyber pocitace
+; (vyberPocitace nastavi typ pocitace a turbo, pri zruseni skace na loop0).
+; Prikaz pro BASIC pak podle cursorComp slozi extra_dot_basic_cmd.
+dot_run_tap
+        call potvrd
+        call vyberPocitace
+        jp RUN_SNAP_CONFIRMED
 
 ; Spusteni souboru z pripojeneho CC. NEX jde dal pres nexload (RST $20),
 ; ostatni (BAS/TAP/SNA/Z80/SNX) spusti az BASIC: zavadec obnovi pamet
@@ -8479,10 +8488,13 @@ dot_xb_page equ EXTRA_BANK_PAGE
 ; obnoveni pameti vlozi tenhle prikaz za .cc. Prikazy jsou stejne jako
 ; v c:/nextzxos/browser.cfg; cisla nesou skryty 5bajtovy tvar ($0E ...),
 ; ktery BASIC pri behu cte misto cislic.
-; Vystup: dot_cmd_buf = [delka][tokeny], NZ = pripraveno, Z = NEX.
+; Vystup: dot_cmd_buf = [delka][priznaky][tokeny], NZ = pripraveno, Z = NEX.
+; Priznaky (prvni bajt sablony): bit 0 = spustit na 3,5 MHz (TAP, snapshoty
+; jako v BASIC verzi; BAS zustava na rychlosti uzivatele jako v Browseru).
 ; ------------------------------------------------------------
 DOTC_NAME       equ $1F                           ; v sablone: sem jmeno souboru
 DOTC_END        equ $1E                           ; v sablone: konec
+DOTC_MACH       equ $1D                           ; v sablone: tabComp[cursorComp]
 
 extra_dot_basic_cmd:
             ld hl,cmd2                            ; najdi konec jmena
@@ -8535,7 +8547,20 @@ extra_dot_basic_cmd:
             ld l,a
             or h
             ret z                                 ; NEX: zadna sablona
-            ld de,dot_cmd_buf+1
+            ld de,extraDotTap                     ; TAP mimo Next: SPECTRUM a casovani
+            or a                                  ; zvoleneho pocitace jako RUN_TAP
+            sbc hl,de
+            add hl,de
+            jr nz,.tplOk
+            ld a,(cursorComp)
+            cp 3
+            jr z,.tplOk
+            ld hl,extraDotTap48
+.tplOk
+            ld a,(hl)                             ; priznaky
+            inc hl
+            ld (dot_cmd_buf+1),a
+            ld de,dot_cmd_buf+2
 .emit
             ld a,(hl)
             inc hl
@@ -8543,6 +8568,20 @@ extra_dot_basic_cmd:
             jr z,.done
             cp DOTC_NAME
             jr z,.name
+            cp DOTC_MACH
+            jr z,.mach
+            ld (de),a
+            inc de
+            jr .emit
+.mach
+            push hl
+            ld a,(cursorComp)
+            ld l,a
+            ld h,0
+            ld bc,tabComp
+            add hl,bc
+            ld a,(hl)
+            pop hl
             ld (de),a
             inc de
             jr .emit
@@ -8562,7 +8601,7 @@ extra_dot_basic_cmd:
             jr .emit
 .done
             ex de,hl
-            ld de,dot_cmd_buf+1
+            ld de,dot_cmd_buf+2
             or a
             sbc hl,de
             ld a,l
@@ -8582,14 +8621,26 @@ extraDotTypes:
 
             ; :CLEAR 65367:LOAD "jmeno"
 extraDotBas:
+            defb 0
             defb ":",$FD,"65367",$0E,0,0,$57,$FF,0
             defb ":",$EF,'"',DOTC_NAME,'"',DOTC_END
-            ; :.tapein "jmeno":LOAD "t:":LOAD ""
+            ; Next: :.tapein "jmeno":LOAD "t:":LOAD ""
 extraDotTap:
+            defb 1
             defb ":.tapein ",'"',DOTC_NAME,'"'
             defb ":",$EF,'"t:"',":",$EF,'""',DOTC_END
+            ; 48K/128K/Pentagon - radky 40 a 50 loaderu cc.bas:
+            ; :SPECTRUM:OUT 9275,3:OUT 9531,x:.tapein "jmeno":LOAD ""
+extraDotTap48:
+            defb 1
+            defb ":",$A3
+            defb ":",$DF,"9275",$0E,0,0,$3B,$24,0,",3",$0E,0,0,3,0,0
+            defb ":",$DF,"9531",$0E,0,0,$3B,$25,0,",0",$0E,0,0,DOTC_MACH,0,0
+            defb ":.tapein ",'"',DOTC_NAME,'"'
+            defb ":",$EF,'""',DOTC_END
             ; :SPECTRUM "jmeno"
 extraDotSnx:
+            defb 1
             defb ":",$A3,'"',DOTC_NAME,'"',DOTC_END
             ENDIF
 

@@ -1030,7 +1030,8 @@ noenvelopes:	ld	a,#0A
 		ld	b,e
 		outd
 		ld	(AYREG_EnvSh+1),a
-		ei
+		; bez EI: plugin vola prehravac pod DI s daty skladby v MMU2-5
+		; a preruseni povoli sam, az MMU vrati (viz stptest.asm)
 		ret
 
 ;------------------------------------------------------------------------------

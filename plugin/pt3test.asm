@@ -59,8 +59,7 @@ plugin_start
 .play_loop
         call restore_mmu
         ei
-        halt
-        di
+        halt                    ; DI az v map_pt3_data, vstup bezi s prerusenim
         call raw_input
         cp 1
         jr z,.exit
@@ -94,6 +93,8 @@ plugin_start
 
 
 map_pt3_data
+        di                      ; data skladby v MMU2-5 jen bez preruseni: v MMU2
+                                ; jsou systemove promenne a obsluha IM1 v ROM je prepisuje
         ld ix,(ctxPtr)
         ld l,(ix+VIEWCTX_DATA_PAGES)
         ld h,(ix+VIEWCTX_DATA_PAGES+1)

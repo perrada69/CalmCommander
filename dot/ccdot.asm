@@ -52,7 +52,7 @@ PROG            equ $5C53
 E_LINE          equ $5C59
 WORKSP          equ $5C61
 MAKE_ROOM       equ $1655               ; ROM3: HL = misto, BC = pocet bajtu
-INJECT_MAX      equ 160                 ; prikaz ke spusteni: [delka] + tokeny
+INJECT_MAX      equ 160                 ; prikaz ke spusteni: [delka][priznaky] + tokeny
 
         org $2000
 
@@ -130,6 +130,14 @@ dot_start
         ld sp,dotStackTop
         ld iy,$5C3A
         call restore_nextregs
+        ld a,(injectPending)            ; TAP a snapshoty jako v BASIC verzi CC
+        or a                            ; na 3,5 MHz (bit 0 priznaku od CC)
+        jr z,.speedOk
+        ld a,(injectBuf+1)
+        rrca
+        jr nc,.speedOk
+        nextreg $07,0
+.speedOk
         call restore_memory
         ld sp,(entrySp)                 ; pamet je zpet, zasobnik BASICu taky
         call free_pages                 ; posledni M_P3DOS srovna strankovani
@@ -253,7 +261,7 @@ inject_cmd
         ld b,0
         rst $18                         ; MAKE-ROOM: misto o BC bajtech pred (HL),
         defw MAKE_ROOM                  ; posune pamet BASICu a opravi ukazatele
-        ld hl,injectBuf+1
+        ld hl,injectBuf+2               ; [delka][priznaky][tokeny]
         ld de,(injectAt)
         ld a,(injectBuf)
         ld c,a

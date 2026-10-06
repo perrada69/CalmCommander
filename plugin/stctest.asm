@@ -40,6 +40,7 @@ plugin_start
         call map_pt3_data
         call stc.music_init
         call show_music_mode
+        call restore_mmu        ; preruseni jen s puvodnim MMU2-5
         ei
 
 .wait_release
@@ -49,12 +50,15 @@ plugin_start
         call input_arm_delay
 
 .play_loop
+        call restore_mmu
+        ei
         halt
         call raw_input
         cp 1
         jr z,.exit
         cp 2
         jr z,.next
+        call map_pt3_data
         call stc.music_play
         ld a,(stc.music_setup)
         bit 7,a
@@ -64,24 +68,28 @@ plugin_start
 
 .exit
         call stc.music_mute
+        call restore_mmu
+        ei
         call wait_stop_release
         di
-        call restore_mmu
         ld sp,(savedSp)
         xor a
         ret
 
 .next
         call stc.music_mute
+        call restore_mmu
+        ei
         call wait_stop_release
         di
-        call restore_mmu
         ld sp,(savedSp)
         ld a,1
         ret
 
 
 map_pt3_data
+        di                      ; data skladby v MMU2-5 jen bez preruseni: v MMU2
+                                ; jsou systemove promenne a obsluha IM1 v ROM je prepisuje
         ld ix,(ctxPtr)
         ld l,(ix+VIEWCTX_DATA_PAGES)
         ld h,(ix+VIEWCTX_DATA_PAGES+1)
