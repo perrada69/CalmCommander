@@ -13,6 +13,14 @@
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
 
+            ; CC_DOT (sjasmplus -DCC_DOT) sestavi variantu pro dot command .cc
+            ; (zavadec je v dot/ccdot.asm). Pluginy pak hleda v c:/sys/cc.
+            IFDEF CC_DOT
+            DEFINE PLUGIN_DIR       "c:/sys/cc"
+            ELSE
+            DEFINE PLUGIN_DIR       "c:/CalmCommander/plugin"
+            ENDIF
+
             DEFINE DISP_ADDRESS     $2000
             DEFINE SP_ADDRESS       $3D00
             OPT --zxnext=cspect
@@ -1515,7 +1523,11 @@ rrrun_nex
 
 rrrun_tap
         call basicpage
+        IFDEF CC_DOT
+        jp RUN_SNAP                               ; dot: loader cc.bas neni, TAP spusti .run
+        ELSE
         jp RUN_TAP
+        ENDIF
 
 rrrun_snap
         call basicpage
@@ -1523,7 +1535,11 @@ rrrun_snap
 
 rrrun_bas
         call basicpage
+        IFDEF CC_DOT
+        jp RUN_SNAP                               ; dot: BAS take pres .run
+        ELSE
         jp RUN_BAS
+        ENDIF
 
 
         ; ------------------------------------------------------------
@@ -1652,12 +1668,16 @@ RUN_SNAP
 
         ; vypni turbo
         nextreg TURBO_CONTROL_NR_07,0
+        IFDEF CC_DOT
+        call dot_exec_cmd
+        ELSE
         call spravneStranky
 
         ; zavolej ESXDOS službu $8F s parametry v IX=cmd
         ld ix,cmd
         rst $08
         defb $8f
+        ENDIF
         ret
 
 
@@ -1842,10 +1862,14 @@ RUN_NEX_FILE
 
                                                   ; ESXDOS dot-command / loader přes $8F (externí)
 
+        IFDEF CC_DOT
+        call dot_exec_cmd
+        ELSE
         call spravneStranky
         ld ix,cmd
         rst $08
         defb $8f
+        ENDIF
 
         jp loop0
 
@@ -4908,6 +4932,42 @@ beepk1  djnz beepk1
         out ($fe),a
         ret
 
+        IFDEF CC_DOT
+; ------------------------------------------------------------
+; dot_exec_cmd - spust prikaz v cmd (nexload/run ...)
+; ------------------------------------------------------------
+; Dokud CC bezi uvnitr dot commandu (volany pres RST $18), M_EXECCMD
+; pouzit nejde - novy dot by se nahral pres ten bezici. Vratime se proto
+; do zavadece s DOT_EXIT_LAUNCH; ten uvolni pamet a skoci na dot_launch.
+; Musi lezet pod $C000: spravneStranky prepina MMU6/7 na banku 7.
+; ------------------------------------------------------------
+dot_exec_cmd
+        ld a,(dot_attached)
+        or a
+        jr z,.direct
+        ld a,DOT_EXIT_LAUNCH
+        jp dot_return
+.direct
+        call spravneStranky
+        ld ix,cmd
+        rst $08
+        defb $8f
+        ret
+
+; Sem skace zavadec pres RST $20, kdyz uz dot command skoncil.
+; Kdyz se spusteni nepovede, CC pokracuje odpojeny (Quit = reset).
+dot_launch
+        ld sp,ORG_ADDRESS
+        ei                                        ; jako v BASIC verzi pred M_EXECCMD
+        call spravneStranky
+        ld ix,cmd
+        rst $08
+        defb $8f
+        nextreg MMU6_C000_NR_56,0
+        nextreg MMU7_E000_NR_57,1
+        jp dot_restart
+        ENDIF
+
 E3
         org 49152
 S2
@@ -6591,7 +6651,11 @@ quit0
         cp 1
         jp z,infoend
         cp 13
+        IFDEF CC_DOT
+        jp z,dot_quit
+        ELSE
         jp z,softreset
+        ENDIF
         jp quit0
 
 softreset
@@ -6617,6 +6681,49 @@ softreset
         call INKEY
         call loadscr
         jp loop0
+
+        IFDEF CC_DOT
+; ------------------------------------------------------------
+; Vazba na zavadec dot commandu (dot/ccdot.asm)
+; ------------------------------------------------------------
+; Zavadec zalohuje pamet BASICu, nahraje CC a zavola dot_entry pres
+; RST $18. Navrat do zavadece = obnovit SP volajiciho a RET s A:
+;   DOT_EXIT_QUIT   - obnov pamet a vrat se do BASICu
+;   DOT_EXIT_LAUNCH - uvolni pamet a skoc na dot_launch (prikaz je v cmd)
+; Zasobnik volajiciho lezi ve strance 1 ($E000-$FFFF), kterou CC nepise.
+; ------------------------------------------------------------
+dot_entry
+        ld (dot_basic_sp),sp
+        ld sp,ORG_ADDRESS                         ; stejne misto jako po CLEAR 28927
+        jp START
+
+dot_quit
+        ld a,(dot_attached)
+        or a
+        jp z,softreset                            ; po nepovedenem spusteni uz neni kam se vratit
+        call layer0
+        call ClearAllSprites
+        ld iy,23610
+        xor a                                     ; DOT_EXIT_QUIT
+; A = DOT_EXIT_*. Kod jde i do pameti - navrat z RST $18 nemusi zachovat A.
+dot_return
+        ld (dot_exit_code),a
+        ld sp,(dot_basic_sp)
+        ret
+
+dot_restart
+        xor a
+        ld (dot_attached),a
+        ld sp,ORG_ADDRESS
+        jp START
+
+DOT_EXIT_QUIT   equ 0
+DOT_EXIT_LAUNCH equ 1
+
+dot_basic_sp    defw 0
+dot_attached    defb 1                            ; 0 = zavadec uz skoncil (po RST $20)
+dot_exit_code   defb 0
+        ENDIF
 
 
 CHNG_ATTR
@@ -8296,9 +8403,21 @@ sysvars 	defs 500
 
 last:
 E2
+            IFDEF CC_DOT
+            SAVEBIN "build/dot/ccd.bin", S1, E2-S1
+dot_xb_page equ EXTRA_BANK_PAGE
+            EXPORT dot_xb_page
+            EXPORT S1
+            EXPORT E2
+            EXPORT dot_entry
+            EXPORT dot_launch
+            EXPORT DOT_EXIT_LAUNCH
+            EXPORT dot_exit_code
+            ELSE
              SAVEBIN "cc1.bin",S1,E1-S1
              SAVEBIN "cc2.bin",S2,E2-S2
             SAVEBIN "cc.bin", S1, E2-S1
+            ENDIF
 
             assert E1 <= S3
             assert E3 <= S2
@@ -8393,6 +8512,9 @@ EXTRA_CHECK_PLUGINS:
             ld (extraPluginCurrentPath),de
             push de
             pop ix
+            IFDEF CC_DOT
+            ex de,hl                              ; uvnitr dot commandu bere esxDOS jmeno z HL
+            ENDIF
             xor a
             ld b,FA_READ
             rst $08
@@ -8481,22 +8603,22 @@ extraPluginTable:
             defw extraPluginEdit
             defw 0
 
-extraPluginSyscopy   defb "c:/CalmCommander/plugin/syscopy.ccp",0
-extraPluginDirInfo   defb "c:/CalmCommander/plugin/dir_info.ccp",0
-extraPluginBookmarks defb "c:/CalmCommander/plugin/bookmarks.ccp",0
-extraPluginSettings  defb "c:/CalmCommander/plugin/settings.ccp",0
-extraPluginText      defb "c:/CalmCommander/plugin/text.ccp",0
-extraPluginZxScreen  defb "c:/CalmCommander/plugin/zxscreen.ccp",0
-extraPluginNxi       defb "c:/CalmCommander/plugin/nxi.ccp",0
-extraPluginPt2       defb "c:/CalmCommander/plugin/pt2test.ccp",0
-extraPluginPt3       defb "c:/CalmCommander/plugin/pt3test.ccp",0
-extraPluginStc       defb "c:/CalmCommander/plugin/stctest.ccp",0
-extraPluginStp       defb "c:/CalmCommander/plugin/stptest.ccp",0
-extraPluginSqt       defb "c:/CalmCommander/plugin/sqtest.ccp",0
-extraPluginHello     defb "c:/CalmCommander/plugin/HelloWord.ccp",0
-extraPluginBas       defb "c:/CalmCommander/plugin/bas.ccp",0
-extraPluginTap       defb "c:/CalmCommander/plugin/tap.ccp",0
-extraPluginEdit      defb "c:/CalmCommander/plugin/edit.ccp",0
+extraPluginSyscopy   defb PLUGIN_DIR,"/syscopy.ccp",0
+extraPluginDirInfo   defb PLUGIN_DIR,"/dir_info.ccp",0
+extraPluginBookmarks defb PLUGIN_DIR,"/bookmarks.ccp",0
+extraPluginSettings  defb PLUGIN_DIR,"/settings.ccp",0
+extraPluginText      defb PLUGIN_DIR,"/text.ccp",0
+extraPluginZxScreen  defb PLUGIN_DIR,"/zxscreen.ccp",0
+extraPluginNxi       defb PLUGIN_DIR,"/nxi.ccp",0
+extraPluginPt2       defb PLUGIN_DIR,"/pt2test.ccp",0
+extraPluginPt3       defb PLUGIN_DIR,"/pt3test.ccp",0
+extraPluginStc       defb PLUGIN_DIR,"/stctest.ccp",0
+extraPluginStp       defb PLUGIN_DIR,"/stptest.ccp",0
+extraPluginSqt       defb PLUGIN_DIR,"/sqtest.ccp",0
+extraPluginHello     defb PLUGIN_DIR,"/HelloWord.ccp",0
+extraPluginBas       defb PLUGIN_DIR,"/bas.ccp",0
+extraPluginTap       defb PLUGIN_DIR,"/tap.ccp",0
+extraPluginEdit      defb PLUGIN_DIR,"/edit.ccp",0
 
 extraPluginScanPtr      defw 0
 extraPluginCurrentPath  defw 0
@@ -9254,10 +9376,19 @@ extraMigMask defb 0
         emit_tilemap_palette
 
 EXTRA_BANK_END:
+            IFDEF CC_DOT
+            SAVEBIN "build/dot/ccd_xb.bin", $E000, EXTRA_BANK_END - $E000
+            EXPORT EXTRA_BANK_END
+            ELSE
             SAVEBIN "cc_xb.bin", $E000, EXTRA_BANK_END - $E000
+            ENDIF
             DISPLAY "Velikost extra banky:",/A,EXTRA_BANK_END - $E000
 
+            IFDEF CC_DOT
+              CSPECTMAP build/dot/ccd.map
+            ELSE
               CSPECTMAP player.map
+            ENDIF
               ; savenex open "CalmCommander.nex",START,ORG_ADDRESS-2
               ; savenex core 2,0,0
               ; savenex auto

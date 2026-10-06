@@ -1969,7 +1969,7 @@ viewPluginMenuTable
         defb VIEWTYPE_HELLO : defw viewHelloPluginName : defw viewPluginMenuHelloTxt
         defb VIEWTYPE_BAS : defw viewBasPluginName : defw viewPluginMenuBasTxt
 
-viewPluginDir          defb "c:/CalmCommander/plugin",255
+viewPluginDir          defb PLUGIN_DIR,255
 viewTextPluginName     defb "text.ccp",255
 viewZxScreenPluginName defb "zxscreen.ccp",255
 viewNxiPluginName      defb "nxi.ccp",255

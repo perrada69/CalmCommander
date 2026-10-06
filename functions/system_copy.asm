@@ -371,7 +371,7 @@ sysCopyName     defs 13
 sysCopySavedMmu6 defb 0
 sysCopySavedMmu7 defb 0
 
-sysCopyPluginDir  defb "c:/CalmCommander/plugin",255
+sysCopyPluginDir  defb PLUGIN_DIR,255
 sysCopyPluginName defb "syscopy.ccp",255
 ; Plugin names passed to syscopy_load_plugin must remain visible while
 ; dospage has bank 7 mapped at $C000-$FFFF. Keep Settings' name here below

@@ -22,6 +22,9 @@ set "HDF=%CSPECT_DIR%\hdfmonkey.exe"
 set "CSPECT=%CSPECT_DIR%\CSpect.exe"
 set "PLUG=CalmCommander/plugin"
 set "DOT=dot"
+rem dot command .cc hleda pluginy v c:/sys/cc (PLUGIN_DIR v cc.asm)
+set "SYSCC=sys/cc"
+set "PLUGINS=text zxscreen nxi pt2test pt3test stctest stptest sqtest HelloWord bas tap trd zip edit syscopy dir_info bookmarks settings"
 
 if /I "%1"=="clean" goto :do_clean
 if /I "%1"=="build" goto :do_build_only
@@ -42,6 +45,7 @@ if exist build\plugin\*.ccp del /Q build\plugin\*.ccp
 if exist build\extra\copy del /Q build\extra\copy
 if exist build\extra\del del /Q build\extra\del
 if exist build\extra\dirinfo del /Q build\extra\dirinfo
+if exist build\dot\nul del /Q build\dot\*
 if exist "%CSPECT_LOG%" del /Q "%CSPECT_LOG%"
 echo [OK]
 goto :end
@@ -144,6 +148,24 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo   [PUT] build\dot\cc -^> %DOT%/cc
+"%HDF%" rm "%IMG%" %DOT%/cc 2>nul
+"%HDF%" put "%IMG%" build\dot\cc %DOT%/
+if errorlevel 1 (
+    echo *** KOPIROVANI DOT COMMANDU CC SELHALO ***
+    exit /b 1
+)
+echo   [PUT] plugins -^> %SYSCC%/
+"%HDF%" mkdir "%IMG%" %SYSCC% 2>nul
+for %%P in (%PLUGINS%) do (
+    "%HDF%" rm "%IMG%" %SYSCC%/%%P.ccp 2>nul
+    "%HDF%" put "%IMG%" build\plugin\%%P.ccp %SYSCC%/
+    if errorlevel 1 (
+        echo *** KOPIROVANI %%P.ccp DO %SYSCC% SELHALO ***
+        exit /b 1
+    )
+)
+
 echo.
 echo [OK] Soubory zkopirovany na SD kartu.
 if exist "%CSPECT_LOG%" del /Q "%CSPECT_LOG%"
@@ -183,6 +205,15 @@ if not exist "%BIN%" (
     echo *** BUILD OK, ALE cc.bin NENALEZEN ***
     exit /b 1
 )
+
+rem -- dot command .cc: CC sestaveny s CC_DOT + zavadec dot\ccdot.asm --
+if not exist build\dot\nul mkdir build\dot
+echo [BUILD] cc.asm -DCC_DOT ...
+"%SJASMPLUS%" -DCC_DOT cc.asm --lst=build\dot\ccd.lst --sym=build\dot\ccd.sym.txt --exp=build\dot\ccd.exp
+if errorlevel 1 ( echo *** BUILD FAILED: cc.asm -DCC_DOT *** & exit /b 1 )
+echo [BUILD] dot\ccdot.asm ...
+"%SJASMPLUS%" dot\ccdot.asm --raw=build\dot\cc --lst=build\dot\ccdot.lst
+if errorlevel 1 ( echo *** BUILD FAILED: dot\ccdot.asm *** & exit /b 1 )
 
 echo [BUILD] plugins...
 "%SJASMPLUS%" plugin\text.asm
