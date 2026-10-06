@@ -1,0 +1,958 @@
+; =============================================================================
+; Ovladani mysi v dialozich, menu a pluginech (extra banka, MMU7)
+; =============================================================================
+; Spolecna pravidla pro vsechna mista, kde CC ceka na klavesu:
+;   - prave tlacitko = BREAK (zavrit / zrusit),
+;   - kolecko        = sipka dolu / nahoru,
+;   - leve tlacitko na napovede klavesy = stisk te klavesy.
+; Napoveda se cte primo z tilemapy pod kurzorem, takze funguje kazdy dialog,
+; ktery svoje klavesy vypisuje, bez vlastniho kodu pro mys:
+;   "ENTER = yes"  "BREAK: close this window"  "5: COPY"  "[ ENTER close ]"
+;   "ENTER stop"  "T=text"  "e:export"  "CAPS+e:export all"  "Up/Dn"
+;   "Press any key"
+; V hlavni smycce zustava puvodni obsluha panelu (klik vybira, dvojklik
+; spousti, prave tlacitko oznacuje, kolecko posouva); preklada se jen spodni
+; radek s funkcemi. V otevrenem menu ma klik na polozku vlastni obsluhu.
+;
+; Kod se vola i ze settings, bookmarks a prohlizecu, kdy v MMU6 neni cast 2
+; CC. Proto nevola showSprite ani nic jineho z $C000-$DFFF; kurzor si
+; prekresli sam (extra_mouse_sprite).
+; =============================================================================
+
+MOUSE_CTX_DIALOG equ 0
+MOUSE_CTX_MAIN   equ 1
+MOUSE_CTX_PLUGIN equ 2
+MOUSE_NO_KEY     equ $FFFF                ; DE: mys nedala zadnou klavesu
+MOUSE_HINT_TOP   equ 3*8                  ; pluginy: napovedy jen nad timto Y
+MOUSE_HINT_BOTTOM equ 29*8                ; a od tohoto Y (hlavni smycka jen tady)
+
+; -----------------------------------------------------------------------------
+; EXTRA_MOUSE_INKEY - udalost mysi v INKEY / InkeyNoWait (clickMouse)
+; IN : DE = adresa, kam se INKEY vrati (rozlisi hlavni smycku)
+; OUT: A = klavesa, nebo 0 = udalost nechat volajicimu (TLACITKO zustava)
+; -----------------------------------------------------------------------------
+EXTRA_MOUSE_INKEY:
+        ld hl,loop0_inkey_ret
+        or a
+        sbc hl,de
+        ld c,MOUSE_CTX_MAIN
+        jr z,.context
+        ld c,MOUSE_CTX_DIALOG
+.context
+        ld a,(TLACITKO)
+        ld b,a
+        ld a,c
+        jp extra_mouse_event
+
+; -----------------------------------------------------------------------------
+; EXTRA_KEYSCAN_UI - KEYSCAN, ktery umi i mys (resident: KEYSCAN_UI)
+; OUT: D, E jako KEYSCAN. Novy stisk tlacitka nebo pohyb kolecka se vrati
+;      jako kod odpovidajici klavesy (napr. prave tlacitko = CAPS+SPACE).
+; -----------------------------------------------------------------------------
+EXTRA_KEYSCAN_UI:
+        call MOUSE                       ; A = tlacitka
+        ld b,a
+        ld a,(mouseScanButtons)
+        cpl
+        and b                            ; jen nove stisknuta
+        ld c,a
+        ld a,b
+        ld (mouseScanButtons),a
+        push bc
+        call extra_mouse_sprite_moved
+        pop bc
+        ld b,c
+        ld a,MOUSE_CTX_DIALOG
+        call extra_mouse_event           ; resi i kolecko (B = 0)
+        ld a,d
+        and e
+        inc a
+        ret nz                           ; DE = klavesa z mysi
+        jp KEYSCAN
+
+; -----------------------------------------------------------------------------
+; EXTRA_MOUSE_PLUGIN - klik v prohlizeci (view_plugin_input_body)
+; IN : A = tlacitka z MOUSE
+; OUT: A = klavesa, nebo 0 = pokracovat puvodni obsluhou podle typu
+; -----------------------------------------------------------------------------
+EXTRA_MOUSE_PLUGIN:
+        ld b,a
+        bit 0,b
+        jr nz,.event                     ; prave tlacitko = BREAK u vsech
+        ld a,(viewPluginType)
+        cp VIEWTYPE_ZXSCREEN
+        jr z,.own                        ; obrazky, hudba a hello maji
+        cp VIEWTYPE_NXI                  ; tlacitka na pevnych mistech
+        jr z,.own
+        cp VIEWTYPE_HELLO
+        jr z,.own
+        cp VIEWTYPE_EDIT
+        jr z,.edit
+        cp VIEWTYPE_PT3
+        jr c,.event
+        cp VIEWTYPE_SQT+1
+        jr c,.own                        ; PT3, PT2, STC, STP, SQT
+.event
+        ld a,MOUSE_CTX_PLUGIN
+        jp extra_mouse_event
+.own
+        xor a
+        ret
+.edit
+        ; editor: "EXT+S save" je SYMBOL+S, ten prevadi tabulka prohlizece
+        ld a,MOUSE_CTX_PLUGIN
+        call extra_mouse_event
+        ld c,a
+        ld a,d
+        cp $18
+        ld a,c
+        ret nz                           ; bezna klavesa ("S = overwrite")
+        ld hl,view_plugin_input_body.edit_key_table
+        ld b,5
+.edit_key
+        ld a,(hl)
+        inc hl
+        cp e
+        jr z,.edit_hit
+        inc hl
+        djnz .edit_key
+        xor a
+        ret
+.edit_hit
+        ld a,(hl)
+        ret
+
+; -----------------------------------------------------------------------------
+; extra_mouse_event - spolecna pravidla
+; IN : A = kontext (MOUSE_CTX_*), B = tlacitka (bit 0 prave, bit 1 leve)
+; OUT: A = znak klavesy, DE = jeji kod z KEYSCAN; nic: A = 0, DE = $FFFF
+; -----------------------------------------------------------------------------
+extra_mouse_event:
+        ld c,a
+        bit 1,b
+        jr nz,.left
+        bit 0,b
+        jr nz,.right
+        cp MOUSE_CTX_MAIN
+        jr z,.none                       ; kolecko v panelech resi loop0
+        call extra_mouse_wheel
+        or a
+        jr z,.none
+        jp extra_key_from_char
+.right
+        cp MOUSE_CTX_MAIN
+        jr z,.none                       ; v panelech oznacuje soubor
+        call extra_mouse_wait_release
+        ld a,1                           ; BREAK
+        jp extra_key_from_char
+.left
+        cp MOUSE_CTX_MAIN
+        jr z,.left_main
+        cp MOUSE_CTX_PLUGIN
+        jr z,.left_plugin
+        ld a,(zobrazeneMenu)
+        or a
+        jr nz,.none                      ; polozky menu obslouzi menu samo
+        jr .hint
+.left_main
+        ld a,(COORD+1)
+        cp MOUSE_HINT_BOTTOM
+        jr c,.none                       ; menu a panely: puvodni obsluha
+        jr .hint
+.left_plugin
+        ld a,(COORD+1)
+        cp MOUSE_HINT_TOP
+        jr c,.hint
+        cp MOUSE_HINT_BOTTOM
+        jr c,.none                       ; obsah souboru neni napoveda
+.hint
+        call extra_mouse_hint
+        ld a,d
+        and e
+        inc a
+        jr z,.none
+        push de
+        call extra_mouse_wait_release
+        pop de
+        jp mh_char_from_scan
+.none
+        ld de,MOUSE_NO_KEY
+        xor a
+        ret
+
+; OUT: A = 10 (kolecko dolu), 11 (nahoru) nebo 0. Posune wheelOld.
+extra_mouse_wheel:
+        call nactiWheelMysky             ; A = 0..15
+        ld c,a
+        ld a,(wheelOld)
+        ld b,a
+        ld a,c
+        ld (wheelOld),a
+        sub b
+        and 15
+        ret z
+        cp 8
+        ld a,10
+        ret c                            ; o 1..7 vic = dolu (jako ve viewer)
+        ld a,11
+        ret nz                           ; o 1..7 min = nahoru
+        xor a                            ; o 8: smer nejde poznat
+        ret
+
+; Pocka na uvolneni tlacitek a smaze TLACITKO, at se klik nezpracuje dvakrat.
+extra_mouse_wait_release:
+.loop
+        call MOUSE
+        push af
+        call extra_mouse_sprite
+        pop af
+        and 3
+        jr nz,.loop
+        xor a
+        ld (TLACITKO),a
+        ret
+
+extra_mouse_sprite_moved:
+        ld hl,(COORD)
+        ld de,(mouseSpriteCoord)
+        or a
+        sbc hl,de
+        ret z
+extra_mouse_sprite:
+        ld a,(cfgUseKMouse)
+        or a
+        ret z
+        ld hl,(COORD)
+        ld (mouseSpriteCoord),hl
+        nextreg $34,0                    ; sprite 0 jako showSprite
+        ld a,l
+        add a,a                          ; X * 2, carry = bit 8
+        nextreg $35,a
+        ld a,$88                         ; priznaky ze showSprite
+        adc a,0
+        ld l,a
+        ld a,h
+        nextreg $36,a
+        ld a,l
+        nextreg $37,a
+        nextreg $38,$80
+        ret
+
+; -----------------------------------------------------------------------------
+; extra_key_from_char - znak (napr. 13, 1, "t") -> kod z KEYSCAN
+; IN : A = znak.  OUT: DE = kod (D = $FF / $27 CAPS / $18 SYMBOL), A = znak;
+;      neni na klavesnici: DE = $FFFF, A = 0
+; -----------------------------------------------------------------------------
+extra_key_from_char:
+        ld c,a
+        ld hl,NORMTAB
+        ld d,$FF
+        call .find
+        ret z
+        ld hl,CAPSTAB
+        ld d,$27
+        call .find
+        ret z
+        ld hl,SYMTAB
+        ld d,$18
+        call .find
+        ret z
+        ld de,MOUSE_NO_KEY
+        xor a
+        ret
+.find
+        ld b,39                          ; indexy 0..38 (39 = CAPS SHIFT)
+        ld e,0
+.loop
+        ld a,(hl)
+        cp c
+        jr z,.hit
+        inc hl
+        inc e
+        djnz .loop
+        or 1                             ; NZ (A je znak <> C, nemusi byt 0)
+        ret
+.hit
+        or a                             ; znak 0 neni klavesa
+        jr z,.zero
+        cp a                             ; Z, A = znak
+        ret
+.zero
+        or 1
+        ret
+
+; IN: D, E = kod z KEYSCAN. OUT: A = znak jako z INKEY, DE zachovano.
+mh_char_from_scan:
+        ld a,d
+        ld hl,SYMTAB
+        cp $18
+        jr z,.table
+        ld hl,CAPSTAB
+        cp $27
+        jr z,.table
+        ld hl,NORMTAB
+.table
+        push de
+        ld d,0
+        add hl,de
+        pop de
+        ld a,(hl)
+        ret
+
+; =============================================================================
+; extra_mouse_hint - napoveda klavesy pod mysi
+; OUT: DE = kod klavesy z KEYSCAN, nebo $FFFF
+;
+; Radek tilemapy se zkopiruje do mhRow (neviditelne znaky = 0 = hranice).
+; Segment = slova oddelena jednou mezerou (dve mezery nebo ramecek ho konci).
+; Od slova pod mysi se jde doleva po segmentu a hleda se znacka klavesy:
+;   M1  "K=slovo" / "K:slovo"   (za = nebo : pismeno nebo +)   T=text, e:export
+;   M2  "K:"                    (K cislice nebo zname slovo)  5: COPY, BREAK:
+;   M3  "K ="                   (dalsi slovo je samotne =)     ENTER = yes
+;   M4  zname slovo + dalsi slovo, nebo samotne "Up/Dn"         ENTER stop
+; Segment s "any key" = ENTER. Jmeno "A/B" (Up/Dn) plati jen kliknuti primo
+; na jednu z variant.
+; =============================================================================
+extra_mouse_hint:
+        call mh_load_row                 ; HL = znak pod mysi
+        ld a,(hl)
+        call mh_is_sep
+        jr z,.none
+        call mh_token_start
+        push hl
+        call mh_segment_start
+        call mh_any_key
+        pop hl
+        jr nz,.markers
+        ld a,13
+        jp extra_key_from_char
+.markers
+        ld (mhToken),hl
+        call mh_marker                   ; A = 0 dal, 1 znacka, 2 konec
+        or a
+        jr nz,.marker
+        ld hl,(mhToken)
+        call mh_prev_token
+        jr nc,.markers
+        jr .none
+.marker
+        cp 1
+        jr nz,.none
+        call mh_pick_variant
+        jr c,.none
+        jp mh_lookup
+.none
+        ld de,MOUSE_NO_KEY
+        ret
+
+; OUT: HL = ukazatel do mhRow na znak pod mysi
+mh_load_row:
+        ld a,(COORD+1)
+        and $F8
+        rrca
+        rrca
+        rrca                             ; radek 0..31
+        ld e,a
+        ld d,160
+        mul d,e
+        ld hl,$4000
+        add hl,de
+        ld de,mhRow
+        ld b,80
+.copy
+        ld a,(hl)
+        cp 32
+        jr c,.blank
+        cp 127
+        jr c,.store
+.blank
+        xor a
+.store
+        ld (de),a
+        inc hl
+        inc hl
+        inc de
+        djnz .copy
+        ld a,(COORD)
+        srl a                            ; sloupec (X je v pulsloupcich)
+        ld e,a
+        ld d,0
+        ld hl,mhRow
+        add hl,de
+        ld (mhClick),hl
+        ret
+
+; Z kdyz A je hranice slova (0 nebo mezera)
+mh_is_sep:
+        or a
+        ret z
+        cp " "
+        ret
+
+; HL uvnitr slova -> HL = zacatek slova
+mh_token_start:
+.loop
+        dec hl
+        ld a,(hl)
+        call mh_is_sep
+        jr nz,.loop
+        inc hl
+        ret
+
+; HL = zacatek slova -> B = delka (HL zachovano)
+mh_token_len:
+        push hl
+        ld b,0
+.loop
+        ld a,(hl)
+        call mh_is_sep
+        jr z,.done
+        inc b
+        inc hl
+        jr .loop
+.done
+        pop hl
+        ret
+
+; HL = zacatek slova -> NC: HL = predchozi slovo v segmentu, C: neni
+mh_prev_token:
+        dec hl
+        ld a,(hl)
+        cp " "
+        jr nz,.none                      ; 0 = hranice radku nebo ramecek
+        dec hl
+        ld a,(hl)
+        call mh_is_sep
+        jr z,.none                       ; dve mezery = konec segmentu
+        call mh_token_start
+        or a
+        ret
+.none
+        scf
+        ret
+
+; HL = slovo -> HL = prvni slovo segmentu
+mh_segment_start:
+.loop
+        push hl
+        call mh_prev_token
+        pop de
+        jr nc,.loop
+        ex de,hl
+        ret
+
+; HL = prvni slovo segmentu -> Z kdyz segment obsahuje "any key"
+mh_any_key:
+.position
+        ld a,(hl)
+        or a
+        jr z,.no
+        cp " "
+        jr nz,.compare
+        inc hl
+        ld a,(hl)
+        dec hl
+        call mh_is_sep
+        jr z,.no                         ; konec segmentu
+.compare
+        push hl
+        ld de,mhAnyKeyTxt
+.char
+        ld a,(de)
+        or a
+        jr z,.yes
+        ld b,a
+        ld a,(hl)
+        call mh_lower
+        cp b
+        jr nz,.next
+        inc hl
+        inc de
+        jr .char
+.next
+        pop hl
+        inc hl
+        jr .position
+.yes
+        pop hl
+        xor a
+        ret
+.no
+        or 1
+        ret
+
+; Znacka klavesy ve slove HL (viz extra_mouse_hint).
+; OUT: A = 0 neni znacka, 1 znacka (mhName, mhNameLen), 2 znacka bez klavesy
+mh_marker:
+        ld (mhName),hl
+        call mh_token_len
+        ld a,b
+        ld (mhTokenLen),a
+        ; M1: "K=slovo" / "K:slovo"
+        cp 3
+        jr c,.colon
+        push hl
+        ld c,1
+        inc hl
+.compact
+        ld a,(hl)
+        cp "="
+        jr z,.compact_sep
+        cp ":"
+        jr nz,.compact_next
+.compact_sep
+        inc hl
+        ld a,(hl)
+        dec hl
+        cp "+"
+        jr z,.compact_hit
+        call mh_is_letter
+        jr z,.compact_hit
+.compact_next
+        inc hl
+        inc c
+        ld a,(mhTokenLen)
+        dec a
+        cp c
+        jr nz,.compact
+        pop hl
+        jr .colon
+.compact_hit
+        pop hl
+        ld a,c
+        ld (mhNameLen),a
+        ld a,1
+        ret
+.colon
+        ; M2: "K:"
+        ld a,(mhTokenLen)
+        cp 2
+        jr c,.equals
+        ld e,a
+        ld d,0
+        push hl
+        add hl,de
+        dec hl
+        ld a,(hl)
+        pop hl
+        cp ":"
+        jr nz,.equals
+        ld a,(mhTokenLen)
+        dec a
+        ld (mhNameLen),a
+        cp 1
+        jr nz,.colon_word
+        ld a,(hl)
+        cp "0"
+        jr c,.stop
+        cp "9"+1
+        jr nc,.stop                      ; "D:" ve vypisu data neni klavesa
+        ld a,1
+        ret
+.colon_word
+        call mh_known_word
+        jr nz,.stop
+        ld a,1
+        ret
+.equals
+        ; M3: dalsi slovo je samotne "="
+        ld a,(mhTokenLen)
+        ld (mhNameLen),a
+        call mh_after_token              ; HL = znak za slovem
+        ld a,(hl)
+        cp " "
+        jr nz,.word
+        inc hl
+        ld a,(hl)
+        cp "="
+        jr nz,.word
+        inc hl
+        ld a,(hl)
+        call mh_is_sep
+        jr nz,.word
+        ld a,1
+        ret
+.word
+        ; M4: zname slovo s dalsim slovem, nebo varianty "Up/Dn" - jen na
+        ; zacatku segmentu nebo za "[" ("1: LEFT 2: RIGHT" ma klavesy 1 a 2)
+        call mh_segment_head
+        jr nz,.not
+        call mh_known_word
+        jr nz,.not
+        call mh_name_has_slash
+        jr z,.marker
+        call mh_after_token
+        ld a,(hl)
+        cp " "
+        jr nz,.not
+        inc hl
+        ld a,(hl)
+        call mh_is_sep
+        jr z,.not
+.marker
+        ld a,1
+        ret
+.not
+        xor a
+        ret
+.stop
+        ld a,2
+        ret
+
+; Z kdyz slovo mhName zacina segment, nebo pred nim je jen "[" na zacatku
+mh_segment_head:
+        ld hl,(mhName)
+        dec hl
+        ld a,(hl)
+        or a
+        ret z                            ; hranice
+        cp " "
+        ret nz
+        dec hl
+        ld a,(hl)
+        call mh_is_sep
+        ret z                            ; dve mezery
+        cp "["
+        ret nz
+        dec hl
+        ld a,(hl)
+        jp mh_is_sep
+
+; OUT: HL = znak za aktualnim slovem (mhName + mhTokenLen)
+mh_after_token:
+        ld hl,(mhName)
+        ld a,(mhTokenLen)
+        ld e,a
+        ld d,0
+        add hl,de
+        ret
+
+; Z kdyz jmeno (mhName, mhNameLen) obsahuje "/"
+mh_name_has_slash:
+        ld hl,(mhName)
+        ld a,(mhNameLen)
+        ld b,a
+.loop
+        ld a,(hl)
+        cp "/"
+        ret z
+        inc hl
+        djnz .loop
+        or 1
+        ret
+
+; Z kdyz jmeno (mhName, mhNameLen) je zname slovo nebo varianty "A/B"
+; ze znamych slov.
+mh_known_word:
+        ld hl,(mhName)
+        ld a,(mhNameLen)
+        ld b,a
+.part
+        push hl
+        ld c,0
+.part_len
+        ld a,b
+        or a
+        jr z,.part_done
+        ld a,(hl)
+        cp "/"
+        jr z,.part_done
+        inc hl
+        inc c
+        dec b
+        jr .part_len
+.part_done
+        pop hl
+        push bc
+        call mh_ext_name                 ; "EXT+S" (editor)
+        call nz,mh_word_code             ; HL, C -> Z, A = kod
+        pop bc
+        ret nz
+        ld e,c
+        ld d,0
+        add hl,de
+        ld a,b
+        or a
+        ret z                            ; vsechny casti zname
+        inc hl                           ; preskoc "/"
+        dec b
+        jr nz,.part
+        or 1                             ; jmeno konci "/"
+        ret
+
+; IN: HL = text, C = delka. OUT: Z a A = kod znameho slova, jinak NZ.
+; HL a BC zachovano.
+mh_word_code:
+        push hl
+        push bc
+        ld de,mhWords
+.entry
+        ld a,(de)
+        or a
+        jr z,.unknown
+        cp c
+        jr nz,.skip
+        push hl
+        push de
+        inc de
+        ld b,c
+.compare
+        ld a,(hl)
+        call mh_upper
+        ex de,hl
+        cp (hl)
+        ex de,hl
+        jr nz,.differs
+        inc hl
+        inc de
+        djnz .compare
+        ld a,(de)
+        pop de
+        pop hl
+        pop bc
+        pop hl
+        cp a
+        ret
+.differs
+        pop de
+        pop hl
+.skip
+        ld a,(de)
+        add a,2                          ; bajt delky + text + kod
+        add a,e
+        ld e,a
+        adc a,d
+        sub e
+        ld d,a
+        jr .entry
+.unknown
+        pop bc
+        pop hl
+        or 1
+        ret
+
+; IN: HL = text, C = delka. Z kdyz je to "EXT+pismeno". HL a BC zachovano.
+mh_ext_name:
+        ld a,c
+        cp 5
+        ret nz
+        push hl
+        push bc
+        ld de,mhExtTxt
+        ld b,4
+.compare
+        ld a,(hl)
+        call mh_upper
+        ex de,hl
+        cp (hl)
+        ex de,hl
+        jr nz,.done
+        inc hl
+        inc de
+        djnz .compare
+        ld a,(hl)
+        call mh_is_letter
+.done
+        pop bc
+        pop hl
+        ret
+
+; Jmeno "A/B": vybere variantu pod mysi. C = klik mimo jmeno nebo na "/".
+mh_pick_variant:
+        ld a,(mhNameLen)
+        cp 2
+        ccf
+        ret nc                           ; jednoznakove jmeno ("/" ve "/=find")
+        call mh_name_has_slash
+        jr z,.split
+        or a
+        ret
+.split
+        ld hl,(mhClick)
+        ld de,(mhName)
+        or a
+        sbc hl,de
+        ret c                            ; klik pred jmenem
+        ld a,h
+        or a
+        jr nz,.fail
+        ld a,(mhNameLen)
+        cp l
+        jr c,.fail
+        jr z,.fail                       ; klik za jmenem
+        ld hl,(mhClick)
+        ld a,(hl)
+        cp "/"
+        jr z,.fail
+        ld a,(mhNameLen)                 ; konec jmena
+        ld e,a
+        ld d,0
+        push hl
+        ld hl,(mhName)
+        add hl,de
+        ld (mhNameEnd),hl
+        pop hl
+        ld de,(mhName)
+.left
+        push hl
+        or a
+        sbc hl,de
+        pop hl
+        jr z,.start
+        dec hl
+        ld a,(hl)
+        cp "/"
+        jr nz,.left
+        inc hl
+.start
+        ld (mhName),hl
+        ld b,0
+.length
+        push hl
+        ld de,(mhNameEnd)
+        or a
+        sbc hl,de
+        pop hl
+        jr z,.done
+        ld a,(hl)
+        cp "/"
+        jr z,.done
+        inc hl
+        inc b
+        jr .length
+.done
+        ld a,b
+        ld (mhNameLen),a
+        or a
+        ret
+.fail
+        scf
+        ret
+
+; Jmeno klavesy (mhName, mhNameLen) -> DE = kod z KEYSCAN, nebo $FFFF
+mh_lookup:
+        ld hl,(mhName)
+        ld a,(mhNameLen)
+        ld c,a
+        call mh_ext_name
+        jr nz,.not_ext
+        ld de,4
+        add hl,de
+        ld a,(hl)
+        call mh_lower
+        call extra_key_from_char
+        ld a,d
+        inc a
+        jr nz,.none
+        ld d,$18                         ; EXT+x = SYMBOL+x (viz edit_key_table)
+        ret
+.not_ext
+        ld a,c
+        cp 6
+        jr c,.plain
+        push hl
+        ld de,mhCapsTxt
+        ld b,5
+.caps
+        ld a,(hl)
+        call mh_upper
+        ex de,hl
+        cp (hl)
+        ex de,hl
+        jr nz,.not_caps
+        inc hl
+        inc de
+        djnz .caps
+        pop de                           ; HL = cast za "CAPS+"
+        ld a,c
+        sub 5
+        ld c,a
+        cp 1
+        jr nz,.caps_word
+        ld a,(hl)
+        call mh_lower
+        jr .caps_key
+.caps_word
+        call mh_word_code                ; CAPS+ENTER
+        jr nz,.none
+.caps_key
+        call extra_key_from_char
+        ld a,d
+        inc a
+        jr nz,.none                      ; zaklad musi byt bez shiftu
+        ld d,$27
+        ret
+.not_caps
+        pop hl
+.plain
+        ld a,c
+        cp 1
+        jr nz,.word
+        ld a,(hl)
+        call mh_lower
+        jp extra_key_from_char
+.word
+        call mh_word_code
+        jr nz,.none
+        jp extra_key_from_char
+.none
+        ld de,MOUSE_NO_KEY
+        ret
+
+mh_upper:
+        cp "a"
+        ret c
+        cp "z"+1
+        ret nc
+        sub 32
+        ret
+
+mh_lower:
+        cp "A"
+        ret c
+        cp "Z"+1
+        ret nc
+        add a,32
+        ret
+
+; Z kdyz A je pismeno (A se zmeni)
+mh_is_letter:
+        or $20
+        cp "a"
+        jr c,.no
+        cp "z"+1
+        jr nc,.no
+        cp a
+        ret
+.no
+        or a                             ; A >= $20, tedy NZ
+        ret
+
+mhWords
+        defb 5,"ENTER",13
+        defb 5,"BREAK",1
+        defb 5,"SPACE",32
+        defb 6,"DELETE",12
+        defb 2,"UP",11
+        defb 4,"DOWN",10
+        defb 2,"DN",10
+        defb 4,"LEFT",8
+        defb 5,"RIGHT",9
+        defb 4,"PGUP",8
+        defb 4,"PGDN",9
+        defb 0
+mhCapsTxt       defb "CAPS+"
+mhExtTxt        defb "EXT+"
+mhAnyKeyTxt     defb "any key",0
+
+mouseScanButtons defb 7                   ; KEYSCAN_UI: tlacitka pri minulem cteni
+mouseSpriteCoord defw $FFFF
+mhClick         defw 0
+mhToken         defw 0
+mhTokenLen      defb 0
+mhName          defw 0
+mhNameLen       defb 0
+mhNameEnd       defw 0
+                defb 0                    ; zarazka pred radkem
+mhRow           defs 80
+                defb 0,0                  ; zarazky za radkem

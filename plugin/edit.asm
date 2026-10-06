@@ -1641,13 +1641,13 @@ title        defb "EDIT:",0
 statusText   defb "Mode:",0
 textModeText defb "TEXT",0
 hexModeText  defb "HEX",0
-helpText     defb "EXT+S save EXT+E as EXT+F find EXT+H/T",0
+helpText     defb "EXT+S save  EXT+E as  EXT+F find  EXT+H hex  EXT+T text",0
 findText     defb "Find:",0
 saveAsText   defb "Save as:",0
 savedText    defb "Saved",0
 savingText   defb "Saving...",0
 notFoundText defb "Not found",0
-dirtyText    defb "Changed: S overwrite, E save as, I ignore",0
+dirtyText    defb "Changed:  S = overwrite  E = save as  I = ignore",0
 
 plugin_end
         assert plugin_end - plugin_start <= VIEW_PLUGIN_SIZE

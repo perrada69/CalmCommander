@@ -116,6 +116,7 @@ zjistiJestliMyskaNeniVHorniCastiMenu
 ; -----------------------------------------------------------------------------
 menuenter_pred
         call loadscr
+        call menu_wait_mouse_release             ; drzene tlacitko nesmi kliknout do dialogu
         jp menuenter
 
 

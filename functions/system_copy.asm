@@ -361,7 +361,7 @@ sysCopyServices
         defw print
         defw window
         defw syscopy_overwrite_prompt
-        defw KEYSCAN
+        defw KEYSCAN_UI                         ; settings/bookmarks: klavesnice i mys
         defw SYMTAB
         defw CAPSTAB
         defw NORMTAB

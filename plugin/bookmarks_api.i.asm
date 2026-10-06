@@ -29,3 +29,7 @@ BOOKMARK_MAX_COUNT      equ 200
 ; (HL=XY, BC=width/height, A=attribute).
 BOOKMARK_SERVICE_PRINT  equ 0
 BOOKMARK_SERVICE_WINDOW equ 2
+; +4 is the syscopy overwrite prompt in the shared table. +6 is KEYSCAN_UI:
+; D/E like KEYSCAN, and a mouse click or wheel step comes back as the key it
+; stands for (right button = BREAK, wheel = UP/DOWN, click on a key hint).
+BOOKMARK_SERVICE_KEYSCAN equ 6

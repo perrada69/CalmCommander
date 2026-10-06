@@ -1201,7 +1201,7 @@ keysTabIdle      defb "  Keys  ",0
 keysTabActive    defb "[ Keys ]",0
 colourHeader     defb "  Interface style          BG R/G/B   FG R/G/B",0
 keyHeader        defb "  Action                              Shortcut",0
-hintText         defb "LEFT/RIGHT tab  UP/DOWN move  ENTER select/edit  S save",0
+hintText         defb "LEFT/RIGHT tab  UP/DOWN move  ENTER select/edit  S = save",0
 captureText      defb "Press new shortcut (BREAK cancels capture)                         ",0
 keyConflictText  defb "Shortcut already used:                                               ",0
 schemeLabel      defb "Colour scheme",0

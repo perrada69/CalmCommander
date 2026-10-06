@@ -571,6 +571,7 @@ loop0
 
             call NOBUFF83                         ; externí: pravděpodobně práce s 8.3 bufferem (neodhadovat)
             call INKEY                            ; externí: načtení klávesy do A
+loop0_inkey_ret                                   ; mys: podle teto adresy pozna hlavni smycku
             ld (klavesa),a                        ; uložit poslední klávesu
             call key_dispatch_action
             or a
@@ -654,17 +655,28 @@ hranicniPatnact
 ; jump table live in the extra code bank; this small trampoline is all that
 ; remains resident.
 key_dispatch_action
+            ld hl,EXTRA_KEY_DISPATCH
+
+; Zavola rutinu HL v extra bance a vrati puvodni MMU7.
+; IN: A = parametr, HL = rutina. OUT: A, DE, HL z rutiny (BC zniceno).
+extra_call
             ld c,a
             NEXTREG2A MMU7_E000_NR_57
             push af
             nextreg MMU7_E000_NR_57,EXTRA_BANK_PAGE
             ld a,c
-            call EXTRA_KEY_DISPATCH
+            call .go
             ld b,a
             pop af
             nextreg MMU7_E000_NR_57,a
             ld a,b
             ret
+.go         jp (hl)
+
+; KEYSCAN, ktery prevede i mys na klavesu (kmouse/ui.a80). Vraci D, E.
+KEYSCAN_UI
+            ld hl,EXTRA_KEYSCAN_UI
+            jr extra_call
 
             MACRO emit_key_dispatch_code
 EXTRA_KEY_DISPATCH
@@ -1307,15 +1319,8 @@ enterwait
         ld (TLACITKO),a
 
         call INKEY                                ; externí: načti klávesu do A
-        cp 13
+        cp 13                                     ; i klik mysi na "ENTER = continue" (kmouse/ui.a80)
         jp z,enterno2                             ; Enter => zavři okno (obnov screen) a návrat do loop0
-
-                                                  ; klik na potvrzovací tlačítko v okně
-                                                  ; CONTROL_CLICK: externí, podle použití CF=1/0 indikace trefení
-        ld hl,buttonYes2
-        call CONTROL_CLICK
-        jp nc,enterno2                            ; pokud klik na tlačítko => ukonči okno
-
         jr enterwait
 
 
@@ -1950,35 +1955,10 @@ enterwait2
 
         cp 13
         jr z,enterw2                              ; Enter => potvrď (RET z potvrd)
-
-                                                  ; čekej dokud není levé tlačítko (bit1) “aktivní”
-        ld a,(TLACITKO)
-        bit 1,a
-        jr z,enterwait2
-
-        ; ověř, že klik padl do oblasti YES, jinak test NO
-        ld hl,buttonYes
-        call CONTROL_CLICK
-        ret nc                                    ; klik na YES => potvrdit (CF=1?) => návrat z potvrd
-
-        ld hl,buttonNo
-        call CONTROL_CLICK
-        jr nc,enterno                             ; klik na NO => zrušit
-
-        jr enterwait2
+        jr enterwait2                             ; klik na "ENTER = yes" / "BREAK = no" vrati INKEY jako klavesu
 
 enterw2
         ret
-
-        ; definice obdélníků tlačítek (souřadnice pro CONTROL_CLICK)
-buttonYes  defb 120,120
-           defb 140,128
-
-buttonYes2 defb 108,120
-           defb 138,128
-
-buttonNo   defb 120,112
-           defb 140,120
 
 
            ; ------------------------------------------------------------
@@ -2660,7 +2640,10 @@ clickMouse
 
         xor a
         ld   (aLAST_KEY+1),a
-        ret
+        pop de                                    ; kam se INKEY vraci (hlavni smycka?)
+        push de
+        ld hl,EXTRA_MOUSE_INKEY                   ; mys -> klavesa (kmouse/ui.a80)
+        jp extra_call
 
 INKEY 	call gettime
         ; Nejdřív načti aktuální souřadnice a tlačítka. Dříve se hover
@@ -4576,7 +4559,7 @@ syscopy_overwrite_prompt
 .delay
         halt
         djnz .delay
-        call KEYSCAN
+        call KEYSCAN_UI                           ; i mys: klik na "N = no", "CAPS+ENTER = all"...
         ld a,e
         inc a
         jr z,.wait
@@ -8210,6 +8193,7 @@ odskocZnovaKlik
 odskocEnter
         ; sem se jde, když byl doubleclick na stejné položce
         pop hl                                    ; vyrovnání zásobníku
+        call menu_wait_mouse_release              ; drzene tlacitko nesmi kliknout do dialogu
         xor a
         ld (TLACITKO),a                           ; reset tlačítka
 xx      jp enter                                  ; provede "enter" akci nad vybranou položkou (otevřít soubor/adresář)
@@ -8372,7 +8356,7 @@ overwrite_choice
 .delay
         halt
         djnz .delay
-        call KEYSCAN
+        call KEYSCAN_UI                           ; i mys: klik na "N = no", "CAPS+ENTER = all"...
         ld a,e
         inc a
         jr z,.wait
@@ -8648,6 +8632,7 @@ extraDotSnx:
 ; cannot be used here: its retry path calls gettime, and gettime changes the
 ; $C000-$FFFF mapping through $7FFD.  Require a full release both before and
 ; after the key so the H used to open Help is not consumed by the dialog.
+; The press is read with the mouse as well (kmouse/ui.a80).
 extra_read_key:
 .release_before
             ei
@@ -8658,7 +8643,7 @@ extra_read_key:
             jr nz,.release_before
 .press
             halt
-            call KEYSCAN
+            call EXTRA_KEYSCAN_UI
             ld a,e
             inc a
             jr z,.press
@@ -9577,6 +9562,8 @@ extraMigChannel defb 0
 extraMigSourceColour defb 0
 extraMigDestColour defb 0
 extraMigMask defb 0
+
+        include "kmouse/ui.a80"
 
         emit_tilemap_palette
 

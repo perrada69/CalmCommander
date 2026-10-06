@@ -99,6 +99,13 @@ class Machine:
         self.port_writes = []          # (port, hodnota) v poradi
         self.events = []               # volny zaznam pro testy
         self.keys = set()              # stisknute klavesy: (radek $xxFE, bit)
+        # kmouse: citace pozice ($FBDF X, $FFDF Y), tlacitka (bit 0 prave,
+        # bit 1 leve, bit 2 prostredni) a kolecko 0..15 (horni pulka $FADF).
+        # mouse_hold = kolikrat se jeste precte $FADF, nez se tlacitka pusti.
+        self.mouse_x = self.mouse_y = 0x80
+        self.mouse_buttons = 0
+        self.mouse_hold = None
+        self.mouse_wheel = 15
         self.border = None
         self.interrupts = False        # dorucovat IM1 preruseni na konci snimku
         self.isr_checks = []           # funkce volane pri kazdem preruseni
@@ -251,10 +258,17 @@ class Machine:
                 if not (port >> 8) & (~row & 0xFF):
                     value &= ~(1 << bit)
             return value & 0xFF
-        if port in (0xFBDF, 0xFFDF):
-            return 0x80                # mys stoji uprostred
+        if port == 0xFBDF:
+            return self.mouse_x
+        if port == 0xFFDF:
+            return self.mouse_y
         if port == 0xFADF:
-            return 0xFF                # zadne tlacitko, kolecko v klidu
+            value = (self.mouse_wheel & 15) << 4 | (0x0F & ~self.mouse_buttons)
+            if self.mouse_hold is not None:
+                self.mouse_hold -= 1
+                if self.mouse_hold <= 0:
+                    self.mouse_buttons, self.mouse_hold = 0, None
+            return value
         return 0xFF
 
     def port_out(self, port, value):
@@ -421,3 +435,18 @@ class Typist:
                     raise AssertionError("program ceka na dalsi klavesu, ale zadna neni")
                 return
             m.keys, self.pressed, self.count = keys_for(self.queue.pop(0)), True, 0
+
+
+def keyscan(m):
+    """Jako KEYSCAN v CC: (D, E) pro stisknute klavesy v m.keys.
+    D = $27 CAPS SHIFT, $18 SYMBOL SHIFT, jinak $FF; E = index 0..38 do
+    NORMTAB/CAPSTAB/SYMTAB, nebo $FF. Shift se jako klavesa nepocita."""
+    keys = set(m.keys)
+    d = 0x27 if CAPS in keys else 0x18 if SYM in keys else 0xFF
+    base = 47
+    for row in (0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF, 0x7F):
+        bits = [bit for r, bit in keys if r == row and (r, bit) not in (CAPS, SYM)]
+        if bits:
+            return d, base - 8 * (min(bits) + 1)
+        base -= 1
+    return d, 0xFF

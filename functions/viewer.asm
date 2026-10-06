@@ -1548,6 +1548,10 @@ view_plugin_input_body
         ret
 
 .mouse_click
+        ld hl,EXTRA_MOUSE_PLUGIN                 ; prave = BREAK, klik na napovedu = klavesa
+        call extra_call
+        or a
+        ret nz
         ld a,(viewPluginType)
         cp VIEWTYPE_ZXSCREEN
         jp z,view_image_mouse_click

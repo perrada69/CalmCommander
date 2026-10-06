@@ -39,11 +39,13 @@ vzniknou stejné jako z `compile.bat`.
 | `test_files.py` | dir_info (počty a 32bitové velikosti, limit hloubky, chyby) a syscopy (kopie, přesun, mazání, přepis s dotazem, CAPS+SPACE, vnořený cíl) nad falešným esxDOS |
 | `test_bookmarks.py` | záložky: přidání, limit 200, výběr, filtr, převod starého formátu |
 | `test_settings.py` | nastavení: schémata, zachycení klávesy, konflikt, uložit/zrušit, zápis palety do registrů |
+| `test_mouse.py` | kmouse v obou sestaveních: klik na nápovědu klávesy (skutečné texty z CC a pluginů), pravé tlačítko = BREAK, kolečko, pravidla v panelech / menu / dialogu / pluginu, `INKEY`, `KEYSCAN_UI`, dialogy potvrzení a přepsání souboru |
 
 ## Pomocné moduly
 
 - `cctest.py` – překlad, emulovaný Next (stránky, MMU, Next registry, porty,
-  klávesnice, přerušení), Z80N instrukce, `Typist` (mačkání kláves přes porty).
+  klávesnice, kmouse, přerušení), Z80N instrukce, `Typist` (mačkání kláves
+  přes porty), `keyscan()` (jako KEYSCAN v CC).
 - `pluginhost.py` – falešný hostitel pro prohlížeče (`*.ccp` se `SERVICE_*`).
 - `fakeesx.py` – falešný esxDOS (`RST $08`) se stromem souborů v Pythonu
   (chová se jako FAT: krátká i dlouhá jména, díry po smazaných položkách) a

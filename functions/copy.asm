@@ -163,7 +163,7 @@ COPY    call specific_search
 ; Čeká na potvrzení:
 ;  - klávesa 1/ESC → copyend (zrušit)
 ;  - Enter        → copycont (pokračovat)
-;  - myš: klik na buttonYes/buttonNo → continue/end
+;  - myš: klik na "ENTER = yes" / "BREAK = no" (INKEY ho vrati jako klavesu)
 ; ------------------------------------------------------------
 copywait
         xor a
@@ -173,21 +173,7 @@ copywait
         jp z,copyend                                 ; zrušit
         cp 13
         jr z,copycont                                ; Enter = potvrdit
-
-        ld a,(TLACITKO)
-        bit 1,a
-        jr z,copywait                                ; pokud není klik, čekej dál
-
-        ; klik myší: ověř, jestli byl zásah do buttonYes / buttonNo
-        ld hl,buttonYes
-        call CONTROL_CLICK
-        jr nc,copycont                               ; NC = zásah → potvrdit
-
-        ld hl,buttonNo
-        call CONTROL_CLICK
-        jp nc,copyend                                ; NC = zásah → zrušit
-
-        jr copywait                                  ; jinak klik mimo → čekej dál
+        jr copywait                                  ; klik na napovedu vrati INKEY jako klavesu
 
 
 ; ------------------------------------------------------------

@@ -1330,6 +1330,9 @@ patch_services
         ld l,(ix+BOOKMARK_SERVICE_WINDOW)
         ld h,(ix+BOOKMARK_SERVICE_WINDOW+1)
         ld (call_window+1),hl
+        ld l,(ix+BOOKMARK_SERVICE_KEYSCAN)
+        ld h,(ix+BOOKMARK_SERVICE_KEYSCAN+1)
+        ld (call_keyscan_ui+1),hl
         ret
 
 call_print
@@ -1338,12 +1341,17 @@ call_print
 call_window
         jp 0
 
+call_keyscan_ui
+        jp 0
 
-; Busy-style keyboard scanner copied locally so the plugin needs no resident
-; service table. read_key waits for a full release between key presses and
-; then gives CAPS/SYMBOL combinations two frames to settle. Without that
-; delay, the first matrix scan could see the ordinary key just before the
-; modifier and e.g. CAPS+0 was incorrectly returned as character "0".
+
+; Busy-style keyboard scanner copied locally. read_key waits for a full
+; release between key presses and then gives CAPS/SYMBOL combinations two
+; frames to settle. Without that delay, the first matrix scan could see the
+; ordinary key just before the modifier and e.g. CAPS+0 was incorrectly
+; returned as character "0". The press itself is read through the host's
+; KEYSCAN_UI, which also turns the mouse into keys; a key that the local
+; scan does not see came from the mouse and needs no settling.
 read_key
 .released
         call keyscan
@@ -1351,10 +1359,16 @@ read_key
         inc a
         jr nz,.released
 .pressed
-        call keyscan
+        call call_keyscan_ui
         ld a,e
         inc a
         jr z,.pressed
+        push de
+        call keyscan
+        ld a,e
+        inc a
+        pop de
+        jr z,.decode                     ; jen mys
         ei
         ld b,2
 .settle
@@ -1364,6 +1378,7 @@ read_key
         ld a,e
         inc a
         jr z,.pressed
+.decode
         ld a,d
         ld hl,symtab
         cp $18

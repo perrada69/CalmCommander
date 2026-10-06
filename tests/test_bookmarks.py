@@ -7,7 +7,7 @@ Soubor zalozek je ve falesnem esxDOS a kontroluje se bajt po bajtu.
 
 import unittest
 
-from cctest import ROOT, Typist, build_plugin
+from cctest import ROOT, Typist, build_plugin, keyscan
 from fakeesx import CTX, FeatureHost
 
 ABI, ADD, LIST = 2, 1, 2
@@ -38,7 +38,11 @@ class Bookmarks(unittest.TestCase):
         if cfg is not None:
             tree["sys"] = {"bookmark.cfg": cfg}
         host = FeatureHost(binary, tree)
-        host.services([host.svc_print, host.svc_window])
+        def svc_keyscan():                   # KEYSCAN_UI v CC (tady bez mysi)
+            host.m.cpu.d, host.m.cpu.e = keyscan(host.m)
+            host.m.ret()
+
+        host.services([host.svc_print, host.svc_window, host.done, svc_keyscan])
         host.m.cpu.iff1 = host.m.cpu.iff2 = 1
         self.typist = Typist(host.m, keys, (s["read_key"], s["symtab"]))
         ctx = bytearray(10)

@@ -31,14 +31,14 @@
 # file opened: dot\../build/dot/ccd.exp
   1+  0000              dot_xb_page: EQU 0x0000005A
   2+  0000              S1: EQU 0x00007100
-  3+  0000              E2: EQU 0x0000DFEF
+  3+  0000              E2: EQU 0x0000DFF2
   4+  0000              dot_entry: EQU 0x0000CC34
-  5+  0000              dot_launch: EQU 0x0000BFE0
+  5+  0000              dot_launch: EQU 0x0000BFD3
   6+  0000              DOT_EXIT_LAUNCH: EQU 0x00000001
   7+  0000              DOT_EXIT_BASIC: EQU 0x00000002
-  8+  0000              dot_cmd_buf: EQU 0x00009CC5
+  8+  0000              dot_cmd_buf: EQU 0x00009CAA
   9+  0000              dot_exit_code: EQU 0x0000CC89
- 10+  0000              EXTRA_BANK_END: EQU 0x0000F574
+ 10+  0000              EXTRA_BANK_END: EQU 0x0000FAEA
  11+  0000
 # file closed: dot\../build/dot/ccd.exp
  30   0000
@@ -131,7 +131,7 @@
 117   2065 20 10                jr nz,.quit
 118   2067                      ; Prikaz BASICu ke spusteni je v pameti CC - schovat ho, nez ji
 119   2067                      ; prepise obnova pameti BASICu.
-120   2067 21 C5 9C             ld hl,dot_cmd_buf
+120   2067 21 AA 9C             ld hl,dot_cmd_buf
 121   206A 11 17 24             ld de,injectBuf
 122   206D 01 A0 00             ld bc,INJECT_MAX
 123   2070 ED B0                ldir
@@ -170,7 +170,7 @@
 156   20AF CD A2 22             call free_pages                 ; zasobnik je porad CALL_STACK
 157   20B2 ED 7B 0A 24          ld sp,(entrySp)                 ; zasobnik BASICu jako pri zadani .cc - pod
 158   20B6                                                      ; nim je volno pro .run a jeho LOAD
-159   20B6 21 E0 BF             ld hl,dot_launch
+159   20B6 21 D3 BF             ld hl,dot_launch
 160   20B9 E7                   rst $20                         ; ukonci dot command a skoc na HL
 161   20BA
 162   20BA              ; -----------------------------------------------------------------------------
@@ -643,14 +643,14 @@
 626   232A
 627   232A ED 91 57 5A          nextreg $57,dot_xb_page         ; extra banka rovnou do sve stranky
 628   232E 21 00 E0             ld hl,$E000
-629   2331 01 74 15             ld bc,XB_LEN
+629   2331 01 EA 1A             ld bc,XB_LEN
 630   2334 CD 50 23             call read_part
 631   2337 3A 24 25             ld a,(sourcePages+5)
 632   233A ED 92 57             nextreg $57,a
 633   233D 38 09                jr c,.close
 634   233F
 635   233F 21 00 71             ld hl,S1
-636   2342 01 EF 6E             ld bc,MAIN_LEN
+636   2342 01 F2 6E             ld bc,MAIN_LEN
 637   2345 CD 50 23             call read_part
 638   2348              .close
 639   2348 F5                   push af
@@ -753,6 +753,6 @@
 698   263F                      ; NextZXOS nahraje jen prvnich 8K, zbytek si dot cte sam
 699   263F 00 00 00...          BLOCK $4000 - $, 0
 700   4000                      INCBIN "../build/dot/ccd_xb.bin"
-701   5574                      INCBIN "../build/dot/ccd.bin"
-702   C463
+701   5AEA                      INCBIN "../build/dot/ccd.bin"
+702   C9DC
 # file closed: dot\ccdot.asm
