@@ -61,7 +61,7 @@ plugin_start
         ei
         halt
         di
-        call call_input
+        call raw_input
         cp 1
         jr z,.exit
         cp 2
@@ -77,21 +77,19 @@ plugin_start
         jr .play_loop
 
 .exit
-        call VTPL.MUTE
-        call restore_mmu
-        call wait_stop_release
-        di
-        ld sp,(savedSp)
         xor a
-        ret
+        jr .leave
 
 .next
+        ld a,1
+.leave
+        push af
         call VTPL.MUTE
         call restore_mmu
         call wait_stop_release
         di
+        pop af
         ld sp,(savedSp)
-        ld a,1
         ret
 
 
@@ -479,6 +477,14 @@ wait_stop_release
 call_input
         call 0
         ret
+
+
+; ENTER a SPACE primo z portu, ostatni klavesy (A/Y/B/C) pres hostitele
+raw_input
+        call raw_control
+        or a
+        ret nz
+        jp call_input
 
 
 raw_control

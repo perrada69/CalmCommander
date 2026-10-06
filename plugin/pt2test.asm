@@ -439,11 +439,11 @@ wait_stop_release
         ret
 
 
-raw_input
-        call call_input
+raw_input                       ; ENTER a SPACE primo z portu, ostatni klavesy pres hostitele
+        call raw_control
         or a
         ret nz
-        call raw_control
+        call call_input
         ret
 
 
