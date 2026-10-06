@@ -6708,6 +6708,10 @@ dot_quit
 ; A = DOT_EXIT_*. Kod jde i do pameti - navrat z RST $18 nemusi zachovat A.
 dot_return
         ld (dot_exit_code),a
+        nextreg MMU7_E000_NR_57,1                 ; zasobnik zavadece je ve strance 1, ale CC
+                                                  ; v MMU7 casto nechava LFN stranku (lfnroot)
+        ld a,1                                    ; DIAG: modry border = CC se vraci do zavadece
+        out ($fe),a
         ld sp,(dot_basic_sp)
         ret
 

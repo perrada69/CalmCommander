@@ -28,6 +28,12 @@
         ; S1, E2, dot_entry, dot_launch, dot_xb_page, EXTRA_BANK_END, DOT_EXIT_LAUNCH
         INCLUDE "../build/dot/ccd.exp"
 
+; DIAG: docasne barvy borderu na ceste zpet do BASICu, at je videt, kde se zasekne
+        MACRO DBG_BORDER col
+        ld a,col
+        out ($FE),a
+        ENDM
+
 M_DOSVERSION    equ $88
 M_GETHANDLE     equ $8D
 M_P3DOS         equ $94
@@ -82,6 +88,32 @@ dot_start
         call grab_pages                 ; M_P3DOS - jeste na zasobniku BASICu
         jp c,exit_error                 ; HL = zprava
 
+        ld a,(testMode)                 ; DIAG .cc 0: jen rezervace a uvolneni stranek
+        cp '0'
+        jr z,.t0
+        cp '4'                          ; DIAG .cc 4: jako 0 + restore_ula
+        jr z,.t4
+        cp '7'                          ; DIAG .cc 7: jako 0, restore_ula AZ PO uvolneni
+        jr z,.t7
+        cp '5'                          ; DIAG .cc 5: jako 0 + restore_nextregs
+        jr nz,.notT0
+        call restore_nextregs
+        jr .t0
+.t4
+        call restore_ula
+.t0
+        call free_pages
+        call restore_regs
+        xor a
+        ret
+.t7
+        call free_pages
+        call restore_ula
+        call restore_regs
+        xor a
+        ret
+.notT0
+
         ; Od ted pracujeme se zasobnikem v okne dot commandu: MMU6/MMU7
         ; poslouzi jako okna a zasobnik BASICu muze lezet prave v nich.
         di
@@ -89,6 +121,15 @@ dot_start
         ei
 
         call backup_memory
+        ld a,(testMode)                 ; DIAG .cc 3: zaloha a obnova, CC se nenahraje
+        cp '3'
+        jr z,.quit
+        cp '6'                          ; DIAG .cc 6: jako 3, ale bez registru a ULA
+        jr z,.quit
+        cp '8'                          ; DIAG .cc 8: jako 3, ale bez restore_ula
+        jr z,.quit
+        cp '9'                          ; DIAG .cc 9: jako 3, ale restore_ula bez $7FFD
+        jr z,.quit
         call load_cc
         jr nc,.loaded
         call restore_memory
@@ -98,25 +139,52 @@ dot_start
         jp exit_error
 
 .loaded
+        ld a,(testMode)                 ; DIAG .cc 1: CC se nahraje, ale nespusti
+        cp '1'
+        jr z,.quit
+        cp '2'                          ; DIAG .cc 2: RST $18 na pouhe RET v RAM
+        jr nz,.runCC
+        ld a,$C9
+        ld ($7000),a
+        di
+        ld sp,CALL_STACK
+        ei
+        rst $18
+        defw $7000
+        jr .quit
+
+.runCC
         di
         ld sp,CALL_STACK
         ei
         rst $18
         defw dot_entry                  ; CC se vraci az pri Quit nebo spusteni
 
+        DBG_BORDER 2                    ; DIAG: cerveny = zavadec dostal rizeni zpet
         ld a,(dot_exit_code)            ; v RAM CC, MMU6 je zpet na strance 0
         cp DOT_EXIT_LAUNCH
         jr z,.launch
 
         ; Quit: vsechno vratit, jak bylo
+.quit
         di
         ld sp,dotStackTop
         ld iy,$5C3A
-        call restore_nextregs
+        ld a,(testMode)
+        cp '6'
+        call nz,restore_nextregs
+        DBG_BORDER 3                    ; DIAG: fialovy = Next registry obnovene
         call restore_memory
+        DBG_BORDER 4                    ; DIAG: zeleny = pamet BASICu obnovena
         ld sp,(entrySp)                 ; pamet je zpet, zasobnik BASICu taky
         call free_pages
-        call restore_ula
+        DBG_BORDER 5                    ; DIAG: azurovy = stranky uvolnene
+        ld a,(testMode)
+        cp '6'
+        jr z,.noUla
+        cp '8'
+        call nz,restore_ula             ; border zpet podle BORDCR
+.noUla
         call restore_regs
         ei
         xor a                           ; Fc=0: dot command skoncil v poradku
@@ -163,6 +231,14 @@ check_args
         ret z
         cp ':'
         ret z
+        cp '0'                          ; DIAG: .cc 0 .. 9 = testovaci rezim
+        jr c,.usage
+        cp '9'+1
+        jr nc,.usage
+        ld (testMode),a
+        or a                            ; Fc=0
+        ret
+.usage
         scf
         ret
 
@@ -228,7 +304,11 @@ restore_nextregs
         djnz .loop
         ret
 
-; Border a $7FFD podle obnovenych systemovych promennych.
+; Border podle obnovene BORDCR a MMU6/MMU7 jako pri startu.
+; Port $7FFD sem NEPATRI: kazde M_P3DOS na konci samo nastavi strankovani,
+; jak ho NextZXOS uvnitr dot commandu potrebuje, a BANKM mu neodpovida.
+; Zapis BANKM do $7FFD po M_P3DOS (free_pages) NextZXOS po navratu z dotu
+; zasekne - overeno testy .cc 4 / 7 / 9.
 restore_ula
         ld a,(BORDCR)
         rrca
@@ -236,11 +316,8 @@ restore_ula
         rrca
         and 7
         out ($FE),a
-        ld a,(BANKM)
-        ld bc,$7FFD
-        out (c),a                       ; prepise i MMU6/MMU7 podle banky...
         ld a,(sourcePages+4)
-        nextreg $56,a                   ; ...tak je vratime presne
+        nextreg $56,a
         ld a,(sourcePages+5)
         nextreg $57,a
         ret
@@ -526,6 +603,7 @@ msgInUseNum     db "000 in us", 'e'|$80
 entrySp         dw 0
 entryIx         dw 0
 entryHlAlt      dw 0
+testMode        db 0                    ; DIAG: 0 = normalni beh, jinak '0'..'3'
 dotHandle       db 0
 copyTurbo       db 0
 totalPages      db 0
