@@ -21,7 +21,7 @@ NR_DISPLAY_CTRL1 equ $69
 NR_LAYER2_CTRL   equ $70
 
 PALCTRL_L2_1     equ %00010000
-SCR_L2_BANK      equ 49
+SCR_L2_BANK      equ VIEW_L2_BANK
 
 plugin_start
         ld (ctxPtr),hl

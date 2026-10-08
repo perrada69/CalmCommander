@@ -115,7 +115,7 @@ fa
 		ld hl,parrent
 		call $01b1				;skoc do nadrizeneho adresare
 
-		nextreg $55,95
+		nextreg $55,72			;pomocny katalog (pevne stranky viz cc.asm)
 
 		ld hl,$a000
 		ld (FF+1),hl

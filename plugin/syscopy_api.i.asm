@@ -1,6 +1,10 @@
 SYSCOPY_PLUGIN_ADDRESS equ 49152
 SYSCOPY_WORK_ADDRESS   equ 57344
 SYSCOPY_PLUGIN_SIZE    equ 8192
+; Work page mapped at $E000 while the plugin runs. The .copy/.del dot
+; commands map it at $C000 and the next page at $E000. Kept below 96 so it
+; exists on a 1MB Next (CC memory map: cc.asm).
+SYS_COPY_WORK_PAGE     equ 70
 
 SYSCOPY_ABI            equ 1
 

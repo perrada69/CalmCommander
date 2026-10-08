@@ -19,7 +19,7 @@ MODE_LFN_DIR equ $10
 ATTR_DIR     equ $10
 MAX_DEPTH    equ 11
 PLUGIN_STACK equ $BFFE
-SYS_COPY_WORK_PAGE equ 99
+SYS_COPY_WORK_PAGE equ 70              ; stejne jako v plugin/syscopy_api.i.asm, pod 96 kvuli 1MB Nextu
 
 TBBLUE_REGISTER_SELECT_P_243B equ $243B
 TBBLUE_REGISTER_ACCESS_P_253B equ $253B

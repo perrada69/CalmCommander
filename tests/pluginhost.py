@@ -15,7 +15,7 @@ from cctest import Machine, ROOT, build_plugin
 
 ABI = 1
 PLUGIN_PAGE = 82
-DATA_PAGES = [81, 85, 87, 89, 91, 93, 95, 97]
+DATA_PAGES = [81, 83, 85, 87, 73, 75, 77, 79]   # viewDataPages v functions/viewer.asm
 CTX, SERVICES, PAGE_TABLE, FILENAME, CURPATH = 0x9000, 0x9100, 0x9140, 0x9200, 0x9300
 SVC_TRAPS = 0x0200
 SERVICE_NAMES = ["print", "inkey", "window", "layer0", "input", "extract", "beep",

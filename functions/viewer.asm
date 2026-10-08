@@ -1953,9 +1953,10 @@ viewPluginMenuPrintRow defb 0
 viewShortName        defs 13
 
 ; DOS reads use 16K banks. Plugins receive the MMU7 page numbers
-; that expose the upper 8K of each bank at $E000.
-viewDataBanks        defb 40,42,43,44,45,46,47,48
-viewDataPages        defb 81,85,87,89,91,93,95,97
+; that expose the upper 8K of each bank at $E000. Every page is below 96
+; so the viewer works on a 1MB Next; the first one is VIEW_DATA_PAGE.
+viewDataBanks        defb 40,41,42,43,36,37,38,39
+viewDataPages        defb 81,83,85,87,73,75,77,79
 
 VIEW_PLUGIN_MENU_VISIBLE equ 7
 VIEW_PLUGIN_MENU_COUNT equ 10

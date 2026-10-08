@@ -429,12 +429,17 @@ ide_bank
 ; Zarezervuje pevne stranky CC a alokuje BACKUP_COUNT stranek na zalohu.
 ; Fc=1 -> HL = zprava, nic nezustane zabrane.
 ; -----------------------------------------------------------------------------
-; Pevne stranky CC: LFN levy panel od 24, pravy od 60; buffl/buffr/savescr
-; 74/76/78; viewer 81-97 (plugin 82); extra banka 90; pracovni 98, 99;
-; Layer 2 pluginu NXI/SCR v 16K bankach 49-51 = stranky 98-103.
+; Pevne stranky CC (mapa je v cc.asm), vsechny pod 96 kvuli 1MB Nextu:
+; LFN 24-63, Layer 2 pluginu NXI/SCR 64-69, pracovni 70, getdir 72,
+; katalogy 74/76, savescr 78, data prohlizece 73-79 a 81-87 liche,
+; plugin 82, extra banka 90.
 fixedRanges
-        db 24, 44
-        db 60, 103
+        db 24, 70
+        db 72, 79
+        db 81, 83
+        db 85, 85
+        db 87, 87
+        db 90, 90
         db $FF
 
 grab_pages
@@ -460,7 +465,8 @@ grab_pages
         ld a,(totalPages)
         dec a
         cp b
-        jr c,.rangeDone                 ; stranka uz v tomhle stroji neni
+        jr c,.missing                   ; stranka v tomhle stroji neni - CC by
+                                        ; psal do neexistujici pameti
         push bc
         ld e,b
         ld hl,BANK_RESERVE
@@ -477,6 +483,10 @@ grab_pages
 .rangeDone
         pop hl
         jr .range
+
+.missing
+        pop hl
+        jr .noMemoryFree
 
 .inUse
         pop hl

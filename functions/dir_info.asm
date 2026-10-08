@@ -8,7 +8,6 @@
 
 DIR_INFO_PLUGIN_BANK   equ 41
 DIR_INFO_PLUGIN_PAGE   equ DIR_INFO_PLUGIN_BANK*2
-DIR_INFO_WORK_PAGE     equ 98
 
 dirInfoContext equ sysCopyContext
 dirInfoActive  equ sysCopyContext+DIRINFOCTX_ABI

@@ -20,7 +20,6 @@ ATTR_DIR         equ $10
 
 MAX_DEPTH        equ 11
 PLUGIN_STACK     equ $DFFE
-SYS_COPY_WORK_PAGE equ 99
 
 STAGE_ROOT_PATH  equ $11
 STAGE_NESTED_DST equ $12

@@ -38,7 +38,6 @@ ATTR_DIR         equ $10
 
 MAX_DEPTH        equ 11
 PLUGIN_STACK     equ $BFFE
-SYS_COPY_WORK_PAGE equ 99
 
 ; Stage values are printed with raw esxDOS errors. They are intentionally coarse:
 ; they make field debugging possible without keeping verbose debug output on.

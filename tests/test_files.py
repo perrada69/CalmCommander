@@ -8,7 +8,7 @@ spocitanym v Pythonu.
 import unittest
 
 from cctest import build_plugin
-from fakeesx import CTX, FeatureHost, EACCES, ENOENT
+from fakeesx import CTX, FeatureHost, EACCES, ENOENT, PLUGIN_PAGE, WORK_PAGE
 
 ABI = 1
 DEPTH_LIMIT = 11                       # MAX_DEPTH v pluginech
@@ -157,7 +157,7 @@ class SysCopy(unittest.TestCase):
         m = host.m
         info = {"result": m.get(CTX + 8), "error": m.get(CTX + 9), "stage": m.get(CTX + 22)}
         self.assertEqual(host.fs.handles, {}, "zustaly otevrene handly")
-        self.assertEqual(m.mmu[6:8], [82, 99])
+        self.assertEqual(m.mmu[6:8], [PLUGIN_PAGE, WORK_PAGE])
         return host, info
 
     def test_copy_tree(self):

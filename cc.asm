@@ -9,9 +9,25 @@
             OPT reset --zxnext --syntax=abfw
             slot 4
 
-            MACRO VERSION : defb "1.6b" : ENDM
+            MACRO VERSION : defb "1.7" : ENDM
 
             DEFINE EXTRA_BANK_PAGE  90    ; 8KB page pro extra banku (mapa na $E000)
+
+            ; Pevné 8K stránky CC. Všechny jsou pod 96, aby CC běžel i na 1MB
+            ; Nextu (ten má stránky 0-95). NextZXOS přiděluje stránky shora,
+            ; proto jsou nejvyšší stránky (88-95 kromě extra banky) volné.
+            ;   24-43   LFN levého panelu (lfnpage), 20 stránek = 597 položek
+            ;   44-63   LFN pravého panelu
+            ;   64-69   Layer 2 pluginů NXI/SCR (16K banky 32-34, VIEW_L2_BANK)
+            ;   70      pracovní stránka syscopy/dir_info/bookmarks/settings
+            ;           (SYS_COPY_WORK_PAGE; dot commandy .copy/.del/.dirinfo i 71)
+            ;   72      pomocný katalog v getdir
+            ;   74, 76  katalog levého/pravého panelu (buffl/buffr)
+            ;   78      savescr
+            ;   73, 75, 77, 79, 81, 83, 85, 87  data prohlížeče (viewDataPages)
+            ;   82      plugin prohlížeče a syscopy
+            ;   90      extra banka (cc.bas: LOAD "cc_xb.bin" BANK 45)
+            ; Zavaděč .cc rezervuje přesně tyto stránky (fixedRanges v dot/ccdot.asm).
 
             ; CC_DOT (sjasmplus -DCC_DOT) sestavi variantu pro dot command .cc
             ; (zavadec je v dot/ccdot.asm). Pluginy pak hleda v c:/sys/cc.
@@ -3384,7 +3400,7 @@ basicpage                                         ; nastránkuje základní str�
 DETT
 discdetail      defs 30
 
-lfnpage defb 24,60                                ; stránky (pro L/R okno) – ROZHOD vybírá byte
+lfnpage defb 24,44                                ; stránky (pro L/R okno) – ROZHOD vybírá byte, každé okno 20 stránek
 
 getAllLFN
         ld hl,0
@@ -4358,7 +4374,8 @@ createCfg
         jr .close
 .read
         xor a
-        ld (cfgColourVersion),a
+        ld (cfgColourVersion),a                   ; co soubor nepřepíše, zůstane 0:
+        ld (cfgLegacyLastKey),a                   ; podle toho EXTRA_CFG_PREPARE pozná formát
         ld b,1
         ld c,PAGE_BUFF
         ld de,DelkaCfg
@@ -9424,11 +9441,102 @@ sysCopyErrorDiagTxt defb "Stage $00  Error $00",0
 ; Upgrade the legacy 16-byte palette map + 33-byte key table after cc.cfg has
 ; been read. This code lives in the extra bank to keep scarce resident RAM
 ; available for the persistent packed theme itself.
+; Připraví načtený cc.cfg. createCfg před čtením vynuluje verzi a poslední
+; bajt formátu 1.4, takže podle toho, co soubor přepsal, se pozná formát:
+;   verze 1                  CC 1.5+ (613 B)
+;   jinak bajt 590 nenulový  CC 1.4 (591 B): převod mapy palety a kláves
+;   jinak                    CC 0.6-1.3 (539-542 B, nebo se nic nenačetlo):
+;                            barvy a klávesy v souboru nejsou - výchozí
+; Nakonec se zkontrolují klávesy: rozbitý soubor (třeba ze starší verze,
+; která 0.6-1.3 převáděla jako 1.4, nebo z 1.4 spuštěné po 1.5) dostane
+; výchozí barvy i klávesy. Přepínače mimo rozsah se srovnají.
 EXTRA_CFG_PREPARE:
+        call extra_cfg_clamp_flags
         ld a,(cfgColourVersion)
         cp SETTINGS_COLOUR_VERSION
-        ret z
+        jr z,.check
+        ld a,(cfgLegacyLastKey)
+        or a
+        jr z,extra_cfg_defaults
+        call extra_cfg_migrate_14
+.check
+        call extra_cfg_keys_valid
+        ret nc
+extra_cfg_defaults
+        ld hl,extraDefaultColours
+        ld de,cfgStyleColours
+        ld bc,SETTINGS_COLOUR_BYTES
+        ldir
+        ld hl,extraDefaultKeys
+        ld de,cfgKeyBindings
+        ld bc,SETTINGS_ACTION_COUNT
+        ldir
+        ld a,SETTINGS_SCHEME_DEFAULT
+        ld (cfgColourScheme),a
+        ld a,SETTINGS_COLOUR_VERSION
+        ld (cfgColourVersion),a
+        ret
 
+; Fc=1, když některá klávesa je 0, BREAK (1) nebo patří dvěma akcím -
+; takové přiřazení Settings nikdy neuloží.
+extra_cfg_keys_valid
+        ld hl,cfgKeyBindings
+        ld b,SETTINGS_ACTION_COUNT
+.key
+        ld a,(hl)
+        cp 2
+        ret c
+        inc hl
+        push hl
+        push bc
+        dec b
+        jr z,.unique
+.other
+        cp (hl)
+        jr z,.duplicate
+        inc hl
+        djnz .other
+.unique
+        pop bc
+        pop hl
+        djnz .key
+        or a
+        ret
+.duplicate
+        pop bc
+        pop hl
+        scf
+        ret
+
+; Hodnoty, které slouží jako index nebo se jen překlápějí, vrátí do rozsahu:
+; cursorComp indexuje tabComp a kreslí kurzor (mimo 0-3 by psal do paměti).
+extra_cfg_clamp_flags
+        ld hl,cursorComp
+        ld de,extraCfgFlagLimits
+        ld b,extraCfgFlagLimitsEnd-extraCfgFlagLimits
+.flag
+        ld a,(de)
+        cp (hl)                                   ; mez - hodnota
+        jr z,.reset
+        jr nc,.ok
+.reset
+        ld (hl),0
+.ok
+        inc hl
+        inc de
+        djnz .flag
+        ret
+
+extraCfgFlagLimits
+        defb 4                                    ; cursorComp: 128k, 48k, Pentagon, Next
+        defb 2                                    ; cfgUseKMouse
+        defb 2                                    ; cfgDirsFirst
+        defb 3                                    ; cfgSortMode: jméno, přípona, datum
+extraCfgFlagLimitsEnd
+        assert cfgSortMode = cursorComp+3
+
+; Převod cc.cfg z CC 1.4: mapa palety a klávesy na staré pozici.
+extra_cfg_migrate_14
         ld hl,cfgLegacyThemeArea
         ld de,extraLegacyPaletteMap
         ld bc,SETTINGS_PALETTE_COUNT
@@ -9554,6 +9662,8 @@ EXTRA_CFG_PREPARE:
 
 extraDefaultColours
         EMIT_SETTINGS_DEFAULT_COLOURS
+extraDefaultKeys
+        EMIT_SETTINGS_DEFAULT_KEYS
 extraMigratedColours defs SETTINGS_COLOUR_BYTES
 extraLegacyPaletteMap defs SETTINGS_PALETTE_COUNT
 extraBitMasks defb 1,2,4,8,16,32,64,128

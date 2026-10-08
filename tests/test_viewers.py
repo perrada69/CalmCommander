@@ -1,7 +1,7 @@
 """Prohlizece textu, BASICu a obrazku na skutecnem Z80 kodu pluginu.
 
 Text a BASIC se kontroluji proti obsahu tilemapy (radky 3-29, sloupce 1-78),
-obrazky proti obsahu stranek Layer 2 (banka 49 = stranky 98-103), ktery se
+obrazky proti obsahu stranek Layer 2 (banka 32 = stranky 64-69), ktery se
 spocita v Pythonu primo ze souboru.
 """
 
@@ -13,7 +13,7 @@ from pluginhost import PluginHost, assert_golden
 VIEWTYPE_TEXT, VIEWTYPE_ZXSCREEN, VIEWTYPE_NXI, VIEWTYPE_BAS = 1, 2, 8, 10
 DOWN, UP, PAGE_DOWN, PAGE_UP, BREAK = 10, 11, 9, 8, 1
 ROWS, COLS = 27, 78
-L2_PAGES = range(98, 104)
+L2_PAGES = range(64, 70)
 
 
 def text_area(rows):

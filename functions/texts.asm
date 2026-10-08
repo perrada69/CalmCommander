@@ -48,11 +48,15 @@ cfgStyleColoursEnd
 ; Keeping action -> key makes dispatch, Settings and dynamic Help share the
 ; same single source of truth.
 cfgKeyBindings
-		defb 127,10,11,9,8,4,13,"8",12,"9","0","5","6",32,"7",7
-		defb 6,"+","*","-","s","1","2","3","4","P","B","b","h","c","i",199
-		defb "S"
+		EMIT_SETTINGS_DEFAULT_KEYS
 cfgKeyBindingsEnd
 		assert cfgKeyBindingsEnd-cfgKeyBindings = SETTINGS_ACTION_COUNT
+
+; Last byte of a CC 1.4 cc.cfg (591 bytes: palette map and keys). createCfg
+; clears it before reading, so EXTRA_CFG_PREPARE can tell a 1.4 file (a key
+; code, never 0) from a CC 0.6-1.3 file (539-542 bytes, no theme at all).
+cfgLegacyLastKey	equ cfgLegacyThemeArea+SETTINGS_PALETTE_COUNT+SETTINGS_ACTION_COUNT-1
+		assert cfgLegacyLastKey-Cfg = 590
 
 ; Kept after the old end-of-file, allowing createCfg to distinguish old and
 ; new layouts after it clears this byte immediately before reading.

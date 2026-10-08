@@ -53,6 +53,14 @@ SETTINGS_COLOUR_VERSION equ 1
         db $7a,$81,$00,$02
         ENDM
 
+; Default INKEY code for each action, in ACT_* order. A valid binding is
+; never 0 or 1 (BREAK) and no two actions share a key.
+        MACRO EMIT_SETTINGS_DEFAULT_KEYS
+        defb 127,10,11,9,8,4,13,"8",12,"9","0","5","6",32,"7",7
+        defb 6,"+","*","-","s","1","2","3","4","P","B","b","h","c","i",199
+        defb "S"
+        ENDM
+
 ACT_SYSINFO             equ 1
 ACT_DOWN                equ 2
 ACT_UP                  equ 3

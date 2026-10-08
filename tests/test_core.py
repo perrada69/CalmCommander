@@ -9,7 +9,7 @@ import random
 import re
 import unittest
 
-from cctest import Machine, ROOT, build_basic, build_dot
+from cctest import BUILD, Machine, ROOT, build_basic, build_dot, build_plugin
 
 EXTRA_PAGE = 90                   # EXTRA_BANK_PAGE, extra banka na $E000
 STACK = 0x6F00                    # pod S1 ($7100) je volno
@@ -318,6 +318,89 @@ class Numbers(Core):
             value = h << 11 | mi << 5 | sec // 2
             m.call(s["showtime"], sp=STACK, de=value, hl=40 * 256 + 3)
             self.assertEqual(tilemap_text(m, 40, 3, 8), f"{h:02d}:{mi:02d}:{sec:02d}")
+
+
+# ---------------------------------------------------------------------------
+# Mapa pameti: pevne stranky CC
+# ---------------------------------------------------------------------------
+
+def lfn_pages_needed(count, maxlen):
+    """Kolik stranek zabere count LFN bloku - stejne jako getAllLFN: dalsi
+    stranka, jakmile ukazatel dojde na $FFFF-261."""
+    page, pos, last = 0, 0xE000, 0
+    for _ in range(count):
+        last = page
+        pos += maxlen
+        if pos >= 0xFFFF - 261:
+            page, pos = page + 1, 0xE000
+    return last + 1
+
+
+@for_each_build
+class MemoryMap(Core):
+    """Vsechny pevne stranky CC jsou na 1MB Nextu (0-95), nic se neprekryva
+    a zavadec .cc rezervuje presne je."""
+
+    def regions(self):
+        m, s = self.m, self.s
+        # panel: 3 bloky dos_catalog (virtmem 0-2), v kazdem pocetpolozek-1 polozek
+        lfn = lfn_pages_needed(3 * (s["pocetpolozek"] - 1), s["maxlen"])
+        left, right = m.mem[s["lfnpage"]], m.mem[s["lfnpage"] + 1]
+        savescr = bytes(m.mem[s["savescr"]:s["savescr"] + 4])
+        self.assertEqual(savescr[:3], b"\xED\x91\x57", "savescr zacina nextreg $57,stranka")
+        getdir = bytes(m.mem[s["GETDIR"]:s["directoryHandle"]])
+        scratch = re.findall(rb"\xED\x91\x55(.)", getdir, re.S)
+        self.assertEqual(len(scratch), 1, "getdir mapuje jednu pomocnou stranku")
+        l2 = build_plugin("nxi")[1]["VIEW_L2_BANK"] * 2
+        return {
+            "LFN vlevo": set(range(left, left + lfn)),
+            "LFN vpravo": set(range(right, right + lfn)),
+            "katalog vlevo": {m.mem[s["buffl"]]},
+            "katalog vpravo": {m.mem[s["buffr"]]},
+            "savescr": {savescr[3]},
+            "getdir": {scratch[0][0]},
+            "data prohlizece": set(self.data_pages()),
+            "plugin": {s["VIEW_PLUGIN_PAGE"]},
+            "pracovni": {s["SYS_COPY_WORK_PAGE"]},
+            "extra banka": {EXTRA_PAGE},
+            "Layer 2": set(range(l2, l2 + 6)),
+        }
+
+    def data_pages(self):
+        return list(self.m.mem[self.s["viewDataPages"]:self.s["viewDataPages"] + 8])
+
+    def test_pages_fit_1mb_and_do_not_overlap(self):
+        regions = self.regions()
+        seen = {}
+        for name, pages in regions.items():
+            for page in sorted(pages):
+                self.assertTrue(24 <= page < 96, f"{name}: stranka {page} neni na 1MB Nextu")
+                self.assertNotIn(page, seen, f"{name} a {seen.get(page)} sdili stranku {page}")
+                seen[page] = name
+
+    def test_data_pages_are_upper_halves_of_dos_banks(self):
+        s = self.s
+        banks = self.m.mem[s["viewDataBanks"]:s["viewDataBanks"] + 8]
+        self.assertEqual(self.data_pages(), [bank * 2 + 1 for bank in banks])
+        self.assertEqual(self.data_pages()[0], s["VIEW_DATA_PAGE"])
+
+    def test_loader_reserves_exactly_cc_pages(self):
+        syms = build_dot()[1]                    # prelozi i zavadec do build/test/cc
+        loader = (BUILD / "cc").read_bytes()
+        pos = syms["fixedRanges"] - 0x2000
+        reserved = set()
+        while loader[pos] != 0xFF:
+            reserved |= set(range(loader[pos], loader[pos + 1] + 1))
+            pos += 2
+        self.assertEqual(reserved, set().union(*self.regions().values()))
+
+    def test_test_fakes_match(self):
+        import pluginhost, fakeesx, test_viewers, test_dot_loader
+        regions = self.regions()
+        self.assertEqual(pluginhost.DATA_PAGES, self.data_pages())
+        self.assertEqual({fakeesx.WORK_PAGE}, regions["pracovni"])
+        self.assertEqual(set(test_viewers.L2_PAGES), regions["Layer 2"])
+        self.assertEqual(test_dot_loader.CC_PAGES, set().union(*regions.values()))
 
 
 if __name__ == "__main__":

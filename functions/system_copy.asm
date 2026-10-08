@@ -8,7 +8,6 @@
 
 SYS_COPY_PLUGIN_BANK    equ 41
 SYS_COPY_PLUGIN_PAGE    equ SYS_COPY_PLUGIN_BANK*2
-SYS_COPY_WORK_PAGE      equ 99
 
 system_copy_single_dir_from_entry
         call system_copy_dir_from_entry

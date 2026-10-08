@@ -26,6 +26,7 @@ SJASMPLUS = str(ROOT / "sjasmplus.exe") if (ROOT / "sjasmplus.exe").exists() els
 
 ROM = 255                     # hodnota MMU0/1 pro ROM
 DIV = 1000                    # pseudo-stranka: DivMMC RAM s dot commandem na $2000
+RAM_1MB = 96                  # 8K stranek RAM na 1MB Nextu (0-95), 2MB ma 224
 SENTINEL = 0x0100             # navratova adresa testu: zde beh konci
 RST18_RETURN = 0x0102         # kam se vraci rutina zavolana pres RST $18
 
@@ -83,10 +84,14 @@ def build_plugin(name):
 # ---------------------------------------------------------------------------
 
 class Machine:
-    def __init__(self):
+    def __init__(self, ram_pages=RAM_1MB):
         self.cpu = z80.Z80Machine()
         self.mem = self.cpu.memory
         self.pages = {}
+        # Stroj je 1MB Next: namapovani stranky, ktera tam neni, nebo Layer 2
+        # mimo prvni RAM cip se zapise sem a beh pak skonci chybou.
+        self.ram_pages = ram_pages
+        self.bad_pages = []
         self.mmu = [ROM, ROM, 10, 11, 4, 5, 0, 1]
         for slot in range(8):
             self.pages.setdefault(self.mmu[slot], bytearray(8192))
@@ -137,6 +142,8 @@ class Machine:
                 self.rearm(slot)
 
     def map(self, slot, page):
+        if page not in (ROM, DIV) and page >= self.ram_pages:
+            self.bad_pages.append(f"MMU{slot} = {page}")
         if self.mmu[slot] == page:
             return
         start = slot * 8192
@@ -239,6 +246,9 @@ class Machine:
     def nextreg(self, reg, value):
         if 0x50 <= reg <= 0x57:
             self.map(reg - 0x50, value)
+        elif reg in (0x12, 0x13) and (value & 0x7F) * 2 + 5 >= RAM_1MB:
+            # Layer 2 256x192 = 3 banky a musi byt v prvnim RAM cipu i na 2MB
+            self.bad_pages.append(f"Layer 2 (${reg:02X}) v bance {value}")
         self.nextregs[reg] = value
         self.events.append(("nextreg", reg, value))
 
@@ -333,6 +343,9 @@ class Machine:
             self.steps += 1
             pc = cpu.pc
             if pc == SENTINEL:
+                if self.bad_pages:
+                    raise AssertionError(f"pamet, kterou {self.ram_pages * 8}K Next nema: "
+                                         + ", ".join(dict.fromkeys(self.bad_pages)))
                 return
             handler = self.traps.get(pc)
             if handler is not None:

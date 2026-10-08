@@ -1,0 +1,138 @@
+<h1>Calm Commander 1.7 &mdash; myš všude, starší nastavení a 1MB Next</h1>
+
+<p>
+Verze <strong>1.7</strong> nepřináší nový prohlížeč, ale dělá Calm Commander
+pohodlnější a spolehlivější: myš teď funguje ve všech dialozích a pluginech,
+staré soubory s nastavením už nerozbijí ovládání a program by měl nově běžet
+i na <strong>Nextu s 1&nbsp;MB paměti</strong>. Všechno platí pro klasickou
+verzi spouštěnou přes <strong>cc.bas</strong> i pro dot command
+<strong>.cc</strong>.
+</p>
+
+<h2>Myš ve všech dialozích</h2>
+
+<p>
+Dosud K-Mouse fungovala hlavně v panelech a v menu a většina dialogů o ní
+nevěděla. Teď platí stejná pravidla všude, kde Calm Commander čeká na klávesu
+&mdash; v potvrzovacích dialozích, nápovědě, záložkách, nastavení,
+prohlížečích i v editoru:
+</p>
+
+<ul>
+  <li><strong>Pravé tlačítko</strong> funguje jako <strong>BREAK</strong>
+      &mdash; zavře okno, zruší dialog nebo menu.</li>
+  <li><strong>Kolečko</strong> funguje jako šipky nahoru a dolů, takže se jím
+      dá posouvat nápověda, seznam záložek nebo prohlížený soubor.</li>
+  <li><strong>Kliknutí na nápovědu klávesy</strong> vypsanou na obrazovce je
+      stejné jako stisk té klávesy: <strong>ENTER = yes</strong>,
+      <strong>BREAK = no</strong>, <strong>e:export</strong>,
+      <strong>H=hex</strong>, <strong>EXT+S save</strong> v editoru,
+      <strong>[ ENTER close ]</strong> nebo <strong>Press any key</strong>.
+      Stačí kliknout kamkoli na nápis, třeba na slovo <strong>yes</strong>.</li>
+  <li>Spodní řádek hlavní obrazovky je teď klikací &mdash; kliknutím na
+      <strong>5: COPY</strong>, <strong>8: DELETE</strong> nebo
+      <strong>0: MENU</strong> se funkce spustí.</li>
+</ul>
+
+<p>
+V panelech zůstává všechno, jak to znáte: kliknutí vybírá soubor, dvojklik ho
+spustí, pravé tlačítko označuje a kolečko posouvá seznam. V prohlížečích se
+nápovědy hledají jen v horních a spodních řádcích, takže kliknutí do
+zobrazeného textu nic nespustí, ani kdyby v něm náhodou stálo
+<strong>h=hex</strong>.
+</p>
+
+<p>
+Protože se nápověda čte přímo z obrazovky, umí s myší pracovat každý dialog,
+který své klávesy vypisuje, včetně těch, které teprve přibudou. Myš se zapíná
+jako dřív volbou <strong>USE K-MOUSE</strong> v menu Utils.
+</p>
+
+<h2>Starší soubor s nastavením už nerozbije ovládání</h2>
+
+<p>
+Pokud jste používali Calm Commander <strong>1.3 nebo starší</strong> a pak
+přešli na 1.5, 1.6 nebo na dot command, mohli jste po prvním spuštění najít
+rozházené ovládání: například šipky dělaly něco jiného, ENTER přidával
+záložku, klávesa 5 ukončila program a myš v panelech mohla přestat reagovat.
+Barvy navíc mohly vypadat zvláštně.
+</p>
+
+<p>
+Na vině byl převod souboru <strong>C:/SYS/cc.cfg</strong>. Ve verzi 1.4
+přibyly do nastavení barvy a klávesy a převod ze starší podoby souboru počítal
+vždycky s formátem 1.4. Soubor ze starších verzí, ve kterém barvy ani klávesy
+nejsou, proto převedl na nesmysl a výsledek pak uložil, takže chyba zůstala
+i při dalších spuštěních.
+</p>
+
+<ul>
+  <li>Verze 1.7 pozná, ze které verze soubor pochází. U souborů z
+      <strong>0.6 až 1.3</strong> si ponechá adresáře v panelech, pozice
+      kurzoru, volbu počítače pro TAP, K-Mouse, pořadí adresářů a řazení,
+      a barvy a klávesy nastaví výchozí.</li>
+  <li>Soubory z <strong>1.4</strong> se převádějí jako dosud, včetně vašich
+      kláves a barev.</li>
+  <li>Klávesy se nově při startu kontrolují. Pokud některá akce nemá
+      klávesu, má BREAK, nebo dvě akce sdílejí stejnou klávesu, vrátí se
+      výchozí klávesy i barvy. <strong>Soubor, který už byl dřív rozbitý, se
+      tak opraví sám</strong> &mdash; adresáře v panelech v něm zůstanou.</li>
+  <li>Volby mimo platný rozsah (počítač pro TAP, způsob řazení, přepínače)
+      se vrátí na výchozí hodnotu. Zvlášť volba počítače mimo rozsah mohla
+      dřív zapisovat do paměti, kam neměla.</li>
+</ul>
+
+<p>
+Jedno upozornění: verze 1.4 a novější nepoužívejte střídavě se stejným
+<strong>cc.cfg</strong>. Verze 1.4 nové nastavení nezná a přepíše ho po svém;
+verze 1.7 to pak pozná a vrátí výchozí barvy a klávesy, takže o vlastní
+nastavení přijdete. Verze 0.6 až 1.3 nastavení novějších verzí neškodí.
+</p>
+
+<h2>Calm Commander na 1MB Nextu</h2>
+
+<p>
+Next s 1&nbsp;MB má pro programy k dispozici 768&nbsp;KB rozšířené paměti.
+Calm Commander si dosud několik pomocných bloků ukládal nad touto hranicí,
+tedy do paměti, kterou má jen 2MB Next. Na 1MB stroji se základní práce se
+soubory tvářila normálně, ale kopírování, přesun a mazání adresářů, Dir info,
+záložky, nastavení, prohlížeč ZIP, prohlížení obrázků NXI a SCR, část
+souborů delších než 56&nbsp;KB v prohlížeči a dot commandy <strong>.copy</strong>,
+<strong>.del</strong> a <strong>.dirinfo</strong> zapisovaly do paměti, která
+tam není.
+</p>
+
+<ul>
+  <li>Všechna pevně používaná paměť je teď v prvních 768&nbsp;KB.</li>
+  <li>Nejvyšší stránky paměti zůstávají volné. NextZXOS přiděluje paměť
+      ovladačům a programům odshora, takže <strong>.cc</strong> se s nimi
+      ani na 1MB stroji hned tak nepotká.</li>
+  <li>Kdyby některá potřebná stránka ve stroji chyběla, <strong>.cc</strong>
+      se odmítne spustit s hláškou <strong>Not enough memory</strong>, místo
+      aby zapisoval do prázdna.</li>
+  <li>Prohlížeče obrázků NXI a SCR teď kreslí do Layer 2 v paměti, kterou podle
+      dokumentace NextZXOS umí Layer 2 zobrazit na každém Nextu. Dřív ležely
+      vysoko v paměti, kde to tak být nemusí ani na 2MB stroji.</li>
+</ul>
+
+<p>
+Upřímně: na skutečném 1MB Nextu jsem to zatím nevyzkoušel a CSpect režim
+s 1&nbsp;MB nenabízí. Ověřené to je
+rozborem kódu a automatickými testy, které teď běží na emulovaném 1MB Nextu
+a spadnou při každém sáhnutí mimo jeho paměť. Pokud máte 1MB Next, budu moc
+rád za zprávu, jestli všechno funguje.
+</p>
+
+<h2>Další oprava</h2>
+
+<ul>
+  <li>V adresáři s více než 420 položkami mohly dlouhé názvy souborů v
+      <strong>pravém panelu</strong> přetéct do seznamu souborů obou panelů
+      a do uschované obrazovky. Každý panel má teď místo pro všech 597
+      položek, které Calm Commander z adresáře načítá.</li>
+</ul>
+
+<p>
+Děkuji, že používáte <strong>Calm Commander</strong>, hlásíte chyby a navrhujete
+vylepšení!
+</p>

@@ -1,0 +1,145 @@
+<h1>Calm Commander 1.7 &mdash; the mouse everywhere, older settings files and the 1MB Next</h1>
+
+<p>
+Version <strong>1.7</strong> brings no new viewer, but it makes Calm Commander
+more comfortable and more reliable: the mouse now works in every dialog and
+plugin, old settings files no longer break the controls, and the program
+should now run on a <strong>Next with 1&nbsp;MB of memory</strong> as well.
+Everything applies both to the classic version started from
+<strong>cc.bas</strong> and to the <strong>.cc</strong> dot command.
+</p>
+
+<h2>The mouse in every dialog</h2>
+
+<p>
+Until now K-Mouse worked mainly in the panels and in the menu, and most
+dialogs knew nothing about it. The same rules now apply everywhere Calm
+Commander waits for a key &mdash; in confirmation dialogs, Help, bookmarks,
+Settings, the viewers and the editor:
+</p>
+
+<ul>
+  <li>The <strong>right button</strong> acts as <strong>BREAK</strong>
+      &mdash; it closes a window and cancels a dialog or the menu.</li>
+  <li>The <strong>wheel</strong> acts as the up and down arrows, so it scrolls
+      Help, the bookmark list or the file you are viewing.</li>
+  <li><strong>Clicking a key hint</strong> printed on the screen is the same
+      as pressing that key: <strong>ENTER = yes</strong>,
+      <strong>BREAK = no</strong>, <strong>e:export</strong>,
+      <strong>H=hex</strong>, <strong>EXT+S save</strong> in the editor,
+      <strong>[ ENTER close ]</strong> or <strong>Press any key</strong>.
+      You can click anywhere on the hint, the word <strong>yes</strong>
+      for example.</li>
+  <li>The bottom line of the main screen is now clickable &mdash; clicking
+      <strong>5: COPY</strong>, <strong>8: DELETE</strong> or
+      <strong>0: MENU</strong> runs that function.</li>
+</ul>
+
+<p>
+In the panels everything stays as you know it: a click selects a file, a
+double click runs it, the right button marks it and the wheel scrolls the
+list. In the viewers, hints are looked for only in the top and bottom lines,
+so clicking into the displayed text never triggers anything, even if it
+happens to contain <strong>h=hex</strong>.
+</p>
+
+<p>
+Because the hint is read straight from the screen, every dialog that prints
+its keys works with the mouse, including the ones still to come. The mouse is
+switched on as before with <strong>USE K-MOUSE</strong> in the Utils menu.
+</p>
+
+<h2>An older settings file no longer breaks the controls</h2>
+
+<p>
+If you used Calm Commander <strong>1.3 or older</strong> and then moved to
+1.5, 1.6 or the dot command, you may have found the controls scrambled after
+the first start: the arrow keys did something else, ENTER added a bookmark,
+the 5 key quit the program and the mouse in the panels could stop responding,
+for example. The colours could look odd as well.
+</p>
+
+<p>
+The culprit was the conversion of <strong>C:/SYS/cc.cfg</strong>. Version 1.4
+added colours and keys to the settings, and the conversion from an older
+settings file always assumed the 1.4 format. A file from an older version,
+which holds no colours or keys at all, was therefore converted into nonsense,
+and the result was saved, so the problem stayed on every later start.
+</p>
+
+<ul>
+  <li>Version 1.7 recognises which version the file comes from. From a file
+      written by <strong>0.6 to 1.3</strong> it keeps the panel directories,
+      cursor positions, the TAP machine choice, K-Mouse, the directory order
+      and sorting, and sets the colours and keys to their defaults.</li>
+  <li>Files from <strong>1.4</strong> are converted as before, including your
+      keys and colours.</li>
+  <li>The keys are now checked at start-up. If an action has no key, has
+      BREAK, or two actions share a key, the default keys and colours come
+      back. <strong>A file that was already broken earlier is therefore
+      repaired automatically</strong> &mdash; the panel directories in it are
+      kept.</li>
+  <li>Options outside their valid range (the TAP machine, the sort mode, the
+      switches) go back to their default. An out-of-range machine choice in
+      particular could previously write to memory it had no business
+      touching.</li>
+</ul>
+
+<p>
+One caveat: do not alternate version 1.4 with newer versions on the same
+<strong>cc.cfg</strong>. Version 1.4 does not know the new settings and
+overwrites them in its own way; 1.7 then notices and restores the default
+colours and keys, so your own settings are lost. Versions 0.6 to 1.3 do no
+harm to the settings of newer versions.
+</p>
+
+<h2>Calm Commander on the 1MB Next</h2>
+
+<p>
+A Next with 1&nbsp;MB gives programs 768&nbsp;KB of extended memory. Calm
+Commander used to keep several working buffers above that limit, in memory
+that only the 2MB Next has. On a 1MB machine basic file handling looked
+normal, but copying, moving and deleting directories, Dir info, bookmarks,
+Settings, the ZIP viewer, NXI and SCR pictures, part of any file longer than
+56&nbsp;KB in the viewer and the <strong>.copy</strong>, <strong>.del</strong>
+and <strong>.dirinfo</strong> dot commands all wrote to memory that is not
+there.
+</p>
+
+<ul>
+  <li>All the memory Calm Commander uses at fixed places is now within the
+      first 768&nbsp;KB.</li>
+  <li>The highest memory pages are left free. NextZXOS hands out memory to
+      drivers and programs from the top down, so even on a 1MB machine
+      <strong>.cc</strong> is unlikely to run into them.</li>
+  <li>If a page it needs is missing from the machine, <strong>.cc</strong>
+      refuses to start with <strong>Not enough memory</strong> instead of
+      writing into nothing.</li>
+  <li>The NXI and SCR viewers now draw into Layer 2 in memory that,
+      according to the NextZXOS documentation, Layer 2 can display on every
+      Next. They used to sit high in memory, where that may not hold even on
+      a 2MB machine.</li>
+</ul>
+
+<p>
+To be honest: I have not tried it on a real 1MB Next yet, and CSpect has no
+1&nbsp;MB mode. This
+has been checked by going through the code and by the automated tests, which
+now run on an emulated 1MB Next and fail whenever anything touches memory
+outside it. If you have a 1MB Next, I would love to hear whether everything
+works.
+</p>
+
+<h2>One more fix</h2>
+
+<ul>
+  <li>In a directory with more than 420 entries, the long file names of the
+      <strong>right panel</strong> could overflow into the file lists of both
+      panels and into the saved screen. Each panel now has room for all 597
+      entries Calm Commander reads from a directory.</li>
+</ul>
+
+<p>
+Thank you for using <strong>Calm Commander</strong>, for reporting bugs and for
+suggesting improvements!
+</p>

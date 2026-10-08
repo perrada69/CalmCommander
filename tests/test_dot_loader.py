@@ -13,6 +13,9 @@ from cctest import (Machine, ROM, DIV, RST18_RETURN, SENTINEL, build_dot, BUILD,
 
 
 BASIC_PAGES = (10, 11, 4, 5, 0, 1, 6, 7)
+# pevne stranky CC (mapa v cc.asm): LFN, Layer 2, pracovni, getdir, katalogy,
+# savescr, data prohlizece, plugin, extra banka
+CC_PAGES = (set(range(24, 71)) | set(range(72, 80)) | {81, 82, 83, 85, 87, 90})
 USER_NEXTREGS = {0x07: 2, 0x14: 0xE3, 0x15: 0x01, 0x2F: 0, 0x30: 0, 0x31: 0,
                  0x4A: 0, 0x4B: 0xE3, 0x4C: 0x0F, 0x68: 0x00, 0x69: 0x00,
                  0x6B: 0x00, 0x6C: 0x00, 0x6E: 0x6C, 0x6F: 0x0C, 0x43: 0x00}
@@ -36,7 +39,7 @@ class DotEnv:
     def __init__(self, test, *, program=b"", edit=b".cc", args=None, in_use=(),
                  total=224, alloc_limit=None, dot_file=None, dosversion_ok=True):
         self.cc, self.ld = build_dot()
-        m = self.m = Machine()
+        m = self.m = Machine(ram_pages=total)
         self.test = test
         rnd = random.Random(1234)
         # pamet BASICu: nahodny obsah, at je kazdy neobnoveny bajt videt
@@ -246,9 +249,29 @@ class DotLoaderQuit(unittest.TestCase):
         env = DotEnv(self)
         env.run()
         reserved = {page for reason, page in env.p3dos_calls if reason == 2}
-        self.assertEqual(reserved, set(range(24, 45)) | set(range(60, 104)))
+        self.assertEqual(reserved, CC_PAGES)
         allocated = [r for r, _ in env.p3dos_calls if r == 1]
         self.assertEqual(len(allocated), 8, "8 stranek na zalohu")
+
+    def test_runs_on_1mb_next(self):
+        """1MB Next ma stranky 0-95: CC se tam musi vejit i se zalohou."""
+        env = DotEnv(self, total=96)
+        env.run()
+        self.assertEqual(env.cc_runs, 1)
+        reserved = {page for reason, page in env.p3dos_calls if reason == 2}
+        self.assertEqual(reserved, CC_PAGES)
+        start = env.ld["backupPages"] - 0x2000                # zavadec je v DivMMC na $2000
+        backup = env.m.page(DIV)[start:start + 8]
+        self.assertTrue(all(page < 96 for page in backup), list(backup))
+        self.assertFalse(set(backup) & CC_PAGES, "zaloha mimo stranky CC")
+        self.assertEqual(env.reserved, env.initial_reserved, "vsechny stranky uvolnene")
+
+    def test_1mb_next_with_top_pages_taken(self):
+        """NextZXOS prideluje shora: par obsazenych hornich stranek CC nevadi."""
+        env = DotEnv(self, total=96, in_use=(95, 94, 93))
+        env.run()
+        self.assertEqual(env.cc_runs, 1)
+        self.assertEqual(env.reserved, env.initial_reserved)
 
     def test_no_7ffd_write_after_last_m_p3dos(self):
         """Zapis $7FFD po poslednim M_P3DOS zasekl NextZXOS po navratu z dotu."""
@@ -280,9 +303,17 @@ class DotLoaderErrors(unittest.TestCase):
             addr += 1
 
     def test_page_in_use_refuses_and_frees_everything(self):
-        env = DotEnv(self, in_use=(95,))
+        env = DotEnv(self, in_use=(87,))
         env.run()
-        self.assertEqual(self.message(env), "Page 095 in use")
+        self.assertEqual(self.message(env), "Page 087 in use")
+        self.assertEqual(env.cc_runs, 0)
+        self.assertEqual(env.reserved, env.initial_reserved)
+
+    def test_missing_page_refuses(self):
+        """Stroj bez nektere stranky CC: radsi chyba nez zapis do prazdna."""
+        env = DotEnv(self, total=80)
+        env.run()
+        self.assertEqual(self.message(env), "Not enough memory")
         self.assertEqual(env.cc_runs, 0)
         self.assertEqual(env.reserved, env.initial_reserved)
 

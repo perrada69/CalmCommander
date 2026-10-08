@@ -29,8 +29,8 @@ vzniknou stejné jako z `compile.bat`.
 
 | Soubor | Co |
 |---|---|
-| `test_core.py` | rutiny jádra CC v BASIC **i** dot sestavení: hledání podle masky (`wildcard_match_ci`, 1500 náhodných masek proti Pythonu), výběr pluginu podle přípony a velikosti, řazení panelu (jméno / přípona / datum, adresáře napřed, víc LFN stránek, katalog a LFN zůstávají spárované, MMU6 = 0 – regrese KS3), `NUM`, `D32B`, `showdate`, `showtime` |
-| `test_dot_loader.py` | zavaděč `.cc`: obnova paměti a Next registrů po Quit, rezervace stránek, žádný zápis do $7FFD po M_P3DOS, chyby, spouštění NEX, vkládání příkazu do BASICu (řádek i program, skrytá čísla) |
+| `test_core.py` | rutiny jádra CC v BASIC **i** dot sestavení: hledání podle masky (`wildcard_match_ci`, 1500 náhodných masek proti Pythonu), výběr pluginu podle přípony a velikosti, řazení panelu (jméno / přípona / datum, adresáře napřed, víc LFN stránek, katalog a LFN zůstávají spárované, MMU6 = 0 – regrese KS3), `NUM`, `D32B`, `showdate`, `showtime`, mapa paměti (všechny pevné stránky pod 96, nic se nepřekrývá, zavaděč rezervuje přesně je) |
+| `test_dot_loader.py` | zavaděč `.cc`: obnova paměti a Next registrů po Quit, rezervace stránek, běh na 1MB Nextu, žádný zápis do $7FFD po M_P3DOS, chyby, spouštění NEX, vkládání příkazu do BASICu (řádek i program, skrytá čísla) |
 | `test_dot_cc.py` | dot část CC: příkazy pro BAS/TAP (všechny stroje)/snapshoty, dlouhá jména, `dot_return`, `dot_entry` |
 | `test_plugins.py` | ZIP, TRD, SCL a TAP: rozbalení/export se porovná s Pythonem (`zipfile`, vlastní rozbor TRD/SCL/TAP), +3DOS hlavičky, seek za 64K |
 | `test_viewers.py` | text (řádky, CR/LF, zalomení, scrollování, hex/dec, hledání), BAS (výpis, hlavička +3DOS, posun o řádek = celé překreslení), ZX screen a NXI (obsah Layer 2 = převod v Pythonu, paleta, obnova registrů) |
@@ -38,13 +38,16 @@ vzniknou stejné jako z `compile.bat`.
 | `test_edit.py` | editor: psaní, mazání, šipky, hex přepis, uložit, uložit jako, dotaz při odchodu – uložený soubor proti modelu v Pythonu |
 | `test_files.py` | dir_info (počty a 32bitové velikosti, limit hloubky, chyby) a syscopy (kopie, přesun, mazání, přepis s dotazem, CAPS+SPACE, vnořený cíl) nad falešným esxDOS |
 | `test_bookmarks.py` | záložky: přidání, limit 200, výběr, filtr, převod starého formátu |
+| `test_config.py` | `cc.cfg`: soubory ze všech verzí (0.6–1.3, 1.4, 1.5+), převod z 1.4, rozbité klávesy (už jednou špatně převedený soubor, 1.4 spuštěná po 1.5) → výchozí barvy a klávesy, přepínače mimo rozsah, nový soubor |
 | `test_settings.py` | nastavení: schémata, zachycení klávesy, konflikt, uložit/zrušit, zápis palety do registrů |
 | `test_mouse.py` | kmouse v obou sestaveních: klik na nápovědu klávesy (skutečné texty z CC a pluginů), pravé tlačítko = BREAK, kolečko, pravidla v panelech / menu / dialogu / pluginu, `INKEY`, `KEYSCAN_UI`, dialogy potvrzení a přepsání souboru |
 
 ## Pomocné moduly
 
 - `cctest.py` – překlad, emulovaný Next (stránky, MMU, Next registry, porty,
-  klávesnice, kmouse, přerušení), Z80N instrukce, `Typist` (mačkání kláves
+  klávesnice, kmouse, přerušení). Stroj je **1MB Next**: namapování stránky
+  nad 95 nebo Layer 2 mimo první RAM čip shodí test (zavaděč `.cc` testuje
+  i 2MB přes `DotEnv(total=224)`), Z80N instrukce, `Typist` (mačkání kláves
   přes porty), `keyscan()` (jako KEYSCAN v CC).
 - `pluginhost.py` – falešný hostitel pro prohlížeče (`*.ccp` se `SERVICE_*`).
 - `fakeesx.py` – falešný esxDOS (`RST $08`) se stromem souborů v Pythonu
@@ -72,6 +75,19 @@ Testy, které je hlídají, aby se nevrátily:
 4. **bookmarks – převod starého formátu vždy selhal** „Cannot access
    c:/sys/bookmark.cfg.“ (`test_old_format_is_migrated`): po `F_READ`/`F_WRITE`
    se nenulové BC bralo jako chyba, ale BC je počet přenesených bajtů.
+5. **CC na 1MB Nextu psal do neexistující paměti** – data prohlížeče
+   (stránka 97), pracovní stránka syscopy/dir_info (99, dot commandy 99-100) a
+   Layer 2 obrázků NXI/SCR (98-103). Všechno je teď pod 96 (mapa v `cc.asm`);
+   hlídá to každý test a `MemoryMap`.
+6. **LFN pravého panelu přetékala do katalogu** od 421. položky (stránky
+   60-79 zasahovaly do 74/76/78). Pravý panel má teď 44-63
+   (`test_pages_fit_1mb_and_do_not_overlap`).
+7. **Starý `cc.cfg` rozbil ovládání** – soubor z CC 0.6–1.3 (539–542 B) se
+   převáděl jako formát 1.4, takže z výchozích barev a kláves vznikl nesmysl
+   (šipky, ENTER, `5` = Quit…) a uložil se s verzí 1. Formát se teď pozná podle
+   toho, co soubor přepsal, a neplatné klávesy (0, BREAK, duplicita) vrátí
+   výchozí barvy i klávesy – opraví se tak i už uložené rozbité soubory
+   (`test_config.py`).
 
 Když najdeš chybu, kterou zatím neopravuješ, zapiš ji jako test s
 `@unittest.expectedFailure` – sada zůstane zelená, a až chybu opravíš, test se

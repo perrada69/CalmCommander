@@ -5,6 +5,10 @@ VIEW_PLUGIN_SIZE     equ 4096
 ; all of it; the viewer only does that for plugin types that need it.
 VIEW_PLUGIN_BIG_SIZE equ 8192
 VIEW_PLUGIN_PAGE     equ 82      ; the 8K page the plugin itself runs in
+; Layer 2 picture of the image viewers: 16K banks 32-34 = 8K pages 64-69.
+; Layer 2 has to sit in the first RAM chip and a 1MB Next has pages 0-95
+; only, so it stays below 96 (CC memory map: cc.asm).
+VIEW_L2_BANK         equ 32
 
 VIEWCTX_ABI          equ 0
 VIEWCTX_TYPE         equ 1
